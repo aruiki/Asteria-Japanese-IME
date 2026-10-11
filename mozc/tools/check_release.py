@@ -1,6 +1,6 @@
 """公開した MSI を確かめる(作業カード 35)。リリースの後に必ず回す。
 
-GitHub Releases から `Kotori64.msi` と `.sha256` を取り、次を確かめる。1 つでも外れたら終了コード 1。
+GitHub Releases から `Asteria64.msi`（旧版は `Kotori64.msi`） と `.sha256` を取り、次を確かめる。1 つでも外れたら終了コード 1。
 - SHA-256 が `.sha256` と一致する
 - MSI の大きさが 1.8 GiB 以下(GitHub Releases の 1 ファイルの上限 2 GiB の手前で気づく。カード 40)
 - MSI の ProductVersion が、比べる版(既定は 1 つ前のリリース)より大きい(上書きで入れ替わるための条件)
@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import sys
 
-REPO = "aruiki/KotoriIME-japanese-"
+REPO = "aruiki/Asteria-Japanese-IME"
 BUNDLED = ["mozc_server.exe", "mozc_tool.exe", "mozc_renderer.exe", "mozc_tip64.dll", "llama.dll",
            "zenz-v2.5-small-q8_0.gguf", "zenz-v2.5-medium-q8_0.gguf", "tinyswallow-1.5b-q5_k_m.gguf",
            "NOTICE-zenz.txt", "NOTICE-tinyswallow.txt",
@@ -51,11 +51,22 @@ def msi_version(msi: pathlib.Path) -> str:
         "$r.GetType().InvokeMember('StringData','GetProperty',$null,$r,1)")
 
 
+def choose_asset_name(names):
+    """新しい配布名を優先し、旧版の添付名をそのまま確認する。"""
+    for name in ("Asteria64.msi", "Kotori64.msi"):
+        if name in names and name + ".sha256" in names:
+            return name
+    raise ValueError("MSIと対応するsha256の添付がない")
+
+
 def download(tag: str, dest: pathlib.Path) -> pathlib.Path:
     dest.mkdir(parents=True, exist_ok=True)
-    run(["gh", "release", "download", tag, "--repo", REPO, "--pattern", "Kotori64.msi*",
+    release = json.loads(run(["gh", "release", "view", tag, "--repo", REPO,
+                              "--json", "assets"]))
+    name = choose_asset_name([asset["name"] for asset in release["assets"]])
+    run(["gh", "release", "download", tag, "--repo", REPO, "--pattern", name + "*",
          "--dir", str(dest), "--clobber"])
-    return dest / "Kotori64.msi"
+    return dest / name
 
 
 def as_tuple(v: str):
@@ -97,7 +108,7 @@ def main() -> int:
     ap.add_argument("--local", default="", help="手元の MSI の中身だけを確かめる(ハッシュと前の版は見ない)")
     args = ap.parse_args()
     check = Checks()
-    work = pathlib.Path(args.work)
+    work = pathlib.Path(args.work).resolve()
     if args.local:
         check_contents(pathlib.Path(args.local).resolve(), work, check)
     else:
@@ -108,7 +119,7 @@ def main() -> int:
         prev = tags[tags.index(tag) + 1] if tags.index(tag) + 1 < len(tags) else ""
         shutil.rmtree(work, ignore_errors=True)
         msi = download(tag, work / tag)
-        want = (work / tag / "Kotori64.msi.sha256").read_text().split()[0]
+        want = msi.with_name(msi.name + ".sha256").read_text().split()[0]
         got = hashlib.sha256(msi.read_bytes()).hexdigest()
         check(got == want, f"SHA-256 {got[:16]}…")
         ver = msi_version(msi)

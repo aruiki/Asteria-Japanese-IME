@@ -27262,7 +27262,7 @@ index 1c4726b0c..151687a06 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..2397d6ef8
+index 000000000..b8866a45c
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
 @@ -0,0 +1,189 @@
@@ -27308,7 +27308,7 @@ index 000000000..2397d6ef8
 +  if (!state.Enabled()) return false;
 +  if (action == QStringLiteral("later")) return state.Defer(now);
 +  if (action != QStringLiteral("github")) return false;
-+  const QUrl url(QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
++  const QUrl url(QStringLiteral("https://github.com/aruiki/Asteria-Japanese-IME"));
 +  return open(url) && state.Disable();
 +}
 +QString SupportToastXml() {
@@ -27489,7 +27489,7 @@ index 000000000..bfa66487c
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..2ad169541
+index 000000000..8fa3b53ac
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
 @@ -0,0 +1,70 @@
@@ -27520,7 +27520,7 @@ index 000000000..2ad169541
 +  SupportReminderState state(Path());
 +  QUrl opened;
 +  ASSERT_TRUE(HandleSupportAction(state, "github", 100, [&](const QUrl &url) { opened = url; return true; }));
-+  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
++  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Asteria-Japanese-IME"));
 +  SupportReminderState reopened(Path());
 +  EXPECT_FALSE(reopened.Enabled());
 +  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportWeekSeconds));
@@ -28659,7 +28659,7 @@ index 9c9f95e8f..5d320df18 100644
  
 diff --git a/src/rewriter/gen_kotori_english_dictionary.py b/src/rewriter/gen_kotori_english_dictionary.py
 new file mode 100644
-index 000000000..0d138b862
+index 000000000..8888f46d8
 --- /dev/null
 +++ b/src/rewriter/gen_kotori_english_dictionary.py
 @@ -0,0 +1,130 @@
@@ -28779,7 +28779,7 @@ index 000000000..0d138b862
 +読み数: {metadata['readings']} / 読みと表記の組数: {metadata['pairs']}
 +元データ取得先とSHA-256はMozcパッチのMODULE.bazel、加工手順は
 +rewriter/gen_kotori_english_dictionary.pyにあります。
-+https://github.com/aruiki/KotoriIME-japanese-/tree/codex/complete-user-improvements/mozc
++https://github.com/aruiki/Asteria-Japanese-IME/tree/codex/complete-user-improvements/mozc
 +
 +上流の免責を含め、辞書の正確性や特定目的での利用は保証されません。
 +読みが同じでも文脈により英語表記が異なる場合があります。

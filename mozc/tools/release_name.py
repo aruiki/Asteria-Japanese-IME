@@ -20,7 +20,7 @@ def release_name(tag: str, published_on: date) -> str:
         stage = f"リリース候補{number}"
     else:
         stage = "正式版"
-    return f"{tag} — {stage}（{published_on.isoformat()}）"
+    return f"Asteria {tag} — {stage}（{published_on.isoformat()}）"
 
 
 def main() -> int:

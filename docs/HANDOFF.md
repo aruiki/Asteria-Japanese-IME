@@ -1,3 +1,13 @@
+# Asteria公開名の移行（2026-10-12）
+
+利用者の「すべて移行」に従い、公開リポジトリは https://github.com/aruiki/Asteria-Japanese-IME 。originも変更済み。
+説明/Topicsと23件のリリース表示名、README/使い方/公開工具/ソース内応援URLを移行。READMEと公開本文の構成・旧版の測定値は維持。最新版のWindows表示説明もv1.1.2/Asteriaへ修正。
+Latest v1.1.2へAsteria64.msi/sha256を追加。既存Kotori64.msi/sha256は互換リンク用に保持し、将来workflowも両名添付。全タグ/リリースID/公開日/既存添付ID/digest保持、旧URL2種類の転送と両名ダウンロードHTTP200確認。
+再取得/展開check_release全項目OK、MSIは6338・SHA a968312279d33c67679436d071d78409e6c74bdebf1824e475895fe9266e420eで内容不変・未署名。
+Python14テスト、応援通知8テスト成功。Mozc作業ツリーでURL変更後パッチを再生成し全3適用成功。公開MSIの応援リンクは旧URL転送、正規URLを組み込むのは次回ビルド。
+内部Kotori識別子/保存先/UpgradeCode/タグはADR0056/0058により保持。利用者の実状態・インストールを変更していない。
+カード73、ADR0058、verification/asteria-public-migration-20261012.md。一般CI成功後にPRをmainへ統合する。実機入力/通知の確認は既存の未実施境界のまま。
+以下は履歴。
 # README図版の視認性を修正（2026-10-12）
 
 利用者の小さすぎる指摘を受け、図版7枚を横880→640の論理幅にし、主要文字を24〜38pxへ。変換結果は17→28px、500px表示時は約9.7→21.9px（2.26倍）。太字と明るい文字を使用し、横詰めを縦のカード/棒へ変更。

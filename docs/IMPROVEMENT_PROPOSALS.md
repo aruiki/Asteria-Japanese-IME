@@ -2,7 +2,7 @@
 
 作成日: 2026-09-30
 
-対象: [aruiki/KotoriIME-japanese- の main](https://github.com/aruiki/KotoriIME-japanese-/tree/3b0181218aa745bbfeb4aa6c6dd3997346603b9f)
+対象: [aruiki/Asteria-Japanese-IME の main](https://github.com/aruiki/Asteria-Japanese-IME/tree/3b0181218aa745bbfeb4aa6c6dd3997346603b9f)
 （確認時のコミット: `3b0181218aa745bbfeb4aa6c6dd3997346603b9f`、PR #92）。
 
 本書は、公開リポジトリと同じコミットのコード・評価記録・ADR を読んでまとめた**改善の提案**です。
@@ -220,32 +220,32 @@ P0 は次の品質確認で優先、P1 は P0 の結果を踏まえて進める�
 - [SPEC: 受け入れ基準など][spec] / [HANDOFF][handoff] / [作業一覧][tasks]
 - [CI][ci] / [Mozc Windows CI][mozc-ci] / [評価器][evaluator] / [評価一括実行][eval-all]
 
-[readme]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/README.md
-[mozc]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/README.md
-[eval]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/eval/README.md
-[adr12]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0012-mozc-base.md
-[adr16]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0016-generation-and-llm.md
-[adr18]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0018-speed-shortcuts-predict.md
-[adr19]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0019-typing-lag-suggest-brand.md
-[adr20]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0020-keep-sentence-choice.md
-[adr21]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0021-tab-cache-long-input.md
-[adr22]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0022-settings-ai-page.md
-[adr23]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0023-llm-weight-daily-set.md
-[ci]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/.github/workflows/ci.yml
-[mozc-ci]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/.github/workflows/mozc-windows.yml
-[evaluator]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/eval_baseline.py
-[eval-all]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/eval_all.sh
-[stress]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/stress_test.py
-[msi-card]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/tasks/done/22-mozc-msi-version.md
-[handoff]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/HANDOFF.md
-[tasks]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/tasks/README.md
-[licenses]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/licenses.md
-[spec]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/SPEC.md
-[llm-build]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/training/llm/make.sh
-[patch-tool]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/make_patches.sh
-[lm-control]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20328
-[cache]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L21171
-[segmentation]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20459
-[gpu-ui]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L19104
-[model-state]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20271
-[scoring]: https://github.com/aruiki/KotoriIME-japanese-/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L21468
+[readme]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/README.md
+[mozc]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/README.md
+[eval]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/eval/README.md
+[adr12]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0012-mozc-base.md
+[adr16]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0016-generation-and-llm.md
+[adr18]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0018-speed-shortcuts-predict.md
+[adr19]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0019-typing-lag-suggest-brand.md
+[adr20]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0020-keep-sentence-choice.md
+[adr21]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0021-tab-cache-long-input.md
+[adr22]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0022-settings-ai-page.md
+[adr23]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/adr/0023-llm-weight-daily-set.md
+[ci]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/.github/workflows/ci.yml
+[mozc-ci]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/.github/workflows/mozc-windows.yml
+[evaluator]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/eval_baseline.py
+[eval-all]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/eval_all.sh
+[stress]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/stress_test.py
+[msi-card]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/tasks/done/22-mozc-msi-version.md
+[handoff]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/HANDOFF.md
+[tasks]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/tasks/README.md
+[licenses]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/licenses.md
+[spec]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/docs/SPEC.md
+[llm-build]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/training/llm/make.sh
+[patch-tool]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/tools/make_patches.sh
+[lm-control]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20328
+[cache]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L21171
+[segmentation]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20459
+[gpu-ui]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L19104
+[model-state]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L20271
+[scoring]: https://github.com/aruiki/Asteria-Japanese-IME/blob/3b0181218aa745bbfeb4aa6c6dd3997346603b9f/mozc/patches/0002-kotori-lm-rerank.patch#L21468

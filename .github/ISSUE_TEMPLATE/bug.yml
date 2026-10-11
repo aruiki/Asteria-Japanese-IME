@@ -7,7 +7,7 @@ body:
       value: |
         報告ありがとうございます。**パスワードや個人の情報、入力した文の中身は貼らないでください。**
         誤変換(思った字にならない)は「誤変換」の方で、セキュリティの問題は SECURITY.md の方法で知らせてください。
-        先に [困ったとき](https://github.com/aruiki/KotoriIME-japanese-/blob/main/docs/USER_GUIDE.md#困ったとき) も見てください。
+        先に [困ったとき](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/USER_GUIDE.md#困ったとき) も見てください。
   - type: input
     id: version
     attributes:

@@ -1,5 +1,5 @@
 # Mozc ベースの Windows 版を作る(docs/adr/0012 の段階 1)。
-# google/mozc をコミットで固定して取得し、mozc/patches/ のパッチを当てて Kotori64.msi を作る。
+# google/mozc をコミットで固定して取得し、mozc/patches/ のパッチを当てて Asteria64.msi を作る。
 # 手順は Mozc の公式 CI(.github/workflows/windows.yaml)と docs/build_mozc_in_windows.md に合わせる。
 # 手で実行すると、できた MSI をリリースとして公開する。段階(channel)は beta・rc・stable から選ぶ
 # (docs/adr/0037、作業カード 40)。版は mozc/tools/release_tag.py が mozc/VERSION と既にあるタグから決め、
@@ -39,7 +39,7 @@ env:
 
 jobs:
   build:
-    name: Kotori64.msi (x64)
+    name: Asteria64.msi (x64)
     runs-on: windows-2025
     timeout-minutes: 120
     steps:
@@ -217,14 +217,14 @@ jobs:
         with:
           path: D:\bazel-disk-cache
           key: mozc-bazel-${{ runner.os }}-${{ env.MOZC_COMMIT }}-${{ github.run_id }}
-      # パッチで名前を Kotori にしたので、ファイル名も合わせる(docs/adr/0012 の段階 2)。
+      # 表示ブランドAsteriaに配布名を合わせる。内部Kotori名はアップグレード互換性を保持(ADR0058)。
       - name: インストーラの名前を変える
         shell: pwsh
-        run: Copy-Item mozc-src/src/bazel-bin/win32/installer/Mozc64.msi Kotori64.msi
+        run: Copy-Item mozc-src/src/bazel-bin/win32/installer/Mozc64.msi Asteria64.msi
       - uses: actions/upload-artifact@v4
         with:
-          name: Kotori64.msi
-          path: Kotori64.msi
+          name: Asteria64.msi
+          path: Asteria64.msi
           if-no-files-found: error
       - name: 版とリリースの名前を決める
         if: github.event_name == 'workflow_dispatch'
@@ -233,8 +233,11 @@ jobs:
         run: |
           $releaseName = python -X utf8 mozc/tools/release_name.py --tag $env:TAG
           if ($LASTEXITCODE -ne 0) { throw 'リリース名を決められない' }
-          $hash = (Get-FileHash ../Kotori64.msi -Algorithm SHA256).Hash.ToLower()
-          Set-Content -Encoding ascii ../Kotori64.msi.sha256 "$hash  Kotori64.msi"
+          $hash = (Get-FileHash ../Asteria64.msi -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText((Join-Path (Get-Location) '../Asteria64.msi.sha256'), "$hash  Asteria64.msi`n", [Text.Encoding]::ASCII)
+          # 旧版READMEや外部サイトのlatest/downloadリンクを継続する。
+          Copy-Item ../Asteria64.msi ../Kotori64.msi
+          [IO.File]::WriteAllText((Join-Path (Get-Location) '../Kotori64.msi.sha256'), "$hash  Kotori64.msi`n", [Text.Encoding]::ASCII)
           Write-Host "版 $env:TAG、名前 $releaseName"
           [IO.File]::AppendAllText($env:GITHUB_ENV, "RELEASE_NAME=$releaseName`n", [Text.UTF8Encoding]::new($false))
       - if: github.event_name == 'workflow_dispatch'
@@ -247,5 +250,7 @@ jobs:
           make_latest: ${{ env.MAKE_LATEST }}
           body_path: kotori/mozc/release-notes.md
           files: |
+            Asteria64.msi
+            Asteria64.msi.sha256
             Kotori64.msi
             Kotori64.msi.sha256

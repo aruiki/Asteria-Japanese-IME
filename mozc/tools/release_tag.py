@@ -59,7 +59,7 @@ def main() -> int:
     root = pathlib.Path(__file__).resolve().parents[2]
     ap = argparse.ArgumentParser()
     ap.add_argument("--channel", default="beta", choices=CHANNELS)
-    ap.add_argument("--repo", default="https://github.com/aruiki/KotoriIME-japanese-")
+    ap.add_argument("--repo", default="https://github.com/aruiki/Asteria-Japanese-IME")
     ap.add_argument("--notes", default=str(root / "mozc" / "release-notes.md"))
     args = ap.parse_args()
     base = (root / "mozc" / "VERSION").read_text(encoding="utf-8").strip()
