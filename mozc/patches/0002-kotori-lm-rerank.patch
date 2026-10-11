@@ -680,6 +680,46 @@ index 000000000..cbd6e6dc7
 +        "//conditions:default": ":llama_static",
 +    }),
 +)
+diff --git a/src/client/server_launcher.cc b/src/client/server_launcher.cc
+index d46b15cea..5d9025ee3 100644
+--- a/src/client/server_launcher.cc
++++ b/src/client/server_launcher.cc
+@@ -27,6 +27,7 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
++#include <atomic>
+ #include <cstddef>
+ #include <cstdint>
+ #include <cstring>
+@@ -40,6 +41,7 @@
+ #include "base/file_stream.h"  // IWYU pragma: keep, for debug build
+ #include "base/file_util.h"  // IWYU pragma: keep, for debug build
+ #include "base/process.h"
++#include "base/run_level.h"
+ #include "base/system_util.h"
+ #include "base/vlog.h"
+ #include "client/client.h"
+@@ -105,6 +107,19 @@ bool ServerLauncher::StartServer(ClientInterface *client) {
+     return false;
+   }
+ 
++#ifdef _WIN32
++  // Kotori: サーバーのsandboxには子プロセス・UI制限があるので、通常クライアントから起動する。
++  // 別プロセス内で待機・延期するため、TIPの寿命や入力処理にタイマーを置かない。
++  static std::atomic<bool> support_started{false};
++  bool expected = false;
++  if (!RunLevel::IsElevatedByUAC() && RunLevel::IsValidClientRunLevel() &&
++      support_started.compare_exchange_strong(expected, true)) {
++    if (!Process::SpawnMozcProcess("mozc_tool.exe", "--mode=support_reminder")) {
++      support_started.store(false);
++    }
++  }
++#endif
++
+   // ping first
+   if (client->PingServer()) {
+     return true;
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -22644,10 +22684,36 @@ index 000000000..5d10f668d
 +}  // namespace
 +}  // namespace mozc::gui
 diff --git a/src/gui/tool/BUILD.bazel b/src/gui/tool/BUILD.bazel
-index 1c4726b0c..366630008 100644
+index 1c4726b0c..dadba248c 100644
 --- a/src/gui/tool/BUILD.bazel
 +++ b/src/gui/tool/BUILD.bazel
-@@ -115,6 +115,10 @@ mozc_win32_resource_from_template(
+@@ -31,6 +31,7 @@ load(
+     "//:build_defs.bzl",
+     "MOZC_TAGS",
+     "mozc_cc_library",
++    "mozc_cc_test",
+     "mozc_select",
+     "mozc_win32_cc_prod_binary",
+     "mozc_win32_resource_from_template",
+@@ -60,14 +61,17 @@ mozc_cc_qt_library(
+     name = "mozc_tool_lib",
+     srcs = [
+         "mozc_tool_libmain.cc",
++        "kotori_support_reminder.cc",
+     ],
+     hdrs = [
+         "mozc_tool_libmain.h",
++        "kotori_support_reminder.h",
+     ],
+     deps = [
+         "//base:const",
+         "//base:init_mozc",
+         "//base:process",
++        "//base:process_mutex",
+         "//base:run_level",
+         "//base:system_util",
+         "//base:util",
+@@ -115,6 +119,10 @@ mozc_win32_resource_from_template(
      manifests = [
          "mozc_tool.exe.manifest",
      ],
@@ -22658,6 +22724,329 @@ index 1c4726b0c..366630008 100644
      tags = MOZC_TAGS.WIN_ONLY,
      target_compatible_with = ["@platforms//os:windows"],
  )
+@@ -159,3 +167,14 @@ mozc_macos_qt_application(
+     bundle_name = BRANDING + "Prelauncher",
+     deps = [":mozc_tool_main_lib"],
+ )
++
++# Kotori: ブラウザーを開かずに応援案内の保存・再表示・終了を検証する。
++mozc_cc_test(
++    name = "kotori_support_reminder_test",
++    size = "small",
++    srcs = ["kotori_support_reminder_test.cc"],
++    deps = [
++        ":mozc_tool_lib",
++        "//testing:gunit_main",
++    ],
++)
+diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
+new file mode 100644
+index 000000000..a87013377
+--- /dev/null
++++ b/src/gui/tool/kotori_support_reminder.cc
+@@ -0,0 +1,146 @@
++// Kotori: 週に一度の応援案内。リンクを開けたら以後停止する。
++#include "gui/tool/kotori_support_reminder.h"
++#include <utility>
++#include <QApplication>
++#include <QDateTime>
++#include <QDesktopServices>
++#include <QLabel>
++#include <QPushButton>
++#include <QScreen>
++#include <QTimer>
++#include <QVBoxLayout>
++#include "base/process_mutex.h"
++#include "base/system_util.h"
++#ifdef _WIN32
++#include <windows.h>
++#endif
++namespace mozc::gui {
++bool SupportReminderState::Enabled() {
++  settings_.sync();
++  return settings_.status() == QSettings::NoError &&
++      !settings_.value("disabled", false).toBool();
++}
++bool SupportReminderState::Due(qint64 now) {
++  settings_.sync();
++  // 保存できない場合は、同じお願いを繰り返さないよう表示を控える。
++  return settings_.status() == QSettings::NoError &&
++      !settings_.value("disabled", false).toBool() &&
++      now >= settings_.value("next_prompt_utc", 0).toLongLong();
++}
++bool SupportReminderState::Defer(qint64 now) {
++  settings_.setValue("next_prompt_utc", now + kSupportWeekSeconds);
++  settings_.sync();
++  return settings_.status() == QSettings::NoError;
++}
++bool SupportReminderState::Disable() {
++  settings_.setValue("disabled", true);
++  settings_.sync();
++  return settings_.status() == QSettings::NoError;
++}
++SupportReminderDialog::SupportReminderDialog(SupportReminderState &state,
++    std::function<qint64()> clock, std::function<bool(const QUrl &)> open)
++    : state_(state), clock_(std::move(clock)) {
++  setWindowTitle(QStringLiteral("Kotoriを応援する"));
++  setWindowFlag(Qt::Tool);
++  setWindowFlag(Qt::WindowStaysOnTopHint);
++  setAttribute(Qt::WA_ShowWithoutActivating);
++  auto *layout = new QVBoxLayout(this);
++  layout->setContentsMargins(24, 20, 24, 20);
++  layout->setSpacing(12);
++  auto *message = new QLabel(QStringLiteral(
++      "Kotoriの使い心地はいかがですか？\n\n"
++      "気に入っていただけたら、GitHubの ⭐ Starで応援をお願いします。\n"
++      "開発を続ける励みになります。"), this);
++  message->setWordWrap(true);
++  layout->addWidget(message);
++  auto *yes = new QPushButton(QStringLiteral("GitHubで応援する"), this);
++  yes->setObjectName("support_github");
++  yes->setAutoDefault(false);
++  layout->addWidget(yes);
++  layout->addWidget(new QLabel(QStringLiteral("リンクを開くと、以後このお願いは表示されません。"), this));
++  auto *no = new QPushButton(QStringLiteral("いいえ"), this);
++  no->setObjectName("support_later");
++  no->setAutoDefault(false);
++  layout->addWidget(no);
++  layout->addWidget(new QLabel(QStringLiteral("1週間後に再度表示されます。"), this));
++  auto *status = new QLabel(this);
++  status->setObjectName("support_status");
++  status->setWordWrap(true);
++  layout->addWidget(status);
++  connect(yes, &QPushButton::clicked, this, [this, open, status] {
++    const QUrl url(QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
++    if (!open(url)) {
++      status->setText(QStringLiteral("GitHubを開けませんでした。もう一度お試しください。"));
++      return;
++    }
++    if (!state_.Disable()) {
++      status->setText(QStringLiteral("GitHubを開きましたが、表示停止を保存できませんでした。"));
++      return;
++    }
++    accept();
++  });
++  connect(no, &QPushButton::clicked, this, [this] { reject(); });
++  resize(460, sizeHint().height());
++}
++void SupportReminderDialog::reject() {
++  state_.Defer(clock_());
++  QDialog::reject();
++}
++}  // namespace mozc::gui
++int RunKotoriSupportReminder(int argc, char *argv[]) {
++  mozc::ProcessMutex mutex("support_reminder");
++  if (!mutex.Lock()) return 0;
++  const auto clock = [] { return QDateTime::currentSecsSinceEpoch(); };
++  const QString path = QString::fromStdString(mozc::SystemUtil::GetUserProfileDirectory()) +
++      QStringLiteral("/support-reminder.ini");
++  mozc::gui::SupportReminderState state(path);
++  if (!state.Enabled()) return 0;
++  QApplication app(argc, argv);
++  app.setQuitOnLastWindowClosed(false);
++  mozc::gui::SupportReminderDialog dialog(state, clock, QDesktopServices::openUrl);
++  // 初回は起動直後を避ける。延期中は1時間に一度だけ保存状態を確認する。
++  QTimer idle;
++  QObject::connect(&idle, &QTimer::timeout, &dialog, [&] {
++    if (!state.Enabled()) { app.quit(); return; }
++    if (!state.Due(clock())) { idle.setInterval(60 * 60 * 1000); return; }
++    idle.setInterval(5000);
++#ifdef _WIN32
++    LASTINPUTINFO input = {sizeof(LASTINPUTINFO)};
++    if (!GetLastInputInfo(&input) || GetTickCount() - input.dwTime < 15000) return;
++    HDESK desktop = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS);
++    if (desktop == nullptr) return;
++    wchar_t name[64] = {};
++    DWORD needed = 0;
++    const bool usable = GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &needed) &&
++        wcscmp(name, L"Default") == 0;
++    CloseDesktop(desktop);
++    if (!usable) return;
++#endif
++    // 全画面の動画やゲームにも重ねない。
++#ifdef _WIN32
++    HWND foreground = GetForegroundWindow();
++    RECT rect = {};
++    MONITORINFO monitor = {sizeof(MONITORINFO)};
++    if (foreground != nullptr && foreground != GetDesktopWindow() &&
++        foreground != GetShellWindow() && GetWindowRect(foreground, &rect) &&
++        GetMonitorInfo(MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST), &monitor) &&
++        rect.left <= monitor.rcMonitor.left && rect.top <= monitor.rcMonitor.top &&
++        rect.right >= monitor.rcMonitor.right && rect.bottom >= monitor.rcMonitor.bottom) return;
++#endif
++    // 応答なし・強制終了・再起動でも1週間以内に再表示しない。
++    if (!state.Due(clock()) || !state.Defer(clock())) { app.quit(); return; }
++    idle.stop();
++    if (QScreen *screen = QGuiApplication::primaryScreen()) {
++      const QRect area = screen->availableGeometry();
++      dialog.move(area.right() - dialog.width() - 16,
++                  area.bottom() - dialog.height() - 16);
++    }
++    dialog.show();
++  });
++  idle.start(60 * 1000);
++  QObject::connect(&dialog, &QDialog::finished, &app, [&](int) {
++    if (!state.Enabled()) { app.quit(); return; }
++    idle.start(60 * 60 * 1000);
++  });
++  return app.exec();
++}
+diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
+new file mode 100644
+index 000000000..c4001c6a9
+--- /dev/null
++++ b/src/gui/tool/kotori_support_reminder.h
+@@ -0,0 +1,33 @@
++// Kotori: 応援案内の保存と画面。入力内容は扱わない。
++#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
++#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
++#include <QDialog>
++#include <QSettings>
++#include <QString>
++#include <QUrl>
++#include <functional>
++namespace mozc::gui {
++inline constexpr qint64 kSupportWeekSeconds = 7 * 24 * 60 * 60;
++class SupportReminderState {
++ public:
++  explicit SupportReminderState(const QString &path) : settings_(path, QSettings::IniFormat) {}
++  bool Enabled();
++  bool Due(qint64 now);
++  bool Defer(qint64 now);
++  bool Disable();
++ private:
++  QSettings settings_;
++};
++class SupportReminderDialog : public QDialog {
++ public:
++  SupportReminderDialog(SupportReminderState &state,
++      std::function<qint64()> clock, std::function<bool(const QUrl &)> open);
++ protected:
++  void reject() override;
++ private:
++  SupportReminderState &state_;
++  std::function<qint64()> clock_;
++};
++}  // namespace mozc::gui
++int RunKotoriSupportReminder(int argc, char *argv[]);
++#endif
+diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
+new file mode 100644
+index 000000000..e20f4eb1e
+--- /dev/null
++++ b/src/gui/tool/kotori_support_reminder_test.cc
+@@ -0,0 +1,88 @@
++// Kotori: 実際の保存ファイルとボタン操作で週次案内を確認する。
++#include "gui/tool/kotori_support_reminder.h"
++#include <QApplication>
++#include <QLabel>
++#include <QPushButton>
++#include <QTemporaryDir>
++#include "testing/gunit.h"
++#ifdef _WIN32
++#include <windows.h>
++#endif
++namespace mozc::gui {
++class SupportReminderTest : public testing::Test {
++ protected:
++  void SetUp() override {
++    if (QApplication::instance() == nullptr) {
++      static int argc = 1;
++      static char name[] = "support_test";
++      static char *argv[] = {name, nullptr};
++      static QApplication app(argc, argv);
++    }
++  }
++  QString Path() { return dir_.filePath("support-reminder.ini"); }
++  QTemporaryDir dir_;
++};
++TEST_F(SupportReminderTest, NewProfileAndSevenDayBoundary) {
++  SupportReminderState state(Path());
++  EXPECT_TRUE(state.Due(100));
++  ASSERT_TRUE(state.Defer(100));
++  EXPECT_FALSE(state.Due(100 + kSupportWeekSeconds - 1));
++  EXPECT_TRUE(state.Due(100 + kSupportWeekSeconds));
++}
++TEST_F(SupportReminderTest, DeferSurvivesNewProcessAndClockRollback) {
++  { SupportReminderState state(Path()); ASSERT_TRUE(state.Defer(1000)); }
++  SupportReminderState reopened(Path());
++  EXPECT_FALSE(reopened.Due(999));
++  EXPECT_FALSE(reopened.Due(1000 + kSupportWeekSeconds - 1));
++  EXPECT_TRUE(reopened.Due(1000 + kSupportWeekSeconds));
++}
++TEST_F(SupportReminderTest, GithubSuccessPermanentlyStopsAndUsesFixedUrl) {
++  SupportReminderState state(Path());
++  QUrl opened;
++  SupportReminderDialog dialog(state, [] { return 100; }, [&](const QUrl &url) { opened = url; return true; });
++  dialog.findChild<QPushButton *>("support_github")->click();
++  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
++  EXPECT_EQ(dialog.result(), QDialog::Accepted);
++  SupportReminderState reopened(Path());
++  EXPECT_FALSE(reopened.Enabled());
++  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportWeekSeconds));
++}
++TEST_F(SupportReminderTest, BrowserFailureAllowsRetry) {
++  SupportReminderState state(Path());
++  SupportReminderDialog dialog(state, [] { return 100; }, [](const QUrl &) { return false; });
++  dialog.findChild<QPushButton *>("support_github")->click();
++  EXPECT_TRUE(state.Due(100));
++  EXPECT_FALSE(dialog.findChild<QLabel *>("support_status")->text().isEmpty());
++}
++TEST_F(SupportReminderTest, NoDefersOneWeek) {
++  SupportReminderState state(Path());
++  SupportReminderDialog dialog(state, [] { return 200; }, [](const QUrl &) { return false; });
++  dialog.findChild<QPushButton *>("support_later")->click();
++  EXPECT_TRUE(state.Enabled());
++  EXPECT_FALSE(state.Due(200 + kSupportWeekSeconds - 1));
++  EXPECT_TRUE(state.Due(200 + kSupportWeekSeconds));
++}
++TEST_F(SupportReminderTest, CloseDefersAndDoesNotActivate) {
++  SupportReminderState state(Path());
++  SupportReminderDialog dialog(state, [] { return 300; }, [](const QUrl &) { return false; });
++  EXPECT_TRUE(dialog.testAttribute(Qt::WA_ShowWithoutActivating));
++#ifdef _WIN32
++  const HWND foreground = GetForegroundWindow();
++#endif
++  dialog.show();
++  QApplication::processEvents();
++#ifdef _WIN32
++  EXPECT_EQ(GetForegroundWindow(), foreground);
++#endif
++  const QString output = qEnvironmentVariable("TEST_UNDECLARED_OUTPUTS_DIR");
++  if (!output.isEmpty()) EXPECT_TRUE(dialog.grab().save(output + "/support-reminder.png"));
++  dialog.close();
++  EXPECT_FALSE(state.Due(300 + kSupportWeekSeconds - 1));
++  EXPECT_TRUE(state.Due(300 + kSupportWeekSeconds));
++}
++TEST_F(SupportReminderTest, StorageFailureDoesNotRepeatedlyPrompt) {
++  SupportReminderState state(dir_.path());
++  EXPECT_FALSE(state.Defer(100));
++  EXPECT_FALSE(state.Due(100));
++}
++}  // namespace mozc::gui
+diff --git a/src/gui/tool/mozc_tool_libmain.cc b/src/gui/tool/mozc_tool_libmain.cc
+index 200ef7201..554f63704 100644
+--- a/src/gui/tool/mozc_tool_libmain.cc
++++ b/src/gui/tool/mozc_tool_libmain.cc
+@@ -38,6 +38,7 @@
+ #include "base/init_mozc.h"
+ #include "base/run_level.h"
+ #include "gui/base/debug_util.h"
++#include "gui/tool/kotori_support_reminder.h"
+ 
+ #ifdef __APPLE__
+ #include <cstdlib>
+@@ -137,7 +138,9 @@ int RunMozcTool(int argc, char *argv[]) {
+   mozc::gui::WinUtil::KeepJumpListUpToDate();
+ #endif  // _WIN32
+ 
+-  if (absl::GetFlag(FLAGS_mode) == "config_dialog") {
++  if (absl::GetFlag(FLAGS_mode) == "support_reminder") {
++    return RunKotoriSupportReminder(argc, argv);
++  } else if (absl::GetFlag(FLAGS_mode) == "config_dialog") {
+     return RunConfigDialog(argc, argv);
+   } else if (absl::GetFlag(FLAGS_mode) == "dictionary_tool") {
+     return RunDictionaryTool(argc, argv);
 diff --git a/src/protocol/commands.proto b/src/protocol/commands.proto
 index b0c1e6cf6..d26d16a67 100644
 --- a/src/protocol/commands.proto
@@ -31452,7 +31841,7 @@ index 012d822a5..21ac2b3ec 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..2de85c4a8 100644
+index ada11a64a..ef64141a9 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,10 +32,10 @@ MAJOR = 3
@@ -31464,7 +31853,7 @@ index ada11a64a..2de85c4a8 100644
  
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
-+BUILD = 6334
++BUILD = 6336
  
  # Represent the platform and release channel.
  REVISION = 100

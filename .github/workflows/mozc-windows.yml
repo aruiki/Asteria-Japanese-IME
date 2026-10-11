@@ -188,6 +188,15 @@ jobs:
         env:
           ANDROID_NDK_HOME: ""
         run: bazelisk test //request:conversion_request_test //engine:engine_converter_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:lm_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test --config release_build --disk_cache=D:\bazel-disk-cache
+      - name: 応援案内の保存と画面を確かめる
+        shell: pwsh
+        working-directory: .\mozc-src\src
+        run: |
+          $taskQtRoot = Join-Path (Get-Location).Path 'third_party/qt'
+          $env:PATH = "$taskQtRoot/bin;$env:PATH"
+          $env:QT_PLUGIN_PATH = "$taskQtRoot/plugins"
+          bazelisk test //gui/tool:kotori_support_reminder_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # 実際のMSIで導入・TSF経由の日本語入力・アンインストールを確認する。
       # 開発者のPCではなく、この使い捨てWindowsランナーだけを変更する。
       - name: インストーラーの導入・実入力・削除を確かめる

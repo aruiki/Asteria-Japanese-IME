@@ -1,58 +1,125 @@
-**Kotori日本語入力 v1.1.0-rc.4** のリリース候補です。インストーラーの版は **3.34.6332.100** です。ローカルでビルド・変換評価・同梱物検査を終え、利用者の指定に従って先に公開します。この版を導入したWindows実機での確認とデバッグは公開後に進めます。
+<h2 align="center">
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">
+    ⬇ Kotori64.msi をダウンロード
+  </a>
+</h2>
 
-## 報告された誤変換への修正
+<p align="center">
+  <strong>Windows 10 / 11・64bit</strong>
+</p>
 
-BUILD6330/6331で「脚を炒めた」が残る報告を受け、実際のPCと学習履歴を調査しました。稼働している本体は更新済みで、AIは「痛めた」を選んでいましたが、後続の文節履歴が古い候補を先頭へ戻していました。今回の修正版へその対策を加えました。
+<p align="center">
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest">
+    <img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Kotori-AI-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=242C5C">
+  </a>
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases">
+    <img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Kotori-AI-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=242C5C">
+  </a>
+  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-242C5C?logo=windows">
+  <img alt="オフライン動作" src="https://img.shields.io/badge/AI-%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-F25C2E">
+</p>
 
-- 無関係な同音語を文全体の優先候補に上げる処理を取り除きました。特徴/特長など、説明できる意味の違いは引き続き優先します。
-- 入力中の候補とSpace変換に、同じ周囲の文を使います。
-- Windowsで遅れて候補を更新する際、現在の入力欄とフォーカスを確認します。
-- BUILD6331の実環境では、AIが選んだ「痛めた」を過去の文節履歴が「炒めた」に戻していました。AI評価済みの先頭候補を保護し、学習した別候補も残します。
-- Tabの予測をEscで閉じた直後に補正が消える不具合を直しました。同じ入力の予測を取り消す場合だけ補正結果を保ち、入力を編集した場合には使い回しません。
-- BUILD6331から上書き更新できるよう、MSIの更新番号を6332に上げました。
+> [!NOTE]
+> `Kotori64.msi` の実行時に Microsoft Defender SmartScreen の  
+> **「WindowsによってPCが保護されました」**  
+> という画面が表示される場合があります。
 
-ローカルの実モデル検証では「ため」「ので」の両方で、最初の候補とSpace後の候補が「痛めて」「医者」で一致しました。実際のWindows入力欄での結果は確認待ちです。モデルの読み込み中にすぐSpaceを押すと、通常の変換へ戻って「炒めて」が残る場合があります。
+---
 
-## 今回の変更
+## SmartScreenが表示された場合
 
-- 入力中の候補へ、AIで評価した変換と局所的な誤入力の補正を反映します。「ちょと待ってください」から「ちょっと待ってください」のように、元の漢字や周りの言葉を保って修正します。設定の「AI変換」で生成補正を切り替えられます。
-- 採用条件を満たす続き予測を入力中とTabに反映します。続きの計算中は先に評価済み本文を表示し、あとで続きに更新することがあります。
-- 長文の別候補では「特徴/特長」など意味の違いを優先し、選んだときは変わる箇所へ移動します。ほかの部分は確定せず、文節のまとまりを保ちます。
-- カタカナ語から英語の綴りを選ぶ辞書を31,068の読み・36,402組へ増やしました。architecture、accessibility、configuration、restaurantなども候補に出ます。正式な英語表記が既存の候補の奥にある場合は、そのカタカナ語の次に移します。
-- 末尾の「そのほかの文字種」の表示を省きます。F6〜F10による文字種変換は引き続き利用できます。
-- アプリ名を「Kotori」にし、ダッシュボードへAIの状態、計算時間、PCとKotoriのCPU・メモリ、CPUの推移を表示します。取得できない値は未確認と表示します。
-- Windowsの標準の操作部品とフォントを使い、表示倍率100・150・200%を確認しました。小鳥のアイコンはrc.3のデザインを引き継ぎます。
-- ダッシュボードとAI設定に開発支援のボタンを置きました。押したときだけ支援ページが開きます。
+<p align="center">
+  <img
+    src="https://www.sanwa.co.jp/static/images/seihin_joho/windows11_protection/img_1-1.png"
+    alt="WindowsによってPCが保護されました と表示されたSmartScreen画面"
+    width="500">
+</p>
 
-## 確認した範囲
+<p align="center">
+  <sub>
+    SmartScreenの日本語表示例 —
+    <a href="https://www.sanwa.co.jp/seihin_joho/windows11_protection/index.html">
+      出典：サンワサプライ
+    </a>
+  </sub>
+</p>
 
-関連するローカルの単体テスト、実際の学習履歴をコピーした隔離セッションでの実モデル18例、設定画面の描画を確認しました。英語候補の全17テストも通りました。普段の学習履歴・ユーザー辞書は変更していません。
-修正後のStandardのAJIMEE-Benchは183/200（91.5%）でした。最終評価専用の300文は、この修正前の評価で289/300（96.3%）でした。
-これは変換器を使った評価で、他のIMEとの実入力比較ではありません。
+この表示だけで、Kotoriからウイルスやマルウェアが検出されたという意味ではありません。
 
-生成補正はすべての打ち間違いを直すものではありません。10文の確認で初回の期待一致は3文から4文へ改善しました。
-名前、数値、文法を変える可能性がある修正は慎重に扱います。AIの準備中や時間上限を超えた場合は通常の変換に戻ります。
-インストール後の実アプリ入力・更新・削除は確認待ちです。詳しい境界はdocs/verification/rc4-installed-history-english-local-20261010.mdに記録しています。
+Microsoft Defender SmartScreenは、危険なファイルの検出だけでなく、
+インターネットからダウンロードしたアプリや発行元について
+**Windows上で十分な「評判（reputation）」が確立されているか**も確認しています。
 
-## 入れ方
+Microsoft公式ドキュメントでも、**署名されていないアプリでは
+「Windows が PC を保護しました」という警告が表示される**ことが説明されています。
 
-1. `Kotori64.msi`を実行します。Windowsの管理者権限の確認が表示されます。
-2. Windowsキー + Spaceで「Kotori日本語入力」を選び、半角/全角キーで日本語入力に切り替えます。
-3. デスクトップまたはスタートメニューの「Kotori」からダッシュボードと設定を開けます。
+[Microsoft公式：SmartScreenの評判について](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
 
-コード署名はまだありません。インストール中に再起動を求められたら、作業を保存してから再起動してください。
-v0.3.0-beta.6以降が上書き更新の対象です。それより前の版は先にアンインストールしてください。
-Windows 10 1809以降、64 bit。モデルと実行環境は同梱し、変換時にネットワークへ接続しません。
+---
 
-## ライセンス
+## インストールを続けるには
 
-MozcはBSD-3-Clause、zenz-v2.5-small/mediumはCC BY-SA 4.0、TinySwallow-1.5BはApache-2.0、llama.cppはMITです。
-カタカナ英語辞書はKEINOSの公開辞書を加工したCC BY-SA 3.0のデータです。変更済みTSV、出典・加工情報とライセンスの案内も同梱します。
-各ライセンスの全文または参照先はインストール先のNOTICE、LICENSE、documentsにあります。
-KotoriはGoogleが提供・推奨するものではありません。`Kotori64.msi.sha256`で配布ファイルを照合できます。
+> [!IMPORTANT]
+> このGitHub Releaseからダウンロードした  
+> **`Kotori64.msi`** であることを確認してください。
 
-## 配布ファイル
+1. <kbd>詳細情報</kbd> をクリック
+2. 表示内容を確認
+3. <kbd>実行</kbd> をクリック
 
-ソース: `3a962f4554bf8edfb72afc8872835ecd3df43df0`。すべてのビルドと今回の確認はローカルです。
-MSIのSHA-256: `2e88913147adbe49da5f32624590980b11a938ed58872fc0235d0206b4467e17`。
-サイズは1,569,157,120bytes、同梱48ファイル。`release-evidence.json`と`source-manifest.json`に出所と確認範囲を記録しています。
+これで通常のKotoriインストーラーが起動します。
+
+**SmartScreenやMicrosoft Defenderを無効にする必要はありません。**
+
+---
+
+## なぜこの警告が出るの？
+
+SmartScreenは単純なウイルス検査だけではなく、
+ファイルや発行元の**評判**も利用して判断しています。
+
+そのため、
+
+**「WindowsによってPCが保護されました」  
+＝「マルウェアが検出された」**
+
+ではありません。
+
+Kotoriはソースコードを公開しているオープンソースソフトウェアです。
+
+<details>
+<summary><strong>安全性についてさらに確認する</strong></summary>
+
+<br>
+
+- [ソースコード](https://github.com/aruiki/Kotori-AI-Japanese-IME)
+- [最新Release](https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest)
+- [Security Policy](https://github.com/aruiki/Kotori-AI-Japanese-IME/security/policy)
+- [Microsoft公式：SmartScreenの仕組み](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
+
+KotoriのAIモデル・辞書・日本語変換処理はPC内で動作し、
+**入力した文章をKotoriのサーバーや外部AIサービスへ送信しません。**
+
+</details>
+
+---
+
+> [!WARNING]
+> SmartScreenの「認識されていないアプリ」という警告ではなく、
+> Microsoft Defenderなどから**具体的な脅威名やマルウェア名**が表示された場合は実行しないでください。
+
+---
+
+## 今回の更新（v1.1.1）
+
+Kotoriを気に入っていただけた方へ、GitHubの ⭐ Starで応援をお願いする案内を追加しました。
+
+- 「GitHubで応援する」でページを開くと、以後このお願いは表示されません。
+- 「いいえ」または閉じる操作では、1週間後に再度表示します。
+- 入力処理とは別に確認し、操作が落ち着いたタイミングで表示します。入力内容は収集しません。
+- 停止・延期の状態はPC内に保存し、アップデート後も引き継ぎます。
+
+インストーラーの内部版は **3.34.6336.100** です。コード署名は引き続きありません。
+Windowsで案内の7テスト・関連9テスト対象と、100%・200%の画面表示を確認しました。
+今回のMSIをこのPCへ導入しての実入力・アンインストール確認は未実施です。
+詳細は[検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.1/docs/verification/github-support-reminder-20261011.md)をご覧ください。
