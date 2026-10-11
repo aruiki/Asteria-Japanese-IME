@@ -21,7 +21,7 @@ check_release.py --localの全項目成功。AIモデル3件・推論runtime18�
 クライアント・request・engine・model identity・nuance・LM・英語・diagnostics・sessionの9テスト対象が成功。
 Windowsネイティブ描画は100%・200%で確認し、両方でforegroundを維持。最終ソースの123入力と再生成パッチを固定。
 ビルド入力コミットc5c773db4b0eac4817d9e030df120e0ab7a99637。以後の差分は文書と公開ノートだけ。
-現時点では公開の準備が完了し、1.1.1をLatest正式版として公開する。
+v1.1.1をLatest正式版として公開済み（release409577311）。PR151をmerge commit b5113b1582d8be125f5eca0a305a52c0edcc23a9で統合。タグも同コミット。公開APIのMSI size/digestは上記と一致。旧v1.1.0公開本文を全文保持し、更新説明だけを追加したことを公開前に照合。一般CIは最終文書コミットでも全7項目成功（run38129365919）。クラウドMozc run38129365966はローカル指定に従ってcancelled。
 新MSIの実機導入・日本語入力・削除、7日間の実時間待機は未実施。単体テストの時計で7日境界を確認した。
 ローカルビルド指定（HANDOFF・ADR0054）に従い、PRで自動開始したMozcクラウドビルドはキャンセル。一般CIは最終入力c5c773dで全7項目成功（run38128444010）。Mozcクラウドrun38128444011はcancelled。キャンセルを成功扱いしない。
 
