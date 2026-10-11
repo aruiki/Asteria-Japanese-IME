@@ -680,6 +680,46 @@ index 000000000..cbd6e6dc7
 +        "//conditions:default": ":llama_static",
 +    }),
 +)
+diff --git a/src/client/server_launcher.cc b/src/client/server_launcher.cc
+index d46b15cea..5d9025ee3 100644
+--- a/src/client/server_launcher.cc
++++ b/src/client/server_launcher.cc
+@@ -27,6 +27,7 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
++#include <atomic>
+ #include <cstddef>
+ #include <cstdint>
+ #include <cstring>
+@@ -40,6 +41,7 @@
+ #include "base/file_stream.h"  // IWYU pragma: keep, for debug build
+ #include "base/file_util.h"  // IWYU pragma: keep, for debug build
+ #include "base/process.h"
++#include "base/run_level.h"
+ #include "base/system_util.h"
+ #include "base/vlog.h"
+ #include "client/client.h"
+@@ -105,6 +107,19 @@ bool ServerLauncher::StartServer(ClientInterface *client) {
+     return false;
+   }
+ 
++#ifdef _WIN32
++  // Kotori: サーバーのsandboxには子プロセス・UI制限があるので、通常クライアントから起動する。
++  // 別プロセス内で待機・延期するため、TIPの寿命や入力処理にタイマーを置かない。
++  static std::atomic<bool> support_started{false};
++  bool expected = false;
++  if (!RunLevel::IsElevatedByUAC() && RunLevel::IsValidClientRunLevel() &&
++      support_started.compare_exchange_strong(expected, true)) {
++    if (!Process::SpawnMozcProcess("mozc_tool.exe", "--mode=support_reminder")) {
++      support_started.store(false);
++    }
++  }
++#endif
++
+   // ping first
+   if (client->PingServer()) {
+     return true;
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -22701,10 +22741,10 @@ index 1c4726b0c..dadba248c 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..c9ccbc68e
+index 000000000..a87013377
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,146 @@
 +// Kotori: 週に一度の応援案内。リンクを開けたら以後停止する。
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <utility>
@@ -22713,6 +22753,7 @@ index 000000000..c9ccbc68e
 +#include <QDesktopServices>
 +#include <QLabel>
 +#include <QPushButton>
++#include <QScreen>
 +#include <QTimer>
 +#include <QVBoxLayout>
 +#include "base/process_mutex.h"
@@ -22721,6 +22762,11 @@ index 000000000..c9ccbc68e
 +#include <windows.h>
 +#endif
 +namespace mozc::gui {
++bool SupportReminderState::Enabled() {
++  settings_.sync();
++  return settings_.status() == QSettings::NoError &&
++      !settings_.value("disabled", false).toBool();
++}
 +bool SupportReminderState::Due(qint64 now) {
 +  settings_.sync();
 +  // 保存できない場合は、同じお願いを繰り返さないよう表示を控える。
@@ -22743,6 +22789,7 @@ index 000000000..c9ccbc68e
 +    : state_(state), clock_(std::move(clock)) {
 +  setWindowTitle(QStringLiteral("Kotoriを応援する"));
 +  setWindowFlag(Qt::Tool);
++  setWindowFlag(Qt::WindowStaysOnTopHint);
 +  setAttribute(Qt::WA_ShowWithoutActivating);
 +  auto *layout = new QVBoxLayout(this);
 +  layout->setContentsMargins(24, 20, 24, 20);
@@ -22794,16 +22841,16 @@ index 000000000..c9ccbc68e
 +  const QString path = QString::fromStdString(mozc::SystemUtil::GetUserProfileDirectory()) +
 +      QStringLiteral("/support-reminder.ini");
 +  mozc::gui::SupportReminderState state(path);
-+  if (!state.Due(clock())) return 0;
++  if (!state.Enabled()) return 0;
 +  QApplication app(argc, argv);
++  app.setQuitOnLastWindowClosed(false);
 +  mozc::gui::SupportReminderDialog dialog(state, clock, QDesktopServices::openUrl);
-+  // 打鍵直後やロック画面には出さない。5分で出せなければ次の定期確認に任せる。
++  // 初回は起動直後を避ける。延期中は1時間に一度だけ保存状態を確認する。
 +  QTimer idle;
-+  QTimer deadline;
-+  deadline.setSingleShot(true);
-+  QObject::connect(&deadline, &QTimer::timeout, &app, &QApplication::quit);
-+  deadline.start(5 * 60 * 1000);
 +  QObject::connect(&idle, &QTimer::timeout, &dialog, [&] {
++    if (!state.Enabled()) { app.quit(); return; }
++    if (!state.Due(clock())) { idle.setInterval(60 * 60 * 1000); return; }
++    idle.setInterval(5000);
 +#ifdef _WIN32
 +    LASTINPUTINFO input = {sizeof(LASTINPUTINFO)};
 +    if (!GetLastInputInfo(&input) || GetTickCount() - input.dwTime < 15000) return;
@@ -22816,22 +22863,40 @@ index 000000000..c9ccbc68e
 +    CloseDesktop(desktop);
 +    if (!usable) return;
 +#endif
++    // 全画面の動画やゲームにも重ねない。
++#ifdef _WIN32
++    HWND foreground = GetForegroundWindow();
++    RECT rect = {};
++    MONITORINFO monitor = {sizeof(MONITORINFO)};
++    if (foreground != nullptr && foreground != GetDesktopWindow() &&
++        foreground != GetShellWindow() && GetWindowRect(foreground, &rect) &&
++        GetMonitorInfo(MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST), &monitor) &&
++        rect.left <= monitor.rcMonitor.left && rect.top <= monitor.rcMonitor.top &&
++        rect.right >= monitor.rcMonitor.right && rect.bottom >= monitor.rcMonitor.bottom) return;
++#endif
 +    // 応答なし・強制終了・再起動でも1週間以内に再表示しない。
 +    if (!state.Due(clock()) || !state.Defer(clock())) { app.quit(); return; }
 +    idle.stop();
-+    deadline.stop();
++    if (QScreen *screen = QGuiApplication::primaryScreen()) {
++      const QRect area = screen->availableGeometry();
++      dialog.move(area.right() - dialog.width() - 16,
++                  area.bottom() - dialog.height() - 16);
++    }
 +    dialog.show();
 +  });
-+  idle.start(5000);
-+  QObject::connect(&dialog, &QDialog::finished, &app, &QApplication::quit);
++  idle.start(60 * 1000);
++  QObject::connect(&dialog, &QDialog::finished, &app, [&](int) {
++    if (!state.Enabled()) { app.quit(); return; }
++    idle.start(60 * 60 * 1000);
++  });
 +  return app.exec();
 +}
 diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
 new file mode 100644
-index 000000000..7f3d29893
+index 000000000..c4001c6a9
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.h
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,33 @@
 +// Kotori: 応援案内の保存と画面。入力内容は扱わない。
 +#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
@@ -22845,6 +22910,7 @@ index 000000000..7f3d29893
 +class SupportReminderState {
 + public:
 +  explicit SupportReminderState(const QString &path) : settings_(path, QSettings::IniFormat) {}
++  bool Enabled();
 +  bool Due(qint64 now);
 +  bool Defer(qint64 now);
 +  bool Disable();
@@ -22866,10 +22932,10 @@ index 000000000..7f3d29893
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..5b9557449
+index 000000000..e20f4eb1e
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,88 @@
 +// Kotori: 実際の保存ファイルとボタン操作で週次案内を確認する。
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QApplication>
@@ -22877,6 +22943,9 @@ index 000000000..5b9557449
 +#include <QPushButton>
 +#include <QTemporaryDir>
 +#include "testing/gunit.h"
++#ifdef _WIN32
++#include <windows.h>
++#endif
 +namespace mozc::gui {
 +class SupportReminderTest : public testing::Test {
 + protected:
@@ -22913,6 +22982,7 @@ index 000000000..5b9557449
 +  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
 +  EXPECT_EQ(dialog.result(), QDialog::Accepted);
 +  SupportReminderState reopened(Path());
++  EXPECT_FALSE(reopened.Enabled());
 +  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportWeekSeconds));
 +}
 +TEST_F(SupportReminderTest, BrowserFailureAllowsRetry) {
@@ -22926,6 +22996,7 @@ index 000000000..5b9557449
 +  SupportReminderState state(Path());
 +  SupportReminderDialog dialog(state, [] { return 200; }, [](const QUrl &) { return false; });
 +  dialog.findChild<QPushButton *>("support_later")->click();
++  EXPECT_TRUE(state.Enabled());
 +  EXPECT_FALSE(state.Due(200 + kSupportWeekSeconds - 1));
 +  EXPECT_TRUE(state.Due(200 + kSupportWeekSeconds));
 +}
@@ -22933,8 +23004,14 @@ index 000000000..5b9557449
 +  SupportReminderState state(Path());
 +  SupportReminderDialog dialog(state, [] { return 300; }, [](const QUrl &) { return false; });
 +  EXPECT_TRUE(dialog.testAttribute(Qt::WA_ShowWithoutActivating));
++#ifdef _WIN32
++  const HWND foreground = GetForegroundWindow();
++#endif
 +  dialog.show();
 +  QApplication::processEvents();
++#ifdef _WIN32
++  EXPECT_EQ(GetForegroundWindow(), foreground);
++#endif
 +  const QString output = qEnvironmentVariable("TEST_UNDECLARED_OUTPUTS_DIR");
 +  if (!output.isEmpty()) EXPECT_TRUE(dialog.grab().save(output + "/support-reminder.png"));
 +  dialog.close();
@@ -30966,43 +31043,30 @@ index 000000000..608d25545
 +
 +#endif  // MOZC_REWRITER_ZENZ_SCORER_H_
 diff --git a/src/server/BUILD.bazel b/src/server/BUILD.bazel
-index 8d6a411ec..6ec20bdc5 100644
+index 8d6a411ec..22f2a433c 100644
 --- a/src/server/BUILD.bazel
 +++ b/src/server/BUILD.bazel
-@@ -98,7 +98,9 @@ mozc_cc_library(
+@@ -98,6 +98,7 @@ mozc_cc_library(
      copts = ["$(STACK_FRAME_UNLIMITED)"],  # mozc_server.cc
      deps = [
          "//base:init_mozc",
 +        "//base:kotori_diagnostics",
          "//base:process_mutex",
-+        "//base:process",
          "//base:run_level",
          "//base:system_util",
-         "//base:vlog",
 diff --git a/src/server/mozc_server.cc b/src/server/mozc_server.cc
-index eda5d517e..50cd1783f 100644
+index eda5d517e..2c99a39c7 100644
 --- a/src/server/mozc_server.cc
 +++ b/src/server/mozc_server.cc
-@@ -30,6 +30,8 @@
- #include "server/mozc_server.h"
- 
- #include <bit>
-+#include <chrono>
-+#include <thread>
- #include <memory>
- #include <string>
- 
-@@ -38,7 +40,9 @@
+@@ -38,6 +38,7 @@
  #include "absl/log/check.h"
  #include "absl/log/log.h"
  #include "base/init_mozc.h"
 +#include "base/kotori_diagnostics.h"
  #include "base/process_mutex.h"
-+#include "base/process.h"
  #include "base/run_level.h"
  #include "base/system_util.h"
- #include "base/vlog.h"
-@@ -84,6 +88,9 @@ void InitMozcAndMozcServer(const char *arg0, int *argc, char ***argv,
+@@ -84,6 +85,9 @@ void InitMozcAndMozcServer(const char *arg0, int *argc, char ***argv,
    }
  
    mozc::InitMozc(arg0, argc, argv);
@@ -31012,23 +31076,6 @@ index eda5d517e..50cd1783f 100644
  
    if (run_level == mozc::RunLevel::RESTRICTED) {
      MOZC_VLOG(1) << "Mozc server starts with timeout mode";
-@@ -112,6 +119,16 @@ int MozcServer::Run() {
- #if defined(_WIN32)
-     // On Windows, ShutdownSessionCallback is not called intentionally in order
-     // to avoid crashes oritinates from it. See b/2696087.
-+    // Kotori: キー入力とは独立して案内を確認する。制限付き入力では起動しない。
-+    if (!absl::GetFlag(FLAGS_restricted)) {
-+      std::thread([] {
-+        std::this_thread::sleep_for(std::chrono::seconds(60));
-+        for (;;) {
-+          mozc::Process::SpawnMozcProcess("mozc_tool.exe", "--mode=support_reminder");
-+          std::this_thread::sleep_for(std::chrono::hours(1));
-+        }
-+      }).detach();
-+    }
-     g_session_server->Loop();
- #else   // defined(_WIN32)
-     // Create a new thread.
 diff --git a/src/session/BUILD.bazel b/src/session/BUILD.bazel
 index 2da5b8d46..837bb82ff 100644
 --- a/src/session/BUILD.bazel
