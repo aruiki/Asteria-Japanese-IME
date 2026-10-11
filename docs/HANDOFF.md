@@ -1,3 +1,20 @@
+# Asteria v1.1.2正式公開・Windows通知版6338（2026-10-11）
+
+利用者の「そのまま公開」に従い、6338ローカルMSIを再ビルドせずLatestとして公開。
+URL: https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/tag/v1.1.2 。release409720573。
+PR153をmainへmerge commit e94a9b23b891ccc498ed121f51c8a19cb9ef539fで統合、タグも同じ。公開用head55a9c37とtree一致。
+一般CI run38147576524は7ジョブsuccess。ローカルビルド指定でMozcクラウドrun38147576662はcancelled。成功扱いしない。
+旧リリース本文の全文/書式を保持しv1.1.2説明のみ末尾追加。公開後も本文、タグ、MSI digest/size一致。
+
+公開MSI3.34.6338.100、SHA a968312279d33c67679436d071d78409e6c74bdebf1824e475895fe9266e420e、1,569,386,496bytes、48ファイル、未署名。
+公開後check_release.py全項目成功。再取得SHA、先頭3項目6336→6338、同梱物/版/サイズ/除外物を確認。
+モデル/推論runtime22ファイルは前版とSHA一致。実利用者の案内状態を変更・削除していない。
+Asteriaの月のデザインとREADME/図版、読みやすいMSI進行状況、Windows標準の応援通知を含む。
+
+実導入・通知の実画面/通知センターからの操作・IME実入力・削除は未実施。公開ノートに明記済み。
+次の作業は更新版の実機確認。記録verification/windows-support-toast-20261011.md、カード70/71、ADR0056/0057。
+以下は履歴。
+
 # Windows標準の応援通知へ変更・6338ローカルMSI完成（2026-10-11）
 
 利用者は独立ウィンドウではなくWindows通知を希望。ToastGeneric＋COM activatorへ変更。通知センターから後日操作可能な構成。
