@@ -1,6 +1,6 @@
 <h2 align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">
-    ⬇ Kotori64.msi をダウンロード
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">
+    ⬇ Asteria64.msi をダウンロード
   </a>
 </h2>
 
@@ -9,18 +9,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest">
-    <img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Kotori-AI-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=242C5C">
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest">
+    <img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=242C5C">
   </a>
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases">
-    <img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Kotori-AI-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=242C5C">
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases">
+    <img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=242C5C">
   </a>
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-242C5C?logo=windows">
   <img alt="オフライン動作" src="https://img.shields.io/badge/AI-%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-F25C2E">
 </p>
 
 > [!NOTE]
-> `Kotori64.msi` の実行時に Microsoft Defender SmartScreen の  
+> `Asteria64.msi` の実行時に Microsoft Defender SmartScreen の<br>
 > **「WindowsによってPCが保護されました」**  
 > という画面が表示される場合があります。
 
@@ -44,7 +44,7 @@
   </sub>
 </p>
 
-この表示だけで、Kotoriからウイルスやマルウェアが検出されたという意味ではありません。
+この表示だけで、Asteriaからウイルスやマルウェアが検出されたという意味ではありません。
 
 Microsoft Defender SmartScreenは、危険なファイルの検出だけでなく、
 インターネットからダウンロードしたアプリや発行元について
@@ -61,13 +61,13 @@ Microsoft公式ドキュメントでも、**署名されていないアプリで
 
 > [!IMPORTANT]
 > このGitHub Releaseからダウンロードした  
-> **`Kotori64.msi`** であることを確認してください。
+> **`Asteria64.msi`** であることを確認してください。
 
 1. <kbd>詳細情報</kbd> をクリック
 2. 表示内容を確認
 3. <kbd>実行</kbd> をクリック
 
-これで通常のKotoriインストーラーが起動します。
+これで通常のAsteriaインストーラーが起動します。
 
 **SmartScreenやMicrosoft Defenderを無効にする必要はありません。**
 
@@ -85,20 +85,20 @@ SmartScreenは単純なウイルス検査だけではなく、
 
 ではありません。
 
-Kotoriはソースコードを公開しているオープンソースソフトウェアです。
+Asteriaはソースコードを公開しているオープンソースソフトウェアです。
 
 <details>
 <summary><strong>安全性についてさらに確認する</strong></summary>
 
 <br>
 
-- [ソースコード](https://github.com/aruiki/Kotori-AI-Japanese-IME)
-- [最新Release](https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest)
-- [Security Policy](https://github.com/aruiki/Kotori-AI-Japanese-IME/security/policy)
+- [ソースコード](https://github.com/aruiki/Asteria-Japanese-IME)
+- [最新Release](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest)
+- [Security Policy](https://github.com/aruiki/Asteria-Japanese-IME/security/policy)
 - [Microsoft公式：SmartScreenの仕組み](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
 
-KotoriのAIモデル・辞書・日本語変換処理はPC内で動作し、
-**入力した文章をKotoriのサーバーや外部AIサービスへ送信しません。**
+AsteriaのAIモデル・辞書・日本語変換処理はPC内で動作し、
+**入力した文章をAsteriaのサーバーや外部AIサービスへ送信しません。**
 
 </details>
 
@@ -122,7 +122,7 @@ Kotoriを気に入っていただけた方へ、GitHubの ⭐ Starで応援を�
 インストーラーの内部版は **3.34.6336.100** です。コード署名は引き続きありません。
 Windowsで案内の7テスト・関連9テスト対象と、100%・200%の画面表示を確認しました。
 今回のMSIをこのPCへ導入しての実入力・アンインストール確認は未実施です。
-詳細は[検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.1/docs/verification/github-support-reminder-20261011.md)をご覧ください。
+詳細は[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.1/docs/verification/github-support-reminder-20261011.md)をご覧ください。
 
 ---
 
@@ -140,4 +140,4 @@ GitHubでの応援をお願いする案内を、Windows標準の通知へ変更�
 インストーラーの内部版は **3.34.6338.100** です。コード署名は引き続きありません。
 ローカルのWindowsビルド、通知の8テスト、実行ファイルのCOM応答処理、MSIの通知登録と版番号を確認しました。
 今回のMSIを導入してのWindows通知の実表示・通知センターからのボタン操作・日本語入力・アンインストール確認は未実施です。
-詳細は[通知の検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.2/docs/verification/windows-support-toast-20261011.md)と[デザインの検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.2/docs/verification/asteria-moon-20261011.md)をご覧ください。
+詳細は[通知の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.2/docs/verification/windows-support-toast-20261011.md)と[デザインの検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.2/docs/verification/asteria-moon-20261011.md)をご覧ください。

@@ -132,7 +132,7 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  Asteria は Qt を改変していません。設定画面(mozc_tool.exe)が上の DLL を動的に読み込みます。\n"
     "  - ソース: https://download.qt.io/archive/qt/6.9/6.9.1/submodules/qtbase-everywhere-src-6.9.1.tar.xz\n"
     "  - ビルドの手順: Mozc の src/build_tools/build_qt.py(Asteria が固定している Mozc のコミットのもの。\n"
-    "    https://github.com/aruiki/KotoriIME-japanese- の docs/DEVELOPMENT.md)\n"
+    "    https://github.com/aruiki/Asteria-Japanese-IME の docs/DEVELOPMENT.md)\n"
     "  - 差し替え方: 同じ版(6.9.x)で、同じ設定でビルドした DLL を、インストール先の同じ名前のファイルと\n"
     "    置き換えると、その Qt で動きます。\n"
     "  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。\n\n"

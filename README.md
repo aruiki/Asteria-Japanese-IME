@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest"><img alt="正式版" src="https://img.shields.io/github/v/release/aruiki/Kotori-AI-Japanese-IME?label=%E6%AD%A3%E5%BC%8F%E7%89%88&color=111C2D"></a>
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Kotori-AI-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="正式版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%AD%A3%E5%BC%8F%E7%89%88&color=111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
   <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-536779">
 </p>
 
 <p align="center">
   Asteriaは、Kotori日本語入力の新しいブランド名です。<br>
-  現在配布中のv1.1.1は、Windows上では「Kotori」と表示されます。
+  現在配布中のv1.1.2から、Windows上の表示も「Asteria」に揃えています。
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Asteria日本語入力をダウンロード</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
 </h2>
 
 <p align="center">
@@ -124,11 +124,11 @@ Asteriaには、カタカナ語から英語表記を選べる辞書も標準搭�
 
 ### 1. MSIをダウンロード
 
-[**Kotori64.msi をダウンロード**](https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi)
+[**Asteria64.msi をダウンロード**](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi)
 
 ### 2. インストーラーを実行
 
-`Kotori64.msi` を開いてインストールします。
+`Asteria64.msi` を開いてインストールします。
 
 Windowsから「WindowsによってPCが保護されました」と表示された場合は、
 
@@ -136,17 +136,17 @@ Windowsから「WindowsによってPCが保護されました」と表示され�
 
 を選択してください。
 
-### 3. Kotoriへ切り替える
+### 3. Asteriaへ切り替える
 
 インストール後、
 
 **Windowsキー + Space**
 
-から **Kotori日本語入力** を選択します。
+から **Asteria日本語入力** を選択します。
 
 日本語入力を始められます。
 
-設定はデスクトップの **「Kotori日本語入力の設定」** から変更できます。
+設定はデスクトップの **「Asteria」** から変更できます。
 
 ---
 
@@ -225,7 +225,7 @@ AsteriaのAIモデル、辞書、変換処理はすべてPC内で動作します
 
 にまとめています。
 
-不具合・誤変換・要望は [Issues](https://github.com/aruiki/Kotori-AI-Japanese-IME/issues/new/choose) へお願いします。
+不具合・誤変換・要望は [Issues](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose) へお願いします。
 
 ---
 
@@ -261,7 +261,7 @@ Mozcへの変更はBSD-3-Clauseです。
 ---
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Asteria日本語入力を試す</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">⬇ Asteria日本語入力を試す</a>
 </h2>
 
 <p align="center">

@@ -7,7 +7,7 @@ Kotori は Mozc(google/mozc、BSD-3-Clause)をベースにし、LM のリラン�
 開発の手順(作業ツリー、ビルド、評価、パッチの作り直し、リリース)は `docs/DEVELOPMENT.md` の 1 章、
 パッチのファイルごとの目的と ADR の索引は `patches/README.md`(下の説明より新しい)。
 
-- `.github/workflows/mozc-windows.yml`: Windows のインストーラ(`Kotori64.msi`)を作る。
+- `.github/workflows/mozc-windows.yml`: Windows のインストーラ(`Asteria64.msi`)を作る。
   Actions の「Mozc (Windows)」を手で実行するか、このフォルダを変える PR で動く。
   できた MSI は Actions の成果物(Artifacts)からダウンロードできる。手で実行すると、MSI を最新の
   リリース(Latest)として公開する。版は `VERSION` の beta の番号を1つ進め(例 `v0.2.0-beta.1`)、

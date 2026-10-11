@@ -10,7 +10,7 @@
 1. Git for Windows(`git config --global core.autocrlf false`)、GitHub CLI(`gh`)。
 2. Visual Studio 2022 Build Tools の「C++ によるデスクトップ開発」。
 3. Python 3(評価の道具)、Bazelisk(`winget install Bazel.Bazelisk`)。
-4. このリポジトリ(`git clone --recurse-submodules https://github.com/aruiki/KotoriIME-japanese-.git`)。
+4. このリポジトリ(`git clone --recurse-submodules https://github.com/aruiki/Asteria-Japanese-IME.git`)。
 
 ### 1.2 Mozc の作業ツリーを作る
 
@@ -74,7 +74,7 @@ bash mozc/tools/make_patches.sh ~/mz <google/mozc の clone(~/mz でよい)>
    | `stable` | `v<VERSION>` | Latest。リリースノートに「ベータ版」が残っていたら失敗する |
 
    表示名は `mozc/tools/release_name.py` が版・段階・日本時間の公開日の順に作る。
-   例: `v1.1.0-rc.3 — リリース候補3（2026-10-09）`。タグと公開区分は変えない。
+   例: `Asteria v1.1.0-rc.3 — リリース候補3（2026-10-09）`。タグと公開区分は変えない。
    GitHubのLatestはプレリリースを対象にしないため、試用版への案内はREADMEにも置く。
 
    版は `mozc/tools/release_tag.py` が `mozc/VERSION` と既にあるタグから決める(ビルドの前に決めるので、失敗は早い)。
@@ -108,8 +108,8 @@ CIのソースhead・checkout commit・run IDと公開用commitを残し、CI ar
 5. 取得:
 
    ```sh
-   git clone --recurse-submodules https://github.com/aruiki/KotoriIME-japanese-.git
-   cd KotoriIME-japanese-
+   git clone --recurse-submodules https://github.com/aruiki/Asteria-Japanese-IME.git
+   cd Asteria-Japanese-IME
    ```
 
    すでに clone してあるなら `git submodule update --init`(`third_party/llama.cpp` が要る)。

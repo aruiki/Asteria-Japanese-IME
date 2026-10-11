@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Kotori日本語入力を開発する AI エージェント(Claude Code、Codex など)向けの作業規約。人間の開発者にも当てはまる。
+Asteria日本語入力を開発する AI エージェント(Claude Code、Codex など)向けの作業規約。人間の開発者にも当てはまる。
 
 **最初に読む(この順)**: `docs/HANDOFF.md`(現状・次の作業)→ `docs/DEVELOPMENT.md`(環境・コマンド・リリース)→
 `docs/tasks/README.md`(作業カード)→ 作業に関係する `docs/adr/`。仕様の全体は `docs/SPEC.md`。
@@ -9,7 +9,7 @@ Kotori日本語入力を開発する AI エージェント(Claude Code、Codex �
 
 - 製品は **Mozc をベースにした Windows の IME**(docs/adr/0012)。google/mozc をコミットで固定して取得し、
   `mozc/patches/` のパッチで AI の変換(zenz-v2.5 の生成・採点、TinySwallow-1.5B の採点、入力中の予測)と
-  設定画面、インストーラを加える。配布は GitHub Releases の `Kotori64.msi`。
+  設定画面、インストーラを加える。配布は GitHub Releases の `Asteria64.msi`。
 - `crates/`・`frontends/`・`justfile` の Rust のエンジンと自前の TSF TIP は **旧 Rust 版**。評価の基準として残すが、
   機能は足さない(CI が緑のままであればよい)。
 - 目標は「高品質版 Google 日本語入力」(docs/adr/0014)。**精度はもう十分**なので、今は精度(Standard で
@@ -74,7 +74,7 @@ Kotori日本語入力を開発する AI エージェント(Claude Code、Codex �
   squash は積み重ねた PR で衝突を起こすので、マージコミットを使う。
 - **CI を待たずにマージした(#125)**: `gh pr checks` は、push の直後はチェックがまだ 1 つも出ていない
   (「no checks reported」)。「pending がない」だけを見て待つと、CI が始まる前にマージしてしまう。チェックが
-  出そろい(Kotori64.msi を含む)、pending が 0、fail が 0 であることを確かめてからマージする。
+  出そろい(Asteria64.msi を含む)、pending が 0、fail が 0 であることを確かめてからマージする。
 - **MSI の版**: リリースごとに `version.bzl` の BUILD を上げている(カード 22、35)。同じ版の MSI を上書きしても
   ファイルは入れ替わらない。Mozc の `mozc_version.py` は `BUILD = <数>` の数しか読まない(足し算は無視される)。
   CI のログで書き換えが成功していても、**出来上がった MSI の ProductVersion で確かめる**(beta.5 で見落とした)。

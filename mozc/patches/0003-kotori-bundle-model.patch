@@ -1070,7 +1070,7 @@ index 000000000..990756638
 +==============================================================================
 diff --git a/src/data/kotori/NOTICE-third-party.txt b/src/data/kotori/NOTICE-third-party.txt
 new file mode 100644
-index 000000000..acfd99ec6
+index 000000000..e3e387460
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-third-party.txt
 @@ -0,0 +1,33 @@
@@ -1092,7 +1092,7 @@ index 000000000..acfd99ec6
 +  Asteria は Qt を改変していません。設定画面(mozc_tool.exe)が上の DLL を動的に読み込みます。
 +  - ソース: https://download.qt.io/archive/qt/6.9/6.9.1/submodules/qtbase-everywhere-src-6.9.1.tar.xz
 +  - ビルドの手順: Mozc の src/build_tools/build_qt.py(Asteria が固定している Mozc のコミットのもの。
-+    https://github.com/aruiki/KotoriIME-japanese- の docs/DEVELOPMENT.md)
++    https://github.com/aruiki/Asteria-Japanese-IME の docs/DEVELOPMENT.md)
 +  - 差し替え方: 同じ版(6.9.x)で、同じ設定でビルドした DLL を、インストール先の同じ名前のファイルと
 +    置き換えると、その Qt で動きます。
 +  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。
