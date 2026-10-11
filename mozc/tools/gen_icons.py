@@ -11,7 +11,7 @@ from pathlib import Path
 import skia
 from PIL import Image
 
-from kotori_mark import (SANS, SANS_BOLD, SERIF, SHU, U, WHITE, glyph_path, paint, product,
+from kotori_mark import (SANS, SANS_BOLD, SERIF, SHU, U, WHITE, glyph_path, paint, product, legacy_product,
                          render, paper_tile, with_dot)
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -94,9 +94,10 @@ def save(draw, name):
 
 icons = {
     "product_icon.ico": product,
+    "tools_legacy_product.ico": legacy_product,
     "product_icon_langbar.ico": product,
-    "tools_icon.ico": product,
-    "tools_icon_a.ico": product,
+    "tools_icon.ico": legacy_product,
+    "tools_icon_a.ico": legacy_product,
     "tools_properties.ico": properties,
     "tools_properties_a.ico": properties,
     "tools_dictionary.ico": dictionary,

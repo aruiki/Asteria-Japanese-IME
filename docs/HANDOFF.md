@@ -1,3 +1,24 @@
+# Asteria「月の余白」を反映・6337ローカルMSI完成（2026-10-11）
+
+利用者が10案から05の月を採用。内蔵image_genでアイコンと横長ヒーローを生成し、READMEの文章と図版7枚を統一。
+既存の章順・ダウンロード導線・Stripeリンク・測定値/条件を保持。比較グラフは公開CSVから描画。現在版の再測定ではない。
+表示名Asteria、内部Kotori名と保存先/インストール先/GUID/UpgradeCodeは保持。設定/辞書の6アイコンは旧版と同一SHA。
+進行表示は短い日本語12行、MSI ActionText/Templateに生の置換記号が残らないことを確認。
+
+専用mzsupportでSystemUtil2件、設定画面4件、応援案内7件PASS。Qtはoffscreen。初回のDLL探索失敗はログに保持。
+月の最終packageはexit0、629.508秒。MSI3.34.6337.100、1,569,370,112bytes、未署名。
+SHA c5e688de8a7f6dead5d7a12728a416e161e843a364915ad485e43aeddcad357f。
+配布用TIP32/64に月の8フレーム、配布用mozc_toolに従来の8フレームを資源のバイト列で照合。
+Bazelを停止して全3パッチを再生成/適用確認。fresh cloneと127ビルド入力一致。
+詳細 [検証記録](verification/asteria-moon-20261011.md)、[プレビュー](design/2026-10-asteria/brand-preview.html)、カード70/ADR0056。
+
+公開中のLatestはv1.1.1のまま（API確認）。公開本文mozc/release-notes.mdは無変更。
+新MSIの実アップグレード/進行実画面/日本語入力/削除、今回のpush/PR/CI/新リリースは未実施。
+次はこの候補の実機受入れと公開準備。ローカル候補target/asteria-brand/Kotori64.msi。
+前回の案内状態support-reminder.iniは利用者の明示許可後に削除済み、今回も不存在を確認。
+
+以下は履歴。
+
 # GitHub応援案内の正式版1.1.1を公開（2026-10-11）
 
 利用者の実装・正式公開依頼。PR151、専用mzsupportからパッチ生成。READMEは無変更、ユーザーの正式版公開本文を全文保持。

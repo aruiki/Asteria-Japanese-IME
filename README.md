@@ -1,19 +1,28 @@
-<h1 align="center">Kotori日本語入力（完全無料）</h1>
+<p align="center">
+  <img src="docs/images/asteria-hero.png" alt="Asteria — アステリア。考えたまま、言葉になる。" width="100%">
+</p>
+
+<h1 align="center">Asteria — アステリア（完全無料の日本語入力）</h1>
 
 <p align="center">
-  <strong>AIで、日本語入力をもっと正確に。</strong><br>
-  Mozcをベースに、AIによる文脈理解で変換性能を大きく引き上げたWindows向け日本語IME。
+  <strong>書くことに、集中できる日本語入力。</strong><br>
+  いつもの操作に、文脈を読むAIを。Windows向けの、完全ローカルな日本語IMEです。
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest"><img alt="正式版" src="https://img.shields.io/github/v/release/aruiki/Kotori-AI-Japanese-IME?label=%E6%AD%A3%E5%BC%8F%E7%89%88&color=242C5C"></a>
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Kotori-AI-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=242C5C"></a>
-  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-242C5C?logo=windows">
-  <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-F25C2E">
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest"><img alt="正式版" src="https://img.shields.io/github/v/release/aruiki/Kotori-AI-Japanese-IME?label=%E6%AD%A3%E5%BC%8F%E7%89%88&color=111C2D"></a>
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Kotori-AI-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
+  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
+  <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-536779">
+</p>
+
+<p align="center">
+  Asteriaは、Kotori日本語入力の新しいブランド名です。<br>
+  現在配布中のv1.1.1は、Windows上では「Kotori」と表示されます。
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Kotori日本語入力をダウンロード</a>
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Asteria日本語入力をダウンロード</a>
 </h2>
 
 <p align="center">
@@ -22,14 +31,14 @@
 
 ---
 
-## AIで、従来のIMEより正確に
+## 文脈から、自然な言葉を選ぶ
 
-KotoriはMozcの変換候補にAIを組み合わせ、**文全体の意味から最も自然な変換を選び直します**。
+Asteriaは、Mozcの変換にAIによる文脈の評価を加えます。**文章のつながりを手がかりに、自然な候補を選びます**。
 
-単純な辞書変換では判断しにくい同音異義語や、前後の文章によって意味が変わる言葉でも、文脈に合った候補を選択します。
+「公園」と「公演」、「制度」と「精度」。読みだけでは選びにくい言葉を、文章の意味から選び分けます。
 
 <p align="center">
-  <img src="docs/images/examples.png" alt="Kotori日本語入力の変換例" width="880">
+  <img src="docs/images/examples.png" alt="Asteria日本語入力の変換例" width="880">
 </p>
 
 | 入力 | Mozc | Kotori |
@@ -39,17 +48,17 @@ KotoriはMozcの変換候補にAIを組み合わせ、**文全体の意味から
 | あしたのかいぎはじゅうじからです | 明日の会議は従事からです | 明日の会議は**10時**からです |
 | このやくはむずかしい | この薬は難しい | 文脈に応じて **この訳は難しい** |
 
-直前に確定した文章も文脈として利用できます。
+直前に確定した文章も、候補を選ぶ手がかりにできます。上の例は2026-10-01のStandard設定で確認した出力です。
 
 ---
 
-## 実入力ベンチマーク 88.4%
+## 同じ条件で測った、変換の正確さ
 
 <p align="center">
   <img src="docs/images/ime-comparison.png" alt="IME実入力比較" width="880">
 </p>
 
-AJIMEE-Bench 198問を、**実際に各IMEへ入力して比較**しました。
+AJIMEE-Bench 198問を、**実際に各IMEへ入力して比較**しました。Kotori日本語入力（現Asteria）の正解率は **88.4%** でした。
 
 | IME | 正解率 |
 | --- | ---: |
@@ -66,35 +75,35 @@ AJIMEE-Bench 198問を、**実際に各IMEへ入力して比較**しました。
 
 ---
 
-## Kotoriで変わること
+## 毎日の入力に、六つの工夫
 
 <p align="center">
-  <img src="docs/images/features.png" alt="Kotori日本語入力の特長" width="880">
+  <img src="docs/images/features.png" alt="Asteria日本語入力の特長" width="880">
 </p>
 
-**AIによる文脈変換**  
-読みだけでは判断できない言葉も、文章全体から自然な候補を選びます。
+**文脈を読む**<br>
+同じ読みを持つ言葉も、文章のつながりから選びます。
 
-**Spaceを押す前からAI予測**  
-入力を止めると、AIが裏で変換と文章の続きを考えます。Tabから予測候補も選べます。
+**続きを予測する**<br>
+入力を止めると、AIが裏で変換と文章の続きを考えます。予測候補はTabで選べます。
 
-**完全オフライン**  
+**PCの中で完結する**<br>
 辞書もAIモデルもPC内にあります。入力した文章を外部サーバーへ送りません。
 
-**Mozcベース**  
-操作感、学習、ユーザー辞書はMozcをそのまま利用できます。
+**いつもの操作で使う**<br>
+Mozcの操作、学習、ユーザー辞書を利用できます。
 
-**GPUがなくても動作**  
+**環境に合わせる**<br>
 専用GPUがないPCでは、自動的にCPU向けの設定へ切り替わります。
 
-**使わないときはVRAMを解放**  
-10分間入力がなければAIモデルをGPUから外し、VRAMを空けます。
+**使わない間は休む**<br>
+10分間入力がなければAIモデルをGPUから外し、VRAMを解放します。
 
 ---
 
-## カタカナから英語にも変換
+## カタカナから、英語の表記へ
 
-Kotoriには、カタカナ語から英語表記を選べる辞書も標準搭載しています。
+Asteriaには、カタカナ語から英語表記を選べる辞書も標準搭載しています。
 
 | 入力 | 英語候補 |
 | --- | --- |
@@ -105,7 +114,7 @@ Kotoriには、カタカナ語から英語表記を選べる辞書も標準搭�
 
 **31,068の読み・36,402組の英語表記**を収録しています。
 
-日本語候補を残したまま英語表記も候補に追加されるため、辞書を切り替えたり、英語入力へ切り替えたりする必要はありません。
+日本語候補と一緒に、英語の表記も候補へ並びます。辞書や入力モードを切り替えずに選べます。
 
 追加辞書のインポートも不要です。
 
@@ -135,7 +144,7 @@ Windowsから「WindowsによってPCが保護されました」と表示され�
 
 から **Kotori日本語入力** を選択します。
 
-これで使えます。
+日本語入力を始められます。
 
 設定はデスクトップの **「Kotori日本語入力の設定」** から変更できます。
 
@@ -156,28 +165,28 @@ PythonやCUDAなど、AIを動かすための追加環境を自分でセット�
 
 ---
 
-## AIを使っても、入力は軽く
+## 入力の流れを、大切に
 
 通常のキー入力はMozcが処理するため、AIの計算完了を待ちません。
 
 AIによる変換も処理時間に上限を設けており、間に合わない場合はMozcの結果をそのまま表示します。
 
 <p align="center">
-  <img src="docs/images/lightness.png" alt="Kotori日本語入力の性能" width="880">
+  <img src="docs/images/lightness.png" alt="Asteria日本語入力の性能" width="880">
 </p>
 
-RTX 3060環境のStandard設定では、AI変換1回の中央値は約 **0.06秒** です。
+2026-10-01のRTX 3060環境・Standard設定では、AI変換1回の中央値は約 **0.06秒** でした。機器や文章によって時間は変わります。測定条件は [性能測定](docs/PERFORMANCE.md) に記録しています。
 
 10分間日本語を入力しなければAIモデルをGPUから外し、使用していたVRAMも解放します。
 
 ---
 
-## 仕組み
+## 言葉を選ぶ仕組み
 
-KotoriはMozcを置き換えるのではなく、**Mozcの高速で安定した日本語入力にAIを組み合わせて変換性能を高めます**。
+Asteriaの基盤はMozcです。**辞書・変換・学習の仕組みに、AIによる候補の生成と文脈の評価を加えています**。
 
 <p align="center">
-  <img src="docs/images/how.png" alt="Kotori日本語入力の仕組み" width="880">
+  <img src="docs/images/how.png" alt="Asteria日本語入力の仕組み" width="880">
 </p>
 
 1. **候補を作る**  
@@ -189,8 +198,8 @@ KotoriはMozcを置き換えるのではなく、**Mozcの高速で安定した�
 3. **読みを確認する**  
    AIが生成した候補はMozcの辞書でも確認し、読みと一致しないものを除外します。
 
-4. **最も自然な変換を表示する**  
-   評価が最も高い候補をIMEの変換結果として表示します。
+4. **候補を表示する**<br>
+   評価に基づいて、IMEの変換結果を表示します。
 
 AIが読みにない単語を勝手に追加したり、ユーザー辞書へ登録した言葉を書き換えたりすることはありません。
 
@@ -198,13 +207,13 @@ AIが読みにない単語を勝手に追加したり、ユーザー辞書へ登
 
 ---
 
-## 完全ローカル
+## 文章は、このPCの中に
 
-KotoriのAIモデル、辞書、変換処理はすべてPC内で動作します。
+AsteriaのAIモデル、辞書、変換処理はすべてPC内で動作します。
 
 **入力した文字を外部のAIサービスやサーバーへ送信しません。**
 
-そのため、インターネット接続がなくてもAI変換を利用できます。
+インターネット接続がなくても、AI変換を利用できます。
 
 ---
 
@@ -233,7 +242,7 @@ KotoriのAIモデル、辞書、変換処理はすべてPC内で動作します�
 
 ## 開発を支援する
 
-Kotoriは無料のオープンソースソフトウェアとして開発しています。
+Asteriaは無料のオープンソースソフトウェアとして開発しています。
 
 [**Stripeから開発を支援する**](https://buy.stripe.com/cNi14m7jRdq005f0781ZS08)
 
@@ -243,7 +252,7 @@ Kotoriは無料のオープンソースソフトウェアとして開発して�
 
 ## ライセンス
 
-Kotoriのコードは **Apache License 2.0 / MIT License** のデュアルライセンスです。
+Asteriaのコードは **Apache License 2.0 / MIT License** のデュアルライセンスです。
 
 Mozcへの変更はBSD-3-Clauseです。
 
@@ -252,7 +261,7 @@ Mozcへの変更はBSD-3-Clauseです。
 ---
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Kotori日本語入力を試す</a>
+  <a href="https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/latest/download/Kotori64.msi">⬇ Asteria日本語入力を試す</a>
 </h2>
 
 <p align="center">

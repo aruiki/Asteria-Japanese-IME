@@ -1,145 +1,30 @@
-"""README の画像(見出し、特長、変換の例、精度、軽さ、しくみ、設定画面)を作る。
-数値は eval/README.md・docs/PERFORMANCE.md・docs/adr の記録。
-
-使い方: python docs/images/gen_readme_images.py
-必要: skia-python、Pillow、Noto Serif JP / Noto Sans JP(mozc/tools/kotori_mark.py と同じ)。
-設定画面の画像は settings-raw.png(mozc/tools/capture_window.py で撮ったもの)から作る。
+"""READMEの説明図・比較図を公開済みデータから描く。python docs/images/gen_readme_images.py
+必要: PillowとWindowsのYu Gothic / Noto Serif JP。画像生成の月は別に保存。
+実画面(settings*.png)と過去のhero.pngはこのスクリプトでは変更しない。
 """
 import difflib
-import sys
-from pathlib import Path
-
-import skia
-
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[1] / "mozc" / "tools"))
-from kotori_mark import (INK_BOT, INK_TOP, SHU, U, WHITE, font, glyph,  # noqa: E402
-                         product)
-
-SANS_R = font("NotoSansJP-VF.ttf", 400)
-SANS_M = font("NotoSansJP-VF.ttf", 500)
-SANS_B = font("NotoSansJP-VF.ttf", 700)
-SERIF_B = font("NotoSerifJP-VF.ttf", 700)
-TEXT = skia.Color(0x1F, 0x23, 0x33)
-SUB = skia.Color(0x5B, 0x60, 0x70)
-LINE = skia.Color(0xE3, 0xE5, 0xEC)
-CARD = skia.Color(0xFF, 0xFF, 0xFF)
-PANEL = skia.Color(0xF4, 0xF5, 0xFA)
-BAR_GRAY = skia.Color(0xB9, 0xBE, 0xCB)
-INK_MID = skia.Color(0x3B, 0x47, 0x8F)
-SHU_SOFT = skia.Color(0xFD, 0xE9, 0xE1)
-INK_SOFT = skia.Color(0xE6, 0xE9, 0xF6)
-S = 2  # 2 倍で描く(高解像度の画面向け)
-
-
-def surface(w, h):
-    surf = skia.Surface(w * S, h * S)
-    c = surf.getCanvas()
-    c.scale(S, S)
-    c.clear(skia.ColorTRANSPARENT)
-    return surf, c
-
-
-def save(surf, name):
-    surf.makeImageSnapshot().save(str(HERE / name), skia.kPNG)
-
-
-def measure(s, tf, size):
-    return skia.Font(tf, size).measureText(s)
-
-
-def text(c, s, x, y, tf, size, color, align="left"):
-    f = skia.Font(tf, size)
-    f.setEdging(skia.Font.Edging.kSubpixelAntiAlias)
-    w = f.measureText(s)
-    if align == "center":
-        x -= w / 2
-    elif align == "right":
-        x -= w
-    c.drawString(s, x, y, f, skia.Paint(AntiAlias=True, Color=color))
-    return w
-
-
-def card(c, w, h, r=20):
-    """明るい画面でも暗い画面でも読めるよう、白いカードに描く。"""
-    c.drawRoundRect(skia.Rect.MakeWH(w, h), r, r, skia.Paint(AntiAlias=True, Color=CARD))
-    c.drawRoundRect(skia.Rect.MakeXYWH(0.5, 0.5, w - 1, h - 1), r, r,
-                    skia.Paint(AntiAlias=True, Style=skia.Paint.kStroke_Style, StrokeWidth=1, Color=LINE))
-
-
-def rrect(c, x, y, w, h, r, color):
-    c.drawRoundRect(skia.Rect.MakeXYWH(x, y, w, h), r, r, skia.Paint(AntiAlias=True, Color=color))
-
-
-def mark(c, x, y, size, draw=product):
-    """kotori_mark の 1024 単位の絵を (x, y) に size で描く。"""
-    c.save()
-    c.translate(x, y)
-    c.scale(size / U, size / U)
-    draw(c, size <= 32)
-    c.restore()
-
-
-def title(c, s, sub, w=None):
-    text(c, s, 36, 50, SANS_B, 24, TEXT)
-    c.drawRect(skia.Rect.MakeXYWH(36, 60, 24, 3), skia.Paint(Color=SHU))
-    if sub:
-        text(c, sub, 36, 88, SANS_R, 14, SUB)
-
-
-def hero():
-    w, h = 880, 300
-    surf, c = surface(w, h)
-    p = skia.Paint(AntiAlias=True)
-    p.setShader(skia.GradientShader.MakeLinear([(0, 0), (w, h)], [INK_TOP, INK_BOT]))
-    c.drawRoundRect(skia.Rect.MakeWH(w, h), 24, 24, p)
-    glow = skia.Paint(AntiAlias=True)
-    glow.setShader(skia.GradientShader.MakeRadial(
-        (140, 60), 360, [skia.ColorSetARGB(70, 110, 126, 220), skia.ColorTRANSPARENT]))
-    c.drawRoundRect(skia.Rect.MakeWH(w, h), 24, 24, glow)
-    glow2 = skia.Paint(AntiAlias=True)
-    glow2.setShader(skia.GradientShader.MakeRadial(
-        (820, 280), 260, [skia.ColorSetARGB(46, 242, 92, 46), skia.ColorTRANSPARENT]))
-    c.drawRoundRect(skia.Rect.MakeWH(w, h), 24, 24, glow2)
-    mark(c, 40, 40, 220, glyph)
-    text(c, "Kotori日本語入力", 290, 118, SANS_B, 46, WHITE)
-    text(c, "Mozc の安定した変換に、文脈を読む AI を。", 292, 164, SANS_M, 21, skia.Color(0xDD, 0xE1, 0xF4))
-    # 数字の帯
-    stats = [("91.5%", "AJIMEE-Bench"), ("97.5%", "日常の文"), ("0.07秒", "変換 1 回"), ("0", "ネット通信")]
-    x = 292
-    for v, label in stats:
-        text(c, v, x, 222, SANS_B, 24, WHITE)
-        text(c, label, x, 244, SANS_R, 12, skia.Color(0xA9, 0xB0, 0xD6))
-        x += 130
-    c.drawRect(skia.Rect.MakeXYWH(292, 186, 28, 3), skia.Paint(Color=SHU))
-    save(surf, "hero.png")
+from asteria_style import Figure, CREAM, TEXT, SUB, GRAY, GRAY2
+from gen_ime_comparison import published_rows, main as ime_comparison
 
 
 def features():
+    f = Figure(475, "考えることに、集中できる入力を。", "いつもの日本語入力に、文脈を読むAIを。")
     items = [
-        ("正", "文脈で選ぶ", ["前の文を読んで同音異義語を", "選び分ける。Mozc 51.0% →", "91.5%(AJIMEE-Bench)"]),
-        ("予", "先回りの予測", ["打っている間に文の続きを", "考えて候補に出す。", "「よろし」→「よろしくお願いします」"]),
-        ("速", "待たせない", ["1 打鍵 1〜3 ms、変換 0.07 秒", "(RTX 3060)。重いときは", "上限で打ち切って固まらない"]),
-        ("守", "外に出さない", ["辞書も AI もこの PC の中。", "インターネットに接続せず、", "入力した文字を送らない"]),
-        ("軽", "GPU に優しい", ["入力中の GPU の計算を約 4 割減。", "10 分使わなければ VRAM を", "空ける(ゲームの邪魔をしない)"]),
-        ("楽", "MSI ひとつ", ["AI のモデルと実行環境も同梱。", "GPU がなくても動く。", "CUDA などの準備は要らない"]),
+        ("01", "文脈を読む", ["同じ読みを持つ言葉も、", "文章のつながりから選びます。"]),
+        ("02", "続きを予測する", ["入力を止めると、裏で次の候補を", "考えます。Tabで選べます。"]),
+        ("03", "PCの中で完結", ["辞書もAIモデルもPC内に。", "入力した文章を外へ送りません。"]),
+        ("04", "いつもの操作で", ["Mozcの操作、学習、", "ユーザー辞書を使えます。"]),
+        ("05", "環境に合わせる", ["専用GPUがないPCでは、", "CPU向けの設定に切り替えます。"]),
+        ("06", "使わない間は休む", ["10分間入力がなければ、", "AIモデルのVRAMを解放します。"]),
     ]
-    w, h = 880, 470
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "特長", "Mozc(Google 日本語入力のオープンソース版)の操作と辞書はそのまま。AI がその上で働きます。")
-    cw, ch, gx, gy, x0, y0 = 258, 160, 17, 18, 36, 112
-    for i, (k, head, lines) in enumerate(items):
-        x = x0 + (i % 3) * (cw + gx)
-        y = y0 + (i // 3) * (ch + gy)
-        rrect(c, x, y, cw, ch, 14, PANEL)
-        accent = SHU if i == 0 else INK_TOP
-        rrect(c, x + 16, y + 16, 40, 40, 10, accent)
-        text(c, k, x + 36, y + 46, SERIF_B, 24, WHITE, align="center")
-        text(c, head, x + 68, y + 43, SANS_B, 17, TEXT)
+    for i, (number, head, lines) in enumerate(items):
+        x, y = 36+(i%3)*275, 120+(i//3)*155
+        f.panel(x, y, 258, 137)
+        f.text(x+18, y+14, number, 12, CREAM, serif=True)
+        f.text(x+18, y+43, head, 19, serif=True)
         for j, line in enumerate(lines):
-            text(c, line, x + 18, y + 86 + j * 22, SANS_R, 13, SUB)
-    save(surf, "features.png")
+            f.text(x+18, y+82+j*22, line, 13, SUB, max_width=222)
+    f.save("features.png")
 
 
 def examples():
@@ -148,248 +33,126 @@ def examples():
         ("おんせいにんしきのせいどがあがった", "", "音声認識の制度が上がった", "音声認識の精度が上がった"),
         ("あしたのかいぎはじゅうじからです", "", "明日の会議は従事からです", "明日の会議は１０時からです"),
         ("このやくはむずかしい", "英語の文を日本語にしています。", "この薬は難しい", "この訳は難しい"),
-        ("ここではきものをぬいでください", "玄関で靴を脱いで。", "ここでは着物を脱いでください",
-         "ここで履物を脱いでください"),
+        ("ここではきものをぬいでください", "玄関で靴を脱いで。", "ここでは着物を脱いでください", "ここで履物を脱いでください"),
     ]
-    w, row_h, top = 880, 96, 108
-    h = top + row_h * len(rows) + 40
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "変換の例", "同じ読みでも、AI が前後の文脈から正しい語を選びます(実際の出力、品質 Standard、2026-10-01)。")
-    for i, (yomi, ctx, mozc, kotori) in enumerate(rows):
-        y = top + i * row_h
+    f = Figure(710, "読みは同じ。言葉は、文脈で変わる。", "公開済みの変換例 ／ Standard ／ 2026-10-01")
+    for i, (yomi, context, mozc, kotori) in enumerate(rows):
+        y = 120+i*104
         if i:
-            c.drawLine(36, y - 8, w - 36, y - 8, skia.Paint(Color=LINE, StrokeWidth=1))
-        label = yomi if not ctx else f"{yomi}   (前の文: {ctx})"
-        text(c, label, 36, y + 16, SANS_R, 13, SUB)
-        # Mozc
-        rrect(c, 36, y + 28, 64, 24, 6, PANEL)
-        text(c, "Mozc", 68, y + 45, SANS_M, 12, SUB, align="center")
-        text(c, mozc, 112, y + 46, SANS_R, 17, SUB)
-        # Kotori(Mozc と違う文字を朱で)
-        rrect(c, 36, y + 58, 64, 24, 6, INK_TOP)
-        text(c, "Kotori", 68, y + 75, SANS_B, 12, WHITE, align="center")
-        x = 112
-        sm = difflib.SequenceMatcher(None, mozc, kotori)
-        for op, _, _, j1, j2 in sm.get_opcodes():
-            seg = kotori[j1:j2]
-            if not seg:
-                continue
-            if op == "equal":
-                x += text(c, seg, x, y + 76, SANS_B, 17, TEXT)
-            else:
-                sw = measure(seg, SANS_B, 17)
-                rrect(c, x - 1, y + 59, sw + 2, 23, 4, SHU_SOFT)
-                x += text(c, seg, x, y + 76, SANS_B, 17, SHU)
-    save(surf, "examples.png")
-
-
-def bars(c, rows, top, row_h, w, label_w=330, unit="%", vmax=100, fmt="{:.1f}"):
-    bar_x = 36 + label_w + 6
-    bar_max = w - bar_x - 96
-    for i, (name, v, note, ours) in enumerate(rows):
-        y = top + i * row_h
-        text(c, name, 36, y + 27, SANS_M if ours else SANS_R, 15, TEXT if ours else SUB)
-        if note:
-            text(c, note, 36, y + 45, SANS_R, 12, SUB)
-        bw = bar_max * v / vmax
-        paint = skia.Paint(AntiAlias=True)
-        if ours:
-            paint.setShader(skia.GradientShader.MakeLinear([(bar_x, 0), (bar_x + bw, 0)], [INK_MID, INK_TOP]))
-        else:
-            paint.setColor(BAR_GRAY)
-        c.drawRoundRect(skia.Rect.MakeXYWH(bar_x, y + 10, bw, 26), 6, 6, paint)
-        if ours:
-            c.drawCircle(bar_x + bw - 13, y + 23, 5, skia.Paint(AntiAlias=True, Color=SHU))
-        text(c, fmt.format(v) + unit, bar_x + bw + 12, y + 29, SANS_B if ours else SANS_M, 17,
-             TEXT if ours else SUB)
+            f.rule(36, y-10, 844)
+        f.text(36, y, yomi, 13, SUB)
+        if context:
+            f.text(420, y, "前の文："+context, 11, SUB, max_width=424)
+        f.text(36, y+30, "Mozc", 12, SUB)
+        f.text(128, y+26, mozc, 17, SUB)
+        f.text(36, y+62, "Kotori", 12, CREAM, bold=True)
+        x = 128
+        for op, _, _, j1, j2 in difflib.SequenceMatcher(None, mozc, kotori).get_opcodes():
+            value = kotori[j1:j2]
+            if value:
+                x += f.text(x, y+58, value, 17, TEXT if op == "equal" else CREAM, bold=op != "equal")
+    f.footer("KotoriはAsteriaの旧名称です。例は測定時の出力を保持しています。",
+             "文脈を使う例では、上記の前の文を渡しています。")
+    f.save("examples.png")
 
 
 def accuracy():
     rows = [
-        ("Kotori日本語入力  Unreal", 93.0, "速い GPU 向けの最高設定", True),
-        ("Kotori日本語入力  High", 92.5, "", True),
-        ("Kotori日本語入力  Standard(既定)", 91.5, "GPU があればこれ", True),
-        ("Kotori日本語入力  Low", 88.0, "GPU で測定", True),
-        ("Kotori日本語入力  GPU のない PC", 83.0, "CPU で測定(時間の上限あり)", True),
-        ("azooKey + Zenzai(参考)", 85.0, "", False),
-        ("Mozc(Google 日本語入力のオープンソース版)", 51.0, "", False),
+        ("Kotori Unreal", 93.0, CREAM), ("Kotori High", 92.5, CREAM),
+        ("Kotori Standard", 91.5, CREAM), ("Kotori Low（GPU）", 88.0, CREAM),
+        ("Kotori Low（CPU）", 83.0, CREAM), ("azooKey + Zenzai（参考）", 85.0, GRAY),
+        ("Mozc", 51.0, GRAY2),
     ]
-    w, row_h, top = 880, 54, 108
-    daily_top = top + row_h * len(rows) + 30
-    h = daily_top + 2 * 54 + 64
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "変換の正確さ", "AJIMEE-Bench 200 問で、1 番目の候補が正解だった割合(前の文を AI に渡したとき)")
-    bars(c, rows, top, row_h, w)
-    c.drawLine(36, daily_top - 14, w - 36, daily_top - 14, skia.Paint(Color=LINE, StrokeWidth=1))
-    text(c, "日常の文(メールやチャット 81 問)", 36, daily_top + 8, SANS_B, 16, TEXT)
-    bars(c, [("Kotori日本語入力  Standard", 97.5, "", True),
-             ("Mozc", 80.2, "", False)], daily_top + 16, 54, w)
-    text(c, "測定: 2026-10-01、RTX 3060。azooKey は zenz-v3.2-small、推論 5 回。ほかの IME との比較は下の「ほかの IME と比べる」。",
-         36, h - 24, SANS_R, 12, SUB)
-    save(surf, "accuracy.png")
-
-
-def lightness():
-    """入力中の GPU の計算・VRAM・GPU のない PC の待ち時間(docs/adr/0024、0032〜0035)。"""
-    panels = [
-        ("入力中の GPU の計算", "AI が GPU を使っている時間の割合", [("beta.4", 68.6, False), ("今", 42.6, True)],
-         "%", 100, "{:.1f}"),
-        ("使っていないときの VRAM", "Standard、入力をやめて 10 分後", [("前", 1.66, False), ("今", 0.0, True)],
-         " GB", 2.0, "{:.2f}"),
-        ("GPU のない PC の変換", "打ってすぐ Space、長い文(中央値)", [("前", 380, False), ("今", 162, True)],
-         " ms", 400, "{:.0f}"),
-    ]
-    w, h = 880, 330
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "軽さ", "精度はそのままに、負荷と待ち時間を下げ続けています(RTX 3060 / デスクトップの CPU で測定)。")
-    pw, gap, x0, y0 = 258, 17, 36, 110
-    for i, (head, sub, vals, unit, vmax, fmt) in enumerate(panels):
-        x = x0 + i * (pw + gap)
-        rrect(c, x, y0, pw, 160, 14, PANEL)
-        text(c, head, x + 18, y0 + 30, SANS_B, 16, TEXT)
-        text(c, sub, x + 18, y0 + 50, SANS_R, 12, SUB)
-        for j, (label, v, ours) in enumerate(vals):
-            y = y0 + 72 + j * 40
-            text(c, label, x + 18, y + 18, SANS_M, 13, TEXT if ours else SUB)
-            bx = x + 70
-            bmax = pw - 70 - 86
-            bw = max(4, bmax * v / vmax)
-            paint = skia.Paint(AntiAlias=True)
-            if ours:
-                paint.setShader(skia.GradientShader.MakeLinear([(bx, 0), (bx + bw, 0)], [INK_MID, INK_TOP]))
-            else:
-                paint.setColor(BAR_GRAY)
-            c.drawRoundRect(skia.Rect.MakeXYWH(bx, y + 2, bw, 22), 5, 5, paint)
-            text(c, fmt.format(v) + unit, bx + bw + 8, y + 19, SANS_B if ours else SANS_M, 15,
-                 SHU if ours else SUB)
-    text(c, "GPU の計算は cost_bench.py、VRAM は idle_test.py、CPU の待ち時間は space_latency.py で測定(mozc/tools)。",
-         36, h - 24, SANS_R, 12, SUB)
-    save(surf, "lightness.png")
-
-
-def how():
-    w, h = 880, 330
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "しくみ", "変換キーを押すと、候補を集めて、AI が前の文とのつながりで選びます。")
-    steps = [
-        ("読み", ["はがいたいので", "きょうははいしゃに…"], None),
-        ("候補を集める", ["Mozc の辞書が文を組む", "変換用 AI(zenz)が", "読みから文を書く"], None),
-        ("AI が選ぶ", ["zenz と日本語 LLM が", "「自然な日本語か」を", "採点する"], None),
-        ("結果", ["歯が痛いので", "今日は歯医者に…"], SHU),
-    ]
-    bx, by, bw, bh, gap = 36, 108, 187, 172, 20
-    for i, (head, lines, accent) in enumerate(steps):
-        x = bx + i * (bw + gap)
-        rrect(c, x, by, bw, bh, 14, PANEL)
-        c.drawCircle(x + 26, by + 30, 13, skia.Paint(AntiAlias=True, Color=INK_TOP if accent is None else SHU))
-        text(c, str(i + 1), x + 26, by + 36, SANS_B, 15, WHITE, align="center")
-        text(c, head, x + 48, by + 36, SANS_B, 16, TEXT)
-        for j, line in enumerate(lines):
-            last = i == len(steps) - 1
-            text(c, line, x + 18, by + 76 + j * 26, SANS_M if last else SANS_R, 16 if last else 14,
-                 TEXT if last else SUB)
-        if i < len(steps) - 1:
-            ax = x + bw + 4
-            p = skia.Path()
-            p.moveTo(ax, by + bh / 2 - 7)
-            p.lineTo(ax + 13, by + bh / 2)
-            p.lineTo(ax, by + bh / 2 + 7)
-            p.close()
-            c.drawPath(p, skia.Paint(AntiAlias=True, Color=BAR_GRAY))
-    text(c, "Space で変換、入力中は AI が続きを予測して候補に出します(Tab で選ぶ)。処理はすべてこの PC の中。",
-         36, h - 24, SANS_R, 13, SUB)
-    save(surf, "how.png")
-
-
-def settings():
-    raw = skia.Image.open(str(HERE / "settings-raw.png"))
-    w, h = 880, 560
-    surf, c = surface(w, h)
-    card(c, w, h)
-    # 左に設定画面(影つき)
-    sw = 360
-    sh = raw.height() * sw / raw.width()
-    x, y = 36, (h - sh) / 2
-    shadow = skia.Paint(AntiAlias=True, Color=skia.ColorSetARGB(40, 20, 24, 60),
-                        MaskFilter=skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, 10))
-    c.drawRoundRect(skia.Rect.MakeXYWH(x, y + 6, sw, sh), 8, 8, shadow)
-    c.save()
-    c.clipRRect(skia.RRect.MakeRectXY(skia.Rect.MakeXYWH(x, y, sw, sh), 8, 8), True)
-    c.drawImageRect(raw, skia.Rect.MakeXYWH(x, y, sw, sh), skia.SamplingOptions(skia.FilterMode.kLinear))
-    c.restore()
-    # 右に説明
-    tx = 440
-    text(c, "設定はひとつの画面で", tx, 92, SANS_B, 24, TEXT)
-    c.drawRect(skia.Rect.MakeXYWH(tx, 102, 24, 3), skia.Paint(Color=SHU))
-    points = [
-        ("品質を選ぶ", ["Low / Standard / High / Unreal。", "GPU がなければ自動で Low になる"]),
-        ("AI の状態が見える", ["使っている GPU と VRAM、", "実際に動いている AI を表示"]),
-        ("予測を切り替える", ["入力中の AI の予測は", "ひとつのチェックでオン・オフ"]),
-        ("モデルを差し替える", ["llama.cpp で読める日本語 LLM", "(GGUF)に置き換えられる"]),
-    ]
-    for i, (head, lines) in enumerate(points):
-        y0 = 150 + i * 92
-        c.drawCircle(tx + 10, y0 - 6, 6, skia.Paint(AntiAlias=True, Color=SHU if i == 0 else INK_TOP))
-        text(c, head, tx + 28, y0, SANS_B, 17, TEXT)
-        for j, line in enumerate(lines):
-            text(c, line, tx + 28, y0 + 26 + j * 21, SANS_R, 14, SUB)
-    text(c, "ダークモード・ハイコントラスト・画面の拡大にも対応", tx, h - 40, SANS_R, 13, SUB)
-    save(surf, "settings.png")
+    f = Figure(690, "変換器の評価 — 品質設定ごとの正解率", "AJIMEE-Bench 200問 ／ 前の文あり ／ 実入力比較とは条件が異なります")
+    for i, (name, value, color) in enumerate(rows):
+        y = 126+i*47
+        f.text(36, y+5, name, 14, color)
+        f.bar(292, y+5, 440, 24, value, color=color)
+        f.text(292+440*value/100+12, y+1, f"{value:.1f}%", 17, color)
+    f.axis(292, 465, 440)
+    f.text(36, 515, "日常の文 81問 ／ Standard 97.5%・Mozc 80.2%", 16, serif=True)
+    f.footer("測定：2026-10-01 ／ RTX 3060（CPU行を除く）／ Kotoriは現Asteriaの旧名称",
+             "azooKey参考値：zenz-v3.2-small・推論5回。別製品との実入力比較はime-comparison.pngを参照。",
+             "公開済みの値を保持。現在版の再測定値ではありません。")
+    f.save("accuracy.png")
 
 
 def compare():
-    """実際の IME で同じ条件で比べた結果(eval/imebench、前の文なし、2026-10-01)。"""
-    sets = [
-        ("AJIMEE-Bench", "198 問、難しい同音異義語・文脈", [88.4, 59.6, 58.1]),
-        ("日常の文", "メール・チャット 81 問", [97.5, 86.4, 81.5]),
-        ("同音語の使い分け", "保証/保障/補償 など 40 問", [97.5, 82.5, 65.0]),
-        ("人名・地名・新語", "40 問", [97.5, 82.5, 95.0]),
+    data = published_rows()
+    groups = [
+        ("AJIMEE-Bench", "198問", "ajimee_198_percent"),
+        ("日常の文", "81問", "daily_81_percent"),
+        ("同音語の使い分け", "40問", "homophones_40_percent"),
+        ("人名・地名・新語", "40問", "names_40_percent"),
     ]
-    names = ["Kotori日本語入力", "Microsoft IME", "Google 日本語入力"]
-    w = 880
-    group_h, top = 112, 140
-    h = top + group_h * len(sets) + 56
-    surf, c = surface(w, h)
-    card(c, w, h)
-    title(c, "ほかの IME と比べる", "実際に IME で入力して測りました(読みをキーで打ち、Space で変換、Enter で確定。前の文はなし)。")
-    # 凡例
-    x = 36
-    for i, n in enumerate(names):
-        col = INK_TOP if i == 0 else (BAR_GRAY if i == 1 else skia.Color(0xD6, 0xD9, 0xE2))
-        rrect(c, x, 108, 14, 14, 3, col)
-        x += 22 + text(c, n, x + 22, 120, SANS_M if i == 0 else SANS_R, 13, TEXT if i == 0 else SUB) + 18
-    bar_x, bar_max = 300, w - 300 - 90
-    for g, (head, sub, vals) in enumerate(sets):
-        y = top + g * group_h
-        if g:
-            c.drawLine(36, y - 10, w - 36, y - 10, skia.Paint(Color=LINE, StrokeWidth=1))
-        text(c, head, 36, y + 26, SANS_B, 16, TEXT)
-        text(c, sub, 36, y + 46, SANS_R, 12, SUB)
-        for i, v in enumerate(vals):
-            by = y + 6 + i * 30
-            bw = bar_max * v / 100
-            paint = skia.Paint(AntiAlias=True)
-            if i == 0:
-                paint.setShader(skia.GradientShader.MakeLinear([(bar_x, 0), (bar_x + bw, 0)], [INK_MID, INK_TOP]))
-            else:
-                paint.setColor(BAR_GRAY if i == 1 else skia.Color(0xD6, 0xD9, 0xE2))
-            c.drawRoundRect(skia.Rect.MakeXYWH(bar_x, by, bw, 22), 5, 5, paint)
-            text(c, f"{v:.1f}%", bar_x + bw + 10, by + 17, SANS_B if i == 0 else SANS_M, 14, SHU if i == 0 else SUB)
-    text(c, "2026-10-01、RTX 3060。Kotori は品質 Unreal。Google 日本語入力 3.34.6260、Microsoft IME は Windows 11 に付属のもの。"
-         "全角・半角の違いは同じとみなす。", 36, h - 24, SANS_R, 11, SUB)
-    save(surf, "compare.png")
+    colors = [CREAM, GRAY, GRAY2]
+    f = Figure(700, "同じ入力で、四つの比較。", "実際のIMEへキー入力 ／ Space 1回の第1候補 ／ 前の文なし")
+    for i, (name, color) in enumerate(zip(["Kotori（現 Asteria）", "Microsoft IME", "Google 日本語入力"], colors)):
+        f.text(36+i*275, 113, name, 13, color)
+    for i, (name, count, key) in enumerate(groups):
+        y = 151+i*113
+        f.text(36, y+8, name, 17, serif=True)
+        f.text(36, y+39, count, 12, SUB)
+        for j, (r, color) in enumerate(zip(data, colors)):
+            value = float(r[key])
+            f.bar(300, y+j*28, 435, 19, value, color=color)
+            f.text(300+435*value/100+10, y+j*28-3, f"{value:.1f}%", 13, color)
+        if i < len(groups)-1:
+            f.rule(36, y+99, 844)
+    f.axis(300, 605, 435)
+    f.footer("2026-10-01 ／ RTX 3060 ／ Kotori beta.8・Unreal ／ 全角・半角の差は正規化",
+             "Microsoft IME：Windows 11 ／ Google 日本語入力：3.34.6260 ／ 現在版の再測定ではありません。")
+    f.save("compare.png")
 
 
-hero()
-features()
-examples()
-accuracy()
-compare()
-lightness()
-how()
-settings()
-print("ok")
+def lightness():
+    f = Figure(415, "使うときは働き、使わないときは休む。", "公開済みの負荷・待ち時間の改善記録 ／ RTX 3060・Ryzen 7 5700X")
+    panels = [
+        ("入力中のAI稼働率", "GPUを使っている時間の割合", [("beta.4", 68.6), ("改善後", 42.6)], "%", 100),
+        ("待機中のVRAM", "Standard・入力をやめて10分後", [("解放前", 1.66), ("解放後", 0.0)], "GB", 2),
+        ("CPUでの変換", "長い文・打ってすぐSpaceの中央値", [("改善前", 380), ("改善後", 162)], "ms", 400),
+    ]
+    for i, (head, sub, vals, unit, vmax) in enumerate(panels):
+        x, y = 36+i*275, 121
+        f.panel(x, y, 258, 190)
+        f.text(x+16, y+14, head, 18, serif=True)
+        f.text(x+16, y+46, sub, 11, SUB, max_width=226)
+        for j, (label, value) in enumerate(vals):
+            yy = y+79+j*48
+            color = GRAY if j == 0 else CREAM
+            f.text(x+16, yy, label, 11, SUB)
+            f.bar(x+76, yy+5, 97, 16, value, vmax, color)
+            formatted = f"{value:.2f}" if unit == "GB" else f"{value:.1f}" if unit == "%" else f"{value:.0f}"
+            f.text(x+184, yy, formatted+(" "+unit if unit != "%" else unit), 13, color)
+        if i == 1:
+            f.text(x+16, y+168, "0はモデル解放後の増分", 10, SUB)
+    f.footer("2026-09-30〜10-01の記録 ／ ADR0024・0033・0035 ／ 現在版の再測定ではありません。",
+             "CPUの測定はデスクトップ環境。機器や文の長さによって待ち時間は変わります。")
+    f.save("lightness.png")
+
+
+def how():
+    f = Figure(355, "言葉を選ぶ、その仕組み。", "候補づくりと文脈の評価を、PCの中で行います。")
+    steps = [
+        ("01", "候補を集める", ["Mozcの辞書と変換用AIが", "複数の候補を作ります。"]),
+        ("02", "文脈で評価する", ["前の文とのつながりから", "自然さを採点します。"]),
+        ("03", "読みを確かめる", ["生成された候補の読みを", "Mozcの辞書で確認します。"]),
+        ("04", "候補を表示する", ["評価に基づいて、", "変換結果を表示します。"]),
+    ]
+    for i, (number, head, lines) in enumerate(steps):
+        x, y = 36+i*207, 122
+        f.panel(x, y, 187, 148)
+        f.text(x+16, y+12, number, 12, CREAM, serif=True)
+        f.text(x+16, y+42, head, 17, serif=True)
+        for j, line in enumerate(lines):
+            f.text(x+16, y+80+j*23, line, 12, SUB, max_width=155)
+        if i < 3:
+            f.text(x+191, y+64, "›", 20, SUB)
+    f.footer("AIの処理が間に合わないときは、Mozcの結果で入力を続けます。")
+    f.save("how.png")
+
+
+if __name__ == "__main__":
+    for draw in (features, examples, accuracy, compare, lightness, how, ime_comparison):
+        draw()
+    print("ok: 7 Asteria figures; original measurement values preserved")

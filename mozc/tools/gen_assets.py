@@ -1,4 +1,4 @@
-"""Kotori日本語入力のインストーラ(WiX UI)の画像とライセンス文を作る。マークは kotori_mark.py(docs/adr/0019)。
+"""Asteria日本語入力のインストーラ(WiX UI)の画像とライセンス文を作る。マークは kotori_mark.py(docs/adr/0019)。
 使い方: python gen_assets.py <出力フォルダ> [--images-only]
 """
 import argparse
@@ -35,17 +35,17 @@ def gradient(w, h, top, bottom):
 
 # ようこそ・完了の画面(493x312)。左の 164px に藍の帯とマーク、右は白(WiX が文字を置く)。
 dlg = Image.new("RGB", (493, 312), (255, 255, 255))
-panel = gradient(164, 312, INK_TOP_RGB, INK_BOT_RGB)
+panel = gradient(164, 312, (17, 28, 45), (13, 22, 36))
 glow = Image.new("L", (164, 312), 0)
-ImageDraw.Draw(glow).ellipse([-90, -80, 190, 170], fill=46)
+ImageDraw.Draw(glow).ellipse([-90, -80, 190, 170], fill=8)
 glow = glow.filter(ImageFilter.GaussianBlur(44))
-panel = Image.composite(Image.new("RGB", (164, 312), (90, 104, 180)), panel, glow)
+panel = Image.composite(Image.new("RGB", (164, 312), (55, 65, 77)), panel, glow)
 mark = render(product, 132)
 panel.paste(mark, (16, 44), mark)
 d = ImageDraw.Draw(panel)
-d.text((82, 206), "Kotori", font=font("SegUIVar.ttf", 28), fill=(255, 255, 255), anchor="mm")
-d.text((82, 236), "日本語入力", font=font("YuGothM.ttc", 14), fill=(206, 212, 236), anchor="mm")
-d.rectangle([74, 262, 90, 264], fill=SHU_RGB)
+d.text((82, 206), "Asteria", font=font("NotoSerifJP-VF.ttf", 25), fill=(239, 224, 199), anchor="mm")
+d.text((82, 236), "日本語入力", font=font("YuGothM.ttc", 14), fill=(176, 185, 195), anchor="mm")
+d.rectangle([74, 262, 90, 264], fill=(239, 224, 199))
 dlg.paste(panel, (0, 0))
 dlg.save(out / "dialog.bmp")
 
@@ -77,9 +77,9 @@ def rtf_escape(s):
     return "".join(o)
 
 
-text = """Kotori日本語入力 使用許諾と第三者ソフトウェアの表示
+text = """Asteria日本語入力 使用許諾と第三者ソフトウェアの表示
 
-Kotori日本語入力(以下 Kotori)は Mozc(Copyright 2010-2026 Google Inc.、BSD-3-Clause)を改変した日本語入力です。Kotori は Google が提供・推奨するものではありません。Kotori 独自の改変部分も BSD-3-Clause で提供します。
+Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.、BSD-3-Clause)を改変した日本語入力です。Asteria は Google が提供・推奨するものではありません。Asteria 独自の改変部分も BSD-3-Clause で提供します。
 
 本ソフトウェアは「現状のまま」提供され、明示または黙示を問わず、いかなる保証もありません。
 
@@ -96,14 +96,14 @@ Kotori日本語入力(以下 Kotori)は Mozc(Copyright 2010-2026 Google Inc.、B
 
 各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
 
-Kotori はインターネットに接続しません。変換と AI の処理は、すべてこの PC の中で行います。
+Asteria はインターネットに接続しません。変換と AI の処理は、すべてこの PC の中で行います。
 """
 rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Gothic UI;}}"
        "\\viewkind4\\uc1\\pard\\f0\\fs18 " + rtf_escape(text) + "}")
 (out / "license.rtf").write_text(rtf, encoding="ascii")
 
 (out / "NOTICE-tinyswallow.txt").write_text(
-    "Kotori日本語入力に同梱している言語モデル(LLM)\n\n"
+    "Asteria日本語入力に同梱している言語モデル(LLM)\n\n"
     "TinySwallow-1.5B (c) Sakana AI\n"
     "  https://huggingface.co/SakanaAI/TinySwallow-1.5B\n"
     "  ライセンス: Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0\n\n"
@@ -117,25 +117,25 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
 # (SHA-256 fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4)、LICENSE-GPL-3.0.txt は
 # Qt 6.9.1 のソースの LICENSES/GPL-3.0-only.txt をそのまま写したもの。
 (out / "NOTICE-third-party.txt").write_text(
-    "Kotori日本語入力に同梱している第三者のソフトウェア\n\n"
+    "Asteria日本語入力に同梱している第三者のソフトウェア\n\n"
     "この PC のインストール先(C:\\Program Files (x86)\\Kotori)にあるファイルと、そのライセンスの一覧です。\n"
     "AI のモデルは NOTICE-zenz.txt と NOTICE-tinyswallow.txt にあります。\n"
     "カタカナ英語辞書は NOTICE-katakana-english.txt、加工済みデータは KotoriEnglish.tsv にあります。\n\n"
     "■ Mozc(mozc_*.exe、mozc_tip*.dll、辞書)\n"
     "  BSD-3-Clause、Copyright Google Inc. https://github.com/google/mozc\n"
-    "  Kotori は Mozc を改変したもので、Google が提供・推奨するものではありません。\n"
+    "  Asteria は Mozc を改変したもので、Google が提供・推奨するものではありません。\n"
     "  Mozc が使う Abseil、Protocol Buffers、Windows Implementation Library、IPAdic などの表示は\n"
     "  documents\\credits_en.html にあります。\n\n"
     "■ Qt 6.9.1(Qt6Core.dll、Qt6Gui.dll、Qt6Widgets.dll、platforms\\qwindows.dll)\n"
     "  GNU Lesser General Public License v3.0(LGPL-3.0)。全文は documents\\credits_en.html の「Qt Base」、\n"
     "  LGPL-3.0 が取り込んでいる GNU GPL v3.0 の全文は LICENSE-GPL-3.0.txt。\n"
-    "  Kotori は Qt を改変していません。設定画面(mozc_tool.exe)が上の DLL を動的に読み込みます。\n"
+    "  Asteria は Qt を改変していません。設定画面(mozc_tool.exe)が上の DLL を動的に読み込みます。\n"
     "  - ソース: https://download.qt.io/archive/qt/6.9/6.9.1/submodules/qtbase-everywhere-src-6.9.1.tar.xz\n"
-    "  - ビルドの手順: Mozc の src/build_tools/build_qt.py(Kotori が固定している Mozc のコミットのもの。\n"
+    "  - ビルドの手順: Mozc の src/build_tools/build_qt.py(Asteria が固定している Mozc のコミットのもの。\n"
     "    https://github.com/aruiki/KotoriIME-japanese- の docs/DEVELOPMENT.md)\n"
     "  - 差し替え方: 同じ版(6.9.x)で、同じ設定でビルドした DLL を、インストール先の同じ名前のファイルと\n"
     "    置き換えると、その Qt で動きます。\n"
-    "  - Kotori のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。\n\n"
+    "  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。\n\n"
     "■ llama.cpp / ggml b11259(llama.dll、ggml*.dll)\n"
     "  MIT License、Copyright The ggml authors。全文は LICENSE-llama.cpp.txt。\n"
     "  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドをそのまま同梱しています。\n\n"
