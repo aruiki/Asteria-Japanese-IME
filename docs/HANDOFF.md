@@ -1,3 +1,41 @@
+# Windows標準の応援通知へ変更・6338ローカルMSI完成（2026-10-11）
+
+利用者は独立ウィンドウではなくWindows通知を希望。ToastGeneric＋COM activatorへ変更。通知センターから後日操作可能な構成。
+GitHub固定URLを開けた時だけ永久停止、いいえは7日延期、閉じる/無応答も送信前保存した7日延期を維持。無音。OSの通知設定に従い、独自ダイアログへの代替なし。
+既存support-reminder.iniの停止/延期を継承。実利用者のファイルは変更・削除していない。README/リリース本文/設定アイコンは今回差分なし。
+
+8単体テスト成功。製品exe6338の-Embedding起動と実COMコールバック取得・不正引数拒否を確認。実状態の前後SHA一致。
+初回テストとBazel出力直起動のDLL探索失敗は記録に保持。Qt環境を揃えた試験は成功。
+package exit0、694.102秒。MSI3.34.6338.100、48ファイル、1,569,386,496bytes、未署名。
+SHA a968312279d33c67679436d071d78409e6c74bdebf1824e475895fe9266e420e。
+MSIのAUMID/CLSID/HKLM LocalServer32、UpgradeCodeを照合。Bazel停止後パッチ再生成、全3パッチ適用/127入力一致。
+ローカル候補target/windows-support-toast/Kotori64.msi。カード71、ADR0057、verification/windows-support-toast-20261011.md。
+
+未実施: 新MSI導入、Windows通知の実画面、通知センターからの後日クリック、ブラウザー実起動、OS通知抑制、IME入力/削除、push/CI/新公開。
+次の具体的作業: 6338候補を導入しWindows標準通知の実表示と両ボタンを確認。既存延期を解除する目的で実状態ファイルをリセットしない。
+公開中/導入済み版への変更ではない。以下は履歴。
+
+# Asteria「月の余白」を反映・6337ローカルMSI完成（2026-10-11）
+
+利用者が10案から05の月を採用。内蔵image_genでアイコンと横長ヒーローを生成し、READMEの文章と図版7枚を統一。
+既存の章順・ダウンロード導線・Stripeリンク・測定値/条件を保持。比較グラフは公開CSVから描画。現在版の再測定ではない。
+表示名Asteria、内部Kotori名と保存先/インストール先/GUID/UpgradeCodeは保持。設定/辞書の6アイコンは旧版と同一SHA。
+進行表示は短い日本語12行、MSI ActionText/Templateに生の置換記号が残らないことを確認。
+
+専用mzsupportでSystemUtil2件、設定画面4件、応援案内7件PASS。Qtはoffscreen。初回のDLL探索失敗はログに保持。
+月の最終packageはexit0、629.508秒。MSI3.34.6337.100、1,569,370,112bytes、未署名。
+SHA c5e688de8a7f6dead5d7a12728a416e161e843a364915ad485e43aeddcad357f。
+配布用TIP32/64に月の8フレーム、配布用mozc_toolに従来の8フレームを資源のバイト列で照合。
+Bazelを停止して全3パッチを再生成/適用確認。fresh cloneと127ビルド入力一致。
+詳細 [検証記録](verification/asteria-moon-20261011.md)、[プレビュー](design/2026-10-asteria/brand-preview.html)、カード70/ADR0056。
+
+公開中のLatestはv1.1.1のまま（API確認）。公開本文mozc/release-notes.mdは無変更。
+新MSIの実アップグレード/進行実画面/日本語入力/削除、今回のpush/PR/CI/新リリースは未実施。
+次はこの候補の実機受入れと公開準備。ローカル候補target/asteria-brand/Kotori64.msi。
+前回の案内状態support-reminder.iniは利用者の明示許可後に削除済み、今回も不存在を確認。
+
+以下は履歴。
+
 # GitHub応援案内の正式版1.1.1を公開（2026-10-11）
 
 利用者の実装・正式公開依頼。PR151、専用mzsupportからパッチ生成。READMEは無変更、ユーザーの正式版公開本文を全文保持。

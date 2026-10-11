@@ -1,7 +1,7 @@
 """Kotori日本語入力のマーク(docs/adr/0019)。gen_icons.py と gen_assets.py が使う。
 
-製品のマークは白いタイルに折り紙の小鳥(ADR0043)。32px以下は専用SVG。
-設定・辞書は同じ白いタイルと藍の記号。必要: skia-python、Pillow、Noto Serif JP / Noto Sans JP(可変、OFL)。
+製品のマークは濃紺の紙に生成りの筆の月(ADR0056)。生成PNGを各サイズへ格納する。
+設定・辞書は従来の白いタイルと藍の記号を保持する。必要: skia-python、Pillow、Noto Serif JP / Noto Sans JP(可変、OFL)。
 """
 from pathlib import Path
 
@@ -100,14 +100,26 @@ def paper_tile(c, small):
     c.drawRoundRect(rect, radius, radius, edge)
 
 
-def product(c, small):
+ASTERIA_ICON = Path(__file__).resolve().parents[2] / "docs/design/2026-10-asteria/asteria-icon.png"
+
+
+def legacy_product(c, small):
+    """設定ソフトの従来の製品アイコンを維持する。"""
     draw_icon(c, small)
+
+
+def product(c, small):
+    """Asteriaの生成マークを共通の1024座標へ描く。"""
+    image = skia.Image.MakeFromEncoded(ASTERIA_ICON.read_bytes())
+    c.drawImageRect(image, skia.Rect.MakeWH(U, U))
 
 
 def render(draw, size):
     """draw(canvas, small) を size px の PIL 画像にする。"""
-    if draw is product:
+    if draw is legacy_product:
         return render_icon(size)
+    if draw is product:
+        return Image.open(ASTERIA_ICON).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
     surf = skia.Surface(U, U)
     c = surf.getCanvas()
     c.clear(skia.ColorTRANSPARENT)

@@ -123,3 +123,21 @@ Kotoriを気に入っていただけた方へ、GitHubの ⭐ Starで応援を�
 Windowsで案内の7テスト・関連9テスト対象と、100%・200%の画面表示を確認しました。
 今回のMSIをこのPCへ導入しての実入力・アンインストール確認は未実施です。
 詳細は[検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.1/docs/verification/github-support-reminder-20261011.md)をご覧ください。
+
+---
+
+## 今回の更新（v1.1.2）
+
+日本語入力の表示名を **Asteria — アステリア** に変更しました。READMEと図版、製品アイコン、インストーラーの見た目を「月の余白」のデザインへ揃えています。設定・辞書ツールのアイコンと、これまでの設定・辞書・履歴の保存先は引き継ぎます。
+
+GitHubでの応援をお願いする案内を、Windows標準の通知へ変更しました。
+
+- 「GitHubで応援する」でページを開くと、以後このお願いは表示されません。
+- 「いいえ（1週間後に再表示）」または閉じる・応答しない場合は、1週間延期します。
+- 通知音は鳴らさず、Windowsの通知設定に従います。停止・延期の記録は更新後も引き継ぎます。
+- インストーラーの進行状況を、短く読みやすい日本語へ変更しました。
+
+インストーラーの内部版は **3.34.6338.100** です。コード署名は引き続きありません。
+ローカルのWindowsビルド、通知の8テスト、実行ファイルのCOM応答処理、MSIの通知登録と版番号を確認しました。
+今回のMSIを導入してのWindows通知の実表示・通知センターからのボタン操作・日本語入力・アンインストール確認は未実施です。
+詳細は[通知の検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.2/docs/verification/windows-support-toast-20261011.md)と[デザインの検証記録](https://github.com/aruiki/Kotori-AI-Japanese-IME/blob/v1.1.2/docs/verification/asteria-moon-20261011.md)をご覧ください。
