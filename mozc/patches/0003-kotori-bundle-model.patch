@@ -2038,7 +2038,7 @@ index c2e71a077..4f5f72f0e 100644
    parser.add_argument('--wxs_path', type=str)
    parser.add_argument('--wix_path', type=str)
 diff --git a/src/win32/installer/installer_oss_64bit.wxs b/src/win32/installer/installer_oss_64bit.wxs
-index e30c37ad4..e61a6a485 100644
+index e30c37ad4..4596bf5d1 100644
 --- a/src/win32/installer/installer_oss_64bit.wxs
 +++ b/src/win32/installer/installer_oss_64bit.wxs
 @@ -48,7 +48,7 @@
@@ -2184,7 +2184,7 @@ index e30c37ad4..e61a6a485 100644
          <Component Id="MozcConverter">
            <File Id="mozc_server.exe" Name="mozc_server.exe" DiskId="1" Checksum="yes" Source="$(var.MozcServer64Path)" Vital="yes" />
          </Component>
-@@ -381,5 +454,41 @@
+@@ -381,5 +454,45 @@
      <Component Id="PrelaunchProcesses" Directory="TARGETDIR">
        <RegistryValue Id="RunBroker" Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Kotori Prelauncher" Action="write" Type="string" Value="&quot;[MozcDir]mozc_broker.exe&quot; --mode=prelaunch_processes" />
      </Component>
@@ -2204,7 +2204,11 @@ index e30c37ad4..e61a6a485 100644
 +        <Component Id="KotoriStartMenuShortcuts">
 +          <Shortcut Id="KotoriMenuSettings" Name="Asteria" Description="日本語入力とAI変換の設定"
 +                    Target="[MozcDir]mozc_tool.exe" Arguments="--mode=config_dialog" WorkingDirectory="MozcDir"
-+                    Icon="KotoriSettingsIcon.ico" />
++                    Icon="KotoriSettingsIcon.ico">
++            <ShortcutProperty Key="System.AppUserModel.ID" Value="Aruiki.Asteria.Support" />
++            <ShortcutProperty Key="System.AppUserModel.ToastActivatorCLSID" Value="{378F9411-77E0-46BD-9E01-A0A14EF95391}" />
++          </Shortcut>
++          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{378F9411-77E0-46BD-9E01-A0A14EF95391}\LocalServer32" Type="string" Value="&quot;[MozcDir]mozc_tool.exe&quot; --mode=support_activation" />
 +          <Shortcut Id="KotoriMenuDictionary" Name="Asteria日本語入力の辞書ツール" Description="ユーザー辞書の編集"
 +                    Target="[MozcDir]mozc_tool.exe" Arguments="--mode=dictionary_tool" WorkingDirectory="MozcDir"
 +                    Icon="KotoriDictionaryIcon.ico" />

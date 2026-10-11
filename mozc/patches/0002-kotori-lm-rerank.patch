@@ -27202,7 +27202,7 @@ index 000000000..12f01f47b
 +}  // namespace
 +}  // namespace mozc::gui
 diff --git a/src/gui/tool/BUILD.bazel b/src/gui/tool/BUILD.bazel
-index 1c4726b0c..574cecd62 100644
+index 1c4726b0c..151687a06 100644
 --- a/src/gui/tool/BUILD.bazel
 +++ b/src/gui/tool/BUILD.bazel
 @@ -31,6 +31,7 @@ load(
@@ -27213,8 +27213,11 @@ index 1c4726b0c..574cecd62 100644
      "mozc_select",
      "mozc_win32_cc_prod_binary",
      "mozc_win32_resource_from_template",
-@@ -60,14 +61,17 @@ mozc_cc_qt_library(
+@@ -58,16 +59,20 @@ mozc_cc_library(
+ 
+ mozc_cc_qt_library(
      name = "mozc_tool_lib",
++    linkopts = mozc_select(windows = ["runtimeobject.lib", "ole32.lib"]),
      srcs = [
          "mozc_tool_libmain.cc",
 +        "kotori_support_reminder.cc",
@@ -27231,7 +27234,7 @@ index 1c4726b0c..574cecd62 100644
          "//base:run_level",
          "//base:system_util",
          "//base:util",
-@@ -115,6 +119,10 @@ mozc_win32_resource_from_template(
+@@ -115,6 +120,10 @@ mozc_win32_resource_from_template(
      manifests = [
          "mozc_tool.exe.manifest",
      ],
@@ -27242,7 +27245,7 @@ index 1c4726b0c..574cecd62 100644
      tags = MOZC_TAGS.WIN_ONLY,
      target_compatible_with = ["@platforms//os:windows"],
  )
-@@ -159,3 +167,14 @@ mozc_macos_qt_application(
+@@ -159,3 +168,14 @@ mozc_macos_qt_application(
      bundle_name = BRANDING + "Prelauncher",
      deps = [":mozc_tool_main_lib"],
  )
@@ -27259,37 +27262,35 @@ index 1c4726b0c..574cecd62 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..7af85dfe7
+index 000000000..2397d6ef8
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
-@@ -0,0 +1,146 @@
-+// Kotori: 週に一度の応援案内。リンクを開けたら以後停止する。
+@@ -0,0 +1,189 @@
++// Kotori: Windowsの通知センターに届く週次の応援案内。
 +#include "gui/tool/kotori_support_reminder.h"
-+#include <utility>
 +#include <QApplication>
 +#include <QDateTime>
 +#include <QDesktopServices>
-+#include <QLabel>
-+#include <QPushButton>
-+#include <QScreen>
 +#include <QTimer>
-+#include <QVBoxLayout>
 +#include "base/process_mutex.h"
 +#include "base/system_util.h"
 +#ifdef _WIN32
 +#include <windows.h>
++#include <roapi.h>
++#include <windows.data.xml.dom.h>
++#include <windows.ui.notifications.h>
++#include <notificationactivationcallback.h>
++#include <wrl.h>
++#include <wrl/wrappers/corewrappers.h>
 +#endif
 +namespace mozc::gui {
 +bool SupportReminderState::Enabled() {
 +  settings_.sync();
-+  return settings_.status() == QSettings::NoError &&
-+      !settings_.value("disabled", false).toBool();
++  return settings_.status() == QSettings::NoError && !settings_.value("disabled", false).toBool();
 +}
 +bool SupportReminderState::Due(qint64 now) {
 +  settings_.sync();
-+  // 保存できない場合は、同じお願いを繰り返さないよう表示を控える。
-+  return settings_.status() == QSettings::NoError &&
-+      !settings_.value("disabled", false).toBool() &&
++  return settings_.status() == QSettings::NoError && !settings_.value("disabled", false).toBool() &&
 +      now >= settings_.value("next_prompt_utc", 0).toLongLong();
 +}
 +bool SupportReminderState::Defer(qint64 now) {
@@ -27302,72 +27303,133 @@ index 000000000..7af85dfe7
 +  settings_.sync();
 +  return settings_.status() == QSettings::NoError;
 +}
-+SupportReminderDialog::SupportReminderDialog(SupportReminderState &state,
-+    std::function<qint64()> clock, std::function<bool(const QUrl &)> open)
-+    : state_(state), clock_(std::move(clock)) {
-+  setWindowTitle(QStringLiteral("Asteriaを応援する"));
-+  setWindowFlag(Qt::Tool);
-+  setWindowFlag(Qt::WindowStaysOnTopHint);
-+  setAttribute(Qt::WA_ShowWithoutActivating);
-+  auto *layout = new QVBoxLayout(this);
-+  layout->setContentsMargins(24, 20, 24, 20);
-+  layout->setSpacing(12);
-+  auto *message = new QLabel(QStringLiteral(
-+      "Asteriaの使い心地はいかがですか？\n\n"
-+      "気に入っていただけたら、GitHubの ⭐ Starで応援をお願いします。\n"
-+      "開発を続ける励みになります。"), this);
-+  message->setWordWrap(true);
-+  layout->addWidget(message);
-+  auto *yes = new QPushButton(QStringLiteral("GitHubで応援する"), this);
-+  yes->setObjectName("support_github");
-+  yes->setAutoDefault(false);
-+  layout->addWidget(yes);
-+  layout->addWidget(new QLabel(QStringLiteral("リンクを開くと、以後このお願いは表示されません。"), this));
-+  auto *no = new QPushButton(QStringLiteral("いいえ"), this);
-+  no->setObjectName("support_later");
-+  no->setAutoDefault(false);
-+  layout->addWidget(no);
-+  layout->addWidget(new QLabel(QStringLiteral("1週間後に再度表示されます。"), this));
-+  auto *status = new QLabel(this);
-+  status->setObjectName("support_status");
-+  status->setWordWrap(true);
-+  layout->addWidget(status);
-+  connect(yes, &QPushButton::clicked, this, [this, open, status] {
-+    const QUrl url(QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
-+    if (!open(url)) {
-+      status->setText(QStringLiteral("GitHubを開けませんでした。もう一度お試しください。"));
-+      return;
-+    }
-+    if (!state_.Disable()) {
-+      status->setText(QStringLiteral("GitHubを開きましたが、表示停止を保存できませんでした。"));
-+      return;
-+    }
-+    accept();
-+  });
-+  connect(no, &QPushButton::clicked, this, [this] { reject(); });
-+  resize(460, sizeHint().height());
++bool HandleSupportAction(SupportReminderState &state, const QString &action,
++    qint64 now, const std::function<bool(const QUrl &)> &open) {
++  if (!state.Enabled()) return false;
++  if (action == QStringLiteral("later")) return state.Defer(now);
++  if (action != QStringLiteral("github")) return false;
++  const QUrl url(QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
++  return open(url) && state.Disable();
 +}
-+void SupportReminderDialog::reject() {
-+  state_.Defer(clock_());
-+  QDialog::reject();
++QString SupportToastXml() {
++  return QStringLiteral(
++      "<toast launch='github'><visual><binding template='ToastGeneric'>"
++      "<text>Asteriaの使い心地はいかがですか？</text>"
++      "<text>気に入っていただけたら、GitHubのStarで応援をお願いします。リンクを開くと、以後このお願いは表示されません。</text>"
++      "</binding></visual><actions>"
++      "<action content='GitHubで応援する' arguments='github' activationType='foreground'/>"
++      "<action content='いいえ（1週間後に再表示）' arguments='later' activationType='foreground'/>"
++      "</actions><audio silent='true'/></toast>");
 +}
 +}  // namespace mozc::gui
++namespace {
++QString StatePath() {
++  return QString::fromStdString(mozc::SystemUtil::GetUserProfileDirectory()) +
++      QStringLiteral("/support-reminder.ini");
++}
++#ifdef _WIN32
++using Microsoft::WRL::ComPtr;
++using Microsoft::WRL::RuntimeClass;
++using Microsoft::WRL::RuntimeClassFlags;
++using Microsoft::WRL::ClassicCom;
++using Microsoft::WRL::Wrappers::HStringReference;
++constexpr wchar_t kAumid[] = L"Aruiki.Asteria.Support";
++// Kotori: MSIのShortcutProperty/LocalServer32と一致させる。
++const CLSID kActivator = {0x378f9411, 0x77e0, 0x46bd, {0x9e, 0x01, 0xa0, 0xa1, 0x4e, 0xf9, 0x53, 0x91}};
++class Activator final : public RuntimeClass<RuntimeClassFlags<ClassicCom>, INotificationActivationCallback> {
++ public:
++  HRESULT STDMETHODCALLTYPE Activate(LPCWSTR app_id, LPCWSTR args,
++      const NOTIFICATION_USER_INPUT_DATA *, ULONG) override {
++    if (app_id == nullptr || wcscmp(app_id, kAumid) != 0 || args == nullptr) return E_INVALIDARG;
++    const QString action = QString::fromWCharArray(args);
++    if (action != QStringLiteral("github") && action != QStringLiteral("later")) return E_INVALIDARG;
++    // COMのスレッドではQtや設定ファイルを触らない。
++    QMetaObject::invokeMethod(QCoreApplication::instance(), [action] {
++      mozc::gui::SupportReminderState state(StatePath());
++      mozc::gui::HandleSupportAction(state, action, QDateTime::currentSecsSinceEpoch(), QDesktopServices::openUrl);
++      QCoreApplication::quit();
++    }, Qt::QueuedConnection);
++    return S_OK;
++  }
++};
++class Factory final : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IClassFactory> {
++ public:
++  HRESULT STDMETHODCALLTYPE CreateInstance(IUnknown *outer, REFIID iid, void **result) override {
++    if (outer != nullptr) return CLASS_E_NOAGGREGATION;
++    auto object = Microsoft::WRL::Make<Activator>();
++    return object ? object->QueryInterface(iid, result) : E_OUTOFMEMORY;
++  }
++  HRESULT STDMETHODCALLTYPE LockServer(BOOL) override { return S_OK; }
++};
++HRESULT ShowSupportToast() {
++  using namespace ABI::Windows::Data::Xml::Dom;
++  using namespace ABI::Windows::UI::Notifications;
++  ComPtr<IInspectable> instance;
++  HRESULT hr = RoActivateInstance(HStringReference(RuntimeClass_Windows_Data_Xml_Dom_XmlDocument).Get(), &instance);
++  if (FAILED(hr)) return hr;
++  ComPtr<IXmlDocument> document;
++  ComPtr<IXmlDocumentIO> io;
++  if (FAILED(hr = instance.As(&document)) || FAILED(hr = instance.As(&io))) return hr;
++  const std::wstring xml = mozc::gui::SupportToastXml().toStdWString();
++  if (FAILED(hr = io->LoadXml(HStringReference(xml.c_str()).Get()))) return hr;
++  ComPtr<IToastNotificationManagerStatics> manager;
++  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), IID_PPV_ARGS(&manager)))) return hr;
++  ComPtr<IToastNotifier> notifier;
++  if (FAILED(hr = manager->CreateToastNotifierWithId(HStringReference(kAumid).Get(), &notifier))) return hr;
++  NotificationSetting setting;
++  if (FAILED(hr = notifier->get_Setting(&setting))) return hr;
++  if (setting != NotificationSetting_Enabled) return S_FALSE;
++  ComPtr<IToastNotificationFactory> factory;
++  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), IID_PPV_ARGS(&factory)))) return hr;
++  ComPtr<IToastNotification> toast;
++  if (FAILED(hr = factory->CreateToastNotification(document.Get(), &toast))) return hr;
++  // 古い案内を通知センターに積み重ねない。
++  ComPtr<IToastNotification2> toast2;
++  if (FAILED(hr = toast.As(&toast2))) return hr;
++  if (FAILED(hr = toast2->put_Tag(HStringReference(L"support").Get()))) return hr;
++  if (FAILED(hr = toast2->put_Group(HStringReference(L"asteria").Get()))) return hr;
++  return notifier->Show(toast.Get());
++}
++#endif
++}  // namespace
++int RunKotoriSupportActivation(int argc, char *argv[]) {
++#ifdef _WIN32
++  QApplication app(argc, argv);
++  app.setQuitOnLastWindowClosed(false);
++  const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
++  if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) return 1;
++  auto factory = Microsoft::WRL::Make<Factory>();
++  DWORD cookie = 0;
++  HRESULT hr = CoRegisterClassObject(kActivator, factory.Get(), CLSCTX_LOCAL_SERVER, REGCLS_MULTIPLEUSE, &cookie);
++  int result = 1;
++  if (SUCCEEDED(hr)) {
++    // 壊れたCOM呼出しでもプロセスを残さない。
++    QTimer::singleShot(60000, &app, &QCoreApplication::quit);
++    result = app.exec();
++    CoRevokeClassObject(cookie);
++  }
++  if (SUCCEEDED(initialized)) CoUninitialize();
++  return result;
++#else
++  return 0;
++#endif
++}
 +int RunKotoriSupportReminder(int argc, char *argv[]) {
 +  mozc::ProcessMutex mutex("support_reminder");
 +  if (!mutex.Lock()) return 0;
-+  const auto clock = [] { return QDateTime::currentSecsSinceEpoch(); };
-+  const QString path = QString::fromStdString(mozc::SystemUtil::GetUserProfileDirectory()) +
-+      QStringLiteral("/support-reminder.ini");
-+  mozc::gui::SupportReminderState state(path);
++  mozc::gui::SupportReminderState state(StatePath());
 +  if (!state.Enabled()) return 0;
 +  QApplication app(argc, argv);
 +  app.setQuitOnLastWindowClosed(false);
-+  mozc::gui::SupportReminderDialog dialog(state, clock, QDesktopServices::openUrl);
-+  // 初回は起動直後を避ける。延期中は1時間に一度だけ保存状態を確認する。
++#ifdef _WIN32
++  const HRESULT initialized = RoInitialize(RO_INIT_SINGLETHREADED);
++  if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) return 1;
++#endif
 +  QTimer idle;
-+  QObject::connect(&idle, &QTimer::timeout, &dialog, [&] {
++  QObject::connect(&idle, &QTimer::timeout, &app, [&] {
++    const qint64 now = QDateTime::currentSecsSinceEpoch();
 +    if (!state.Enabled()) { app.quit(); return; }
-+    if (!state.Due(clock())) { idle.setInterval(60 * 60 * 1000); return; }
++    if (!state.Due(now)) { idle.setInterval(60 * 60 * 1000); return; }
 +    idle.setInterval(5000);
 +#ifdef _WIN32
 +    LASTINPUTINFO input = {sizeof(LASTINPUTINFO)};
@@ -27376,49 +27438,31 @@ index 000000000..7af85dfe7
 +    if (desktop == nullptr) return;
 +    wchar_t name[64] = {};
 +    DWORD needed = 0;
-+    const bool usable = GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &needed) &&
-+        wcscmp(name, L"Default") == 0;
++    const bool usable = GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &needed) && wcscmp(name, L"Default") == 0;
 +    CloseDesktop(desktop);
 +    if (!usable) return;
++    // 無応答・閉じる・クラッシュも7日以内には再通知しない。
++    if (!state.Due(now) || !state.Defer(now)) { app.quit(); return; }
++    const HRESULT hr = ShowSupportToast();
++    qInfo("Asteria support toast HRESULT=0x%08lx", static_cast<unsigned long>(hr));
 +#endif
-+    // 全画面の動画やゲームにも重ねない。
++    idle.setInterval(60 * 60 * 1000);
++  });
++  idle.start(60000);
++  const int result = app.exec();
 +#ifdef _WIN32
-+    HWND foreground = GetForegroundWindow();
-+    RECT rect = {};
-+    MONITORINFO monitor = {sizeof(MONITORINFO)};
-+    if (foreground != nullptr && foreground != GetDesktopWindow() &&
-+        foreground != GetShellWindow() && GetWindowRect(foreground, &rect) &&
-+        GetMonitorInfo(MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST), &monitor) &&
-+        rect.left <= monitor.rcMonitor.left && rect.top <= monitor.rcMonitor.top &&
-+        rect.right >= monitor.rcMonitor.right && rect.bottom >= monitor.rcMonitor.bottom) return;
++  if (SUCCEEDED(initialized)) RoUninitialize();
 +#endif
-+    // 応答なし・強制終了・再起動でも1週間以内に再表示しない。
-+    if (!state.Due(clock()) || !state.Defer(clock())) { app.quit(); return; }
-+    idle.stop();
-+    if (QScreen *screen = QGuiApplication::primaryScreen()) {
-+      const QRect area = screen->availableGeometry();
-+      dialog.move(area.right() - dialog.width() - 16,
-+                  area.bottom() - dialog.height() - 16);
-+    }
-+    dialog.show();
-+  });
-+  idle.start(60 * 1000);
-+  QObject::connect(&dialog, &QDialog::finished, &app, [&](int) {
-+    if (!state.Enabled()) { app.quit(); return; }
-+    idle.start(60 * 60 * 1000);
-+  });
-+  return app.exec();
++  return result;
 +}
 diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
 new file mode 100644
-index 000000000..c4001c6a9
+index 000000000..bfa66487c
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.h
-@@ -0,0 +1,33 @@
-+// Kotori: 応援案内の保存と画面。入力内容は扱わない。
+@@ -0,0 +1,26 @@
 +#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
-+#include <QDialog>
 +#include <QSettings>
 +#include <QString>
 +#include <QUrl>
@@ -27435,46 +27479,26 @@ index 000000000..c4001c6a9
 + private:
 +  QSettings settings_;
 +};
-+class SupportReminderDialog : public QDialog {
-+ public:
-+  SupportReminderDialog(SupportReminderState &state,
-+      std::function<qint64()> clock, std::function<bool(const QUrl &)> open);
-+ protected:
-+  void reject() override;
-+ private:
-+  SupportReminderState &state_;
-+  std::function<qint64()> clock_;
-+};
++// Kotori: Windowsから来た引数は固定アクションのみ受け付ける。
++bool HandleSupportAction(SupportReminderState &state, const QString &action,
++    qint64 now, const std::function<bool(const QUrl &)> &open);
++QString SupportToastXml();
 +}  // namespace mozc::gui
 +int RunKotoriSupportReminder(int argc, char *argv[]);
++int RunKotoriSupportActivation(int argc, char *argv[]);
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..e20f4eb1e
+index 000000000..2ad169541
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
-@@ -0,0 +1,88 @@
-+// Kotori: 実際の保存ファイルとボタン操作で週次案内を確認する。
+@@ -0,0 +1,70 @@
 +#include "gui/tool/kotori_support_reminder.h"
-+#include <QApplication>
-+#include <QLabel>
-+#include <QPushButton>
 +#include <QTemporaryDir>
 +#include "testing/gunit.h"
-+#ifdef _WIN32
-+#include <windows.h>
-+#endif
 +namespace mozc::gui {
 +class SupportReminderTest : public testing::Test {
 + protected:
-+  void SetUp() override {
-+    if (QApplication::instance() == nullptr) {
-+      static int argc = 1;
-+      static char name[] = "support_test";
-+      static char *argv[] = {name, nullptr};
-+      static QApplication app(argc, argv);
-+    }
-+  }
 +  QString Path() { return dir_.filePath("support-reminder.ini"); }
 +  QTemporaryDir dir_;
 +};
@@ -27495,51 +27519,48 @@ index 000000000..e20f4eb1e
 +TEST_F(SupportReminderTest, GithubSuccessPermanentlyStopsAndUsesFixedUrl) {
 +  SupportReminderState state(Path());
 +  QUrl opened;
-+  SupportReminderDialog dialog(state, [] { return 100; }, [&](const QUrl &url) { opened = url; return true; });
-+  dialog.findChild<QPushButton *>("support_github")->click();
++  ASSERT_TRUE(HandleSupportAction(state, "github", 100, [&](const QUrl &url) { opened = url; return true; }));
 +  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Kotori-AI-Japanese-IME"));
-+  EXPECT_EQ(dialog.result(), QDialog::Accepted);
 +  SupportReminderState reopened(Path());
 +  EXPECT_FALSE(reopened.Enabled());
 +  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportWeekSeconds));
 +}
 +TEST_F(SupportReminderTest, BrowserFailureAllowsRetry) {
 +  SupportReminderState state(Path());
-+  SupportReminderDialog dialog(state, [] { return 100; }, [](const QUrl &) { return false; });
-+  dialog.findChild<QPushButton *>("support_github")->click();
++  EXPECT_FALSE(HandleSupportAction(state, "github", 100, [](const QUrl &) { return false; }));
++  EXPECT_TRUE(state.Enabled());
 +  EXPECT_TRUE(state.Due(100));
-+  EXPECT_FALSE(dialog.findChild<QLabel *>("support_status")->text().isEmpty());
 +}
 +TEST_F(SupportReminderTest, NoDefersOneWeek) {
 +  SupportReminderState state(Path());
-+  SupportReminderDialog dialog(state, [] { return 200; }, [](const QUrl &) { return false; });
-+  dialog.findChild<QPushButton *>("support_later")->click();
++  EXPECT_TRUE(HandleSupportAction(state, "later", 200, [](const QUrl &) { ADD_FAILURE(); return false; }));
 +  EXPECT_TRUE(state.Enabled());
 +  EXPECT_FALSE(state.Due(200 + kSupportWeekSeconds - 1));
 +  EXPECT_TRUE(state.Due(200 + kSupportWeekSeconds));
-+}
-+TEST_F(SupportReminderTest, CloseDefersAndDoesNotActivate) {
-+  SupportReminderState state(Path());
-+  SupportReminderDialog dialog(state, [] { return 300; }, [](const QUrl &) { return false; });
-+  EXPECT_TRUE(dialog.testAttribute(Qt::WA_ShowWithoutActivating));
-+#ifdef _WIN32
-+  const HWND foreground = GetForegroundWindow();
-+#endif
-+  dialog.show();
-+  QApplication::processEvents();
-+#ifdef _WIN32
-+  EXPECT_EQ(GetForegroundWindow(), foreground);
-+#endif
-+  const QString output = qEnvironmentVariable("TEST_UNDECLARED_OUTPUTS_DIR");
-+  if (!output.isEmpty()) EXPECT_TRUE(dialog.grab().save(output + "/support-reminder.png"));
-+  dialog.close();
-+  EXPECT_FALSE(state.Due(300 + kSupportWeekSeconds - 1));
-+  EXPECT_TRUE(state.Due(300 + kSupportWeekSeconds));
 +}
 +TEST_F(SupportReminderTest, StorageFailureDoesNotRepeatedlyPrompt) {
 +  SupportReminderState state(dir_.path());
 +  EXPECT_FALSE(state.Defer(100));
 +  EXPECT_FALSE(state.Due(100));
++}
++TEST_F(SupportReminderTest, RejectsUnknownAndDisabledActions) {
++  SupportReminderState state(Path());
++  int opened = 0;
++  auto open = [&](const QUrl &) { ++opened; return true; };
++  EXPECT_FALSE(HandleSupportAction(state, "https://evil.example", 100, open));
++  EXPECT_TRUE(state.Due(100));
++  ASSERT_TRUE(state.Disable());
++  EXPECT_FALSE(HandleSupportAction(state, "github", 100, open));
++  EXPECT_FALSE(HandleSupportAction(state, "later", 100, open));
++  EXPECT_EQ(opened, 0);
++}
++TEST_F(SupportReminderTest, ToastHasNativeActionsAndSilentAudio) {
++  const QString xml = SupportToastXml();
++  EXPECT_TRUE(xml.contains("ToastGeneric"));
++  EXPECT_TRUE(xml.contains("arguments='github'"));
++  EXPECT_TRUE(xml.contains("arguments='later'"));
++  EXPECT_TRUE(xml.contains("silent='true'"));
++  EXPECT_FALSE(xml.contains("activationType='protocol'"));
 +}
 +}  // namespace mozc::gui
 diff --git a/src/gui/tool/mozc_tool.rc b/src/gui/tool/mozc_tool.rc
@@ -27556,7 +27577,7 @@ index f0086dbd7..630532c6a 100644
  /////////////////////////////////////////////////////////////////////////////
  // Japanese resources
 diff --git a/src/gui/tool/mozc_tool_libmain.cc b/src/gui/tool/mozc_tool_libmain.cc
-index 200ef7201..554f63704 100644
+index 200ef7201..e10ef0823 100644
 --- a/src/gui/tool/mozc_tool_libmain.cc
 +++ b/src/gui/tool/mozc_tool_libmain.cc
 @@ -38,6 +38,7 @@
@@ -27567,12 +27588,22 @@ index 200ef7201..554f63704 100644
  
  #ifdef __APPLE__
  #include <cstdlib>
-@@ -137,7 +138,9 @@ int RunMozcTool(int argc, char *argv[]) {
+@@ -57,6 +58,7 @@
+ #endif  // _WIN32
+ 
+ ABSL_FLAG(std::string, mode, "about_dialog", "mozc_tool mode");
++ABSL_FLAG(bool, Embedding, false, "Windows COM server activation");
+ ABSL_DECLARE_FLAG(std::string, error_type);
+ 
+ // Run* are defined in each qt module
+@@ -137,7 +139,11 @@ int RunMozcTool(int argc, char *argv[]) {
    mozc::gui::WinUtil::KeepJumpListUpToDate();
  #endif  // _WIN32
  
 -  if (absl::GetFlag(FLAGS_mode) == "config_dialog") {
-+  if (absl::GetFlag(FLAGS_mode) == "support_reminder") {
++  if (absl::GetFlag(FLAGS_mode) == "support_activation") {
++    return RunKotoriSupportActivation(argc, argv);
++  } else if (absl::GetFlag(FLAGS_mode) == "support_reminder") {
 +    return RunKotoriSupportReminder(argc, argv);
 +  } else if (absl::GetFlag(FLAGS_mode) == "config_dialog") {
      return RunConfigDialog(argc, argv);
@@ -36372,7 +36403,7 @@ index 012d822a5..21ac2b3ec 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..51a399526 100644
+index ada11a64a..df1054f44 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,10 +32,10 @@ MAJOR = 3
@@ -36384,7 +36415,7 @@ index ada11a64a..51a399526 100644
  
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
-+BUILD = 6337
++BUILD = 6338
  
  # Represent the platform and release channel.
  REVISION = 100
