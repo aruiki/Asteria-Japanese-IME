@@ -12,8 +12,8 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   設定画面、インストーラを加える。配布は GitHub Releases の `Asteria64.msi`。
 - `crates/`・`frontends/`・`justfile` の Rust のエンジンと自前の TSF TIP は **旧 Rust 版**。評価の基準として残すが、
   機能は足さない(CI が緑のままであればよい)。
-- 目標は「高品質版 Google 日本語入力」(docs/adr/0014)。**精度はもう十分**なので、今は精度(Standard で
-  AJIMEE-Bench 90% 以上)を保ったまま、負荷・待ち時間・使い勝手を良くする(docs/adr/0024〜0029)。
+- 目標は「高品質版 Google 日本語入力」(docs/adr/0014)。利用者の2026-10-12指示により、内部の変換精度と実入力上の失敗発見を優先する。精度(Standard で
+  AJIMEE-Bench 90% 以上)を保ち、万単位の入力シナリオで回帰・待ち時間・使い勝手も確かめる(docs/adr/0024〜0029)。
   ハイエンド(GPU)向けの Standard / High / Unreal の中身は保ち、GPU のない PC は Low(CPU)で動かす。
 - **メンテナは判断を任せている**。細かい確認は取らずに進め、結果と数値を報告する。止めるのは、仕様との矛盾、
   取り消せない操作、権限の都合で自分ではできない操作のときだけ。

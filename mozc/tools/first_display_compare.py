@@ -67,7 +67,12 @@ class Session:
 
         def read():
             for line in self.proc.stdout:
-                self.lines.put(line.decode("utf-8").rstrip())
+                try:
+                    self.lines.put(line.decode("utf-8").rstrip())
+                except UnicodeDecodeError:
+                    self.lines.put("ERROR: non-UTF8 session stdout: " + repr(line[:200]))
+                    self.lines.put(None)
+                    return
             self.lines.put(None)
         self.reader = threading.Thread(target=read, daemon=True)
         self.reader.start()
@@ -79,7 +84,13 @@ class Session:
         output, tail = [], False
         deadline = start + 60
         while True:
-            line = self.lines.get(timeout=max(.01, deadline - time.monotonic()))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError("セッション応答が60秒を超過: " + "\n".join(output)[-2000:])
+            try:
+                line = self.lines.get(timeout=remaining)
+            except queue.Empty as exc:
+                raise RuntimeError("セッション応答が60秒を超過: " + "\n".join(output)[-2000:]) from exc
             if line is None:
                 raise RuntimeError("セッションが途中で終了: " + "\n".join(output))
             output.append(line)
