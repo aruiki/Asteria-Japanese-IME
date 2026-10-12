@@ -137,20 +137,9 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 
 1つのクレートだけ試すときは `cargo test -p kotori-session` のようにする。
 
-## 4. 作業の流れ(1つの作業 = 1つの PR)
+## 4. 作業の流れ
 
-1. `docs/tasks/` からカードを1枚選ぶ(番号の小さい順)。カードにない作業をするときは、先に
-   カードを書く。
-2. `main` から枝を切る: `git switch -c <種類>/<短い名前> origin/main`(例 `feat/tip-display-attributes`)。
-3. カードの「手順」に沿って書く。テストのない機能追加はしない。
-4. 確かめる。Mozc 版は 1.3 の評価と計測(数値の前後比較を PR に貼る)、旧 Rust 版は `just ci`
-   (Windows のコードに触れたら `just tip`、Rust に触れたら `just check`)。
-5. コミットは Conventional Commits(`feat(session): ...`)で、本文に関係する REQ ID を書く。
-6. push して PR を作る。本文は `.github/pull_request_template.md` の形に沿う。
-7. CI が全部緑(Windows のジョブを含む)ならマージする(マージコミット。積み重ねた PR は `AGENTS.md` の
-   はまりどころを見る)。赤なら原因を直して push し直す。
-   テストを消したり無効にしたりして緑にしない。
-8. カードを `docs/tasks/done/` に移し、`docs/HANDOFF.md` の進み具合を更新する。
+作業順序・記録・PR・統合の規約は [AGENTS.md](../AGENTS.md) を参照する。この手引きには環境と実行コマンドを置き、同じ手順を重複管理しない。現行Mozc版の確認は1.3、旧Rust版の確認は3章を使う。
 
 ## 5. 旧 Rust 版: Windows で IME を動かして試す
 
@@ -172,6 +161,6 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 
 ## 7. 困ったとき
 
-- まず `docs/HANDOFF.md` の「はまりどころ」を見る。
-- 仕様にない判断が要るときは、`docs/adr/NNNN-<題>.md` に選択肢と理由を書き、最も保守的な案で進める。
+- まず `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」を見る。
+- 設計・配布方針の判断は ADR に記録する。通常の修正は既存カードと PR で追跡し、検証結果は verification にまとめる。
 - 仕様と矛盾するときは、実装を止めて Issue を立てる。`docs/SPEC.md` はメンテナの承認なしに変えない。
