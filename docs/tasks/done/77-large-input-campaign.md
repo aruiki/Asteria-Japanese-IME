@@ -15,6 +15,6 @@
 - [x] CPU1,000読み+90操作、通常34操作、姓696読みON/OFF、初回ロードGPU/CPU各40操作
 - [x] 回帰テスト、Python37件、パッチ再生成/全3適用/130入力一致
 - [x] ADR0062、検証記録large-input-campaign-20261012、引き継ぎ更新
-- [ ] PR/一般CIと必要なWindowsビルドの確認、main統合
+- [x] PR160/一般CI7とWindows MSI build・導入・TSF実入力・削除成功、main f519326へ統合
 
 検証は隔離Native SessionHandler/CLI。今回のMSI作成・導入/実TSF/公開は行っていない。

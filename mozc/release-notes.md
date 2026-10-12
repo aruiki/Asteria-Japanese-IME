@@ -155,6 +155,8 @@ GitHubでの応援をお願いする案内を、Windows標準の通知へ変更�
 
 StandardのAJIMEEは **183/200＝91.5%** を維持し、今回の補正保護の前後で調整用386問の出力が一致しました。隔離した変換セッションで万単位の入力探索を行い、CPUのみの1,000例＋90操作、通常キー操作、モデル読み込み前後の検査も実施しました。
 
-意味選択や誤入力補正には改善の余地があります。低性能ノートPC、複数のWindowsアプリでの入力、長時間利用の受入れは未確認です。コード署名は引き続きありません。CIのインストーラー導入・TSF実入力・削除の結果とMSIの版・ハッシュは、公開時の検証記録に記載します。
+意味選択や誤入力補正には改善の余地があります。低性能ノートPC、複数のWindowsアプリでの入力、長時間利用の受入れは未確認です。コード署名は引き続きありません。Windows CIで当該MSIの導入、「日本語」「東京」のTSF実入力、削除を確認しました。削除では再起動要求（終了コード3010）がありました。
+
+インストーラーの内部版は **3.34.6431.100**。公開ファイルは検証済みCI成果物と同一です。最終評価用300問は **289/300＝96.3%** を維持しています。版・SHA-256・検証条件は[公開用MSIの検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.3/docs/verification/release-v1.1.3-20261012.md)をご覧ください。
 
 詳細は[大規模探索と補正保護の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.3/docs/verification/large-input-campaign-20261012.md)、[文末保護の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.3/docs/verification/generated-grammar-ending-20261012.md)をご覧ください。
