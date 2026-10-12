@@ -1,3 +1,7 @@
+# README冒頭の改名説明を削除（2026-10-12）
+
+利用者の指示で、Asteria/Kotoriの改名案内と付随するWindows表示変更の段落を削除。カード74。冒頭はバッジからダウンロードへ続く。差分/空白検査後、一般CI成功を確認してmain統合する。以下は履歴。
+
 # Asteria公開名の移行（2026-10-12）
 
 利用者の「すべて移行」に従い、公開リポジトリは https://github.com/aruiki/Asteria-Japanese-IME 。originも変更済み。
