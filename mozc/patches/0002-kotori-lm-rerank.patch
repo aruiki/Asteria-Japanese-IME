@@ -28077,7 +28077,7 @@ index 0d2eb3455..1b13074f1 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..20a5baad2 100644
+index 4bbcddeca..9f1330688 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -28130,7 +28130,7 @@ index 4bbcddeca..20a5baad2 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1767,147 @@ mozc_cc_test(
+@@ -1743,3 +1767,151 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -28245,6 +28245,7 @@ index 4bbcddeca..20a5baad2 100644
 +        ":llama_runtime",
 +        ":rewriter_interface",
 +        ":zenz_scorer",
++        "//base:file_stream",
 +        "//base:file_util",
 +        "//base:kotori_live",
 +        "//base:system_util",
@@ -28261,7 +28262,10 @@ index 4bbcddeca..20a5baad2 100644
 +        "@com_google_absl//absl/container:flat_hash_map",
 +        "@com_google_absl//absl/strings",
 +        "@com_google_absl//absl/synchronization",
-+    ],
++    ] + select({
++        "//bazel/cc_target_os:windows": ["//base/win32:wide_char"],
++        "//conditions:default": [],
++    }),
 +)
 +
 +mozc_cc_binary(
@@ -30012,10 +30016,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..04b1228ab
+index 000000000..464386982
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3134 @@
+@@ -0,0 +1,3168 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30030,6 +30034,7 @@ index 000000000..04b1228ab
 +#include <cstdlib>
 +#include <fstream>
 +#include <limits>
++#include <map>
 +#include <thread>
 +#include <atomic>
 +#include <condition_variable>
@@ -30048,6 +30053,7 @@ index 000000000..04b1228ab
 +#include "absl/strings/str_join.h"
 +#include "absl/synchronization/mutex.h"
 +#include "base/file_util.h"
++#include "base/file_stream.h"
 +#include "base/kotori_live.h"
 +#include "base/system_util.h"
 +#include "base/util.h"
@@ -30060,6 +30066,11 @@ index 000000000..04b1228ab
 +#include "protocol/config.pb.h"
 +#include "request/conversion_request.h"
 +#include "rewriter/llama_runtime.h"
++
++#ifdef _WIN32
++#include <windows.h>
++#include "base/win32/wide_char.h"
++#endif
 +
 +namespace mozc {
 +namespace {
@@ -30232,8 +30243,11 @@ index 000000000..04b1228ab
 +}
 +
 +const char* Env(const char* name) {
-+  const char* v = std::getenv(name);
-+  return (v != nullptr && *v != '\0') ? v : nullptr;
++  // 値の寿命は同じキーの次の読取りまで。別のキーを読んでも保持する。
++  static thread_local std::map<std::string, std::string> values;
++  std::string& value = values[name];
++  value = kotori_internal::EnvironmentValue(name);
++  return value.empty() ? nullptr : value.c_str();
 +}
 +
 +std::string Tail(const std::string& s) {
@@ -30784,7 +30798,7 @@ index 000000000..04b1228ab
 +  static const auto* map = [] {
 +    auto* m = new absl::flat_hash_map<std::string, std::string>();
 +    if (const char* path = Env("KOTORI_LM_CONTEXT_MAP")) {
-+      std::ifstream in(path, std::ios::binary);
++      InputFileStream in(path, std::ios::binary);
 +      std::string line;
 +      while (std::getline(in, line)) {
 +        if (!line.empty() && line.back() == '\r') line.pop_back();
@@ -30863,6 +30877,30 @@ index 000000000..04b1228ab
 +}  // namespace
 +
 +namespace kotori_internal {
++
++std::string EnvironmentValue(const char* name) {
++#ifdef _WIN32
++  // getenvはWindowsのANSIコードページを返す。モデル/DLL/文脈のパスは
++  // UTF-8なので、UnicodeのOS環境から取得してMozcの変換関数で揃える。
++  const std::wstring key = win32::Utf8ToWide(name);
++  DWORD size = GetEnvironmentVariableW(key.c_str(), nullptr, 0);
++  while (size > 0) {
++    std::wstring value(size, L'\0');
++    const DWORD written = GetEnvironmentVariableW(key.c_str(), value.data(), size);
++    if (written == 0) return std::string();
++    if (written < size) {
++      value.resize(written);
++      return win32::WideToUtf8(value);
++    }
++    size = written;  // 読取り中に環境変数が伸びた場合だけ再取得する。
++  }
++  return std::string();
++#else
++  const char* value = std::getenv(name);
++  return value == nullptr ? std::string() : std::string(value);
++#endif
++}
++
 +
 +bool HasCorrectionScoreGain(double original, double corrected, double margin) {
 +  if (!std::isfinite(original) || !std::isfinite(corrected) ||
@@ -31311,7 +31349,7 @@ index 000000000..04b1228ab
 +      SystemUtil::GetUserProfileDirectory(), "kotori_ai_status.txt");
 +  const std::string temporary = path + ".tmp";
 +  {
-+    std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
++    OutputFileStream out(temporary, std::ios::binary | std::ios::trunc);
 +    if (!out || !(out << text)) return;
 +    out.flush();
 +    if (!out) return;
@@ -33152,10 +33190,10 @@ index 000000000..04b1228ab
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..4d79021ad
+index 000000000..f4c6b3e0c
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,458 @@
+@@ -0,0 +1,461 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33191,6 +33229,9 @@ index 000000000..4d79021ad
 +namespace mozc {
 +
 +namespace kotori_internal {
++
++// Windowsの環境変数も、モデルや文脈のパスに必要なUTF-8で返す。
++std::string EnvironmentValue(const char* name);
 +
 +// 正しい UTF-8 で制御文字がなく、漢数字・英数字・記号を変えない局所修正の事前検査。
 +// 固有表記・肯否・語と数値の対応を保護する検査の代わりにはならない。
@@ -33616,10 +33657,10 @@ index 000000000..4d79021ad
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..7c1ff3ef0
+index 000000000..6c78e4a12
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,859 @@
+@@ -0,0 +1,879 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -33631,6 +33672,10 @@ index 000000000..7c1ff3ef0
 +#include <string>
 +#include <utility>
 +#include <vector>
++
++#ifdef _WIN32
++#include <windows.h>
++#endif
 +
 +#include "absl/strings/string_view.h"
 +#include "config/config_handler.h"
@@ -34477,6 +34522,22 @@ index 000000000..7c1ff3ef0
 +  EXPECT_TRUE(Recall(Request({})));
 +  EXPECT_TRUE(Apply(best, Request({})));
 +}
++
++#ifdef _WIN32
++TEST(LmEnvironmentTest, UnicodePathsAreUtf8AndChangesAreVisible) {
++  constexpr wchar_t kName[] = L"KOTORI_ENV_UNICODE_TEST";
++  // テストの子プロセスのみ。実利用者の環境・プロファイルは変更しない。
++  ASSERT_EQ(GetEnvironmentVariableW(kName, nullptr, 0), 0);
++  struct Cleanup { ~Cleanup() { SetEnvironmentVariableW(L"KOTORI_ENV_UNICODE_TEST", nullptr); } } cleanup;
++  ASSERT_TRUE(SetEnvironmentVariableW(kName, L"C:\\日本語\\模型 🌙"));
++  EXPECT_EQ(kotori_internal::EnvironmentValue("KOTORI_ENV_UNICODE_TEST"),
++            "C:\\日本語\\模型 🌙");
++  ASSERT_TRUE(SetEnvironmentVariableW(kName, L"ASCII-path"));
++  EXPECT_EQ(kotori_internal::EnvironmentValue("KOTORI_ENV_UNICODE_TEST"), "ASCII-path");
++  ASSERT_TRUE(SetEnvironmentVariableW(kName, nullptr));
++  EXPECT_TRUE(kotori_internal::EnvironmentValue("KOTORI_ENV_UNICODE_TEST").empty());
++}
++#endif
 +
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
