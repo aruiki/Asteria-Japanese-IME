@@ -1,3 +1,11 @@
+# 内部変換デバッグ開始・日本語パスのAI無効化を修正（2026-10-12）
+
+利用者は例の抽出も含む高速デバッグを指示。READMEの改名説明削除はPR157をCI全7成功後にmain7cf6239へ統合、公開READMEの一致確認済み。
+専用mzsupportで現行converterをビルドし、5セット386問のMozc/Standardを比較。日本語runtimeパスでAIが動かずMozcへ戻る問題を再現し、Unicode環境取得とUTF-8ファイル入出力へ修正。日常65→79/81、AJIMEE102→183/200までAIが働く状態に回復。通常の英数字パス対照と全386出力一致、Standard91.5%維持。
+環境回帰テストFAIL→PASS、lm_rewriter53件/工具18件成功。Bazel停止後パッチ再生成/全3適用成功。公開MSIは変更なし。CLIを実TSFの精度/受入れとは扱わない。
+ADR0059、verification/conversion-quality-debug-20261012.md、カード75。quality_triage.pyで結果を問題ID/データSHA/文脈条件で照合し25件の不一致とMozc正解→AI不一致3件を抽出。元データ/期待表記は維持、heldout未使用。
+次は「続編を書く→描く」「うかがえる→伺える」「消してね→消して寝」の候補選択を優先し、意味誤り/許容表記を分けて改善。原票はtarget/conversion-quality-debug。一般CI成功を確認してmainへ統合する。以下は履歴。
+
 # README冒頭の改名説明を削除（2026-10-12）
 
 利用者の指示で、Asteria/Kotoriの改名案内と付随するWindows表示変更の段落を削除。カード74。冒頭はバッジからダウンロードへ続く。差分/空白検査後、一般CI成功を確認してmain統合する。以下は履歴。
