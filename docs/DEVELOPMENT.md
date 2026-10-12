@@ -172,6 +172,6 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 
 ## 7. 困ったとき
 
-- まず `docs/HANDOFF.md` の「はまりどころ」を見る。
-- 仕様にない判断が要るときは、`docs/adr/NNNN-<題>.md` に選択肢と理由を書き、最も保守的な案で進める。
+- まず `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」を見る。
+- 設計・配布方針の判断は ADR に記録する。通常の修正は既存カードと PR で追跡し、検証結果は verification にまとめる。
 - 仕様と矛盾するときは、実装を止めて Issue を立てる。`docs/SPEC.md` はメンテナの承認なしに変えない。

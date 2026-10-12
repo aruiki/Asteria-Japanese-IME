@@ -20,15 +20,15 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 
 ## 作業の手順(毎回これに従う)
 
-1. `docs/tasks/` から番号の小さいカードを選び、「読むもの」を読む。カードがなければ先にカードを書く。
+1. 利用者の現在の依頼と `docs/HANDOFF.md` を優先し、関連するカードの「読むもの」を読む。独立した新しい仕事は短いカードで追跡する。既存カード内の修正・検証のたびにカードを増やさない。
 2. `main` から枝を切る(`git switch -c <種類>/<名前> origin/main`)。1 つの PR は 1 つの目的に絞る。
 3. Mozc 版の変更は、Mozc の作業ツリー(`docs/DEVELOPMENT.md` の「Mozc 版」)で書いてビルドし、評価してから、
    `mozc/tools/make_patches.sh` でパッチを作り直してコミットする。パッチを手で編集しない。
 4. 確かめる(下の「確かめ方」)。数値が変わる変更は、**PR 本文に前後の比較を貼る**(REQ-14-2)。
-5. 仕様にない判断は `docs/adr/NNNN-<題>.md` に選択肢・理由・結果の数値を書く。
-6. PR は `.github/pull_request_template.md` の形で出す。コミットは Conventional Commits、本文に関係する REQ ID。
+5. 設計・配布方針が変わる判断は ADR に理由を書く。通常の不具合修正や検証の追記に新しい ADR は不要。測定結果と失敗原票への参照は verification にまとめ、カード・ADR・HANDOFF ではリンクする。
+6. PR は `.github/pull_request_template.md` に沿い、変更に該当する確認だけを記載する。コミットは Conventional Commits、本文に関係する REQ ID。
 7. CI が緑ならマージする(マージコミット。下の「はまりどころ」)。カードを `docs/tasks/done/` に移し、
-   `docs/HANDOFF.md` を直す。
+   `docs/HANDOFF.md` の現在の状況を更新する。過去の作業中段落を積み重ねない。
 8. 通常のリリースは Actions の「Mozc (Windows)」を main で手動実行する(版は自動で上がる。`docs/DEVELOPMENT.md`)。
    検証済みMSIの再利用は ADR0044 の全条件を満たす場合だけ許可する。CIの省略やMSIの改変はしない。
 
@@ -79,7 +79,7 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   ファイルは入れ替わらない。Mozc の `mozc_version.py` は `BUILD = <数>` の数しか読まない(足し算は無視される)。
   CI のログで書き換えが成功していても、**出来上がった MSI の ProductVersion で確かめる**(beta.5 で見落とした)。
 - **内蔵 GPU は AI に使わない**: 専用 GPU(VRAM 3 GiB 以上)だけを使う(docs/adr/0024)。
-- 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF.md` の「はまりどころ」。
+- 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」。
 
 ## コーディング規約
 
