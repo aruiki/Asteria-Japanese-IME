@@ -30016,10 +30016,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..464386982
+index 000000000..66f1e103d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3168 @@
+@@ -0,0 +1,3214 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30901,6 +30901,41 @@ index 000000000..464386982
 +#endif
 +}
 +
++
++std::string ProtectedSentenceEnding(
++    const converter::Candidate& original,
++    const dictionary::DictionaryInterface& dictionary,
++    dictionary::PosMatcher pos_matcher) {
++  if (!pos_matcher.IsFunctional(original.rid) ||
++      !pos_matcher.IsSuffixWord(original.rid)) return std::string();
++  absl::string_view ending, key, value;
++  for (const auto& segment : original.inner_segments()) {
++    ending = segment.GetFunctionalValue();
++    key = segment.GetKey();
++    value = segment.GetValue();
++  }
++  if (!ending.empty()) return std::string(ending);
++  // 複合語の内部境界では機能語がcontentに含まれることがある。
++  // 最後の内部文節の読み/表記と右品詞が一致する辞書語だけを使う。
++  // 末尾の文字を見て助詞と推測したり、名詞を固定したりしない。
++  std::string protected_ending;
++  const auto chars = Chars(key);
++  size_t offset = 0;
++  for (const std::string& ch : chars) {
++    const auto suffix = key.substr(offset);
++    CorrectionTokenCollector tokens;
++    dictionary.LookupPrefix(suffix, &tokens);
++    for (const auto& token : tokens.tokens) {
++      if (token.key == suffix && token.rid == original.rid &&
++          !token.value.empty() && absl::EndsWith(value, token.value) &&
++          token.value.size() > protected_ending.size()) {
++        protected_ending = token.value;
++      }
++    }
++    offset += ch.size();
++  }
++  return protected_ending;
++}
 +
 +bool HasCorrectionScoreGain(double original, double corrected, double margin) {
 +  if (!std::isfinite(original) || !std::isfinite(corrected) ||
@@ -31881,12 +31916,23 @@ index 000000000..464386982
 +    }
 +  }
 +  {
++    const std::string protected_ending = !generated.empty() && !cands.empty() && dictionary_ != nullptr
++        ? kotori_internal::ProtectedSentenceEnding(*cands.front(), *dictionary_, pos_matcher_)
++        : std::string();
 +    for (const std::string& g : generated) {
 +      if (std::find(values.begin(), values.end(), g) != values.end()) continue;
 +      if ((lattice_kana != SIZE_MAX && CountKana(g) >= lattice_kana + 4) ||
 +          HasStraySmallKana(g)) {
 +        if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +          std::fprintf(stderr, "[kotori] rejected (kana) %s\n", g.c_str());
++        }
++        continue;
++      }
++      // 生成候補が助詞/助動詞を同音の内容語に替えるのを防ぐ。
++      // 文全体候補の右品詞と内部文節の機能語を使い、文字列の個別規則は持たない。
++      if (!protected_ending.empty() && !absl::EndsWith(g, protected_ending)) {
++        if (Env("KOTORI_LM_DEBUG") != nullptr) {
++          std::fprintf(stderr, "[kotori] rejected (sentence ending) %s\n", g.c_str());
 +        }
 +        continue;
 +      }
@@ -33190,10 +33236,10 @@ index 000000000..464386982
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..f4c6b3e0c
+index 000000000..9a4cc611e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,461 @@
+@@ -0,0 +1,467 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33232,6 +33278,12 @@ index 000000000..f4c6b3e0c
 +
 +// Windowsの環境変数も、モデルや文脈のパスに必要なUTF-8で返す。
 +std::string EnvironmentValue(const char* name);
++
++// Mozcの内部文節/品詞から確定する文末の機能語だけを生成候補で保つ。
++std::string ProtectedSentenceEnding(
++    const converter::Candidate& original,
++    const dictionary::DictionaryInterface& dictionary,
++    dictionary::PosMatcher pos_matcher);
 +
 +// 正しい UTF-8 で制御文字がなく、漢数字・英数字・記号を変えない局所修正の事前検査。
 +// 固有表記・肯否・語と数値の対応を保護する検査の代わりにはならない。
@@ -33657,10 +33709,10 @@ index 000000000..f4c6b3e0c
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..6c78e4a12
+index 000000000..358a261f3
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,879 @@
+@@ -0,0 +1,906 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34521,6 +34573,33 @@ index 000000000..6c78e4a12
 +  ReloadModel();
 +  EXPECT_TRUE(Recall(Request({})));
 +  EXPECT_TRUE(Apply(best, Request({})));
++}
++
++TEST_F(LmRewriterDictionaryCorrectionTest, ProtectsGeneratedSentenceGrammarEnding) {
++  CorrectionDictionary dictionary;
++  auto particle = CommonToken("ね", "ね");
++  particle.lid = particle.rid = pos_matcher_.GetFunctionalId();
++  ASSERT_TRUE(pos_matcher_.IsSuffixWord(particle.rid));
++  dictionary.Add(particle);
++  dictionary.Add(CommonToken("ね", "寝"));
++  converter::Candidate original;
++  original.key = "けしてね";
++  original.value = "消してね";
++  original.content_key = original.key;
++  original.content_value = original.value;
++  original.rid = particle.rid;
++  original.inner_segment_boundary.push_back(*converter::EncodeLengths(
++      original.key.size(), original.value.size(), original.content_key.size(),
++      original.content_value.size()));
++  // 実際の複合候補と同じ、機能語がcontentに含まれる境界でも拾える。
++  EXPECT_EQ(kotori_internal::ProtectedSentenceEnding(original, dictionary, pos_matcher_), "ね");
++  // かなの名詞末尾から文法語を推測しない。
++  original.rid = pos_matcher_.GetGeneralNounId();
++  EXPECT_TRUE(kotori_internal::ProtectedSentenceEnding(original, dictionary, pos_matcher_).empty());
++  // 右品詞が違う辞書語を、同じ読みだけで機能語として固定しない。
++  original.rid = particle.rid;
++  original.value = "消して寝";
++  EXPECT_TRUE(kotori_internal::ProtectedSentenceEnding(original, dictionary, pos_matcher_).empty());
 +}
 +
 +#ifdef _WIN32
