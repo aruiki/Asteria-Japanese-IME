@@ -41,7 +41,7 @@
 | 番号 | 目的 | 状態 |
 | --- | --- | --- |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
-| 79 | 開発記録と手順の重複整理 | [カード](79-simplify-development.md) |
+
 
 残る受入れ・配布条件（公開版はv1.1.3。旧RCの作成を繰り返す指示ではない）:
 
@@ -62,6 +62,8 @@
 | 33 | 表記だけが違うときは Mozc の表記を優先する(保留。調整用の手がかりが少ない) | 30 |
 
 済(`done/`、実機の確認は `docs/ACCEPTANCE.md`):
+
+[79: 開発記録と手順の重複整理](done/79-simplify-development.md)（統合条件と結果はPR #163）。
 
 | 番号 | 題 |
 | --- | --- |
