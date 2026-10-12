@@ -16,11 +16,6 @@
   <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-536779">
 </p>
 
-<p align="center">
-  Asteriaは、Kotori日本語入力の新しいブランド名です。<br>
-  現在配布中のv1.1.2から、Windows上の表示も「Asteria」に揃えています。
-</p>
-
 <h2 align="center">
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
 </h2>
