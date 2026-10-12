@@ -1,6 +1,7 @@
 """大量実行の疑義を新規隔離プロファイルで再現し、AI OFF/ONを比較する。"""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -31,8 +32,11 @@ def main():
     ap.add_argument('--settle', type=float, default=2.4)
     ap.add_argument('--cpu', action='store_true')
     ap.add_argument('--warm', type=float, default=10)
+    ap.add_argument('--llm-weight', type=float, help='採点配分の比較用。指定なしは製品の既定')
     ap.add_argument('--candidate-only', action='store_true', help='surname Tab/Space paging; no slow typing')
     args = ap.parse_args()
+    if args.llm_weight is not None and (not math.isfinite(args.llm_weight) or args.llm_weight <= 0):
+        ap.error('llm weight must be finite and positive')
     args.exe = args.exe.resolve(); args.out = args.out.resolve()
     if args.out.exists() and any(args.out.iterdir()):
         ap.error('output must be empty; never append an unrelated replay')
@@ -49,7 +53,7 @@ def main():
     manifest = {'exe_sha256': exe_identity, 'cases_sha256': sha(args.cases), 'runtime_sha256': runtime_identity,
                 'unique_inputs': len(cases), 'conditions_per_ai_mode': 1 if args.candidate_only else 3,
                 'key_interval_seconds': args.key_interval, 'settle_seconds': args.settle,
-                'cpu': args.cpu, 'native_tsf': False, 'commit_tested': False,
+                'cpu': args.cpu, 'llm_weight': args.llm_weight, 'native_tsf': False, 'commit_tested': False,
                 'selected_ids': [c['id'] for c in cases], 'candidate_only': args.candidate_only,
                 'fresh_profile_per_ai_mode_and_condition': True}
     (args.out/'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -62,6 +66,7 @@ def main():
         env.update(KOTORI_MODEL_DIR=str(args.install), KOTORI_RUNTIME_DIR=str(args.install),
                    KOTORI_LM_TIME='1', KOTORI_LM_DEBUG='1')
         if args.cpu: env['KOTORI_LM_DEVICE'] = 'cpu'
+        if args.llm_weight is not None: env['KOTORI_LM_LLM_WEIGHT'] = str(args.llm_weight)
         profile = Path(tempfile.mkdtemp(prefix='asteria-replay-' + label + '-'))
         s = Session(args.exe, env, profile, args.out/(label + '.stderr.txt'))
         rows = []; failed = True; state = ''; config = None
