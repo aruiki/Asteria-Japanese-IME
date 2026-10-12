@@ -1,3 +1,33 @@
+# 中断した大規模探索を再開：入力補正保護のローカル検証完了（2026-10-12）
+
+現在の対象はAsteria（KotoriIMEリポジトリ）、codex/large-input-campaign、開始main b23f0b8。前のチャット「GitHubのダウンロード数を確認」の最終作業を原票とソースで再確認。既存変更を保持した。通常execはMXC os error1326で起動不能だったが、許可された別実行経路で復旧。
+
+Mozcの入力補正がAIに取り消される問題を仕上げ、文節/文全体へTYPING_CORRECTIONを伝播。先頭補正候補のキャッシュ/再採点を保護。実ラティスの文節確認テストも追加PASS。修正前4対象PASSと最終guard build/testのログを保存し、再開後は変更したテストだけを追加検証。
+40例×3条件で「こんいちは→今日は」「りょうしゅしょをください→領主書を下さい」がそれぞれ「こんにちは」「領収書をください」へ。AI ON6出力改善/他114不変、OFF120不変。386問全出力不変、AJIMEE183/200=91.5%維持。heldout未使用。
+
+既存GPU13,178読み+600操作を完走済みと確認。今回CPU1,000読み+90操作を328秒で完走、defect0、即Space中央値156.1ms/最大493.0ms。通常34操作defect0。初回ロード前後GPU/CPU各40操作defect0。利用者のIME/履歴/設定へ接続しない隔離CLIでありTSF受入れではない。
+姓696読みの追加ON/OFF検査完了。ON501読みで少なくとも1表記観測、選択685/685一致。OFF502読み/選択782/782一致。全変種未観測や4ページ範囲外を辞書欠落と断定しない。元のGPU6.8秒長文遅延は再現せず、未解決として保持。
+
+Python全37テストPASS。CPU抽出を正式生成器の--cpu-outへ追加し既存1,000例とバイト一致。Bazel shutdown後make_patches.sh成功、全3パッチ適用、130変更入力が検証済みソースと一致。0002のみ変更。ソース7ファイルSHAと前後比較をguard-paired-comparison.jsonへ固定。
+記録: docs/verification/large-input-campaign-20261012.md、ADR0061/0062、docs/LARGE_INPUT_CAMPAIGN.md。原票はtarget/large-input-campaign（meaning-before/after、guard-eval、cpu-after、surname-after、cold-gpu-after/cold-cpu-after、各log）。
+コマンド: python -B -X utf8 -m unittest discover -s mozc/tools -p test_*.py（exit0、37件）、large_input_campaign.py --cpu --interaction-samples30（exit0）、large_input_replay.py --candidate-only（exit0）、large_input_cold.py GPU/--cpu（両exit0）。詳細引数は上記文書と実行記録。
+
+push/PR/一般CI/main統合/MSI作成・公開は今回未実施。既存の未コミット変更を含む開発ブランチの差分として保持。次は差分をレビューして一般CIと必要なWindowsビルドを通して統合する。その後「おふろわいたよ→お風呂湧いたよ」等の意味選択/誤入力補正を別の再現から開発する。利用者への完了報告で製品完成や導入版への反映とは言わない。
+
+以下は履歴。過去の「実行中」PID/sessionは終了済み。
+
+# 万単位の入力探索を実行中（2026-10-12）
+
+利用者は小規模評価では不十分として万単位で入力者が躓く点を発見するよう指示。カード77、codex/large-input-campaign、main b23f0b8から開始。AGENTSの「精度は十分」という前提を改めた。
+重複しない13,178読みをGPU Standardで実打鍵→即Space→Enterまで完了（4,285秒、ローマ字617,586打鍵）。Meaning oracleは2,910件。自然文には意味の正解率を作らない。heldout未使用。データはtargetのみ。
+続く200サンプル×待機/Tab取消/F6再変換を実行中。exec session4959、検査専用PID34804。利用者のIME/履歴/設定には接続しない。全体完走後に追加試験を順番に実行する。GPUを使うnative試験は並列化しない。
+初回主試験は読み欠落/確定差分なし、Space6,832.65msの1例（ログLLM採点6,682ms）。表記不一致67（業務33は念の為/念のためのみ）、上流Match3、姓の全未観測456。別途全変種も照合し696入力/889読み表記組が未観測、338組は辞書raw sourceに存在。未観測を辞書欠落と断定しない。
+exe SHA387506290813c7988a0bbddd8a7d7f8eaf9aac3ec6a91064701fba51a96e1b0f、cases SHA66b0c30c06a80c70bb9d460595117d8d75ab49ee78f7d9518bebd7bd8f619828。out target/large-input-campaign/gpu-standard。start時のharness/generator/sessionソースをoutへ保持、source-identity.jsonへSHAを記録。
+主試験のPythonは開始時に読み込んだ版であり、現在のmozc/toolsは原応答保存/姓の部分未観測/timeout診断等を追加した次版。source/native EXE/modelsは検査中に書き換え・buildしない。原票は変更せず、現在版のflagが過去結果にあったことにしない。原F6試験の最初のSpaceは後の再変換Spaceに置換される記録上の制約を次版で改善済み。
+追加予定: large_input_replay.pyでmeaning-replay-ids.jsonの40例（条件毎に新規profile、OFF/ON×高速/待機/.15秒打鍵）、surname-all-missing-ids.jsonの696例（--candidate-only、窓/全候補/選択を区別）、cpu-cases.jsonlの層化1,000例（--cpu --interaction-samples30）、large_input_operations.pyの通常n/促音/編集/F7/F10/URL等32操作、large_input_cold.pyの予熱なし/モデルready後20例（GPU/CPU）。まだ実行したとは報告しない。
+Protoを対応protocから生成するlarge_input_proto.pyを追加し生成byte一致を確認。protobuf7.36.1/Python3.13.15/Win11 26300/5700X/RTX3060。集計large_input_summary.pyは重複/期待値変更/欠測を拒否。工具36テスト成功。初期pilot失敗はpilot-v*へ保持。
+次は4959完走→上記追加試験→原票集計・疑義分類・再現記録→必要な修正のみ前後比較→一般CI全7成功→PR統合。製品コード/MSI/READMEは今回変更していない。以下は履歴。
+
 # 内部精度改善：生成候補の文末文法語を保護（2026-10-12）
 
 PR158のUnicode修正はCI38192369025全7成功後にmain b1d73d8へ統合。続けて抽出例「電気を消してね→電気を消して寝」を修正。Mozcの右品詞/内部文節/辞書の一致で機能語を守り、生成候補だけを対象にする。

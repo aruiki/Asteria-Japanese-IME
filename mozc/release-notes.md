@@ -141,3 +141,20 @@ GitHubでの応援をお願いする案内を、Windows標準の通知へ変更�
 ローカルのWindowsビルド、通知の8テスト、実行ファイルのCOM応答処理、MSIの通知登録と版番号を確認しました。
 今回のMSIを導入してのWindows通知の実表示・通知センターからのボタン操作・日本語入力・アンインストール確認は未実施です。
 詳細は[通知の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.2/docs/verification/windows-support-toast-20261011.md)と[デザインの検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.2/docs/verification/asteria-moon-20261011.md)をご覧ください。
+
+
+---
+
+## 今回の更新（v1.1.3）
+
+日本語の入力補正とAI変換を改善しました。
+
+- 日本語を含むモデル・推論環境・文脈ファイルの保存先を正しく扱い、AIが意図せず無効になる問題を修正しました。
+- AI生成候補で「電気を消してね」が「電気を消して寝」のように文末の文法語を変えてしまう問題を修正しました。
+- Mozcが補正した先頭候補をAIが取り消す問題を修正しました。「こんいちは→こんにちは」「りょうしゅしょをください→領収書をください」を、高速・待機・通常打鍵の3条件で確認しています。
+
+StandardのAJIMEEは **183/200＝91.5%** を維持し、今回の補正保護の前後で調整用386問の出力が一致しました。隔離した変換セッションで万単位の入力探索を行い、CPUのみの1,000例＋90操作、通常キー操作、モデル読み込み前後の検査も実施しました。
+
+意味選択や誤入力補正には改善の余地があります。低性能ノートPC、複数のWindowsアプリでの入力、長時間利用の受入れは未確認です。コード署名は引き続きありません。CIのインストーラー導入・TSF実入力・削除の結果とMSIの版・ハッシュは、公開時の検証記録に記載します。
+
+詳細は[大規模探索と補正保護の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.3/docs/verification/large-input-campaign-20261012.md)、[文末保護の検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/v1.1.3/docs/verification/generated-grammar-ending-20261012.md)をご覧ください。

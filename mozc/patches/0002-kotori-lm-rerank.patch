@@ -819,10 +819,20 @@ index c77da1f3b..f6b15e279 100644
    Candidate candidate;
  
 diff --git a/src/converter/immutable_converter.cc b/src/converter/immutable_converter.cc
-index 448b6c25a..d62a1ff22 100644
+index 448b6c25a..a9b0242d0 100644
 --- a/src/converter/immutable_converter.cc
 +++ b/src/converter/immutable_converter.cc
-@@ -1624,6 +1624,21 @@ void ImmutableConverter::InsertCandidatesForConversion(
+@@ -110,6 +110,9 @@ class KeyCorrectedNodeListBuilder : public BaseNodeListBuilder {
+     }
+     Node* node = NewNodeFromToken(std::move(token));
+     node->key.assign(original_lookup_key_.data() + pos_, offset);
++    // Kotori: 補正経路でも未変更の語には印を付けない。実際に補った部分だけを
++    // N-best候補へ伝え、AIが字面の一致する誤変換へ戻すのを防ぐ。
++    if (actual_key != node->key) node->attributes |= Node::TYPING_CORRECTION;
+     node->wcost += KeyCorrector::GetCorrectedCostPenalty(node->key);
+     AppendToResult(node);
+     return TRAVERSE_CONTINUE;
+@@ -1624,6 +1627,21 @@ void ImmutableConverter::InsertCandidatesForConversion(
    // TODO(toshiyuki): We want more beautiful structure.
    const size_t old_conversion_segments_size =
        segments->conversion_segments_size();
@@ -844,6 +854,103 @@ index 448b6c25a..d62a1ff22 100644
    InsertCandidates(options, segments, lattice, group, max_candidates_size,
                     MULTI_SEGMENTS);
    if (old_conversion_segments_size > 0) {
+diff --git a/src/converter/immutable_converter_test.cc b/src/converter/immutable_converter_test.cc
+index c8d8e6733..9dabad30f 100644
+--- a/src/converter/immutable_converter_test.cc
++++ b/src/converter/immutable_converter_test.cc
+@@ -751,4 +751,55 @@ TEST(ImmutableConverterTest, ParticleOmissionBonusPredictionTest) {
+   EXPECT_EQ(cost_bonus_2000 - cost_bonus_2001, 1);
+ }
+ 
++
++// Kotori: 入力補正の由来が文節/文全体の候補へ届くことを実ラティスで検査する。
++namespace {
++class KotoriCorrectionDictionary : public dictionary::DictionaryInterface {
++ public:
++  void LookupPrefix(absl::string_view key, Callback* callback) const override {
++    constexpr absl::string_view kKey = "こんにちは";
++    if (key.substr(0, kKey.size()) != kKey) return;
++    dictionary::Token token;
++    token.key = std::string(kKey);
++    token.value = std::string(kKey);
++    token.lid = token.rid = 1;
++    token.cost = 1000;
++    callback->OnToken(kKey, kKey, token);
++  }
++};
++}  // namespace
++
++TEST(ImmutableConverterTest, KotoriPreservesKeyCorrectionProvenance) {
++  MockDataAndImmutableConverter data(std::make_unique<KotoriCorrectionDictionary>(),
++                                    std::make_unique<KotoriCorrectionDictionary>());
++  for (const std::string key : {"こんいちは", "こんにちは"}) {
++    Segments segments;
++    auto* segment = segments.add_segment();
++    segment->set_key(key);
++    segment->set_segment_type(Segment::FREE);
++    const ConversionRequest request = ConversionRequestBuilder()
++        .SetOptions({.request_type = ConversionRequest::CONVERSION,
++                     .max_conversion_candidates_size = 20}).Build();
++    ASSERT_TRUE(data.GetConverter()->Convert(request.options(), &segments));
++    bool found = false;
++    for (const auto& candidate : segments.kotori_sentences()) {
++      if (candidate.value != "こんにちは") continue;
++      found = true;
++      EXPECT_EQ((candidate.attributes & Attribute::TYPING_CORRECTION) != 0,
++                key == "こんいちは");
++    }
++    EXPECT_TRUE(found) << key;
++    // 文全体候補だけでなく、AIの保護判定が参照する文節候補も確認する。
++    ASSERT_EQ(segments.conversion_segments_size(), 1);
++    bool segment_found = false;
++    for (const auto* candidate : segments.conversion_segment(0).candidates()) {
++      if (candidate->value != "こんにちは") continue;
++      segment_found = true;
++      EXPECT_EQ((candidate->attributes & Attribute::TYPING_CORRECTION) != 0,
++                key == "こんいちは");
++    }
++    EXPECT_TRUE(segment_found) << key;
++  }
++}
++
+ }  // namespace mozc
+diff --git a/src/converter/nbest_generator.cc b/src/converter/nbest_generator.cc
+index 2e0d107be..c42ab0cf5 100644
+--- a/src/converter/nbest_generator.cc
++++ b/src/converter/nbest_generator.cc
+@@ -195,6 +195,10 @@ void NBestGenerator<TConnector>::MakeCandidate(
+     if (node->attributes & Node::SPELLING_CORRECTION) {
+       candidate.attributes |= Attribute::SPELLING_CORRECTION;
+     }
++    // Kotori: 文節候補と文全体候補の両方で入力補正の由来を保持する。
++    if (node->attributes & Node::TYPING_CORRECTION) {
++      candidate.attributes |= Attribute::TYPING_CORRECTION;
++    }
+     if (node->attributes & Node::NO_VARIANTS_EXPANSION) {
+       candidate.attributes |= Attribute::NO_VARIANTS_EXPANSION;
+     }
+diff --git a/src/converter/node.h b/src/converter/node.h
+index 08d602a65..4eb1bd0fa 100644
+--- a/src/converter/node.h
++++ b/src/converter/node.h
+@@ -57,6 +57,8 @@ struct Node {
+     // PARTIALY_KEY_CONSUMED is deleted.
+     SUFFIX_DICTIONARY = 1 << 8,  // Suffix dictionary
+     KEY_EXPANDED = 1 << 9,       // Keys are expanded.
++    // Kotori: KeyCorrectorが元の入力を補って辞書語に対応させた。
++    TYPING_CORRECTION = 1 << 10,
+   };
+ 
+   // prev and next are linking pointers to connect minimum cost path
+@@ -90,7 +92,7 @@ struct Node {
+   NodeType node_type;
+ 
+   // Bit field of Attribute. 16 bit is enough as the
+-  // biggest value is KEY_EXPANDED = 1 << 9.
++  // biggest value is TYPING_CORRECTION = 1 << 10.
+   uint16_t attributes;
+ 
+   // key: The user input.
 diff --git a/src/converter/segments.cc b/src/converter/segments.cc
 index d9176b9a8..bd8065a38 100644
 --- a/src/converter/segments.cc
@@ -30016,10 +30123,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..66f1e103d
+index 000000000..b83162d8b
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3214 @@
+@@ -0,0 +1,3229 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30902,6 +31009,16 @@ index 000000000..66f1e103d
 +}
 +
 +
++bool HasTypingCorrectedTop(const Segments& segments) {
++  for (const Segment& segment : segments.conversion_segments()) {
++    if (segment.candidates_size() > 0 &&
++        (segment.candidate(0).attributes & converter::Attribute::TYPING_CORRECTION)) {
++      return true;
++    }
++  }
++  return false;
++}
++
 +std::string ProtectedSentenceEnding(
 +    const converter::Candidate& original,
 +    const dictionary::DictionaryInterface& dictionary,
@@ -31743,6 +31860,9 @@ index 000000000..66f1e103d
 +      request.options().skip_slow_rewriters) {
 +    return std::nullopt;
 +  }
++  // Kotori: 先回りのメモを読む前にも保護する。読みを補った候補を、
++  // キャッシュにある字面優先の生成へ戻さない。
++  if (kotori_internal::HasTypingCorrectedTop(segments)) return std::nullopt;
 +  const std::vector<converter::Candidate>& sentences =
 +      segments.kotori_sentences();
 +  if (Env("KOTORI_LM_DEBUG") != nullptr) {
@@ -31883,7 +32003,8 @@ index 000000000..66f1e103d
 +  // ユーザー辞書の語を含む文が Mozc の 1 位なら、利用者が登録した表記を AI で変えない
 +  // (docs/adr/0027、改善案 07)。
 +  if (!cands.empty() && cands.front() != nullptr &&
-+      (cands.front()->attributes & converter::Attribute::USER_DICTIONARY)) {
++      (cands.front()->attributes & (converter::Attribute::USER_DICTIONARY |
++                                   converter::Attribute::TYPING_CORRECTION))) {
 +    return std::nullopt;
 +  }
 +  // ラティスの 1 位のひらがなの数。生成した文がこれより 4 文字以上多ければ、読みを漢字に変えずに
@@ -33042,6 +33163,7 @@ index 000000000..66f1e103d
 +  // サジェストのための変換(1 打鍵ごと)では、AI の変換を動かさない(入力が重くなるため)。
 +  if (request.options().skip_slow_rewriters) return false;
 +  if (!request.config().kotori_lm_enabled() || request.incognito_mode()) return false;
++  if (kotori_internal::HasTypingCorrectedTop(*segments)) return false;
 +  // Kotori: 文全体で選んだ結果を覚えていれば、ロックを取らずに当てはめる(入力中の候補の取り直しと、
 +  // その後の Space。docs/adr/0039)。取り直しでは文節ごとの見直しもしない(先頭だけ使う)。
 +  if (sentence_ && request.request_type() == ConversionRequest::CONVERSION) {
@@ -33236,10 +33358,10 @@ index 000000000..66f1e103d
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..9a4cc611e
+index 000000000..7c1dd1862
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,467 @@
+@@ -0,0 +1,470 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33275,6 +33397,9 @@ index 000000000..9a4cc611e
 +namespace mozc {
 +
 +namespace kotori_internal {
++
++// Mozcの先頭候補が入力補正済みなら、自動の再採点/生成で戻さない。
++bool HasTypingCorrectedTop(const Segments& segments);
 +
 +// Windowsの環境変数も、モデルや文脈のパスに必要なUTF-8で返す。
 +std::string EnvironmentValue(const char* name);
@@ -33709,10 +33834,10 @@ index 000000000..9a4cc611e
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..358a261f3
+index 000000000..dc7621ffa
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,906 @@
+@@ -0,0 +1,934 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34617,6 +34742,34 @@ index 000000000..358a261f3
 +  EXPECT_TRUE(kotori_internal::EnvironmentValue("KOTORI_ENV_UNICODE_TEST").empty());
 +}
 +#endif
++
++
++TEST(LmRewriterGuardTest, OnlyTypingCorrectedTopRequiresPreservation) {
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("こんいちは");
++  auto* first = segment->add_candidate();
++  first->value = "今日は";
++  segment->add_candidate()->attributes = converter::Attribute::TYPING_CORRECTION;
++  EXPECT_FALSE(kotori_internal::HasTypingCorrectedTop(segments));
++  first->value = "こんにちは";
++  first->attributes = converter::Attribute::TYPING_CORRECTION;
++  EXPECT_TRUE(kotori_internal::HasTypingCorrectedTop(segments));
++  first->attributes = converter::Attribute::DEFAULT_ATTRIBUTE;
++  EXPECT_FALSE(kotori_internal::HasTypingCorrectedTop(segments));
++}
++
++TEST(LmRewriterGuardTest, PastCorrectionDoesNotBlockNewConversion) {
++  Segments segments;
++  Segment* history = segments.add_segment();
++  history->set_segment_type(Segment::HISTORY);
++  history->add_candidate()->attributes = converter::Attribute::TYPING_CORRECTION;
++  Segment* current = segments.add_segment();
++  current->add_candidate();
++  EXPECT_FALSE(kotori_internal::HasTypingCorrectedTop(segments));
++  current->mutable_candidate(0)->attributes = converter::Attribute::TYPING_CORRECTION;
++  EXPECT_TRUE(kotori_internal::HasTypingCorrectedTop(segments));
++}
 +
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
