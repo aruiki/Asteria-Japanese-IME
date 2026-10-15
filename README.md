@@ -24,15 +24,6 @@
   Windows 10 / 11・64bit
 </p>
 
-## 実際の入力の様子
-
-同じ「きしゃ」から、貴社・記者・汽車・帰社へ。Asteriaでローマ字を入力し、候補を選んで確定する様子です。
-
-<p align="center">
-  <img src="docs/images/typing-demo.gif" alt="Asteriaで「貴社の記者が汽車で帰社した。」「音声認識の精度が上がった。」「明日の会議は１０時からです。」と実入力する様子" width="100%">
-</p>
-
-収録用の入力欄で録画した約36秒のGIFです。候補を選ぶ操作を含みます。 [動画で見る](https://aruiki.github.io/kanai/#typing-demo)
 
 
 
