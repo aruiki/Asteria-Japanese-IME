@@ -27,7 +27,7 @@
 ## 実際の入力
 
 <p align="center">
-  <img src="docs/images/typing-demo.gif" alt="音声認識の精度が上がった — Space 1回で変換したAsteriaの実入力" width="100%">
+  <img src="docs/images/typing-demo.gif?v=one-space" alt="音声認識の精度が上がった — Space 1回で変換したAsteriaの実入力" width="100%">
 </p>
 
 
