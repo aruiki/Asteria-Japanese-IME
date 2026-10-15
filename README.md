@@ -5,8 +5,8 @@
 <h1 align="center">Asteria — アステリア（完全無料の日本語入力）</h1>
 
 <p align="center">
-  <strong>書くことに、集中できる日本語入力。</strong><br>
-  文脈を理解し常に最適な変換をするWindows向けの完全ローカルな日本語IMEです。
+  <strong>文脈を理解し常に最適な変換をするWindows向けの完全ローカルな日本語IMEです。</strong><br>
+  
 </p>
 
 <p align="center">
