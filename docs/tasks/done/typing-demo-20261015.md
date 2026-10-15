@@ -5,3 +5,5 @@
 - 完了条件: 実入力の原票・可読なGIF・README埋め込み・サイトの操作できる動画。
 - 実装と収録結果: [検証記録](../../verification/typing-demo-20261015.md)。
 - 公開PR: https://github.com/aruiki/Asteria-Japanese-IME/pull/164 。GIF制作・README埋め込み・Web動画の実装を完了。CI確認後に統合する。
+
+追記: 利用者指示により、複雑な変換部分だけを切り出した14.79秒・680×112のGIFへ変更。文字が画面高のおよそ3分の1を占める。READMEとサイトは説明・コントロールなしで自動ループ表示する。
