@@ -23,7 +23,7 @@
 <p align="center">
   Windows 10 / 11・64bit
 </p>
-## 同じ条件で測った、変換の正確さ
+
 
 <p align="center">
   <img src="docs/images/ime-comparison.png" alt="IME実入力比較" width="880">
