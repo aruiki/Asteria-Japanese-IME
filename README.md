@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>書くことに、集中できる日本語入力。</strong><br>
-  いつもの操作に、文脈を読むAIを。Windows向けの、完全ローカルな日本語IMEです。
+  文脈を理解し常に最適な変換をするWindows向けの完全ローカルな日本語IMEです。
 </p>
 
 <p align="center">
