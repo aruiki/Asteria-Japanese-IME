@@ -23,6 +23,28 @@
 <p align="center">
   Windows 10 / 11・64bit
 </p>
+## 同じ条件で測った、変換の正確さ
+
+<p align="center">
+  <img src="docs/images/ime-comparison.png" alt="IME実入力比較" width="880">
+</p>
+
+AJIMEE-Bench 198問を、**実際に各IMEへ入力して比較**しました。Kotori日本語入力（現Asteria）の正解率は **88.4%** でした。
+
+| IME | 正解率 |
+| --- | ---: |
+| **Kotori日本語入力** | **88.4%** |
+| Microsoft IME | 59.6% |
+| Google 日本語入力 | 58.1% |
+
+すべて同じ入力方法・同じ条件で、Spaceを1回押したときの第1候補を比較しています。
+
+> この比較は2026-10-01時点の Kotori beta.8 / Unreal で測定したものです。  
+> 現在版の再測定値ではありません。
+
+評価方法・テストデータ・CSVは [eval/README.md](eval/README.md) で公開しています。
+
+---
 
 ---
 
@@ -47,28 +69,6 @@ Asteriaは、Mozcの変換にAIによる文脈の評価を加えます。**文�
 
 ---
 
-## 同じ条件で測った、変換の正確さ
-
-<p align="center">
-  <img src="docs/images/ime-comparison.png" alt="IME実入力比較" width="880">
-</p>
-
-AJIMEE-Bench 198問を、**実際に各IMEへ入力して比較**しました。Kotori日本語入力（現Asteria）の正解率は **88.4%** でした。
-
-| IME | 正解率 |
-| --- | ---: |
-| **Kotori日本語入力** | **88.4%** |
-| Microsoft IME | 59.6% |
-| Google 日本語入力 | 58.1% |
-
-すべて同じ入力方法・同じ条件で、Spaceを1回押したときの第1候補を比較しています。
-
-> この比較は2026-10-01時点の Kotori beta.8 / Unreal で測定したものです。  
-> 現在版の再測定値ではありません。
-
-評価方法・テストデータ・CSVは [eval/README.md](eval/README.md) で公開しています。
-
----
 
 ## 毎日の入力に、六つの工夫
 
