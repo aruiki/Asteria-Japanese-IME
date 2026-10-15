@@ -24,11 +24,6 @@
   Windows 10 / 11・64bit
 </p>
 
-## 実際の入力
-
-<p align="center">
-  <img src="docs/images/typing-demo.gif" alt="貴社の記者が汽車で帰社した。— Asteriaの実入力" width="100%">
-</p>
 
 
 
