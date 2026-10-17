@@ -10,6 +10,8 @@
 
 最新: ユーザーの指示によりAJIMEE改善へ集中。専用製品・ソースは `codex/ajimee-ranking-20261017`。順位付けのLLM重み1.2、補正は従来0.7へ分離、Standardの生成8/LLM採点4、不正UTF-8生成の除外を採用。既定設定の実converterで184→186/200（93.0%）、改善2・改悪0。前回185/200比は改善1・改悪0。ソース9252fb8f0、パッチ再構成131ファイル一致。[測定記録](verification/accuracy-ajimee-ranking-20261017.md)を参照。導入・公開は未実施。次は残る14問を改善し、診断やベンチマークの拡大を先行させない。
 
+追加比較ではmedium生成は186/200で効果なし、一語辞書候補の追加は180/200（改善0/改悪6）で不採用。[失敗原票と実装](verification/accuracy-local-candidates-20261017.md)を保存。実験枝 `codex/local-homophones-20261017` を保持し、採用済みパッチは変更していない。残る誤答の8/14件は正解候補が採点されても選べないため、次は既存候補の識別学習を優先する。
+
 以下の基準測定・公開情報は記載時点の履歴。
 
 利用者が `AI-NihongoIME/docs/AI_ACCURACY_IMPROVEMENT_GUIDE.md` を開発ゴールへ指定。[カード81](tasks/81-accuracy-guide.md)を `codex/accuracy-guide-20261016` で進める。評価器の文脈衝突を修正し、観測候補包含と内部AI採点の診断・結果SHAつき比較台帳を実装した。[評価仕様](ACCURACY_EVALUATION.md)を参照。基準測定は従来バイナリで行い、新しい製品精度改善とは呼ばない。原票 `target/accuracy-guide/`。
