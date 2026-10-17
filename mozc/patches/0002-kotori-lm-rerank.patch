@@ -30160,10 +30160,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..b73a3598b
+index 000000000..a0228c603
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3255 @@
+@@ -0,0 +1,3277 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30357,6 +30357,8 @@ index 000000000..b73a3598b
 +};
 +
 +constexpr char kDefaultModelName[] = "zenz-v2.5-small-q8_0.gguf";
++constexpr char kLearnedGeneratorModelName[] =
++    "zenz-v2.5-native-generator-20261017-q8_0.gguf";
 +// 汎用の LLM(TinySwallow-1.5B、Apache-2.0)。GPU 向け(docs/adr/0016)。
 +constexpr char kLlmModelName[] = "tinyswallow-1.5b-q5_k_m.gguf";
 +constexpr size_t kMaxContextBytes = 240;  // 40 文字ぶん以上
@@ -31740,6 +31742,13 @@ index 000000000..b73a3598b
 +    if (extra.empty() && quality.extra != nullptr) {
 +      extra = FileUtil::JoinPath(model_dir_, quality.extra);
 +    }
++    // Keep the original generator and scorer. The learned model only adds
++    // candidates when it is present in the bundle; loading stays asynchronous.
++    const bool learned_default = extra.empty() && gpu && *llm_top > 0 &&
++                                 UsesLlm(config);
++    if (learned_default) {
++      extra = FileUtil::JoinPath(model_dir_, kLearnedGeneratorModelName);
++    }
 +    if (!(extra_loaded_ && extra_path_ == extra)) {
 +      if (!may_load && !extra.empty()) {
 +        RequestLoad(config);
@@ -31752,6 +31761,11 @@ index 000000000..b73a3598b
 +          extra_ = ZenzScorer::Open(extra, threads_, runtime_dir_);
 +        }
 +      }
++    }
++    if (learned_default && extra_ != nullptr) {
++      // The original zenz can undervalue newly learned spellings. Score the
++      // bounded combined pool instead of discarding those candidates early.
++      *llm_top = llm_top_override_.value_or(32);
 +    }
 +  }
 +  // LLM(文全体の採点に加える): AI モデルが LLM か、自動で GPU があるとき(docs/adr/0016)。
@@ -31776,10 +31790,35 @@ index 000000000..b73a3598b
 +  return main_scorer;
 +}
 +
-+std::string LmRewriter::ModelKey(const ZenzScorer* scorer) const {
++bool LmRewriter::UsesExtraGenerator(const ZenzScorer* llm) const {
++  if (extra_ == nullptr) return false;
++  // The learned generator is only useful with semantic scoring. If that model
++  // is unavailable, keep the original zenz generation and its cache identity.
++  return llm != nullptr ||
++         extra_path_ != FileUtil::JoinPath(model_dir_, kLearnedGeneratorModelName);
++}
++
++std::vector<std::string> LmRewriter::GenerateCandidates(
++    ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
++    const std::string& reading, int beams,
++    const std::function<bool()>& cancelled) const {
++  CancelScope cancel(cancelled);
++  std::vector<std::string> values = scorer->Generate(context, reading, beams);
++  if (UsesExtraGenerator(llm) && !cancelled()) {
++    for (std::string& value : extra_->Generate(context, reading, beams)) {
++      if (std::find(values.begin(), values.end(), value) == values.end()) {
++        values.push_back(std::move(value));
++      }
++    }
++  }
++  return values;
++}
++
++std::string LmRewriter::ModelKey(const ZenzScorer* scorer,
++                                const ZenzScorer* llm) const {
 +  const std::string& path =
 +      scorer != nullptr && scorer == long_scorer_.get() ? long_path_ : loaded_path_;
-+  return path + "|" + extra_path_;
++  return path + "|" + (UsesExtraGenerator(llm) ? extra_path_ : std::string());
 +}
 +
 +std::shared_ptr<const LmRewriter::CorrectionModels>
@@ -32070,26 +32109,12 @@ index 000000000..b73a3598b
 +  std::vector<std::string> generated;
 +  if (beams > 0 && Util::CharsLen(reading) <= kMaxGenerateChars) {
 +    if (gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
-+        gen_cache_->model == ModelKey(scorer)) {
++        gen_cache_->model == ModelKey(scorer, llm)) {
 +      generated = gen_cache_->texts;  // 先回りの変換で作ったもの
 +    } else {
-+      {
-+        CancelScope cancel(gen_over);
-+        generated = scorer->Generate(context, reading, beams);
-+        // 2 つ目の zenz(Unreal)でも生成し、候補を合わせる(docs/adr/0031)。
-+        {
-+          if (extra_ != nullptr && !gen_over()) {
-+            for (std::string& g : extra_->Generate(context, reading, beams)) {
-+              if (std::find(generated.begin(), generated.end(), g) ==
-+                  generated.end()) {
-+                generated.push_back(std::move(g));
-+              }
-+            }
-+          }
-+        }
-+      }
++      generated = GenerateCandidates(scorer, llm, context, reading, beams, gen_over);
 +      // 裏の先回りの変換が同じ読みを作り直さないように残す(途中でやめたものは残さない)。
-+      if (!gen_over()) gen_cache_ = Generated{key, beams, loaded_path_ + "|" + extra_path_, generated};
++      if (!gen_over()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), generated};
 +    }
 +  }
 +  {
@@ -33060,13 +33085,10 @@ index 000000000..b73a3598b
 +                                    false, true, Util::CharsLen(job.reading));
 +    if (scorer != nullptr && beams > 0 &&
 +        !(gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
-+          gen_cache_->model == ModelKey(scorer))) {
-+      std::vector<std::string> texts;
-+      {
-+        CancelScope cancel(cancelled);
-+        texts = scorer->Generate(job.context, job.reading, beams);
-+      }
-+      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer), texts};
++          gen_cache_->model == ModelKey(scorer, llm))) {
++      const auto texts = GenerateCandidates(
++          scorer, llm, job.context, job.reading, beams, cancelled);
++      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), texts};
 +    }
 +  }
 +  {
@@ -33421,10 +33443,10 @@ index 000000000..b73a3598b
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..ece641bd4
+index 000000000..e339420ae
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,478 @@
+@@ -0,0 +1,485 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33629,7 +33651,14 @@ index 000000000..ece641bd4
 +                         std::string* fixed) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  // 生成の結果を覚えるときの、そのモデルの名前(先回りの変換の結果を使い回してよいか)。
-+  std::string ModelKey(const ZenzScorer* scorer) const
++  bool UsesExtraGenerator(const ZenzScorer* llm) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  std::vector<std::string> GenerateCandidates(
++      ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
++      const std::string& reading, int beams,
++      const std::function<bool()>& cancelled) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  std::string ModelKey(const ZenzScorer* scorer, const ZenzScorer* llm) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  // Kotori: 実際に採点・補正に使うモデルのSHAとロード世代を固定する。
 +  std::shared_ptr<const CorrectionModels> BindCorrectionModels(

@@ -84,6 +84,9 @@ def validate(pairs, excluded):
             raise ValueError('Non-finite frozen LLM score')
     if keys['train'] & keys['dev'] or groups['train'] & groups['dev']:
         raise ValueError('Train/dev reading or corpus-group leakage')
+    near_dev = exclusion_filter(keys['dev'])
+    if any(near_dev(key) for key in keys['train']):
+        raise ValueError('Near-duplicate train/dev reading leakage')
 
 
 def main():

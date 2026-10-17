@@ -14,3 +14,11 @@ python training/contrastive/native_pairs.py --observed target/accuracy-guide/har
 `native_pairs.py` は実候補の有限なLLMスコア差も保存する。`train.py --joint-llm-weight 1.2` では順位損失と開発正解数へこの固定差を加え、製品と同じzenz+LLMの識別を学習する。通常文のNLLはzenz単体のまま保持する。これは記録された候補間の固定LLMスコアによる学習であり、生成候補・採点対象・補正も変わる実converterの評価とは区別する。
 
 `merge_adapter.py` は選択adapterを統合し、統合前後のロジット一致を検査する。`export_gguf.py` は `--llama-root` で既存llama.cppを指定して書き出す。Torch・transformers・gguf依存のあるPythonを使う。量子化後のGGUFは実converterのAJIMEEで比較し、改善・改悪とモデルSHAを保存する。学習データ・モデル重みはGitへ追加しない。
+
+今回のモデルは主生成・採点の置換では悪化したため、追加生成だけに使う。元のzenzとTinySwallowで全候補を採点するとAJIMEE186→187/200、改悪0だった。元モデル3件を保持したローカル同梱候補は次のコマンドで作る。出力済みのフォルダと導入済みIMEは変更しない。
+
+```powershell
+python training/contrastive/stage_generator.py --base-dir 'C:/Program Files (x86)/Kotori' --generator target/accuracy-guide/native-joint-512-v1/native-q8_0.gguf --out target/accuracy-guide/learned-generator-bundle-v1
+```
+
+モデル識別は `native_generator.json`。`distribution_status` はローカル候補であり、公開済みモデルではない。

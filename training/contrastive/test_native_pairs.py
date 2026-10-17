@@ -22,6 +22,11 @@ class NativePairsTest(unittest.TestCase):
     def test_independent_pairs_are_accepted(self):
         validate([self.row('train', 'かく', 'a'), self.row('dev', 'えがく', 'b')], set())
 
+    def test_near_duplicate_train_dev_readings_are_rejected(self):
+        with self.assertRaises(ValueError):
+            validate([self.row('train', 'きょうのよていをかくにんする', 'a'),
+                      self.row('dev', 'きょうのよていをかくにんする。', 'b')], set())
+
     def test_nonfinite_frozen_score_is_rejected(self):
         with self.assertRaises(ValueError):
             validate([dict(self.row('train', 'かく', 'a'),
