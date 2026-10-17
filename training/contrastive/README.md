@@ -1,0 +1,16 @@
+# 実変換候補からの対比学習
+
+公開コーパスの参照表記と、実converterが出した同じ読みの候補を対比較へ変換する。参照以外の表記をすべて意味的な誤りとは呼ばず、コーパスの表記選好として扱う。学習・モデルは専用の `target/accuracy-guide/` へ出力し、導入済みモデルを上書きしない。
+
+`native_pairs.py` は取得原票のSHAを照合し、AJIMEE等の除外入力は読みだけで照合する。近似する読みと、train/dev間の同じ読み・同じコーパス取得区間も拒否する。通常文を混ぜ、モデル選択では通常文・実候補の両方の開発正解数が基準から下がらないことを要求する。開発指標だけで製品へ採用しない。
+
+```powershell
+python -m unittest discover -s training/contrastive -p test_native_pairs.py -v
+python training/contrastive/native_pairs.py --observed target/accuracy-guide/hard-candidates-v1 --general ../context-core/pairs/pairs-context-v2.jsonl --source-root ../.. --out target/accuracy-guide/native-contrastive-v1/pairs.jsonl
+```
+
+`train.py` はローカルHFモデルとCUDAでLoRA学習し、ソース・seed・データ・モデルSHAと選択stepを保存する。元コードは既存の `typing-demo/product-worktree/training/contrastive` を再利用し、通常文を維持する選択条件を追加した。他担当の元ツリーは変更しない。
+
+`native_pairs.py` は実候補の有限なLLMスコア差も保存する。`train.py --joint-llm-weight 1.2` では順位損失と開発正解数へこの固定差を加え、製品と同じzenz+LLMの識別を学習する。通常文のNLLはzenz単体のまま保持する。これは記録された候補間の固定LLMスコアによる学習であり、生成候補・採点対象・補正も変わる実converterの評価とは区別する。
+
+`merge_adapter.py` は選択adapterを統合し、統合前後のロジット一致を検査する。`export_gguf.py` は `--llama-root` で既存llama.cppを指定して書き出す。Torch・transformers・gguf依存のあるPythonを使う。量子化後のGGUFは実converterのAJIMEEで比較し、改善・改悪とモデルSHAを保存する。学習データ・モデル重みはGitへ追加しない。
