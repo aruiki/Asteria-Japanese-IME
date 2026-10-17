@@ -30160,10 +30160,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..a0228c603
+index 000000000..cd456f57a
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3277 @@
+@@ -0,0 +1,3318 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31047,6 +31047,24 @@ index 000000000..a0228c603
 +#endif
 +}
 +
++
++size_t PrefixNormalizedTop(const std::vector<std::string>& values,
++                           const std::vector<double>& scores,
++                           const std::vector<size_t>& token_counts, size_t top) {
++  if (top >= values.size() || scores.size() != values.size() ||
++      token_counts.size() != values.size() || values[top].empty() ||
++      token_counts[top] == 0 || !std::isfinite(scores[top])) return top;
++  size_t best = top;
++  double best_score = scores[top] / token_counts[top];
++  for (size_t i = 0; i < values.size(); ++i) {
++    if (token_counts[i] == 0 || !std::isfinite(scores[i]) ||
++        values[i].size() <= values[top].size() ||
++        !absl::StartsWith(values[i], values[top])) continue;
++    const double score = scores[i] / token_counts[i];
++    if (score > best_score) { best = i; best_score = score; }
++  }
++  return best;
++}
 +
 +void AddNearbyLatticeCandidates(const std::vector<float>& scores,
 +                               const std::vector<size_t>& lattice,
@@ -32209,6 +32227,7 @@ index 000000000..a0228c603
 +  }
 +  size_t top = 0;
 +  double top_score = 0;
++  std::vector<double> joint_scores(values.size());
 +  const bool debug = Env("KOTORI_LM_DEBUG") != nullptr;
 +  for (size_t i = 0; i < values.size(); ++i) {
 +    double s = lambda_lm_ * (*zlogp)[i];
@@ -32220,9 +32239,31 @@ index 000000000..a0228c603
 +                   values[i].c_str(), (*zlogp)[i], llogp ? (*llogp)[i] : 0.f,
 +                   cands[i] == nullptr ? "gen" : "lattice", s);
 +    }
++    joint_scores[i] = s;
 +    if (i == 0 || s > top_score) {
 +      top = i;
 +      top_score = s;
++    }
++  }
++
++  // A raw likelihood sum always favors a token prefix over its extension.
++  // Compare only extensions of the chosen text by per-token joint likelihood;
++  // unrelated candidates and typo acceptance keep their original score scale.
++  if (llm != nullptr && llogp && !over()) {
++    std::vector<size_t> counts(values.size());
++    bool has_extension = false;
++    for (size_t i = 0; i < values.size(); ++i) {
++      if (values[i].size() > values[top].size() &&
++          absl::StartsWith(values[i], values[top]) && std::isfinite(joint_scores[i])) {
++        counts[i] = llm->CountTokens(values[i]);
++        has_extension = true;
++      }
++    }
++    if (has_extension) {
++      counts[top] = llm->CountTokens(values[top]);
++      const size_t before = top;
++      top = kotori_internal::PrefixNormalizedTop(values, joint_scores, counts, top);
++      if (debug) std::fprintf(stderr, "[prefix_boundary] before=%zu after=%zu\n", before, top);
 +    }
 +  }
 +
@@ -33443,10 +33484,10 @@ index 000000000..a0228c603
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..e339420ae
+index 000000000..05284e828
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,485 @@
+@@ -0,0 +1,489 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33484,6 +33525,10 @@ index 000000000..e339420ae
 +namespace kotori_internal {
 +
 +// 元の辞書候補に近い表記を、生成候補だけで埋まった採点対象へ少数補う。
++size_t PrefixNormalizedTop(const std::vector<std::string>& values,
++                           const std::vector<double>& scores,
++                           const std::vector<size_t>& token_counts, size_t top);
++
 +void AddNearbyLatticeCandidates(const std::vector<float>& scores,
 +                               const std::vector<size_t>& lattice,
 +                               size_t max_extra, std::vector<size_t>* order);
@@ -33934,10 +33979,10 @@ index 000000000..e339420ae
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..e41d45b62
+index 000000000..da66f7b5a
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,962 @@
+@@ -0,0 +1,983 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34038,6 +34083,27 @@ index 000000000..e41d45b62
 + protected:
 +  const dictionary::PosMatcher pos_matcher_;
 +};
++
++TEST(LmRewriterBoundaryTest, NormalizesOnlyExtensionsOfChosenCandidate) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension", "unrelated"}, {-10., -11., -1.}, {2, 3, 1}, 0), 1);
++}
++
++TEST(LmRewriterBoundaryTest, KeepsWinnerWhenExtensionIsLessLikelyOrNotAPrefix) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension", "other prefix"}, {-10., -20., -1.}, {2, 3, 1}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix extension", "prefix"}, {-11., -10.}, {3, 2}, 0), 0);
++}
++
++TEST(LmRewriterBoundaryTest, RejectsInvalidOrUnscoredExtensions) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10., -11.}, {0, 3}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10., -std::numeric_limits<double>::infinity()}, {2, 3}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10.}, {2, 3}, 0), 0);
++}
 +
 +TEST(LmRewriterPredictionGuardTest, RejectsRepeatedContinuationBeforeLeading) {
 +  EXPECT_TRUE(kotori_internal::HasRepeatedContinuation("おめでとうご", "めでとう"));

@@ -8,7 +8,7 @@
 
 ## 開発中
 
-最新の採用候補: 枝 `codex/learned-generator-20261017`。学習モデルを追加生成だけへ使い、元のzenz＋TinySwallowで全候補を採点する構成を実装。既定設定・ローカルモデル同梱でAJIMEE187/200（93.5%）、186基準比1改善/0改悪。モデル未同梱は186/200・全出力一致。先回りと通常の生成・キャッシュ識別を統一し、モデル原票と同梱作成ツールを保存。[学習と採用構成の原票](verification/accuracy-native-training-20261017.md)。モデル処理中央値94→162ms。導入済みIME・公開版は未更新。次は残る13問、特に候補末尾のprefix偏りを改善する。
+最新の採用候補: 枝 `codex/prefix-normalization-20261017`。既存候補のprefix群だけをトークン数で正規化して比較する変更によりAJIMEE187→188/200（94.0%）、改善1・改悪0。学習モデル非同梱でも186→187/200、改善1・改悪0。追加推論なし。C++62件成功、製品パッチ再構成131ファイル一致。[今回の実装と原票](verification/accuracy-prefix-normalization-20261017.md)。導入済みIME・公開版は未更新。次は残る12問を改善する。
 
 以下の学習・比較は経緯の記録。
 
@@ -32,11 +32,11 @@
 
 ## 次の作業
 
-1. ソース06ec86354とモデル同梱候補 `target/accuracy-guide/learned-generator-bundle-v1/` のAJIMEE187/200から残る13問を改善する。ID2002の「初」と「初め」はトークンprefixの短さによるLLM採点の偏りがある。正解集合を変えず改善/改悪で判断する。
+1. ソースfb6de1384と既存モデル同梱構成のAJIMEE188/200から残る12問を改善する。正解集合を変えず改善/改悪で判断する。
 2. 実TSF・未使用評価・CPU/低資源/障害時・配布条件は製品完成の未達条件として保持する。現在の改善作業では診断拡大を先行させない。
 
 ## 作業環境と記録の入口
 
-- 製品リポジトリ: Asteria（旧KotoriIME）。既存 `mzsupport` と `mzcontext16` は別作業の所有物として保持する。専用ソースは `C:/Users/aruik/ag16`（5a750cd57、build/test済み）。LLVMはrepo_envで実体パスを指定する。基点bareは `target/accuracy-guide/mozc-base.git`、生成scratchは同targetのpatch-scratch。Bazelは生成前にshutdown済み。
+- 製品リポジトリ: Asteria（旧KotoriIME）。既存 `mzsupport` と `mzcontext16` は別作業の所有物として保持する。専用ソースは `C:/Users/aruik/ag16`（fb6de1384、build/test済み）。LLVMはrepo_envで実体パスを指定する。基点bareは `target/accuracy-guide/mozc-base.git`、生成scratchは同targetのpatch-scratch。Bazelは生成前にshutdown済み。
 - 規約: [AGENTS.md](../AGENTS.md)。コマンド: [DEVELOPMENT.md](DEVELOPMENT.md)。作業一覧: [tasks/README.md](tasks/README.md)。
 - 原票: `target/release-v1.1.3`、`target/accuracy-999`。結果の根拠は各verification文書、設計判断はADRに置く。同じ結果を全書類へ転記しない。
