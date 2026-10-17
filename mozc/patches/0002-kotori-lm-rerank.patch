@@ -30160,7 +30160,7 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..e3b7e99a0
+index 000000000..b73a3598b
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
 @@ -0,0 +1,3255 @@
@@ -30382,7 +30382,7 @@ index 000000000..e3b7e99a0
 +      // High の中身に、zenz-v2.5-medium による生成を足す(採点は small と LLM。docs/adr/0031)。
 +      return {16, kDefaultModelName, 8, 32, "zenz-v2.5-medium-q8_0.gguf"};
 +    default:
-+      return {8, kDefaultModelName, 4, 4};
++      return {8, kDefaultModelName, 8, 4};
 +  }
 +}
 +
@@ -34973,10 +34973,10 @@ index d322feaee..89296272a 100644
        CreateUserSegmentHistoryRewriter());
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..b04585b07
+index 000000000..db3ed0280
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,871 @@
+@@ -0,0 +1,874 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -35703,6 +35703,9 @@ index 000000000..b04585b07
 +  for (size_t r = 0; r < found.size(); ++r) {
 +    for (const auto& tokens : found[r]) {
 +      std::string text = Detokenize(tokens);
++      // Byte fallback tokens can end inside a UTF-8 character. Reject the
++      // whole generation before reading validation or diagnostic output.
++      if (!Util::IsValidUtf8(text)) continue;
 +      // zenz は空白を全角空白で学習している。候補の表記は元の空白に戻す。
 +      for (size_t pos; (pos = text.find("\xE3\x80\x80")) != std::string::npos;) {
 +        text.replace(pos, 3, " ");
