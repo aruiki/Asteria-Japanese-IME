@@ -30160,7 +30160,7 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..be5be691d
+index 000000000..e3b7e99a0
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
 @@ -0,0 +1,3255 @@
@@ -32207,7 +32207,7 @@ index 000000000..be5be691d
 +  if (llm_correction && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindLlmCorrection(scorer, llm, context, reading, values[top],
-+                        lambda_lm_ * (*zlogp)[top] + lambda_llm_ * (*llogp)[top],
++                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                        over, &fixed)) {
 +    best.keys = {reading};
 +    best.values = {fixed};
@@ -32220,7 +32220,7 @@ index 000000000..be5be691d
 +  } else if (typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindTypoCorrection(scorer, llm, context, reading, values[top],
-+                         lambda_lm_ * (*zlogp)[top] + lambda_llm_ * (*llogp)[top],
++                         lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                         over, &fixed)) {
 +    best.keys = {reading};
 +    best.values = {fixed};
@@ -33294,7 +33294,7 @@ index 000000000..be5be691d
 +      std::string(prompt) != "typing" && std::string(prompt) != "chat") return false;
 +  kotori_internal::CorrectionOptions options;
 +  options.zenz_weight = lambda_lm_;
-+  options.llm_weight = lambda_llm_;
++  options.llm_weight = kCorrectionLlmWeight;
 +  options.margin = typo_margin_;
 +  if (prompt != nullptr && std::string(prompt) == "chat") {
 +    options.prompt = ZenzScorer::CorrectionPrompt::kChat;
@@ -33398,7 +33398,7 @@ index 000000000..be5be691d
 +  size_t top = 0;
 +  double top_score = -std::numeric_limits<double>::infinity();
 +  for (size_t i = 0; i < texts.size(); ++i) {
-+    const double s = lambda_lm_ * zs[i] + lambda_llm_ * (*lp)[i];
++    const double s = lambda_lm_ * zs[i] + kCorrectionLlmWeight * (*lp)[i];
 +    if (s > top_score) {
 +      top = i;
 +      top_score = s;
@@ -33421,10 +33421,10 @@ index 000000000..be5be691d
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..d13820b2d
+index 000000000..ece641bd4
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,475 @@
+@@ -0,0 +1,478 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33884,7 +33884,10 @@ index 000000000..d13820b2d
 +  bool post_segment_ = false;
 +  bool right_context_ = true;
 +  double lambda_lm_ = 1.0;
-+  double lambda_llm_ = 0.7;
++  double lambda_llm_ = 1.2;
++  // Candidate ranking and correction acceptance are calibrated separately.
++  // Keep correction scores in the units used by typo_gate_/typo_margin_.
++  static constexpr double kCorrectionLlmWeight = 0.7;
 +  // 生成した文(ラティスにない文)の点数から引く値。LLM なし / あり。
 +  double gen_penalty_ = 0.5;
 +  double gen_penalty_llm_ = 0.0;
