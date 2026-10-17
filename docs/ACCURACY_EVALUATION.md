@@ -1,6 +1,8 @@
 # 精度改善の評価仕様
 
-2026-10-16。利用者指定の `AI-NihongoIME/docs/AI_ACCURACY_IMPROVEMENT_GUIDE.md` を実装へ接続する。製品の安全性・配布条件はAGENTSと既存の受入れ条件を維持する。
+2026-10-16。利用者指定の[指南書](AI_ACCURACY_IMPROVEMENT_GUIDE.md)を実装へ接続する。製品の安全性・配布条件はAGENTSと既存の受入れ条件を維持する。
+
+指南書は作成当時の提言を原文のまま保存している。「実装変更は行わない」は作成時の依頼範囲の記録であり、その後の明示的な開発依頼とカード81に従って実装を進めている。
 
 ## 固定する条件
 
@@ -16,6 +18,7 @@
 - 出力候補包含: 各文節の観測候補を組み合わせて正解へ到達できるか。正解の接頭辞を追うため全直積を列挙しない。候補表示上限で切れた不在は `unobserved_candidates` とし、辞書欠落と断定しない。
 - 文節ごとの上位K到達性: K=5。全文上位5候補の精度や実操作数とは呼ばない。
 - AI内部採点: `--case-traces` で一問ずつ実行したstderrを対応づける。`[time] cands` と候補ログ件数が一致したときだけ、正解が内部候補へ入ったか、LLM採点から除外されたか、有限の統合スコアを持つかを記録する。ログ欠落・複数採点は未検証。通常ログへの本文収集は増やさない。
+- 要求ID: 対応変換器では `--request-traces` が `--evaluation_trace=true` を付け、同一プロセス内のbegin/endを照合する。ID欠落・重複・入れ子・境界外の採点を拒否する。バッチ全体と要求ごとのSHAを保存し、モデルを毎問再起動せずに候補を収集できる。これは評価CLIの要求IDであり、TSFの世代・表示・確定を検証したとは扱わない。
 - 正味改善: 同じID・読み・正解・文脈・分野の結果を対応づけ、改善と改悪を別々に数える。並び順が違っても対応し、結果SHA・データSHA・辞書・文脈/要求分離条件の不一致は比較を拒否する。ハードウェアや環境変更は両manifestを見て別途判定する。
 
 出力候補に正解があってもAI内部の全文候補に入るとは限らない。これを区別して最大の誤り群を選ぶ。内部で採点したことはTSFで候補を表示・確定した証拠ではない。
@@ -28,6 +31,7 @@
 python mozc/eval_baseline.py <固定converter_main.exe> --context --data <固定データ.json> --out <MozcまたはStandard.json> --stderr <原票.stderr>
 python mozc/tools/compare_quality.py <Mozc.json> <Standard.json> --out <比較台帳.json>
 python mozc/eval_baseline.py <固定converter_main.exe> --data <同意済み診断.json> --case-traces <原票ディレクトリ> --out <診断結果.json>
+python mozc/eval_baseline.py <要求ID対応converter_main.exe> --data <固定データ.json> --request-traces <新しい空の原票先> --out <結果.json> --converter-source-commit <ビルド元コミット>
 python -m unittest discover -s mozc/tools -p "test_*.py" -v
 ```
 

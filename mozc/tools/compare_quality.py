@@ -43,6 +43,21 @@ def summarize(rows):
                         for domain in sorted({r["domain"] for r in rows})}}
 
 
+def validate_conditions(before, after):
+    # 別ビルドのrunfilesはパスが変わる。同じ辞書かどうかは内容SHAで判定する。
+    for artifact in ("data", "dictionary"):
+        old = before.get(artifact, {}).get("sha256")
+        new = after.get(artifact, {}).get("sha256")
+        if not old or not new or old != new:
+            raise ValueError(f"{artifact}のSHAが未記録または不一致です")
+    if before["context"] != after["context"]:
+        raise ValueError("文脈の条件が異なります")
+    if before.get("case_isolated") != after.get("case_isolated"):
+        raise ValueError("要求分離の条件が異なります")
+    if before.get("profile_policy") != after.get("profile_policy"):
+        raise ValueError("プロファイル分離の条件が異なります")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("before")
@@ -52,10 +67,7 @@ def main():
     try:
         before, a = load_result(args.before)
         after, b = load_result(args.after)
-        if a["data"]["sha256"] != b["data"]["sha256"] or a["context"] != b["context"]:
-            raise ValueError("データまたは文脈の条件が異なります")
-        if a.get("dictionary") != b.get("dictionary") or a.get("case_isolated") != b.get("case_isolated"):
-            raise ValueError("辞書または要求分離の条件が異なります")
+        validate_conditions(a, b)
         report = compare_rows(before, after)
         report.update(before=summarize(before), after=summarize(after),
                       before_manifest=a, after_manifest=b,

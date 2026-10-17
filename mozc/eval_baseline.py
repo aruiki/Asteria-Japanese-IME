@@ -27,7 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from tools.conversion_quality import score_case, scoring_trace, validate_items
+from tools.conversion_quality import score_case, scoring_trace, split_scoring_requests, validate_items
 
 
 def kata_to_hira(s: str) -> str:
@@ -149,6 +149,8 @@ def run_conversions(args, exe, cwd, items, env):
                                 encoding="utf-8")
                 batch_env["KOTORI_LM_CONTEXT_MAP"] = str(path)
             command = [str(exe)]
+            if getattr(args, "request_traces", ""):
+                command.append("--evaluation_trace=true")
             if args.profile:
                 profile = Path(args.profile).resolve()
                 if len(batches) > 1:
@@ -173,6 +175,19 @@ def run_conversions(args, exe, cwd, items, env):
             if proc.returncode:
                 raise ValueError(f"変換器の終了コード {proc.returncode}: " +
                                  proc.stderr.decode("utf-8", "replace")[-2000:])
+            if getattr(args, "request_traces", ""):
+                request_logs = split_scoring_requests(proc.stderr, len(batch))
+                trace_dir = Path(args.request_traces)
+                trace_dir.mkdir(parents=True, exist_ok=True)
+                (trace_dir / f"batch-{batch_number}.stdout").write_bytes(proc.stdout)
+                (trace_dir / f"batch-{batch_number}.stderr").write_bytes(proc.stderr)
+                for index, (request_id, raw) in zip(batch, request_logs):
+                    (trace_dir / f"{index}.stderr").write_bytes(raw)
+                    link = {"request_id": request_id, "batch": batch_number,
+                            "stderr_sha256": hashlib.sha256(raw).hexdigest(),
+                            "batch_stderr_sha256": hashlib.sha256(proc.stderr).hexdigest(),
+                            "batch_stdout_sha256": hashlib.sha256(proc.stdout).hexdigest()}
+                    (trace_dir / f"{index}.link.json").write_text(json.dumps(link), encoding="utf-8")
             current, batch_blocks, in_segment = [], [], False
             # Windowsの起動ヘッダーはACPのパスを含む。候補本文だけをUTF-8で厳密に読む。
             for raw_line in proc.stdout.splitlines():
@@ -202,7 +217,9 @@ def main() -> int:
     ap.add_argument("--stderr", default="", help="変換器の stderr(KOTORI_LM_DEBUG などの出力)を保存するファイル")
     ap.add_argument("--min-acc", type=float, default=None, help="Acc@1(%%)がこれ未満なら失敗にする")
     ap.add_argument("--converter-source-commit", default="", help="変換器ビルド元の記録。未指定なら未検証")
-    ap.add_argument("--case-traces", default="", help="同意済み診断入力専用。各問を別プロセスで実行して本文を含む原票を保存。性能測定には使わない")
+    tracing = ap.add_mutually_exclusive_group()
+    tracing.add_argument("--case-traces", default="", help="同意済み診断入力専用。各問を別プロセスで実行して本文を含む原票を保存。性能測定には使わない")
+    tracing.add_argument("--request-traces", default="", help="要求ID対応変換器用。同一プロセスの要求境界を照合して本文を含む診断原票を保存")
     args = ap.parse_args()
 
     exe = Path(args.converter_main).resolve()
@@ -214,6 +231,8 @@ def main() -> int:
     env.pop("KOTORI_LM_PRECEDING", None)
     try:
         validate_items(items)
+        if args.request_traces and Path(args.request_traces).exists() and any(Path(args.request_traces).iterdir()):
+            raise ValueError("要求原票の保存先が空ではありません。過去の原票を保持してください")
         before_metadata = manifest(args, exe, env, 0, len(items)) if args.out else None
         if before_metadata and before_metadata["data"]["sha256"] != hashlib.sha256(data_bytes).hexdigest():
             raise ValueError("読み込んだ評価データが測定前に変更されました")
@@ -243,11 +262,17 @@ def main() -> int:
     for i, it in enumerate(items):
         try:
             row = score_case(it, blocks[i])
-            if args.case_traces:
-                trace = Path(args.case_traces) / f"{i}.stderr"
+            if args.case_traces or args.request_traces:
+                trace_dir = Path(args.case_traces or args.request_traces)
+                trace = trace_dir / f"{i}.stderr"
                 row["scoring_trace"] = scoring_trace(trace.read_bytes(), it["expected_output"])
-                row["trace"] = {"case_index": i, "stderr_sha256": sha256(trace),
-                                "stdout_sha256": sha256(Path(args.case_traces) / f"{i}.stdout")}
+                if args.request_traces:
+                    row["trace"] = {"case_index": i, **json.loads((trace_dir / f"{i}.link.json").read_text(encoding="utf-8"))}
+                    if row["trace"]["stderr_sha256"] != sha256(trace):
+                        raise ValueError("要求原票が測定中に変更されました")
+                else:
+                    row["trace"] = {"case_index": i, "stderr_sha256": sha256(trace),
+                                    "stdout_sha256": sha256(trace_dir / f"{i}.stdout")}
         except ValueError as e:
             print(f"失敗: 問題 {it['index']}: {e}", file=sys.stderr)
             return 1
@@ -274,6 +299,9 @@ def main() -> int:
         metadata["acc"] = acc
         metadata.update(result_sha256=sha256(Path(args.out)), context_batches=batch_count)
         metadata["case_isolated"] = bool(args.case_traces)
+        metadata["request_traced"] = bool(args.request_traces)
+        metadata["trace_directory"] = str(Path(args.case_traces or args.request_traces).resolve()) if (
+            args.case_traces or args.request_traces) else ""
         json.dump(metadata,
                   open(args.out + ".manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     if args.min_acc is not None and acc < args.min_acc:

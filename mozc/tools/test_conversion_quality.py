@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from conversion_quality import compare_rows, parse_segments, reachable, score_case, scoring_trace, validate_items
-from compare_quality import load_result
+from compare_quality import load_result, validate_conditions
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 spec = importlib.util.spec_from_file_location("eval_baseline", Path(__file__).parents[1] / "eval_baseline.py")
@@ -72,6 +72,17 @@ class CandidateTests(unittest.TestCase):
 
 
 class ComparisonTests(unittest.TestCase):
+    def test_identical_dictionary_bytes_in_different_build_directories_can_be_compared(self):
+        before = dict(data={"sha256": "same-data"}, dictionary={"path": "old/mozc.data", "sha256": "same-dictionary"},
+                      context=True, case_isolated=False, profile_policy="isolated_temporary")
+        after = dict(before, dictionary={"path": "new/mozc.data", "sha256": "same-dictionary"})
+        validate_conditions(before, after)
+        for altered in (dict(after, dictionary={"path": "new/mozc.data", "sha256": "different"}),
+                        dict(after, dictionary={}), dict(after, context=False),
+                        dict(after, profile_policy="explicit")):
+            with self.subTest(altered=altered), self.assertRaises(ValueError):
+                validate_conditions(before, altered)
+
     def test_join_by_id_and_separate_improvement_regression(self):
         before = [score_case(item(1), output(["橋", "箸"])), score_case(item(2), output(["箸"]))]
         after = [score_case(item(2), output(["橋"])), score_case(item(1), output(["箸"]))]

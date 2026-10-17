@@ -818,6 +818,43 @@ index c77da1f3b..f6b15e279 100644
  TEST(CandidateTest, EffectiveConvertedSegmentCount) {
    Candidate candidate;
  
+diff --git a/src/converter/converter_main.cc b/src/converter/converter_main.cc
+index 38454e903..3775374b4 100644
+--- a/src/converter/converter_main.cc
++++ b/src/converter/converter_main.cc
+@@ -84,6 +84,9 @@ ABSL_FLAG(std::string, engine_type, "desktop", "Engine type: (desktop|mobile)");
+ ABSL_FLAG(size_t, max_candidates_to_show, 100,
+           "Max number of candidates to show per segment");
+ ABSL_FLAG(bool, show_meta_candidates, false, "if true, show meta candidates");
++// Kotori: 同意済み入力の評価専用。本文を追加せず採点ログを要求へ結び付ける。
++ABSL_FLAG(bool, evaluation_trace, false,
++          "Emit conversion request boundaries to stderr");
+ 
+ // Advanced options for data files.  These are automatically set when --engine
+ // is used but they can be overridden by specifying these flags.
+@@ -583,9 +586,22 @@ void ConverterMain::RunLoop() {
+   CHECK(converter_);
+ 
+   std::string line;
++  size_t evaluation_request = 0;
+   while (!std::getline(std::cin, line).fail()) {
++    // Kotori: 入力本文を記録しない。連続評価でも採点の要求対応を失わない。
++    const bool trace_conversion = absl::GetFlag(FLAGS_evaluation_trace) &&
++                                  line.starts_with("start ");
++    if (trace_conversion) {
++      ++evaluation_request;
++      std::cerr << "[eval_trace] request=" << evaluation_request << " begin"
++                << std::endl;
++    }
+     const std::string result = ExecCommandToString(line);
+     std::cout << result << std::endl;
++    if (trace_conversion) {
++      std::cerr << "[eval_trace] request=" << evaluation_request << " end"
++                << std::endl;
++    }
+   }
+ }
+ 
 diff --git a/src/converter/immutable_converter.cc b/src/converter/immutable_converter.cc
 index 448b6c25a..a9b0242d0 100644
 --- a/src/converter/immutable_converter.cc
@@ -30123,10 +30160,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..b83162d8b
+index 000000000..be5be691d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3229 @@
+@@ -0,0 +1,3255 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31008,6 +31045,25 @@ index 000000000..b83162d8b
 +#endif
 +}
 +
++
++void AddNearbyLatticeCandidates(const std::vector<float>& scores,
++                               const std::vector<size_t>& lattice,
++                               size_t max_extra, std::vector<size_t>* order) {
++  if (order == nullptr || scores.empty() || lattice.empty() || lattice.front() != 0 ||
++      !std::isfinite(scores.front())) return;
++  std::vector<size_t> nearby;
++  for (size_t i : lattice) {
++    if (i == 0 || i >= scores.size() || !std::isfinite(scores[i]) ||
++        scores[i] < scores.front() - 2.0 ||
++        std::find(order->begin(), order->end(), i) != order->end() ||
++        std::find(nearby.begin(), nearby.end(), i) != nearby.end()) continue;
++    nearby.push_back(i);
++  }
++  std::stable_sort(nearby.begin(), nearby.end(), [&](size_t a, size_t b) {
++    return scores[a] > scores[b];
++  });
++  for (size_t i = 0; i < std::min(max_extra, nearby.size()); ++i) order->push_back(nearby[i]);
++}
 +
 +bool HasTypingCorrectedTop(const Segments& segments) {
 +  for (const Segment& segment : segments.conversion_segments()) {
@@ -32102,6 +32158,13 @@ index 000000000..b83162d8b
 +        std::find(order.begin(), order.end(), 0) == order.end()) {
 +      order.push_back(0);
 +    }
++    // Kotori: zenzの生成候補が上位を占めても、元の辞書候補に近い表記を
++    // LLMへ渡す。未採点の候補は-infになるため、正しい表記を永久に除外しない。
++    // 追加は最大2件。CPU/LLMなしではこの経路へ入らない。
++    std::vector<size_t> lattice;
++    for (size_t i = 0; i < cands.size(); ++i) if (cands[i] != nullptr) lattice.push_back(i);
++    kotori_internal::AddNearbyLatticeCandidates(
++        *zlogp, lattice, std::min<size_t>(2, llm_top), &order);
 +    std::vector<std::string> subset;
 +    for (size_t i : order) subset.push_back(values[i]);
 +    if (auto sub = llm->Score(context, reading, subset)) {
@@ -33358,10 +33421,10 @@ index 000000000..b83162d8b
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..7c1dd1862
+index 000000000..d13820b2d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,470 @@
+@@ -0,0 +1,475 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33397,6 +33460,11 @@ index 000000000..7c1dd1862
 +namespace mozc {
 +
 +namespace kotori_internal {
++
++// 元の辞書候補に近い表記を、生成候補だけで埋まった採点対象へ少数補う。
++void AddNearbyLatticeCandidates(const std::vector<float>& scores,
++                               const std::vector<size_t>& lattice,
++                               size_t max_extra, std::vector<size_t>* order);
 +
 +// Mozcの先頭候補が入力補正済みなら、自動の再採点/生成で戻さない。
 +bool HasTypingCorrectedTop(const Segments& segments);
@@ -33834,10 +33902,10 @@ index 000000000..7c1dd1862
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..dc7621ffa
+index 000000000..e41d45b62
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,934 @@
+@@ -0,0 +1,962 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34769,6 +34837,34 @@ index 000000000..dc7621ffa
 +  EXPECT_FALSE(kotori_internal::HasTypingCorrectedTop(segments));
 +  current->mutable_candidate(0)->attributes = converter::Attribute::TYPING_CORRECTION;
 +  EXPECT_TRUE(kotori_internal::HasTypingCorrectedTop(segments));
++}
++
++
++TEST(LmLatticeCoverageTest, GeneratedTopDoesNotHideNearbyDictionaryWord) {
++  const std::vector<float> scores{-8.35f, -18.11f, -8.86f, -18.73f, -0.46f, -1.51f, -3.12f, -3.74f};
++  std::vector<size_t> order{4, 5, 6, 7, 0};
++  kotori_internal::AddNearbyLatticeCandidates(scores, {0, 1, 2, 3}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{4, 5, 6, 7, 0, 2}));
++}
++
++TEST(LmLatticeCoverageTest, BudgetAndExistingEntriesArePreserved) {
++  std::vector<size_t> order{0};
++  kotori_internal::AddNearbyLatticeCandidates({0, -0.2f, -0.3f, -0.4f},
++                                            {0, 3, 2, 1, 1, 100}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0, 1, 2}));
++  kotori_internal::AddNearbyLatticeCandidates({0, -0.2f, -0.3f, -0.4f},
++                                            {0, 1, 2, 3}, 0, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0, 1, 2}));
++}
++
++TEST(LmLatticeCoverageTest, UnsupportedAndInvalidScoresAreNotAdded) {
++  const float infinity = std::numeric_limits<float>::infinity();
++  const float nan = std::numeric_limits<float>::quiet_NaN();
++  std::vector<size_t> order{0};
++  kotori_internal::AddNearbyLatticeCandidates({0, nan, -infinity, -3}, {0, 1, 2, 3}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0}));
++  kotori_internal::AddNearbyLatticeCandidates({nan, 0}, {0, 1}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0}));
 +}
 +
 +}  // namespace mozc

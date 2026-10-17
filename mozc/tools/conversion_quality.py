@@ -6,6 +6,35 @@ import math
 SEGMENT = re.compile(r"^-{10} Segment (\d+)/(\d+) \[([^]]+)\] -{10}$")
 CANDIDATE = re.compile(r"^  (\d+)/(\d+) (.*)$")
 SCORE = re.compile(r"^\[kotori\] (.+) zenz=([^ ]+) llm=([^ ]+) (lattice|gen) score=([^ ]+)$")
+REQUEST_BOUNDARY = re.compile(rb"^\[eval_trace\] request=(\d+) (begin|end)$")
+
+
+def split_scoring_requests(stderr, expected_count):
+    """評価CLIの要求境界を照合する。非同期の未対応ログを推測で割り当てない。"""
+    requests, current, active = [], [], None
+    for line in stderr.splitlines(keepends=True):
+        stripped = line.rstrip(b"\r\n")
+        boundary = REQUEST_BOUNDARY.fullmatch(stripped)
+        if boundary:
+            request, phase = int(boundary[1]), boundary[2]
+            if phase == b"begin":
+                if active is not None or request != len(requests) + 1:
+                    raise ValueError("要求IDの重複・順序不整合・境界の入れ子があります")
+                active, current = request, []
+            else:
+                if active != request:
+                    raise ValueError("要求IDの終了境界が一致しません")
+                requests.append((request, b"".join(current)))
+                active, current = None, []
+        elif stripped.startswith(b"[eval_trace]"):
+            raise ValueError("要求ID境界の形式が不正です")
+        elif active is not None:
+            current.append(line)
+        elif stripped.startswith((b"[time]", b"[kotori]")):
+            raise ValueError("要求境界の外側に未対応の採点ログがあります")
+    if active is not None or len(requests) != expected_count:
+        raise ValueError("要求境界または要求件数が不足しています")
+    return requests
 
 
 def scoring_trace(stderr, expected):
