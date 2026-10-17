@@ -81,7 +81,8 @@ def manifest(args, exe: Path, env: dict, acc: float, n: int) -> dict:
             return ""
     models = {}
     model_dir = env.get("KOTORI_MODEL_DIR")
-    paths = [env.get("KOTORI_ZENZ_MODEL"), env.get("KOTORI_LLM_MODEL")]
+    paths = [env.get("KOTORI_ZENZ_MODEL"), env.get("KOTORI_LLM_MODEL"),
+             env.get("KOTORI_LM_CHOICE_MODEL")]
     if model_dir and Path(model_dir).is_dir():
         paths += [str(p) for p in sorted(Path(model_dir).glob("*.gguf"))]
     for p in paths:
