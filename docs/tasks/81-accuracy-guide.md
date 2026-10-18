@@ -1,5 +1,7 @@
 # 81: 精度改善指南書を測定と製品改善へ接続する
 
+最新（2026-10-18）: ユーザーが前文なしの初期変換の品質を指摘。次の改善は前文なし・初回・即Spaceを優先する。準備後/前文あり94%を代表値にしない。固定データでAIなしと準備後の前文なしを比較し、初回は別のnative sessionで測る。Google日本語入力との直接比較は未実施。[低メモリfallback](../verification/accuracy-low-memory-fallback-20261018.md)はソース修正と限定native検査まで完了、精度回帰/MSI反映は未完了。
+
 
 2026-10-18: [較正](../verification/accuracy-confidence-calibration-20261018.md)を既定値へ反映。AJIMEE188を維持し、開発306→308/326・2改善/改悪0、既出300回帰286→290。[較正済みMSI](../verification/accuracy-calibrated-installer-20261018.md)のローカル生成・内容SHA照合は完了。[CPU即時Space](../verification/accuracy-cpu-startup-20261018.md)も隔離30件の入力経路成功。古い289基準比の1件改悪・初回AI準備・実TSF/人手の独立評価は残る。送信許可後のPR/Windows CIと実導入/削除も未達。[新規40文](../verification/accuracy-release-probe-20261018.md)は38/40で差0、1件の読み作成ミスを保持して独立合格判定に使わない。
 - 仕様: REQ-6-2、REQ-9-2、REQ-14-2

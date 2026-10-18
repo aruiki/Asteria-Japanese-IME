@@ -1,8 +1,8 @@
 diff --git a/src/MODULE.bazel b/src/MODULE.bazel
-index eb74e536e..709f3f461 100644
+index eb74e536e..418fc13c3 100644
 --- a/src/MODULE.bazel
 +++ b/src/MODULE.bazel
-@@ -366,6 +366,39 @@ http_archive(
+@@ -366,6 +366,41 @@ http_archive(
      ],
  )
  
@@ -10,6 +10,8 @@ index eb74e536e..709f3f461 100644
 +http_archive(
 +    name = "llama_cpp",
 +    build_file = "@//bazel:BUILD.llama_cpp.bazel",
++    patches = ["@//bazel:llama_oom.patch"],
++    patch_args = ["-p1"],
 +    sha256 = "8003a54d576f221ef425b499da38282206f755e82fda4a69be70abbbe71a616f",
 +    strip_prefix = "llama.cpp-b11259",
 +    url = "https://github.com/ggml-org/llama.cpp/archive/refs/tags/b11259.tar.gz",
@@ -42,7 +44,7 @@ index eb74e536e..709f3f461 100644
  # Japanese Usage Dictionary (2025-01-25)
  JA_USAGE_DICT_TAG = "2025-01-25"
  
-@@ -395,3 +428,41 @@ http_archive(
+@@ -395,3 +430,41 @@ http_archive(
      sha256 = "3adc97d8e19e1168a6cdcb2fce759d0e9e613a9a3b630cc180aecfd56ae81eaf",
      url = "https://github.com/hiroyuki-komatsu/japanpost_zipcode/raw/621d059fbcbfae17bfca15b439692bae934268c3/ken_all.zip",
  )
@@ -582,19 +584,32 @@ index 000000000..f0ba3e164
 +}  // namespace mozc
 +
 +#endif  // MOZC_BASE_KOTORI_LIVE_H_
+diff --git a/src/bazel/BUILD.bazel b/src/bazel/BUILD.bazel
+index 6832ad9ef..8cc7eb42a 100644
+--- a/src/bazel/BUILD.bazel
++++ b/src/bazel/BUILD.bazel
+@@ -31,6 +31,8 @@ load("//bazel:stubs.bzl", "bzl_library")
+ 
+ package(default_visibility = ["//:__subpackages__"])
+ 
++exports_files(["llama_oom.patch"])
++
+ bzl_library(
+     name = "qt_bzl",
+     srcs = ["qt.bzl"],
 diff --git a/src/bazel/BUILD.llama_cpp.bazel b/src/bazel/BUILD.llama_cpp.bazel
 new file mode 100644
-index 000000000..cbd6e6dc7
+index 000000000..81408a09c
 --- /dev/null
 +++ b/src/bazel/BUILD.llama_cpp.bazel
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,152 @@
 +# llama.cpp(MIT)。Kotori の LM リランク用(docs/adr/0013、0016)。
 +#
-+# Windows: ヘッダーだけを使い、実行時にインストール先の公式ビルド(llama.dll、ggml*.dll。
-+#          GPU は Vulkan)を読み込む(rewriter/llama_runtime.cc)。
++# Windows: ヘッダーを使い、実行時にインストール先のDLLを読み込む。
++#          ggml-baseだけ確保失敗の修正付きで再構築し、他は公式ビルド(GPUはVulkan)。
 +# それ以外(Linux での評価): CPU 版を静的にリンクする。x86-64 の AVX2 を前提にする。
 +load("@bazel_skylib//rules:write_file.bzl", "write_file")
-+load("@rules_cc//cc:defs.bzl", "cc_library")
++load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 +
 +package(default_visibility = ["//visibility:public"])
 +
@@ -683,6 +698,40 @@ index 000000000..cbd6e6dc7
 +    deps = [":headers"],
 +)
 +
++# Kotori: 公式DLLと同じ固定ソースからbaseだけ再構築する。
++# 大きなcontext bufferの確保失敗をabortせず返す修正をMSIへ同梱する。
++# エンジンにはリンクせず、従来どおり実行時だけ読み込む。
++cc_binary(
++    name = "ggml-base.dll",
++    srcs = [
++        "ggml/src/ggml.c",
++        "ggml/src/ggml.cpp",
++        "ggml/src/ggml-alloc.c",
++        "ggml/src/ggml-backend.cpp",
++        "ggml/src/ggml-backend-meta.cpp",
++        "ggml/src/ggml-opt.cpp",
++        "ggml/src/ggml-threading.cpp",
++        "ggml/src/ggml-quants.c",
++        "ggml/src/gguf.cpp",
++        "ggml/src/ggml-cpu/ggml-cpu-impl.h",
++        ":ggml_version_h",
++    ] + glob(["ggml/src/*.h"]),
++    copts = ["/O2", "/EHsc"],
++    defines = [
++        "GGML_BUILD",
++        "GGML_SHARED",
++        "GGML_BACKEND_DL",
++        "GGML_SCHED_MAX_COPIES=4",
++        "_CRT_SECURE_NO_WARNINGS",
++        "_USE_MATH_DEFINES",
++    ],
++    features = ["-static_link_msvcrt"],
++    includes = ["ggml/src"],
++    linkshared = True,
++    target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
++    deps = [":headers"],
++)
++
 +cc_library(
 +    name = "llama_static",
 +    srcs = glob([
@@ -706,6 +755,32 @@ index 000000000..cbd6e6dc7
 +        "//conditions:default": ":llama_static",
 +    }),
 +)
+diff --git a/src/bazel/llama_oom.patch b/src/bazel/llama_oom.patch
+new file mode 100644
+index 000000000..4e542dcbd
+--- /dev/null
++++ b/src/bazel/llama_oom.patch
+@@ -0,0 +1,20 @@
++diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
++--- a/ggml/src/ggml.c
+++++ b/ggml/src/ggml.c
++@@ -1644 +1644,6 @@
++-    GGML_ASSERT(ctx->mem_buffer != NULL);
+++    // Kotori: バッファ不足をモデルロード側へ返し、Mozc入力を継続する。
+++    if (ctx->mem_buffer == NULL) {
+++        GGML_LOG_ERROR("%s: failed to allocate context buffer (%zu bytes)\n", __func__, mem_size);
+++        GGML_FREE(ctx);
+++        return NULL;
+++    }
++diff --git a/ggml/src/ggml-backend.cpp b/ggml/src/ggml-backend.cpp
++--- a/ggml/src/ggml-backend.cpp
+++++ b/ggml/src/ggml-backend.cpp
++@@ -22,0 +23 @@
+++#include <new>
++@@ -1082 +1083,2 @@
++-        GGML_ABORT("%s: failed to initialize context\n", __func__);
+++        // Kotori: llama_init_from_modelのstd::exception境界へ確保失敗を返す。
+++        throw std::bad_alloc();
 diff --git a/src/build_tools/mozc_win32_resource_template.rc b/src/build_tools/mozc_win32_resource_template.rc
 index ccb3def12..3537132b0 100644
 --- a/src/build_tools/mozc_win32_resource_template.rc
@@ -29485,10 +29560,10 @@ index 000000000..dc7e7466c
 +}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..27b0aafdc
+index 000000000..9e5c3f5d6
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,311 @@
+@@ -0,0 +1,316 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
@@ -29628,6 +29703,11 @@ index 000000000..27b0aafdc
 +  // 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
 +  constexpr DWORD kFlags =
 +      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
++  // Kotori: baseを再構築してもCPU backendの依存を同梱先から先に読む。
++  // backend側のLoadLibraryWは依存DLLのフォルダを追加しない。
++  HMODULE omp =
++      LoadLibraryExW((wdir + L"\\libomp.dll").c_str(), nullptr, kFlags);
++  if (omp == nullptr) return false;
 +  HMODULE ggml = LoadLibraryExW((wdir + L"\\ggml.dll").c_str(), nullptr, kFlags);
 +  HMODULE llama =
 +      LoadLibraryExW((wdir + L"\\llama.dll").c_str(), nullptr, kFlags);

@@ -76,4 +76,12 @@ Ryzen7 5700X、RTX3060。CPU側は製品自動Low/zenz-only、GPU側は実際に
 
 その後、CIと同じmozc/toolsのunittest探索コマンドを実行してPython92件成功。`nonblocking-device-python-tests-v1.log`。GitHub Actionsの実行成功とは区別する。
 
-既存の較正済みMSIはソース407a449f5で、この705の修正は含まれない。新ソースのMSI・実TSF・導入/削除・初回AI未準備の品質・低資源実機・独立verifier・公開は未完了。GitHub送信は以前の自動審査拒否に対する明示許可待ちを継続し、push/PR/CI/公開を再試行していない。
+この時点では新ソースのMSIは未生成だった。後続の結果は以下へ追記する。実TSF・導入/削除・初回AI未準備の品質・低資源実機・独立verifier・公開は未完了。GitHub送信は以前の自動審査拒否に対する明示許可待ちを継続し、push/PR/CI/公開を再試行していない。
+
+## 後続のMSI生成と低メモリ不合格
+
+ソース705でWindows CIと同じC++10対象415件に成功。その後MSIを600.258秒で生成し、`check_release.py --local --require-generator` は管理展開と4モデルSHA・必須資産検査でexit0。`release-candidate-1.1.4-rc.1-device/Asteria64.msi` はSHA cf0d8f7fd7e89ff40ba4da1776f539324025b113e2d129b154a64ed5ca1a0a17、1,662,365,696 bytes、ProductVersion3.34.6339.100、NotSigned。導入成功の証明ではない。
+
+同じ固定session exe（02c71e...）に対し、自分の子プロセスだけをWindows Jobへsuspended状態で割り当て、256MiBのprocess commit上限で検査した。通常物理RAM256MiBの実機とは異なる。runtimeなしの対照は3文の読み/変換/確定が成功、peak commit約8.5MiB。実MSI展開DLL/モデル・CPU条件は入力前にexit3221226505（0xC0000409）、peak237019136 bytes。stderrのggml.c:1644 `GGML_ASSERT(ctx->mem_buffer != NULL)` を保存した。AI異常時の入力継続に不合格であり、このMSIを配布可能としない。
+
+原票`nonblocking-device-memory-v1/`、再現`nonblocking-device-memory.py`。失敗結果と上限を保持し、vendorの確保失敗を通常のAI失敗へ戻す修正を調査中。現時点では未修正。

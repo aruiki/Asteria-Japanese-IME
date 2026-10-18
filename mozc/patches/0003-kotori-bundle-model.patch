@@ -1072,10 +1072,10 @@ index 000000000..990756638
 +==============================================================================
 diff --git a/src/data/kotori/NOTICE-third-party.txt b/src/data/kotori/NOTICE-third-party.txt
 new file mode 100644
-index 000000000..e3e387460
+index 000000000..759d9bc25
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-third-party.txt
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,36 @@
 +Asteria日本語入力に同梱している第三者のソフトウェア
 +
 +この PC のインストール先(C:\Program Files (x86)\Kotori)にあるファイルと、そのライセンスの一覧です。
@@ -1101,7 +1101,10 @@ index 000000000..e3e387460
 +
 +■ llama.cpp / ggml b11259(llama.dll、ggml*.dll)
 +  MIT License、Copyright The ggml authors。全文は LICENSE-llama.cpp.txt。
-+  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドをそのまま同梱しています。
++  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドを使用しています。
++  ggml-base.dllだけは同じb11259のソースから再構築しています。
++  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。
++  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。
 +
 +■ LLVM OpenMP ランタイム(libomp.dll)
 +  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。
@@ -1950,7 +1953,7 @@ index 000000000..7aba017f0
 +  "source_model": "Miwa-Keita/zenz-v2.5-small"
 +}
 diff --git a/src/win32/installer/BUILD.bazel b/src/win32/installer/BUILD.bazel
-index 1c31b5159..c6821ba87 100644
+index 1c31b5159..9e6b1fed6 100644
 --- a/src/win32/installer/BUILD.bazel
 +++ b/src/win32/installer/BUILD.bazel
 @@ -56,6 +56,7 @@ mozc_py_binary(
@@ -1969,7 +1972,7 @@ index 1c31b5159..c6821ba87 100644
          "//gui/tool:mozc_tool_win",
          "//renderer/win32:win32_renderer_main",
          "//server:mozc_server_win",
-@@ -93,6 +95,29 @@ genrule(
+@@ -93,6 +95,30 @@ genrule(
          "//base:mozc_version_txt",
          "//data/images/win:product_icon.ico",
          "//data/installer:credits_en.html",
@@ -1993,13 +1996,14 @@ index 1c31b5159..c6821ba87 100644
 +        "//data/kotori:banner.bmp",
 +        "//data/kotori:dialog.bmp",
 +        "@llama_cpp//:LICENSE",
++        "@llama_cpp//:ggml-base.dll",
 +        "@llama_cpp_win//:runtime",
 +        "@llama_cpp_win//:llama.dll",
 +        "@wixui_ext//:wixext5/WixToolset.UI.wixext.dll",
          "@qt_win//:bin/Qt6Core.dll",
          "@wix//:wix.exe",
      ] + select({
-@@ -117,6 +142,22 @@ genrule(
+@@ -117,6 +143,23 @@ genrule(
          "--custom_action=$(location //win32/custom_action)",
          "--icon_path=$(location //data/images/win:product_icon.ico)",
          "--credit_file=$(location //data/installer:credits_en.html)",
@@ -2012,6 +2016,7 @@ index 1c31b5159..c6821ba87 100644
 +        "--llm_model=$(location //data/kotori:tinyswallow-1.5b-q5_k_m.gguf)",
 +        "--llm_notice=$(location //data/kotori:NOTICE-tinyswallow.txt)",
 +        "--llama_dll=$(location @llama_cpp_win//:llama.dll)",
++        "--llama_base=$(location @llama_cpp//:ggml-base.dll)",
 +        "--llama_license=$(location @llama_cpp//:LICENSE)",
 +        "--ui_ext=$(location @wixui_ext//:wixext5/WixToolset.UI.wixext.dll)",
 +        "--license_rtf=$(location //data/kotori:license.rtf)",
@@ -2035,10 +2040,10 @@ index 000000000..cb12e3fc0
 +  <String Id="ProgressDlgTextUpdating" Value="Asteriaを更新しています。完了までそのままお待ちください。" />
 +</WixLocalization>
 diff --git a/src/win32/installer/build_installer.py b/src/win32/installer/build_installer.py
-index c2e71a077..2dbd9edf2 100644
+index c2e71a077..72238b0fb 100644
 --- a/src/win32/installer/build_installer.py
 +++ b/src/win32/installer/build_installer.py
-@@ -154,6 +154,26 @@ def run_wix4(args) -> None:
+@@ -154,6 +154,27 @@ def run_wix4(args) -> None:
        '-define', f'MozcTIP64Path={mozc_tip64}',
        '-define', f'MozcBroker64Path={mozc_broker}',
        '-define', f'MozcServer64Path={mozc_server}',
@@ -2053,6 +2058,7 @@ index c2e71a077..2dbd9edf2 100644
 +      '-define', f'KotoriLlmModelPath={pathlib.Path(args.llm_model).resolve()}',
 +      '-define', f'KotoriLlmNoticePath={pathlib.Path(args.llm_notice).resolve()}',
 +      '-define', f'LlamaRuntimeDir={pathlib.Path(args.llama_dll).resolve().parent}',
++      '-define', f'LlamaBasePath={pathlib.Path(args.llama_base).resolve()}',
 +      '-define', f'LlamaLicensePath={pathlib.Path(args.llama_license).resolve()}',
 +      '-define', f'KotoriLicenseRtf={pathlib.Path(args.license_rtf).resolve()}',
 +      '-define', f'KotoriBannerBmp={pathlib.Path(args.banner_bmp).resolve()}',
@@ -2065,7 +2071,7 @@ index c2e71a077..2dbd9edf2 100644
        '-define', f'MozcCacheService64Path={mozc_cache_service}',
        '-define', f'MozcRenderer64Path={mozc_renderer}',
        '-define', f'MozcToolPath={mozc_tool}',
-@@ -176,6 +196,17 @@ def run_wix4(args) -> None:
+@@ -176,6 +197,17 @@ def run_wix4(args) -> None:
    exec_command(commands, cwd=os.getcwd())
  
  
@@ -2083,13 +2089,14 @@ index c2e71a077..2dbd9edf2 100644
  def main():
    parser = argparse.ArgumentParser()
    parser.add_argument('--output', type=str)
-@@ -192,6 +223,16 @@ def main():
+@@ -192,6 +224,17 @@ def main():
    parser.add_argument('--custom_action', type=str)
    parser.add_argument('--icon_path', type=str)
    parser.add_argument('--credit_file', type=str)
 +  parser.add_argument('--zenz_model', type=str)
 +  parser.add_argument('--zenz_generator', type=str, required=True)
 +  parser.add_argument('--generator_manifest', type=str, required=True)
++  parser.add_argument('--llama_base', type=str, required=True)
 +  parser.add_argument('--zenz_medium_model', type=str)
 +  parser.add_argument('--zenz_notice', type=str)
 +  parser.add_argument('--english_dictionary', type=str)
@@ -2100,7 +2107,7 @@ index c2e71a077..2dbd9edf2 100644
    parser.add_argument('--qt_core_dll', type=str)
    parser.add_argument('--wxs_path', type=str)
    parser.add_argument('--wix_path', type=str)
-@@ -220,6 +261,7 @@ def main():
+@@ -220,6 +263,7 @@ def main():
  
    args = parser.parse_args()
  
@@ -2109,7 +2116,7 @@ index c2e71a077..2dbd9edf2 100644
  
  
 diff --git a/src/win32/installer/installer_oss_64bit.wxs b/src/win32/installer/installer_oss_64bit.wxs
-index e30c37ad4..bd37f2734 100644
+index e30c37ad4..87c2de370 100644
 --- a/src/win32/installer/installer_oss_64bit.wxs
 +++ b/src/win32/installer/installer_oss_64bit.wxs
 @@ -48,7 +48,7 @@
@@ -2298,11 +2305,11 @@ index e30c37ad4..bd37f2734 100644
 +      </Directory>
 +    </StandardDirectory>
 +
-+    <!-- Kotori: llama.cpp の公式 Windows ビルド(Vulkan 版。GPU がなければ CPU で動く)。 -->
++    <!-- Kotori: llama.cpp b11259。baseだけ確保失敗の修正を加えて再構築する。 -->
 +    <!-- Kotori: ggml-rpc.dll(別の PC に計算を任せる通信の部品)は使わないので入れない(REQ-15-1、カード 41)。 -->
 +    <ComponentGroup Id="KotoriLlamaRuntime" Directory="MozcDir">
 +      <Files Include="$(var.LlamaRuntimeDir)\ggml.dll" />
-+      <Files Include="$(var.LlamaRuntimeDir)\ggml-base.dll" />
++      <Files Include="$(var.LlamaBasePath)" />
 +      <Files Include="$(var.LlamaRuntimeDir)\ggml-vulkan.dll" />
 +      <Files Include="$(var.LlamaRuntimeDir)\ggml-cpu-*.dll" />
 +      <Files Include="$(var.LlamaRuntimeDir)\llama.dll" />
