@@ -49,3 +49,15 @@ check_releaseへ任意の--previous-localを追加し、公開済みMSIとの先
 8439のMSIは701.445秒で生成できたが、SHA5882eef1e4e2d18a8b6e1711fc7839568d42e2070c37e1a2c5439a7a71770058/1,662,574,592bytes/6339の旧開発候補として保存し、実公開6431との更新検査でexit1を保持（normal-upgrade-8439-rejection-v1）。
 
 449828059f1b9b3c0f6d0eb6e66211e23c953500は6432へのversion.bzlの1行だけの変更。変換ロジックの検査元8439との差分はこの1ファイルに限定した。正しいag16/srcからBazel shutdown後、make_patchesで再生成し、全139ファイルが再び一致。新しいpatch0002 SHA51f9b743b599172a08e00b9537b7d95312fca5e49054713d911ad11b82895945。0003は78aff099...のまま。誤ってag16ルートからshutdownした最初の呼出しはbatch mode警告で既存サーバーを止めていなかったため、srcから成功後にのみパッチ生成を行った。新6432 MSIのbuild/版・内容照合は未完了。
+
+## 6432候補の実成果物と最終ローカル検査
+
+source449828059、製品1ace494からのbuild95157は最終exit0、727.054秒。release-candidate-1.1.4-rc.1-upgrade/Asteria64.msiは1,662,558,208bytes、SHA068ed5c56cadd644f45557593b943f2ec2997b838ca21a4df0341e8df2598c28、ProductVersion3.34.6432.100。実再取得した公開6431より先頭3項目が大きく、UpgradeCodeは同じ45FB8DEB-0CFE-4924-96FB-9022888112E1、ProductCodeは異なることをCOMで照合。これは実上書き導入の成功ではなく、更新用メタデータの検査である。
+
+check_release --local ... --previous-local public-upgrade-base-v1/Asteria64.msi --require-generator --require-collocationsは実管理展開を含めexit0。4モデル/連語/出典・帰属/サーバーの版/通信DLL除外が成功。実Wixプロセスに渡された入力パスを記録し、server/TIP32・64等8ファイルと、展開物の全30 DLLがビルド元に一致した。OOM修正版ggml-base SHA e23b0ff...も一致。原票normal-upgrade-wix-inputs-v1.json、normal-upgrade-package-check-v1、normal-upgrade-payload-identity-v1.json。
+
+署名確認の初回helperはWindows PowerShellのMicrosoft.PowerShell.Security自動読込で失敗し、finish-v1のexit1を保持した。環境のPowerShell7.6.5で同じ署名を読み、NotSignedを実確認。payload helper v2は基準を変えず全項目成功。MSIを修正・再署名したわけではない。最終集約はnormal-upgrade-final-local-checks-v2.jsonで、古い失敗原票をPASSへ書き換えない。
+
+6432用exeと全runfilesもnormal-upgrade-candidate-v1へ固定。session SHA a9b62952567b92547ccdeac54a87116927dcfce2bc2954e5caf11890e91a5331、converter SHA efa98a1cd178a774c567dc9c8fbd0c49a19fda66f481a3607344afd87cca750b。新バイナリの実辞書通常28項目（最大46.23ms）、保存/再変換等7項目（最大51.29ms）、CLI入力file3対照が全成功。原票normal-upgrade-{basics,profile,cli}-v1。6432変更は版だけのため、C++379/品質978/起動60・低メモリ6入力は8439の検査をその識別のまま保持し、新バイナリで全件取り直したとはしない。
+
+2026-10-19のユーザー「そろそろリリースしますか？」を受け、変更コードと追加モデル1件（98,970,560bytes）を公開GitHubのaruiki/Asteria-Japanese-IMEへ送信しPR/Windows CIを行う明示許可を非同期で質問した。過去の自動承認審査がこの送信を明示許可不足として拒否したためで、回答前には送信しない。製品の公開は別途CI・実導入/入力/削除の結果を満たしてから行う。
