@@ -1,7 +1,7 @@
 # 81: 精度改善指南書を測定と製品改善へ接続する
 
 
-2026-10-18: [較正](../verification/accuracy-confidence-calibration-20261018.md)を既定値へ反映。AJIMEE188を維持し、開発306→308/326・2改善/改悪0、既出300回帰286→290。古い289基準比の1件改悪・初回AI準備・新MSI/実TSF/未使用評価は残る。新MSIは送信許可後のPR/Windows CIで検証し、較正前MSIを公開しない。
+2026-10-18: [較正](../verification/accuracy-confidence-calibration-20261018.md)を既定値へ反映。AJIMEE188を維持し、開発306→308/326・2改善/改悪0、既出300回帰286→290。[較正済みMSI](../verification/accuracy-calibrated-installer-20261018.md)のローカル生成・内容SHA照合は完了。[CPU即時Space](../verification/accuracy-cpu-startup-20261018.md)も隔離30件の入力経路成功。古い289基準比の1件改悪・初回AI準備・実TSF/人手の独立評価は残る。送信許可後のPR/Windows CIと実導入/削除も未達。[新規40文](../verification/accuracy-release-probe-20261018.md)は38/40で差0、1件の読み作成ミスを保持して独立合格判定に使わない。
 - 仕様: REQ-6-2、REQ-9-2、REQ-14-2
 - 利用者指示: `AI_ACCURACY_IMPROVEMENT_GUIDE.md` をゴールとして開発する
 
