@@ -55,6 +55,25 @@ Ryzen7 5700X、RTX3060。CPU側は製品自動Low/zenz-only、GPU側は実際に
 
 ## 精度・配布の境界
 
-既定Standardの関連4セットの最終回帰は次に行う。評価専用sync_loadの既存処理を維持したことだけを精度PASSの代わりにはしない。
+既定Standardの関連4セットを実測し、直前の407a449f5と全326件の出力が一致した。
+
+| セット | 新705の正解数 | 直前版から改善/改悪/出力変更 |
+| --- | --- | --- |
+| AJIMEE | 188/200（94%） | 0/0/0 |
+| 慣用句 | 24/25 | 0/0/0 |
+| ニュアンス | 17/20 | 0/0/0 |
+| 日常 | 79/81 | 0/0/0 |
+
+原票`nonblocking-device-quality-v2/`。同じモデルと既定係数、前文あり、PRELOAD=0。全manifestは705の固定converter、cleanな製品コミットd16a190を記録。データは旧manifestの実パスとSHAを照合して専用フォルダへコピーした。v1はローカル既定パスにAJIMEEが存在せず、変換器起動前に失敗したログとして保持。実パスは隣接KotoriIMEの既存評価ファイルで、元ファイルを変更していない。
+
+報告入力「あいであきょく」は初回39.5msで「アイデア局」、AI状態llm確認後138.4msで「アイデア曲」。check_startup_quality.pyは不一致でexit2。原票`nonblocking-device-idea-startup-v1/`。今回の変更で初回AI未準備の誤変換を解消したとはしない。
+
+## 公開前のモデル資産と製品releaseの区別
+
+追加モデルの取得URLは`model-native-generator-20261017`のモデル専用releaseを指す。従来のcheck_release.pyはrelease一覧で隣のタグをそのまま「前のMSI」として取得するため、モデル専用releaseが間に入ると公開後の版比較が失敗する。
+
+製品の既存タグ形式vX.Y.Z/beta.N/rc.Nと公開済み状態で比較対象を選ぶよう修正。モデル/draftを飛ばすが、資産が欠けた製品タグは飛ばさず従来の資産検査で失敗させる。取得上限に達して前の製品が見つからない場合も、版検査を省略して通さない。関連Python11件成功（うち4件を追加）。ghの実JSONフィールドもread-onlyで確認した。公開済みLatestは今回の確認でもv1.1.3。モデル専用releaseは未公開のままで、実資産の送信はしていない。
+
+その後、CIと同じmozc/toolsのunittest探索コマンドを実行してPython92件成功。`nonblocking-device-python-tests-v1.log`。GitHub Actionsの実行成功とは区別する。
 
 既存の較正済みMSIはソース407a449f5で、この705の修正は含まれない。新ソースのMSI・実TSF・導入/削除・初回AI未準備の品質・低資源実機・独立verifier・公開は未完了。GitHub送信は以前の自動審査拒否に対する明示許可待ちを継続し、push/PR/CI/公開を再試行していない。

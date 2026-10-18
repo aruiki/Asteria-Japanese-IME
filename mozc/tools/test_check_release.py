@@ -1,6 +1,6 @@
 """移行後の配布名と、旧版を確認するフォールバック。"""
 import unittest
-from check_release import choose_asset_name, check_generator, Checks
+from check_release import choose_asset_name, check_generator, product_release_pair, Checks
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +20,37 @@ class AssetNameTest(unittest.TestCase):
     def test_missing_new_checksum_can_use_complete_legacy_pair(self):
         self.assertEqual(choose_asset_name(['Asteria64.msi', 'Kotori64.msi',
                                           'Kotori64.msi.sha256']), 'Kotori64.msi')
+class ProductReleasePairTest(unittest.TestCase):
+    def test_model_assets_between_products_do_not_become_previous_msi(self):
+        releases = [dict(tagName='v1.1.4-rc.1', isLatest=False),
+                    dict(tagName='model-native-generator-20261017', isLatest=False),
+                    dict(tagName='v1.1.3', isLatest=True)]
+        self.assertEqual(product_release_pair(releases, 'v1.1.4-rc.1'),
+                         ('v1.1.4-rc.1', 'v1.1.3'))
+
+    def test_drafts_and_model_tags_do_not_replace_latest_product(self):
+        releases = [dict(tagName='v1.1.4-beta.1', isLatest=False, isDraft=True),
+                    dict(tagName='model-native-generator-20261017', isLatest=False),
+                    dict(tagName='v1.1.3', isLatest=True), dict(tagName='v1.1.2', isLatest=False)]
+        self.assertEqual(product_release_pair(releases), ('v1.1.3', 'v1.1.2'))
+        with self.assertRaises(ValueError):
+            product_release_pair(releases, 'model-native-generator-20261017')
+
+    def test_product_with_missing_assets_is_not_silently_skipped(self):
+        releases = [dict(tagName='v1.1.4', isLatest=True),
+                    dict(tagName='v1.1.3', isLatest=False, assets=[]),
+                    dict(tagName='v1.1.2', isLatest=False)]
+        self.assertEqual(product_release_pair(releases), ('v1.1.4', 'v1.1.3'))
+
+    def test_absent_or_truncated_product_history_does_not_skip_version_gate(self):
+        with self.assertRaises(ValueError):
+            product_release_pair([dict(tagName='model-only', isLatest=True)])
+        releases = [dict(tagName='v1.1.3', isLatest=True)]
+        with self.assertRaises(ValueError):
+            product_release_pair(releases, listing_truncated=True)
+        self.assertEqual(product_release_pair(releases), ('v1.1.3', ''))
+
+
 class GeneratorPayloadTest(unittest.TestCase):
     def test_missing_generator_fails_new_release_but_legacy_remains_checkable(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ BUNDLED = ["mozc_server.exe", "mozc_tool.exe", "mozc_renderer.exe", "mozc_tip64.
 # 入れない物。ggml-rpc.dll は別の PC に計算を任せる通信の部品(REQ-15-1、作業カード 41)。
 ABSENT = ["ggml-rpc.dll"]
 MAX_MSI_BYTES = int(1.8 * 2**30)
+RELEASE_LIST_LIMIT = 100
 
 
 def run(cmd, **kw):
@@ -71,6 +73,22 @@ def download(tag: str, dest: pathlib.Path) -> pathlib.Path:
 
 def as_tuple(v: str):
     return tuple(int(x) for x in v.split("."))
+
+
+def product_release_pair(releases, requested="", listing_truncated=False):
+    """モデル専用releaseとdraftを除き、製品タグ同士でMSIの版を比較する。"""
+    pattern = re.compile(r"v\d+\.\d+\.\d+(?:-(?:beta|rc)\.\d+)?")
+    products = [r for r in releases
+                if not r.get("isDraft", False) and pattern.fullmatch(r["tagName"])]
+    tag = requested or next((r["tagName"] for r in products if r.get("isLatest")), "")
+    tags = [r["tagName"] for r in products]
+    if not tag or tag not in tags:
+        raise ValueError("公開済みの製品タグが取得一覧にない。モデル専用release/draftはMSI検査の対象外")
+    index = tags.index(tag)
+    previous = tags[index + 1] if index + 1 < len(tags) else ""
+    if not previous and listing_truncated:
+        raise ValueError("取得範囲の末尾に達したため、前の製品releaseがないとは確認できない")
+    return tag, previous
 
 
 class Checks:
@@ -141,11 +159,11 @@ def main() -> int:
     if args.local:
         check_contents(pathlib.Path(args.local).resolve(), work, check, args.require_generator)
     else:
-        releases = json.loads(run(["gh", "release", "list", "--repo", REPO, "--limit", "10",
-                                   "--json", "tagName,isLatest"]))
-        tags = [r["tagName"] for r in releases]
-        tag = args.tag or next(r["tagName"] for r in releases if r["isLatest"])
-        prev = tags[tags.index(tag) + 1] if tags.index(tag) + 1 < len(tags) else ""
+        releases = json.loads(run(["gh", "release", "list", "--repo", REPO,
+                                   "--limit", str(RELEASE_LIST_LIMIT),
+                                   "--json", "tagName,isLatest,isDraft"]))
+        tag, prev = product_release_pair(releases, args.tag,
+                                         listing_truncated=len(releases) == RELEASE_LIST_LIMIT)
         shutil.rmtree(work, ignore_errors=True)
         msi = download(tag, work / tag)
         want = msi.with_name(msi.name + ".sha256").read_text().split()[0]
