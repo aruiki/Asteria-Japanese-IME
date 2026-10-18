@@ -92,7 +92,8 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `KOTORI_LM_DEVICE=cpu` | GPU を使わない(ノート PC の再現、docs/adr/0024) |
 | `KOTORI_LM_PRELOAD=0` | 起動時に裏で読み込まず、要求の中で読み込む(評価。状態のファイルも書かない) |
 | `KOTORI_LM_BEAMS`、`KOTORI_LM_LLM_TOP`、`KOTORI_LM_K`、`KOTORI_LM_NSENT` | 生成する文の数、LLM で採点する数、文節ごとに並べ替える数、ラティスの文全体の候補の数 |
-| `KOTORI_LM_LLM_WEIGHT`、`KOTORI_LM_WEIGHTS`、`KOTORI_LM_GEN_PENALTY`、`KOTORI_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 0.7)と、生成した文の減点(0.5 / LLM ありで 0) |
+| `KOTORI_LM_LLM_WEIGHT`、`KOTORI_LM_WEIGHTS`、`KOTORI_LM_GEN_PENALTY`、`KOTORI_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 1.2。前文なしでzenz得点が過半なら最大0.7)と、生成した文の減点(LLMの有無によらず0.5) |
+| `KOTORI_LM_CONFIDENCE_GUARD=0` | 前文なしでzenz得点が高いときのLLM重み抑制を無効にする。既定は有効。生成の減点は別設定 |
 | `KOTORI_LM_SENTENCE=0`、`KOTORI_LM_POST`、`KOTORI_LM_RIGHT` | 文全体の選択を切る、文全体の選択の後も文節ごとに並べ替える、右の文脈を使う |
 | `KOTORI_LM_SPLIT=0` | 生成した文を文節に分けない(docs/adr/0027) |
 | `KOTORI_LM_BUDGET` | 変換で AI に使う時間の上限(ms。既定は GPU 2000 / CPU 600、0 で上限なし) |

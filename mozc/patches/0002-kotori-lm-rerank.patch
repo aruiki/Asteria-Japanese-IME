@@ -30160,10 +30160,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..cd456f57a
+index 000000000..624ffb2aa
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3318 @@
+@@ -0,0 +1,3336 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31048,6 +31048,20 @@ index 000000000..cd456f57a
 +}
 +
 +
++double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
++                               double configured_weight, bool enabled,
++                               bool has_left_context) {
++  // Kotori: 前文のある要求では文脈を使う採点を維持する。
++  if (!enabled || has_left_context) return configured_weight;
++  constexpr float kMajorityLogProbability = -0.69314718f;
++  for (float score : zlogp) {
++    if (std::isfinite(score) && score >= kMajorityLogProbability) {
++      return std::min(configured_weight, 0.7);
++    }
++  }
++  return configured_weight;
++}
++
 +size_t PrefixNormalizedTop(const std::vector<std::string>& values,
 +                           const std::vector<double>& scores,
 +                           const std::vector<size_t>& token_counts, size_t top) {
@@ -31498,6 +31512,7 @@ index 000000000..cd456f57a
 +    max_sentences_ = std::max(1, std::atoi(v));
 +  }
 +  if (const char* v = Env("KOTORI_LM_LLM_WEIGHT")) lambda_llm_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_CONFIDENCE_GUARD")) confidence_guard_ = *v == '1';
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY")) gen_penalty_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY_LLM")) {
 +    gen_penalty_llm_ = std::atof(v);
@@ -32227,11 +32242,14 @@ index 000000000..cd456f57a
 +  }
 +  size_t top = 0;
 +  double top_score = 0;
++  // Kotori: train/devで選んだ過半数の境界。補正採用の尺度は変更しない。
++  const double ranking_llm_weight = kotori_internal::ConfidenceAwareLlmWeight(
++      *zlogp, lambda_llm_, confidence_guard_, !context.empty());
 +  std::vector<double> joint_scores(values.size());
 +  const bool debug = Env("KOTORI_LM_DEBUG") != nullptr;
 +  for (size_t i = 0; i < values.size(); ++i) {
 +    double s = lambda_lm_ * (*zlogp)[i];
-+    if (llogp) s += lambda_llm_ * (*llogp)[i];
++    if (llogp) s += ranking_llm_weight * (*llogp)[i];
 +    // 生成した文は辞書の表記を通らないので、同じくらいの点ならラティスの文を選ぶ。
 +    if (cands[i] == nullptr) s -= llogp ? gen_penalty_llm_ : gen_penalty_;
 +    if (debug) {
@@ -33484,10 +33502,10 @@ index 000000000..cd456f57a
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..05284e828
+index 000000000..8cb8a3b5d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,489 @@
+@@ -0,0 +1,495 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33528,6 +33546,11 @@ index 000000000..05284e828
 +size_t PrefixNormalizedTop(const std::vector<std::string>& values,
 +                           const std::vector<double>& scores,
 +                           const std::vector<size_t>& token_counts, size_t top);
++
++// 読み条件付きの候補確率が過半なら、汎用LLMの重みを従来尺度へ抑える実験。
++double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
++                               double configured_weight, bool enabled,
++                               bool has_left_context = false);
 +
 +void AddNearbyLatticeCandidates(const std::vector<float>& scores,
 +                               const std::vector<size_t>& lattice,
@@ -33959,12 +33982,13 @@ index 000000000..05284e828
 +  bool right_context_ = true;
 +  double lambda_lm_ = 1.0;
 +  double lambda_llm_ = 1.2;
++  bool confidence_guard_ = true;
 +  // Candidate ranking and correction acceptance are calibrated separately.
 +  // Keep correction scores in the units used by typo_gate_/typo_margin_.
 +  static constexpr double kCorrectionLlmWeight = 0.7;
 +  // 生成した文(ラティスにない文)の点数から引く値。LLM なし / あり。
 +  double gen_penalty_ = 0.5;
-+  double gen_penalty_llm_ = 0.0;
++  double gen_penalty_llm_ = 0.5;
 +  double lambda_lattice_ = 1.0;
 +  double temperature_ = 1000.0;
 +  int threads_ = 4;
@@ -33979,10 +34003,10 @@ index 000000000..05284e828
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..da66f7b5a
+index 000000000..9f1a44b84
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,983 @@
+@@ -0,0 +1,1008 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34083,6 +34107,31 @@ index 000000000..da66f7b5a
 + protected:
 +  const dictionary::PosMatcher pos_matcher_;
 +};
++
++TEST(LmRewriterConfidenceTest, PreservesStrongKanaChoiceAgainstGenericLikelihood) {
++  const std::vector<float> kana{-0.16f, -3.34f};
++  const std::vector<double> generic{-22.59, -18.84};
++  const double weight = kotori_internal::ConfidenceAwareLlmWeight(kana, 1.2, true);
++  EXPECT_GT(kana[0] + weight * generic[0], kana[1] + weight * generic[1]);
++  EXPECT_LT(kana[0] + 1.2 * generic[0], kana[1] + 1.2 * generic[1]);
++}
++
++TEST(LmRewriterConfidenceTest, PreservesContextualScoringEvenWithStrongKanaEvidence) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 1.2, true, true), 1.2);
++}
++
++TEST(LmRewriterConfidenceTest, KeepsUncertainOrDisabledRankingUnchanged) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-2.f, -3.f}, 1.2, true), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 1.2, false), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({}, 1.2, true), 1.2);
++}
++
++TEST(LmRewriterConfidenceTest, RejectsNonfiniteEvidenceAndPreservesExplicitLowerWeight) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight(
++      {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
++       -std::numeric_limits<float>::infinity()}, 1.2, true), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 0.4, true), 0.4);
++}
 +
 +TEST(LmRewriterBoundaryTest, NormalizesOnlyExtensionsOfChosenCandidate) {
 +  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
