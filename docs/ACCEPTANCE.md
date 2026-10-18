@@ -1,5 +1,7 @@
 # 受け入れ試験の確認表(Windows 版の MSI、Mozc 版)
 
+通常変換の必要項目と、実辞書セッション/実TSFの検証範囲は[通常変換の条件](NORMAL_CONVERSION.md)で追跡する。AI準備後の平均精度だけで、この表の入力・操作・導入を代替しない。
+
 リリース候補の MSI を配る前に、実機で確かめる項目(docs/IMPROVEMENT_PROPOSALS.md の案 05)。変換器だけの
 試験(`mozc/tools/` の評価・負荷試験)では分からない、入力不能・表示・更新の問題を拾う。自動化しにくい操作は
 この表に結果(OK / NG と症状)を書き、PR かリリースの Issue に貼る。旧 Rust 版(`frontends/windows`)の試験とは分ける。

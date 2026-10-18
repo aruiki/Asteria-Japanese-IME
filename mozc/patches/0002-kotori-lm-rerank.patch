@@ -1,8 +1,8 @@
 diff --git a/src/MODULE.bazel b/src/MODULE.bazel
-index eb74e536e..709f3f461 100644
+index eb74e536e..418fc13c3 100644
 --- a/src/MODULE.bazel
 +++ b/src/MODULE.bazel
-@@ -366,6 +366,39 @@ http_archive(
+@@ -366,6 +366,41 @@ http_archive(
      ],
  )
  
@@ -10,6 +10,8 @@ index eb74e536e..709f3f461 100644
 +http_archive(
 +    name = "llama_cpp",
 +    build_file = "@//bazel:BUILD.llama_cpp.bazel",
++    patches = ["@//bazel:llama_oom.patch"],
++    patch_args = ["-p1"],
 +    sha256 = "8003a54d576f221ef425b499da38282206f755e82fda4a69be70abbbe71a616f",
 +    strip_prefix = "llama.cpp-b11259",
 +    url = "https://github.com/ggml-org/llama.cpp/archive/refs/tags/b11259.tar.gz",
@@ -42,7 +44,7 @@ index eb74e536e..709f3f461 100644
  # Japanese Usage Dictionary (2025-01-25)
  JA_USAGE_DICT_TAG = "2025-01-25"
  
-@@ -395,3 +428,41 @@ http_archive(
+@@ -395,3 +430,41 @@ http_archive(
      sha256 = "3adc97d8e19e1168a6cdcb2fce759d0e9e613a9a3b630cc180aecfd56ae81eaf",
      url = "https://github.com/hiroyuki-komatsu/japanpost_zipcode/raw/621d059fbcbfae17bfca15b439692bae934268c3/ken_all.zip",
  )
@@ -582,19 +584,32 @@ index 000000000..f0ba3e164
 +}  // namespace mozc
 +
 +#endif  // MOZC_BASE_KOTORI_LIVE_H_
+diff --git a/src/bazel/BUILD.bazel b/src/bazel/BUILD.bazel
+index 6832ad9ef..8cc7eb42a 100644
+--- a/src/bazel/BUILD.bazel
++++ b/src/bazel/BUILD.bazel
+@@ -31,6 +31,8 @@ load("//bazel:stubs.bzl", "bzl_library")
+ 
+ package(default_visibility = ["//:__subpackages__"])
+ 
++exports_files(["llama_oom.patch"])
++
+ bzl_library(
+     name = "qt_bzl",
+     srcs = ["qt.bzl"],
 diff --git a/src/bazel/BUILD.llama_cpp.bazel b/src/bazel/BUILD.llama_cpp.bazel
 new file mode 100644
-index 000000000..cbd6e6dc7
+index 000000000..81408a09c
 --- /dev/null
 +++ b/src/bazel/BUILD.llama_cpp.bazel
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,152 @@
 +# llama.cpp(MIT)。Kotori の LM リランク用(docs/adr/0013、0016)。
 +#
-+# Windows: ヘッダーだけを使い、実行時にインストール先の公式ビルド(llama.dll、ggml*.dll。
-+#          GPU は Vulkan)を読み込む(rewriter/llama_runtime.cc)。
++# Windows: ヘッダーを使い、実行時にインストール先のDLLを読み込む。
++#          ggml-baseだけ確保失敗の修正付きで再構築し、他は公式ビルド(GPUはVulkan)。
 +# それ以外(Linux での評価): CPU 版を静的にリンクする。x86-64 の AVX2 を前提にする。
 +load("@bazel_skylib//rules:write_file.bzl", "write_file")
-+load("@rules_cc//cc:defs.bzl", "cc_library")
++load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 +
 +package(default_visibility = ["//visibility:public"])
 +
@@ -683,6 +698,40 @@ index 000000000..cbd6e6dc7
 +    deps = [":headers"],
 +)
 +
++# Kotori: 公式DLLと同じ固定ソースからbaseだけ再構築する。
++# 大きなcontext bufferの確保失敗をabortせず返す修正をMSIへ同梱する。
++# エンジンにはリンクせず、従来どおり実行時だけ読み込む。
++cc_binary(
++    name = "ggml-base.dll",
++    srcs = [
++        "ggml/src/ggml.c",
++        "ggml/src/ggml.cpp",
++        "ggml/src/ggml-alloc.c",
++        "ggml/src/ggml-backend.cpp",
++        "ggml/src/ggml-backend-meta.cpp",
++        "ggml/src/ggml-opt.cpp",
++        "ggml/src/ggml-threading.cpp",
++        "ggml/src/ggml-quants.c",
++        "ggml/src/gguf.cpp",
++        "ggml/src/ggml-cpu/ggml-cpu-impl.h",
++        ":ggml_version_h",
++    ] + glob(["ggml/src/*.h"]),
++    copts = ["/O2", "/EHsc"],
++    defines = [
++        "GGML_BUILD",
++        "GGML_SHARED",
++        "GGML_BACKEND_DL",
++        "GGML_SCHED_MAX_COPIES=4",
++        "_CRT_SECURE_NO_WARNINGS",
++        "_USE_MATH_DEFINES",
++    ],
++    features = ["-static_link_msvcrt"],
++    includes = ["ggml/src"],
++    linkshared = True,
++    target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
++    deps = [":headers"],
++)
++
 +cc_library(
 +    name = "llama_static",
 +    srcs = glob([
@@ -706,6 +755,32 @@ index 000000000..cbd6e6dc7
 +        "//conditions:default": ":llama_static",
 +    }),
 +)
+diff --git a/src/bazel/llama_oom.patch b/src/bazel/llama_oom.patch
+new file mode 100644
+index 000000000..4e542dcbd
+--- /dev/null
++++ b/src/bazel/llama_oom.patch
+@@ -0,0 +1,20 @@
++diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
++--- a/ggml/src/ggml.c
+++++ b/ggml/src/ggml.c
++@@ -1644 +1644,6 @@
++-    GGML_ASSERT(ctx->mem_buffer != NULL);
+++    // Kotori: バッファ不足をモデルロード側へ返し、Mozc入力を継続する。
+++    if (ctx->mem_buffer == NULL) {
+++        GGML_LOG_ERROR("%s: failed to allocate context buffer (%zu bytes)\n", __func__, mem_size);
+++        GGML_FREE(ctx);
+++        return NULL;
+++    }
++diff --git a/ggml/src/ggml-backend.cpp b/ggml/src/ggml-backend.cpp
++--- a/ggml/src/ggml-backend.cpp
+++++ b/ggml/src/ggml-backend.cpp
++@@ -22,0 +23 @@
+++#include <new>
++@@ -1082 +1083,2 @@
++-        GGML_ABORT("%s: failed to initialize context\n", __func__);
+++        // Kotori: llama_init_from_modelのstd::exception境界へ確保失敗を返す。
+++        throw std::bad_alloc();
 diff --git a/src/build_tools/mozc_win32_resource_template.rc b/src/build_tools/mozc_win32_resource_template.rc
 index ccb3def12..3537132b0 100644
 --- a/src/build_tools/mozc_win32_resource_template.rc
@@ -817,6 +892,43 @@ index c77da1f3b..f6b15e279 100644
 +
  TEST(CandidateTest, EffectiveConvertedSegmentCount) {
    Candidate candidate;
+ 
+diff --git a/src/converter/converter_main.cc b/src/converter/converter_main.cc
+index 38454e903..3775374b4 100644
+--- a/src/converter/converter_main.cc
++++ b/src/converter/converter_main.cc
+@@ -84,6 +84,9 @@ ABSL_FLAG(std::string, engine_type, "desktop", "Engine type: (desktop|mobile)");
+ ABSL_FLAG(size_t, max_candidates_to_show, 100,
+           "Max number of candidates to show per segment");
+ ABSL_FLAG(bool, show_meta_candidates, false, "if true, show meta candidates");
++// Kotori: 同意済み入力の評価専用。本文を追加せず採点ログを要求へ結び付ける。
++ABSL_FLAG(bool, evaluation_trace, false,
++          "Emit conversion request boundaries to stderr");
+ 
+ // Advanced options for data files.  These are automatically set when --engine
+ // is used but they can be overridden by specifying these flags.
+@@ -583,9 +586,22 @@ void ConverterMain::RunLoop() {
+   CHECK(converter_);
+ 
+   std::string line;
++  size_t evaluation_request = 0;
+   while (!std::getline(std::cin, line).fail()) {
++    // Kotori: 入力本文を記録しない。連続評価でも採点の要求対応を失わない。
++    const bool trace_conversion = absl::GetFlag(FLAGS_evaluation_trace) &&
++                                  line.starts_with("start ");
++    if (trace_conversion) {
++      ++evaluation_request;
++      std::cerr << "[eval_trace] request=" << evaluation_request << " begin"
++                << std::endl;
++    }
+     const std::string result = ExecCommandToString(line);
+     std::cout << result << std::endl;
++    if (trace_conversion) {
++      std::cerr << "[eval_trace] request=" << evaluation_request << " end"
++                << std::endl;
++    }
+   }
+ }
  
 diff --git a/src/converter/immutable_converter.cc b/src/converter/immutable_converter.cc
 index 448b6c25a..a9b0242d0 100644
@@ -24595,8 +24707,48 @@ zOgk(bd7cyDvsxi{C{?TFg6nR~AP52?1ZW1=##B3j>WD~rSsb!&r2s+H@Y-BgDg;zb
 zL@613W7Zf1G&4<#nt(BZ;xoE2_j8mrXY(!KeiIne+sK-zQeq6KNh!`3eBt9B?)?Em
 Ce@$lq
 
+diff --git a/src/data/test/session/scenario/conversion.txt b/src/data/test/session/scenario/conversion.txt
+index fbff8075b..f26b9240a 100644
+--- a/src/data/test/session/scenario/conversion.txt
++++ b/src/data/test/session/scenario/conversion.txt
+@@ -4,6 +4,8 @@ SET_CONFIG	preedit_method	ROMAN
+ SWITCH_COMPOSITION_MODE	HIRAGANA
+ SET_CONFIG	session_keymap	MSIME
+ SET_CONFIG	use_cascading_window	false
++# Kotori: この標準操作試験は文字種候補を表示する設定で実行する。
++SET_CONFIG	kotori_hide_character_types	false
+ SEND_KEY	ON
+ RESET_CONTEXT
+ 
+@@ -67,11 +69,11 @@ EXPECT_PREEDIT	Ｓｙｏｕ
+ SEND_KEY	PAGEDOWN
+ EXPECT_PREEDIT	相
+ SEND_KEY	PAGEUP
+-EXPECT_PREEDIT	ＳＹＯＵ
++EXPECT_PREEDIT	ｓｙｏｕ
+ SEND_KEY	SHIFT DOWN
+ EXPECT_PREEDIT	相
+ SEND_KEY	SHIFT UP
+-EXPECT_PREEDIT	ＳＹＯＵ
++EXPECT_PREEDIT	ｓｙｏｕ
+ 
+ # Convert without history
+ 
+diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
+index 5d8232f36..9391a06fd 100644
+--- a/src/data_manager/oss/BUILD.bazel
++++ b/src/data_manager/oss/BUILD.bazel
+@@ -64,7 +64,7 @@ mozc_dataset(
+     boundary_def = "//data/rules:boundary.def",
+     cforms = "//data/rules:cforms.def",
+     collocation_src = (
+-        "//data/dictionary_oss:collocation.txt"
++        "//data/kotori:fast_collocations.txt"
+     ),
+     collocation_suppression_src = (
+         "//data/dictionary_oss:collocation_suppression.txt"
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..0ebf41883 100644
+index fd03a6c0c..b086d8f3f 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -130,6 +130,39 @@ EngineConverter::EngineConverter(
@@ -25071,10 +25223,10 @@ index fd03a6c0c..0ebf41883 100644
    ResetResult();
  
    candidate_list_.MoveNextPage();
-+  // Kotori: Space/矢印では非表示の文字種へ移動しない。直接のFキー選択は保持。
++  // Kotori: 非表示の文字種だけのページは飛ばし、次ページの先頭へ移動する。
 +  if (config_->kotori_hide_character_types()) {
 +    for (size_t n = 0; n < transliteration::NUM_T13N_TYPES + 1 && candidate_list_.focused_id() < 0; ++n)
-+      candidate_list_.MoveNext();
++      candidate_list_.MoveNextPage();
 +  }
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
@@ -25095,10 +25247,10 @@ index fd03a6c0c..0ebf41883 100644
    ResetResult();
  
    candidate_list_.MovePrevPage();
-+  // Kotori: Space/矢印では非表示の文字種へ移動しない。直接のFキー選択は保持。
++  // Kotori: 非表示の文字種だけのページは飛ばし、前ページの先頭へ移動する。
 +  if (config_->kotori_hide_character_types()) {
 +    for (size_t n = 0; n < transliteration::NUM_T13N_TYPES + 1 && candidate_list_.focused_id() < 0; ++n)
-+      candidate_list_.MovePrev();
++      candidate_list_.MovePrevPage();
 +  }
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
@@ -28389,6 +28541,78 @@ index 4bbcddeca..9f1330688 100644
 +        "//engine:modules",
 +    ],
 +)
+diff --git a/src/rewriter/collocation_rewriter.cc b/src/rewriter/collocation_rewriter.cc
+index a4bbac287..164760b43 100644
+--- a/src/rewriter/collocation_rewriter.cc
++++ b/src/rewriter/collocation_rewriter.cc
+@@ -461,6 +461,14 @@ bool CollocationRewriter::RewriteCollocation(Segments* segments) const {
+         seg.candidates_size() == 0) {
+       return false;
+     }
++    // Kotori: 軽量な連語補正で、AI選択済み・ユーザー保護済みの候補を戻さない。
++    const auto& top = seg.candidate(0);
++    if (top.kotori_ai_evaluated ||
++        (top.attributes & (converter::Attribute::USER_DICTIONARY |
++                           converter::Attribute::NO_MODIFICATION |
++                           converter::Attribute::COMMAND_CANDIDATE))) {
++      return false;
++    }
+   }
+ 
+   std::vector<bool> segs_changed(segments->segments_size(), false);
+diff --git a/src/rewriter/collocation_rewriter_test.cc b/src/rewriter/collocation_rewriter_test.cc
+index b3bf25072..ff43d8e8f 100644
+--- a/src/rewriter/collocation_rewriter_test.cc
++++ b/src/rewriter/collocation_rewriter_test.cc
+@@ -39,6 +39,7 @@
+ #include "absl/types/span.h"
+ #include "base/container/tuple.h"
+ #include "converter/candidate.h"
++#include "converter/attribute.h"
+ #include "converter/segments.h"
+ #include "data_manager/testing/mock_data_manager.h"
+ #include "dictionary/pos_matcher.h"
+@@ -165,6 +166,40 @@ TEST_F(CollocationRewriterTest, NekowoKaitai) {
+   EXPECT_EQ(GetTopValue(segments), "猫を飼いたい") << segments.DebugString();
+ }
+ 
++TEST_F(CollocationRewriterTest, ProtectedTopAndAiChoiceArePreserved) {
++  const uint16_t id = pos_matcher_.GetUnknownId();
++  const std::vector<CandidateData> left = {
++      {"ねこを", "ねこ", "ネコを", "ネコを", 0, id, id},
++      {"ねこを", "ねこ", "猫を", "猫を", 0, id, id},
++  };
++  const std::vector<CandidateData> right = {
++      {"かいたい", "かいたい", "買いたい", "買いたい", 0, id, id},
++      {"かいたい", "かいたい", "飼いたい", "飼いたい", 0, id, id},
++  };
++  const std::vector<SegmentData> data = {{"ねこを", left}, {"かいたい", right}};
++  Segments segments;
++  MakeSegments(data, &segments);
++  ASSERT_TRUE(Rewrite(&segments));
++  ASSERT_EQ(GetTopValue(segments), "猫を飼いたい");
++
++  for (size_t index = 0; index < 2; ++index) {
++    for (uint32_t attribute : {converter::Attribute::USER_DICTIONARY,
++                               converter::Attribute::NO_MODIFICATION,
++                               converter::Attribute::COMMAND_CANDIDATE}) {
++      MakeSegments(data, &segments);
++      segments.mutable_conversion_segment(index)->mutable_candidate(0)
++          ->attributes |= attribute;
++      EXPECT_FALSE(Rewrite(&segments));
++      EXPECT_EQ(GetTopValue(segments), "ネコを買いたい");
++    }
++    MakeSegments(data, &segments);
++    segments.mutable_conversion_segment(index)->mutable_candidate(0)
++        ->kotori_ai_evaluated = true;
++    EXPECT_FALSE(Rewrite(&segments));
++    EXPECT_EQ(GetTopValue(segments), "ネコを買いたい");
++  }
++}
++
+ TEST_F(CollocationRewriterTest, MagurowoKaitai) {
+   // Make the following Segments:
+   // "まぐろを" | "かいたい"
 diff --git a/src/rewriter/english_variants_rewriter.cc b/src/rewriter/english_variants_rewriter.cc
 index b75c03feb..54188c42c 100644
 --- a/src/rewriter/english_variants_rewriter.cc
@@ -29448,10 +29672,10 @@ index 000000000..dc7e7466c
 +}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..27b0aafdc
+index 000000000..9e5c3f5d6
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,311 @@
+@@ -0,0 +1,316 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
@@ -29591,6 +29815,11 @@ index 000000000..27b0aafdc
 +  // 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
 +  constexpr DWORD kFlags =
 +      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
++  // Kotori: baseを再構築してもCPU backendの依存を同梱先から先に読む。
++  // backend側のLoadLibraryWは依存DLLのフォルダを追加しない。
++  HMODULE omp =
++      LoadLibraryExW((wdir + L"\\libomp.dll").c_str(), nullptr, kFlags);
++  if (omp == nullptr) return false;
 +  HMODULE ggml = LoadLibraryExW((wdir + L"\\ggml.dll").c_str(), nullptr, kFlags);
 +  HMODULE llama =
 +      LoadLibraryExW((wdir + L"\\llama.dll").c_str(), nullptr, kFlags);
@@ -30123,10 +30352,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..b83162d8b
+index 000000000..fea6f6195
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3229 @@
+@@ -0,0 +1,3344 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30320,6 +30549,8 @@ index 000000000..b83162d8b
 +};
 +
 +constexpr char kDefaultModelName[] = "zenz-v2.5-small-q8_0.gguf";
++constexpr char kLearnedGeneratorModelName[] =
++    "zenz-v2.5-native-generator-20261017-q8_0.gguf";
 +// 汎用の LLM(TinySwallow-1.5B、Apache-2.0)。GPU 向け(docs/adr/0016)。
 +constexpr char kLlmModelName[] = "tinyswallow-1.5b-q5_k_m.gguf";
 +constexpr size_t kMaxContextBytes = 240;  // 40 文字ぶん以上
@@ -30345,7 +30576,7 @@ index 000000000..b83162d8b
 +      // High の中身に、zenz-v2.5-medium による生成を足す(採点は small と LLM。docs/adr/0031)。
 +      return {16, kDefaultModelName, 8, 32, "zenz-v2.5-medium-q8_0.gguf"};
 +    default:
-+      return {8, kDefaultModelName, 4, 4};
++      return {8, kDefaultModelName, 8, 4};
 +  }
 +}
 +
@@ -31009,6 +31240,57 @@ index 000000000..b83162d8b
 +}
 +
 +
++double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
++                               double configured_weight, bool enabled,
++                               bool has_left_context) {
++  // Kotori: 前文のある要求では文脈を使う採点を維持する。
++  if (!enabled || has_left_context) return configured_weight;
++  constexpr float kMajorityLogProbability = -0.69314718f;
++  for (float score : zlogp) {
++    if (std::isfinite(score) && score >= kMajorityLogProbability) {
++      return std::min(configured_weight, 0.7);
++    }
++  }
++  return configured_weight;
++}
++
++size_t PrefixNormalizedTop(const std::vector<std::string>& values,
++                           const std::vector<double>& scores,
++                           const std::vector<size_t>& token_counts, size_t top) {
++  if (top >= values.size() || scores.size() != values.size() ||
++      token_counts.size() != values.size() || values[top].empty() ||
++      token_counts[top] == 0 || !std::isfinite(scores[top])) return top;
++  size_t best = top;
++  double best_score = scores[top] / token_counts[top];
++  for (size_t i = 0; i < values.size(); ++i) {
++    if (token_counts[i] == 0 || !std::isfinite(scores[i]) ||
++        values[i].size() <= values[top].size() ||
++        !absl::StartsWith(values[i], values[top])) continue;
++    const double score = scores[i] / token_counts[i];
++    if (score > best_score) { best = i; best_score = score; }
++  }
++  return best;
++}
++
++void AddNearbyLatticeCandidates(const std::vector<float>& scores,
++                               const std::vector<size_t>& lattice,
++                               size_t max_extra, std::vector<size_t>* order) {
++  if (order == nullptr || scores.empty() || lattice.empty() || lattice.front() != 0 ||
++      !std::isfinite(scores.front())) return;
++  std::vector<size_t> nearby;
++  for (size_t i : lattice) {
++    if (i == 0 || i >= scores.size() || !std::isfinite(scores[i]) ||
++        scores[i] < scores.front() - 2.0 ||
++        std::find(order->begin(), order->end(), i) != order->end() ||
++        std::find(nearby.begin(), nearby.end(), i) != nearby.end()) continue;
++    nearby.push_back(i);
++  }
++  std::stable_sort(nearby.begin(), nearby.end(), [&](size_t a, size_t b) {
++    return scores[a] > scores[b];
++  });
++  for (size_t i = 0; i < std::min(max_extra, nearby.size()); ++i) order->push_back(nearby[i]);
++}
++
 +bool HasTypingCorrectedTop(const Segments& segments) {
 +  for (const Segment& segment : segments.conversion_segments()) {
 +    if (segment.candidates_size() > 0 &&
@@ -31422,6 +31704,7 @@ index 000000000..b83162d8b
 +    max_sentences_ = std::max(1, std::atoi(v));
 +  }
 +  if (const char* v = Env("KOTORI_LM_LLM_WEIGHT")) lambda_llm_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_CONFIDENCE_GUARD")) confidence_guard_ = *v == '1';
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY")) gen_penalty_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY_LLM")) {
 +    gen_penalty_llm_ = std::atof(v);
@@ -31684,6 +31967,13 @@ index 000000000..b83162d8b
 +    if (extra.empty() && quality.extra != nullptr) {
 +      extra = FileUtil::JoinPath(model_dir_, quality.extra);
 +    }
++    // Keep the original generator and scorer. The learned model only adds
++    // candidates when it is present in the bundle; loading stays asynchronous.
++    const bool learned_default = extra.empty() && gpu && *llm_top > 0 &&
++                                 UsesLlm(config);
++    if (learned_default) {
++      extra = FileUtil::JoinPath(model_dir_, kLearnedGeneratorModelName);
++    }
 +    if (!(extra_loaded_ && extra_path_ == extra)) {
 +      if (!may_load && !extra.empty()) {
 +        RequestLoad(config);
@@ -31696,6 +31986,11 @@ index 000000000..b83162d8b
 +          extra_ = ZenzScorer::Open(extra, threads_, runtime_dir_);
 +        }
 +      }
++    }
++    if (learned_default && extra_ != nullptr) {
++      // The original zenz can undervalue newly learned spellings. Score the
++      // bounded combined pool instead of discarding those candidates early.
++      *llm_top = llm_top_override_.value_or(32);
 +    }
 +  }
 +  // LLM(文全体の採点に加える): AI モデルが LLM か、自動で GPU があるとき(docs/adr/0016)。
@@ -31720,10 +32015,35 @@ index 000000000..b83162d8b
 +  return main_scorer;
 +}
 +
-+std::string LmRewriter::ModelKey(const ZenzScorer* scorer) const {
++bool LmRewriter::UsesExtraGenerator(const ZenzScorer* llm) const {
++  if (extra_ == nullptr) return false;
++  // The learned generator is only useful with semantic scoring. If that model
++  // is unavailable, keep the original zenz generation and its cache identity.
++  return llm != nullptr ||
++         extra_path_ != FileUtil::JoinPath(model_dir_, kLearnedGeneratorModelName);
++}
++
++std::vector<std::string> LmRewriter::GenerateCandidates(
++    ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
++    const std::string& reading, int beams,
++    const std::function<bool()>& cancelled) const {
++  CancelScope cancel(cancelled);
++  std::vector<std::string> values = scorer->Generate(context, reading, beams);
++  if (UsesExtraGenerator(llm) && !cancelled()) {
++    for (std::string& value : extra_->Generate(context, reading, beams)) {
++      if (std::find(values.begin(), values.end(), value) == values.end()) {
++        values.push_back(std::move(value));
++      }
++    }
++  }
++  return values;
++}
++
++std::string LmRewriter::ModelKey(const ZenzScorer* scorer,
++                                const ZenzScorer* llm) const {
 +  const std::string& path =
 +      scorer != nullptr && scorer == long_scorer_.get() ? long_path_ : loaded_path_;
-+  return path + "|" + extra_path_;
++  return path + "|" + (UsesExtraGenerator(llm) ? extra_path_ : std::string());
 +}
 +
 +std::shared_ptr<const LmRewriter::CorrectionModels>
@@ -31836,6 +32156,9 @@ index 000000000..b83162d8b
 +}
 +
 +bool LmRewriter::HasGpu() const {
++  // Kotori: 起動直後も打鍵でDLL/backendの初期化を待たない。
++  // 評価専用の同期ロードだけは、従来どおり要求内で機器を調べる。
++  if (!sync_load_) return gpu_available_.load();
 +  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu();
 +}
 +
@@ -32014,26 +32337,12 @@ index 000000000..b83162d8b
 +  std::vector<std::string> generated;
 +  if (beams > 0 && Util::CharsLen(reading) <= kMaxGenerateChars) {
 +    if (gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
-+        gen_cache_->model == ModelKey(scorer)) {
++        gen_cache_->model == ModelKey(scorer, llm)) {
 +      generated = gen_cache_->texts;  // 先回りの変換で作ったもの
 +    } else {
-+      {
-+        CancelScope cancel(gen_over);
-+        generated = scorer->Generate(context, reading, beams);
-+        // 2 つ目の zenz(Unreal)でも生成し、候補を合わせる(docs/adr/0031)。
-+        {
-+          if (extra_ != nullptr && !gen_over()) {
-+            for (std::string& g : extra_->Generate(context, reading, beams)) {
-+              if (std::find(generated.begin(), generated.end(), g) ==
-+                  generated.end()) {
-+                generated.push_back(std::move(g));
-+              }
-+            }
-+          }
-+        }
-+      }
++      generated = GenerateCandidates(scorer, llm, context, reading, beams, gen_over);
 +      // 裏の先回りの変換が同じ読みを作り直さないように残す(途中でやめたものは残さない)。
-+      if (!gen_over()) gen_cache_ = Generated{key, beams, loaded_path_ + "|" + extra_path_, generated};
++      if (!gen_over()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), generated};
 +    }
 +  }
 +  {
@@ -32102,6 +32411,13 @@ index 000000000..b83162d8b
 +        std::find(order.begin(), order.end(), 0) == order.end()) {
 +      order.push_back(0);
 +    }
++    // Kotori: zenzの生成候補が上位を占めても、元の辞書候補に近い表記を
++    // LLMへ渡す。未採点の候補は-infになるため、正しい表記を永久に除外しない。
++    // 追加は最大2件。CPU/LLMなしではこの経路へ入らない。
++    std::vector<size_t> lattice;
++    for (size_t i = 0; i < cands.size(); ++i) if (cands[i] != nullptr) lattice.push_back(i);
++    kotori_internal::AddNearbyLatticeCandidates(
++        *zlogp, lattice, std::min<size_t>(2, llm_top), &order);
 +    std::vector<std::string> subset;
 +    for (size_t i : order) subset.push_back(values[i]);
 +    if (auto sub = llm->Score(context, reading, subset)) {
@@ -32121,10 +32437,14 @@ index 000000000..b83162d8b
 +  }
 +  size_t top = 0;
 +  double top_score = 0;
++  // Kotori: train/devで選んだ過半数の境界。補正採用の尺度は変更しない。
++  const double ranking_llm_weight = kotori_internal::ConfidenceAwareLlmWeight(
++      *zlogp, lambda_llm_, confidence_guard_, !context.empty());
++  std::vector<double> joint_scores(values.size());
 +  const bool debug = Env("KOTORI_LM_DEBUG") != nullptr;
 +  for (size_t i = 0; i < values.size(); ++i) {
 +    double s = lambda_lm_ * (*zlogp)[i];
-+    if (llogp) s += lambda_llm_ * (*llogp)[i];
++    if (llogp) s += ranking_llm_weight * (*llogp)[i];
 +    // 生成した文は辞書の表記を通らないので、同じくらいの点ならラティスの文を選ぶ。
 +    if (cands[i] == nullptr) s -= llogp ? gen_penalty_llm_ : gen_penalty_;
 +    if (debug) {
@@ -32132,9 +32452,31 @@ index 000000000..b83162d8b
 +                   values[i].c_str(), (*zlogp)[i], llogp ? (*llogp)[i] : 0.f,
 +                   cands[i] == nullptr ? "gen" : "lattice", s);
 +    }
++    joint_scores[i] = s;
 +    if (i == 0 || s > top_score) {
 +      top = i;
 +      top_score = s;
++    }
++  }
++
++  // A raw likelihood sum always favors a token prefix over its extension.
++  // Compare only extensions of the chosen text by per-token joint likelihood;
++  // unrelated candidates and typo acceptance keep their original score scale.
++  if (llm != nullptr && llogp && !over()) {
++    std::vector<size_t> counts(values.size());
++    bool has_extension = false;
++    for (size_t i = 0; i < values.size(); ++i) {
++      if (values[i].size() > values[top].size() &&
++          absl::StartsWith(values[i], values[top]) && std::isfinite(joint_scores[i])) {
++        counts[i] = llm->CountTokens(values[i]);
++        has_extension = true;
++      }
++    }
++    if (has_extension) {
++      counts[top] = llm->CountTokens(values[top]);
++      const size_t before = top;
++      top = kotori_internal::PrefixNormalizedTop(values, joint_scores, counts, top);
++      if (debug) std::fprintf(stderr, "[prefix_boundary] before=%zu after=%zu\n", before, top);
 +    }
 +  }
 +
@@ -32144,7 +32486,7 @@ index 000000000..b83162d8b
 +  if (llm_correction && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindLlmCorrection(scorer, llm, context, reading, values[top],
-+                        lambda_lm_ * (*zlogp)[top] + lambda_llm_ * (*llogp)[top],
++                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                        over, &fixed)) {
 +    best.keys = {reading};
 +    best.values = {fixed};
@@ -32157,7 +32499,7 @@ index 000000000..b83162d8b
 +  } else if (typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindTypoCorrection(scorer, llm, context, reading, values[top],
-+                         lambda_lm_ * (*zlogp)[top] + lambda_llm_ * (*llogp)[top],
++                         lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                         over, &fixed)) {
 +    best.keys = {reading};
 +    best.values = {fixed};
@@ -32997,13 +33339,10 @@ index 000000000..b83162d8b
 +                                    false, true, Util::CharsLen(job.reading));
 +    if (scorer != nullptr && beams > 0 &&
 +        !(gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
-+          gen_cache_->model == ModelKey(scorer))) {
-+      std::vector<std::string> texts;
-+      {
-+        CancelScope cancel(cancelled);
-+        texts = scorer->Generate(job.context, job.reading, beams);
-+      }
-+      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer), texts};
++          gen_cache_->model == ModelKey(scorer, llm))) {
++      const auto texts = GenerateCandidates(
++          scorer, llm, job.context, job.reading, beams, cancelled);
++      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), texts};
 +    }
 +  }
 +  {
@@ -33055,6 +33394,11 @@ index 000000000..b83162d8b
 +        loading_ = true;
 +        {
 +          absl::MutexLock model_lock(mutex_);
++          // Kotori: PrepareForが品質/モデルを選ぶ前に非同期側でGPUを判定する。
++          // 判定中の入力は未準備の結果を使い、モデルロードやDLL初期化を待たない。
++          if (config.kotori_lm_enabled()) {
++            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu());
++          }
 +          WriteStatus(config, "loading");
 +          size_t k = 0, llm_top = 0;
 +          int beams = 0;
@@ -33231,7 +33575,7 @@ index 000000000..b83162d8b
 +      std::string(prompt) != "typing" && std::string(prompt) != "chat") return false;
 +  kotori_internal::CorrectionOptions options;
 +  options.zenz_weight = lambda_lm_;
-+  options.llm_weight = lambda_llm_;
++  options.llm_weight = kCorrectionLlmWeight;
 +  options.margin = typo_margin_;
 +  if (prompt != nullptr && std::string(prompt) == "chat") {
 +    options.prompt = ZenzScorer::CorrectionPrompt::kChat;
@@ -33335,7 +33679,7 @@ index 000000000..b83162d8b
 +  size_t top = 0;
 +  double top_score = -std::numeric_limits<double>::infinity();
 +  for (size_t i = 0; i < texts.size(); ++i) {
-+    const double s = lambda_lm_ * zs[i] + lambda_llm_ * (*lp)[i];
++    const double s = lambda_lm_ * zs[i] + kCorrectionLlmWeight * (*lp)[i];
 +    if (s > top_score) {
 +      top = i;
 +      top_score = s;
@@ -33358,10 +33702,10 @@ index 000000000..b83162d8b
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..7c1dd1862
+index 000000000..edc149e9e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,470 @@
+@@ -0,0 +1,498 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33397,6 +33741,20 @@ index 000000000..7c1dd1862
 +namespace mozc {
 +
 +namespace kotori_internal {
++
++// 元の辞書候補に近い表記を、生成候補だけで埋まった採点対象へ少数補う。
++size_t PrefixNormalizedTop(const std::vector<std::string>& values,
++                           const std::vector<double>& scores,
++                           const std::vector<size_t>& token_counts, size_t top);
++
++// 読み条件付きの候補確率が過半なら、汎用LLMの重みを従来尺度へ抑える実験。
++double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
++                               double configured_weight, bool enabled,
++                               bool has_left_context = false);
++
++void AddNearbyLatticeCandidates(const std::vector<float>& scores,
++                               const std::vector<size_t>& lattice,
++                               size_t max_extra, std::vector<size_t>* order);
 +
 +// Mozcの先頭候補が入力補正済みなら、自動の再採点/生成で戻さない。
 +bool HasTypingCorrectedTop(const Segments& segments);
@@ -33561,7 +33919,14 @@ index 000000000..7c1dd1862
 +                         std::string* fixed) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  // 生成の結果を覚えるときの、そのモデルの名前(先回りの変換の結果を使い回してよいか)。
-+  std::string ModelKey(const ZenzScorer* scorer) const
++  bool UsesExtraGenerator(const ZenzScorer* llm) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  std::vector<std::string> GenerateCandidates(
++      ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
++      const std::string& reading, int beams,
++      const std::function<bool()>& cancelled) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  std::string ModelKey(const ZenzScorer* scorer, const ZenzScorer* llm) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  // Kotori: 実際に採点・補正に使うモデルのSHAとロード世代を固定する。
 +  std::shared_ptr<const CorrectionModels> BindCorrectionModels(
@@ -33649,7 +34014,7 @@ index 000000000..7c1dd1862
 +                       const std::string& context) const;
 +  // 覚えておいた予測と、まだ始めていない予測の仕事を捨てる。
 +  void ClearPredictions() const;
-+  // AI を載せる GPU があるか。
++  // AI を載せる GPU があるか。通常入力ではワーカーの判定済み結果だけを読む。
 +  bool HasGpu() const;
 +  // この設定で LLM を使うか(GPU があり、AI モデルが zenz のみでない)。
 +  bool UsesLlm(const config::Config& config) const;
@@ -33747,6 +34112,9 @@ index 000000000..7c1dd1862
 +  mutable std::atomic<bool> loading_{false};
 +  // 要求の中で読み込む(KOTORI_LM_PRELOAD=0。評価用)。
 +  bool sync_load_ = false;
++  // Kotori: DLL/backend初期化はワーカーで行う。未判定はAIなしで返し、
++  // 打鍵側から初回のstatic初期化を待たない。GPU/CPUの選択結果は復帰時も再確認する。
++  mutable std::atomic<bool> gpu_available_{false};
 +  bool identify_correction_models_ = false;
 +  // 変換で AI に使う時間の上限(ms、KOTORI_LM_BUDGET。0 なら上限なし、負なら GPU の有無で決める)。
 +  int budget_ms_ = -1;
@@ -33816,10 +34184,14 @@ index 000000000..7c1dd1862
 +  bool post_segment_ = false;
 +  bool right_context_ = true;
 +  double lambda_lm_ = 1.0;
-+  double lambda_llm_ = 0.7;
++  double lambda_llm_ = 1.2;
++  bool confidence_guard_ = true;
++  // Candidate ranking and correction acceptance are calibrated separately.
++  // Keep correction scores in the units used by typo_gate_/typo_margin_.
++  static constexpr double kCorrectionLlmWeight = 0.7;
 +  // 生成した文(ラティスにない文)の点数から引く値。LLM なし / あり。
 +  double gen_penalty_ = 0.5;
-+  double gen_penalty_llm_ = 0.0;
++  double gen_penalty_llm_ = 0.5;
 +  double lambda_lattice_ = 1.0;
 +  double temperature_ = 1000.0;
 +  int threads_ = 4;
@@ -33834,10 +34206,10 @@ index 000000000..7c1dd1862
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..dc7621ffa
+index 000000000..9f1a44b84
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,934 @@
+@@ -0,0 +1,1008 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -33938,6 +34310,52 @@ index 000000000..dc7621ffa
 + protected:
 +  const dictionary::PosMatcher pos_matcher_;
 +};
++
++TEST(LmRewriterConfidenceTest, PreservesStrongKanaChoiceAgainstGenericLikelihood) {
++  const std::vector<float> kana{-0.16f, -3.34f};
++  const std::vector<double> generic{-22.59, -18.84};
++  const double weight = kotori_internal::ConfidenceAwareLlmWeight(kana, 1.2, true);
++  EXPECT_GT(kana[0] + weight * generic[0], kana[1] + weight * generic[1]);
++  EXPECT_LT(kana[0] + 1.2 * generic[0], kana[1] + 1.2 * generic[1]);
++}
++
++TEST(LmRewriterConfidenceTest, PreservesContextualScoringEvenWithStrongKanaEvidence) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 1.2, true, true), 1.2);
++}
++
++TEST(LmRewriterConfidenceTest, KeepsUncertainOrDisabledRankingUnchanged) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-2.f, -3.f}, 1.2, true), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 1.2, false), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({}, 1.2, true), 1.2);
++}
++
++TEST(LmRewriterConfidenceTest, RejectsNonfiniteEvidenceAndPreservesExplicitLowerWeight) {
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight(
++      {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
++       -std::numeric_limits<float>::infinity()}, 1.2, true), 1.2);
++  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 0.4, true), 0.4);
++}
++
++TEST(LmRewriterBoundaryTest, NormalizesOnlyExtensionsOfChosenCandidate) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension", "unrelated"}, {-10., -11., -1.}, {2, 3, 1}, 0), 1);
++}
++
++TEST(LmRewriterBoundaryTest, KeepsWinnerWhenExtensionIsLessLikelyOrNotAPrefix) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension", "other prefix"}, {-10., -20., -1.}, {2, 3, 1}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix extension", "prefix"}, {-11., -10.}, {3, 2}, 0), 0);
++}
++
++TEST(LmRewriterBoundaryTest, RejectsInvalidOrUnscoredExtensions) {
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10., -11.}, {0, 3}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10., -std::numeric_limits<double>::infinity()}, {2, 3}, 0), 0);
++  EXPECT_EQ(kotori_internal::PrefixNormalizedTop(
++      {"prefix", "prefix extension"}, {-10.}, {2, 3}, 0), 0);
++}
 +
 +TEST(LmRewriterPredictionGuardTest, RejectsRepeatedContinuationBeforeLeading) {
 +  EXPECT_TRUE(kotori_internal::HasRepeatedContinuation("おめでとうご", "めでとう"));
@@ -34771,6 +35189,34 @@ index 000000000..dc7621ffa
 +  EXPECT_TRUE(kotori_internal::HasTypingCorrectedTop(segments));
 +}
 +
++
++TEST(LmLatticeCoverageTest, GeneratedTopDoesNotHideNearbyDictionaryWord) {
++  const std::vector<float> scores{-8.35f, -18.11f, -8.86f, -18.73f, -0.46f, -1.51f, -3.12f, -3.74f};
++  std::vector<size_t> order{4, 5, 6, 7, 0};
++  kotori_internal::AddNearbyLatticeCandidates(scores, {0, 1, 2, 3}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{4, 5, 6, 7, 0, 2}));
++}
++
++TEST(LmLatticeCoverageTest, BudgetAndExistingEntriesArePreserved) {
++  std::vector<size_t> order{0};
++  kotori_internal::AddNearbyLatticeCandidates({0, -0.2f, -0.3f, -0.4f},
++                                            {0, 3, 2, 1, 1, 100}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0, 1, 2}));
++  kotori_internal::AddNearbyLatticeCandidates({0, -0.2f, -0.3f, -0.4f},
++                                            {0, 1, 2, 3}, 0, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0, 1, 2}));
++}
++
++TEST(LmLatticeCoverageTest, UnsupportedAndInvalidScoresAreNotAdded) {
++  const float infinity = std::numeric_limits<float>::infinity();
++  const float nan = std::numeric_limits<float>::quiet_NaN();
++  std::vector<size_t> order{0};
++  kotori_internal::AddNearbyLatticeCandidates({0, nan, -infinity, -3}, {0, 1, 2, 3}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0}));
++  kotori_internal::AddNearbyLatticeCandidates({nan, 0}, {0, 1}, 2, &order);
++  EXPECT_EQ(order, (std::vector<size_t>{0}));
++}
++
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
 index d92e814fd..6c3ff56e2 100644
@@ -34874,10 +35320,10 @@ index d322feaee..89296272a 100644
        CreateUserSegmentHistoryRewriter());
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..b04585b07
+index 000000000..db3ed0280
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,871 @@
+@@ -0,0 +1,874 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -35604,6 +36050,9 @@ index 000000000..b04585b07
 +  for (size_t r = 0; r < found.size(); ++r) {
 +    for (const auto& tokens : found[r]) {
 +      std::string text = Detokenize(tokens);
++      // Byte fallback tokens can end inside a UTF-8 character. Reject the
++      // whole generation before reading validation or diagnostic output.
++      if (!Util::IsValidUtf8(text)) continue;
 +      // zenz は空白を全角空白で学習している。候補の表記は元の空白に戻す。
 +      for (size_t pos; (pos = text.find("\xE3\x80\x80")) != std::string::npos;) {
 +        text.replace(pos, 3, " ");
@@ -36168,7 +36617,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..1d7433553 100644
+index 8186b0a8d..b79c1a141 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -36189,7 +36638,7 @@ index 8186b0a8d..1d7433553 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +542,75 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +542,67 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -36221,13 +36670,8 @@ index 8186b0a8d..1d7433553 100644
 +  callback->mutable_session_command()->set_type(
 +      commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
 +  callback->set_delay_millisec(delay);
-+  // Kotori: 未評価の候補を先に表示しない。読みは即座に表示し、候補だけを
-+  // 最初の取り直しまで待つ。取り直し後は AI が使えなくても通常候補へ戻す。
-+  // 内部の候補は保持するため、待つ間の Space / Tab 操作は妨げない。
-+  if (count == 0) {
-+    command->mutable_output()->clear_candidate_window();
-+    command->mutable_output()->clear_all_candidate_words();
-+  }
++  // Kotori: AIの準備/取り直しを待つ間も、通常のMozc候補を維持する。
++  // 検証済みのAI結果だけを後で反映し、入力や候補選択を待たせない。
 +}
 +
 +bool Session::KotoriRefreshSuggestion(commands::Command* command) {
@@ -36255,17 +36699,14 @@ index 8186b0a8d..1d7433553 100644
 +  Output(command);
 +  ++kotori_refresh_count_;
 +  KotoriScheduleRefresh(command, kotori_refresh_count_, !ready);
-+  if (!ready && command->output().has_callback()) {
-+    command->mutable_output()->clear_candidate_window();
-+    command->mutable_output()->clear_all_candidate_words();
-+  }
++  // Kotori: 未準備/失敗時の再試行でも、通常候補を消して空表示にしない。
 +  return true;
 +}
 +
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -2676,7 +2745,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2737,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -36274,7 +36715,7 @@ index 8186b0a8d..1d7433553 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2867,6 +2936,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +2928,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -36314,11 +36755,36 @@ index a9903ecd3..db1e0dae1 100644
  
    // Undo stack. *begin is the oldest, and *back is the newest.
 diff --git a/src/session/session_handler_main.cc b/src/session/session_handler_main.cc
-index 4718077e2..c373cf7f3 100644
+index 4718077e2..9532e7021 100644
 --- a/src/session/session_handler_main.cc
 +++ b/src/session/session_handler_main.cc
-@@ -214,7 +214,8 @@ int main(int argc, char** argv) {
+@@ -83,6 +83,8 @@ ABSL_DECLARE_FLAG(bool, use_history_rewriter);
+ 
+ ABSL_FLAG(std::string, input, "", "Input file. ");
+ ABSL_FLAG(std::string, profile, "", "User profile directory");
++// Kotori: 終了時に消去しない検査は専用profileを明示して実行する。
++ABSL_FLAG(bool, preserve_profile, false, "Preserve explicit profile for offline lifecycle tests");
+ ABSL_FLAG(std::string, dictionary, "", "Dictionary: 'oss' or 'test'");
+ ABSL_FLAG(bool, test, false, "Run as a test and quit.");
+ 
+@@ -212,9 +214,24 @@ absl::StatusOr<std::unique_ptr<Engine>> CreateEngine(
+ 
+ int main(int argc, char** argv) {
    mozc::InitMozc(argv[0], &argc, &argv);
++  if (absl::GetFlag(FLAGS_preserve_profile) && absl::GetFlag(FLAGS_profile).empty()) {
++    std::cout << "ERROR: --preserve_profile requires an explicit --profile" << std::endl;
++    return 1;
++  }
++  // Kotori: 入力ファイルを開けなかった検査を空実行のPASSにしない。
++  std::unique_ptr<mozc::InputFileStream> file_input;
++  const std::string filepath = absl::GetFlag(FLAGS_input);
++  if (!filepath.empty()) {
++    file_input = std::make_unique<mozc::InputFileStream>(filepath);
++    if (!file_input->is_open()) {
++      std::cout << "ERROR: Failed to open input file: " << filepath << std::endl;
++      return 1;
++    }
++  }
    if (!absl::GetFlag(FLAGS_profile).empty()) {
      const std::string profile = absl::GetFlag(FLAGS_profile);
 -    if (!mozc::FileUtil::CreateDirectory(profile).ok()) {
@@ -36327,8 +36793,102 @@ index 4718077e2..c373cf7f3 100644
        std::cout << "ERROR: Failed to create profile directory: " << profile
                  << std::endl;
        return 1;
+@@ -237,17 +254,20 @@ int main(int argc, char** argv) {
+     return 1;
+   }
+   mozc::session::SessionHandlerInterpreter handler(*std::move(engine));
++  handler.SetPreserveProfileForTesting(absl::GetFlag(FLAGS_preserve_profile));
+ 
+   std::string line;
+   int line_number = 1;
+-  if (const std::string filepath = absl::GetFlag(FLAGS_input);
+-      !filepath.empty()) {
+-    mozc::InputFileStream input(filepath);
++  if (file_input) {
+     bool is_passed = true;
+-    while (std::getline(input, line)) {
++    while (std::getline(*file_input, line)) {
+       is_passed &= mozc::ParseLine(handler, line, line_number++);
+     }
+ 
++    if (file_input->bad()) {
++      std::cout << "ERROR: Failed to read input file: " << filepath << std::endl;
++      return 1;
++    }
+     if (is_test) {
+       if (is_passed) {
+         std::cout << "[ PASSED ] " << filepath << std::endl;
+diff --git a/src/session/session_handler_scenario_test.cc b/src/session/session_handler_scenario_test.cc
+index 1bce7497e..a620ff697 100644
+--- a/src/session/session_handler_scenario_test.cc
++++ b/src/session/session_handler_scenario_test.cc
+@@ -217,6 +217,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
+   }
+ }
+ 
++// Kotori: 文字種メニュー表示の両設定で候補移動と直接変換を保つ。
++TEST_F(SessionHandlerScenarioTestBase, KotoriCharacterTypeNavigation) {
++  for (const bool hide_types : {true, false}) {
++    SCOPED_TRACE(hide_types);
++    handler_->ClearAll();
++    ParseLine(*handler_, absl::StrCat("SET_CONFIG\tkotori_hide_character_types\t",
++                                     hide_types ? "true" : "false"));
++    for (const char* line : {
++             "SET_CONFIG\tpreedit_method\tROMAN",
++             "SET_CONFIG\tsession_keymap\tMSIME",
++             "SET_CONFIG\tuse_cascading_window\tfalse",
++             "SEND_KEY\tON", "RESET_CONTEXT", "SEND_KEYS\tsyou",
++             "SEND_KEY\tSPACE"}) {
++      ParseLine(*handler_, line);
++    }
++    for (const char* key : {"SHIFT SPACE", "SHIFT TAB", "PAGEDOWN", "PAGEUP",
++                            "SHIFT DOWN", "SHIFT UP"}) {
++      ParseLine(*handler_, absl::StrCat("SEND_KEY\t", key));
++      const auto& output = handler_->LastOutput();
++      ASSERT_TRUE(output.has_candidate_window()) << key;
++      const auto& window = output.candidate_window();
++      ASSERT_TRUE(window.has_focused_index()) << key;
++      ASSERT_GT(window.candidate_size(), 0) << key;
++      if (std::string(key) == "PAGEDOWN" || std::string(key) == "PAGEUP" ||
++          std::string(key) == "SHIFT DOWN" || std::string(key) == "SHIFT UP") {
++        // ページ移動は先頭行へ。候補数による英字の大小変化と区別する。
++        EXPECT_EQ(window.focused_index(), window.candidate(0).index()) << key;
++      }
++      bool focused_found = false;
++      std::string preedit;
++      for (const auto& segment : output.preedit().segment()) {
++        preedit += segment.value();
++      }
++      for (const auto& candidate : window.candidate()) {
++        if (hide_types) EXPECT_GE(candidate.id(), 0) << key;
++        if (candidate.index() == window.focused_index()) {
++          focused_found = true;
++          EXPECT_EQ(candidate.value(), preedit) << key;
++        }
++      }
++      EXPECT_TRUE(focused_found) << key;
++      EXPECT_FALSE(window.has_sub_candidate_window()) << key;
++      if (!hide_types && std::string(key) == "SHIFT SPACE") {
++        ParseLine(*handler_, "EXPECT_PREEDIT\tｼｮｳ");
++      }
++    }
++    for (const auto& [key, expected] :
++         std::vector<std::pair<const char*, const char*>>{
++             {"F6", "しょう"}, {"F7", "ショウ"}, {"F8", "ｼｮｳ"},
++             {"F9", "ｓｙｏｕ"}, {"F10", "syou"}}) {
++      ParseLine(*handler_, absl::StrCat("SEND_KEY\t", key));
++      ParseLine(*handler_, absl::StrCat("EXPECT_PREEDIT\t", expected));
++    }
++    ParseLine(*handler_, "SEND_KEY\tENTER");
++    ParseLine(*handler_, "EXPECT_RESULT\tsyou");
++  }
++}
++
+ class SessionHandlerScenarioTestForRequest
+     : public SessionHandlerScenarioTestBase,
+       public WithParamInterface<std::tuple<const char*, commands::Request>> {
 diff --git a/src/session/session_handler_tool.cc b/src/session/session_handler_tool.cc
-index e22e60a8c..12394a671 100644
+index e22e60a8c..d4e77df81 100644
 --- a/src/session/session_handler_tool.cc
 +++ b/src/session/session_handler_tool.cc
 @@ -211,6 +211,15 @@ bool SessionHandlerTool::UndoOrRewind(commands::Output* output) {
@@ -36360,7 +36920,21 @@ index e22e60a8c..12394a671 100644
      commands::Input input2;
      input2.set_type(commands::Input::SEND_COMMAND);
      *input2.mutable_command() = command.output().callback().session_command();
-@@ -668,6 +681,9 @@ absl::Status SessionHandlerInterpreter::Eval(
+@@ -313,10 +326,12 @@ SessionHandlerInterpreter::SessionHandlerInterpreter(
+ }
+ 
+ SessionHandlerInterpreter::~SessionHandlerInterpreter() {
++  // Kotori: 通常は既存どおり状態を消去。明示した保存検査だけは先に同期する。
++  if (preserve_profile_) SyncDataToStorage();
+   // Shut down.
+   CHECK(client_->DeleteSession());
+ 
+-  ClearState();
++  if (!preserve_profile_) ClearState();
+ }
+ 
+ void SessionHandlerInterpreter::ClearState() {
+@@ -668,6 +683,9 @@ absl::Status SessionHandlerInterpreter::Eval(
      MOZC_ASSERT_TRUE(client_->SubmitCandidate(id, last_output_.get()));
    } else if (command == "UNDO_OR_REWIND") {
      MOZC_ASSERT_TRUE(client_->UndoOrRewind(last_output_.get()));
@@ -36371,7 +36945,7 @@ index e22e60a8c..12394a671 100644
      MOZC_ASSERT_TRUE(args.size() == 1 || args.size() == 2);
      std::optional<int> id = std::nullopt;
 diff --git a/src/session/session_handler_tool.h b/src/session/session_handler_tool.h
-index 4d3669e06..5df1ea7d9 100644
+index 4d3669e06..a94d9a579 100644
 --- a/src/session/session_handler_tool.h
 +++ b/src/session/session_handler_tool.h
 @@ -81,6 +81,8 @@ class SessionHandlerTool {
@@ -36383,8 +36957,25 @@ index 4d3669e06..5df1ea7d9 100644
    // Try to delete the candidate from the history.
    // The target candidate is specified with the |id|. If |id| is not specified,
    // the current focused candidate will be specified.
+@@ -113,6 +115,8 @@ class SessionHandlerInterpreter final {
+   void ClearState();
+   void ClearAll();
+   void ResetContext();
++  // Kotori: CLIの明示した専用プロファイルで保存/再起動を検査する。
++  void SetPreserveProfileForTesting(bool preserve) { preserve_profile_ = preserve; }
+   void SyncDataToStorage();
+   void ClearUserPrediction();
+   void ClearUsageStats();
+@@ -133,6 +137,7 @@ class SessionHandlerInterpreter final {
+   config::Config config_;
+   std::unique_ptr<commands::Output> last_output_;
+   std::unique_ptr<commands::Request> request_;
++  bool preserve_profile_ = false;
+ };
+ 
+ }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..21ac2b3ec 100644
+index 012d822a5..1659772c3 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -36493,14 +37084,14 @@ index 012d822a5..21ac2b3ec 100644
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
-+  // 通常候補の抑制を検証する。AI の遅延表示は KotoriRefreshSuggestion で検証。
++  // 通常候補の抑制を検証する。AI の非同期反映と通常候補維持は KotoriRefreshSuggestion で検証。
 +  config::Config config;
 +  config.set_kotori_lm_enabled(false);
 +  session.SetConfig(config);
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10544,194 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10544,198 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -36539,8 +37130,10 @@ index 012d822a5..21ac2b3ec 100644
 +  EXPECT_EQ(command.output().callback().session_command().type(),
 +            commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
 +  EXPECT_EQ(command.output().callback().delay_millisec(), 200);
-+  EXPECT_FALSE(command.output().has_candidate_window());
-+  EXPECT_FALSE(command.output().has_all_candidate_words());
++  // Kotori: AI準備前でも、通常の候補と読みを即表示する。
++  ASSERT_TRUE(command.output().has_candidate_window());
++  EXPECT_EQ(command.output().candidate_window().candidate(0).value(), "あいうえお");
++  EXPECT_TRUE(command.output().has_all_candidate_words());
 +  EXPECT_TRUE(command.output().has_preedit());
 +
 +  auto refresh = [&] {
@@ -36577,7 +37170,7 @@ index 012d822a5..21ac2b3ec 100644
 +  EXPECT_EQ(command.output().candidate_window().candidate(0).value(),
 +            "あいうえおの続き");
 +
-+  // AI が評価できない間は候補を待ち、上限で通常候補に戻す。
++  // Kotori: AIが評価できない間も、全ての取り直しで通常候補を維持する。
 +  Segments unavailable = converted;
 +  unavailable.mutable_conversion_segment(0)->mutable_candidate(0)
 +      ->kotori_ai_evaluated = false;
@@ -36586,11 +37179,13 @@ index 012d822a5..21ac2b3ec 100644
 +      .WillRepeatedly(DoAll(SetArgPointee<1>(unavailable), Return(true)))
 +      .RetiresOnSaturation();
 +  InsertCharacterChars("a", &session, &command);
-+  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_candidate_window());
++  EXPECT_TRUE(command.output().has_all_candidate_words());
 +  for (int i = 0; i < kotori::kMaxLiveRefreshes; ++i) {
 +    EXPECT_TRUE(refresh());
-+    EXPECT_EQ(command.output().has_candidate_window(),
-+              i == kotori::kMaxLiveRefreshes - 1);
++    ASSERT_TRUE(command.output().has_candidate_window());
++    EXPECT_TRUE(command.output().has_all_candidate_words());
++    EXPECT_EQ(command.output().candidate_window().candidate(0).value(), "あいうえお");
 +    EXPECT_EQ(command.output().has_callback(),
 +              i != kotori::kMaxLiveRefreshes - 1);
 +  }
@@ -36696,10 +37291,10 @@ index 012d822a5..21ac2b3ec 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..df1054f44 100644
+index ada11a64a..0d1ad4f8e 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
-@@ -32,10 +32,10 @@ MAJOR = 3
+@@ -32,11 +32,10 @@ MAJOR = 3
  MINOR = 34
  
  # BUILD number used for the OSS version.
@@ -36708,10 +37303,11 @@ index ada11a64a..df1054f44 100644
  
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
-+BUILD = 6338
- 
+-
++BUILD = 6432
  # Represent the platform and release channel.
  REVISION = 100
+ 
 diff --git a/src/win32/base/display_name_resource.h b/src/win32/base/display_name_resource.h
 index 34ddf93fd..ef789ba71 100644
 --- a/src/win32/base/display_name_resource.h

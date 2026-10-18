@@ -34,8 +34,9 @@ done
 # 品質ごとの設定は rewriter/lm_rewriter.cc の QualityOf と同じ(生成の数、LLM で採点する数、zenz)。
 # Low の zenz(medium)は、パスに空白があってもよいように別に渡す(区切りは / にする)。
 LOW_ZENZ="$(printf '%s' "$I" | tr '\\' /)/zenz-v2.5-medium-q8_0.gguf"
-for q in "Low KOTORI_LM_BEAMS=2 KOTORI_LM_LLM_TOP=0" "Standard KOTORI_LM_BEAMS=4 KOTORI_LM_LLM_TOP=4" \
-         "High KOTORI_LM_BEAMS=8 KOTORI_LM_LLM_TOP=32"; do
+# Standardは製品の既定値を使う。追加生成モデル同梱時のLLM採点数32も上書きしない。
+for q in "Low KOTORI_LM_K=4 KOTORI_LM_BEAMS=2 KOTORI_LM_LLM_TOP=0" "Standard" \
+         "High KOTORI_LM_K=16 KOTORI_LM_BEAMS=8 KOTORI_LM_LLM_TOP=32"; do
   set -- $q; name=$1; shift
   zenz=()
   [ "$name" = Low ] && zenz=("KOTORI_ZENZ_MODEL=$LOW_ZENZ")

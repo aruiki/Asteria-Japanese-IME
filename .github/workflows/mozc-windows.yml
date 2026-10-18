@@ -25,6 +25,7 @@ on:
       - '!mozc/tools/**'
       - '!mozc/eval_*.py'
       - '!mozc/patches/README.md'
+      - training/collocations/**
 
 permissions:
   contents: write
@@ -136,12 +137,37 @@ jobs:
           curl -fsSL -o llama-bin.zip https://github.com/ggml-org/llama.cpp/releases/download/b11259/llama-b11259-bin-win-cpu-x64.zip
           mkdir -p llama-bin && unzip -q llama-bin.zip -d llama-bin
           PYTHON=python bash training/llm/make.sh "$PWD/llama-bin/llama-quantize.exe"
+      - name: 学習済み追加生成モデルを固定SHAで取得する
+        shell: pwsh
+        working-directory: kotori
+        run: python training/contrastive/fetch_generator.py --out target/kotori
       - name: モデルを置く
         shell: pwsh
         run: |
           Copy-Item kotori/target/kotori/zenz-v2.5-small-q8_0.gguf mozc-src/src/data/kotori/
           Copy-Item kotori/target/kotori/zenz-v2.5-medium-q8_0.gguf mozc-src/src/data/kotori/
           Copy-Item kotori/target/kotori/tinyswallow-1.5b-q5_k_m.gguf mozc-src/src/data/kotori/
+          Copy-Item kotori/target/kotori/zenz-v2.5-native-generator-20261017-q8_0.gguf mozc-src/src/data/kotori/
+          Copy-Item kotori/target/kotori/native_generator.json mozc-src/src/data/kotori/
+      - name: 初期変換の連語データを固定区間から再現する
+        shell: pwsh
+        working-directory: kotori
+        run: |
+          python -X utf8 training/collocations/stage.py --baseline ../mozc-src/src/data/dictionary_oss/collocation.txt --out target/kotori/fast-collocations-v1
+          if ($LASTEXITCODE -ne 0) { throw '連語データを再現できない' }
+          foreach ($name in @('fast_collocations.txt', 'fast_collocations.json', 'NOTICE-fast-collocations.txt')) {
+            Copy-Item "target/kotori/fast-collocations-v1/$name" ../mozc-src/src/data/kotori/
+          }
+      - name: 連語の生成と同梱検査の回帰を確かめる
+        shell: pwsh
+        working-directory: kotori
+        run: |
+          python -X utf8 -m unittest discover -s training/collocations -p test_stage.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 -m unittest discover -s mozc/tools -p test_fast_collocations.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 -m unittest discover -s mozc/tools -p test_check_release.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/cache@v4
         with:
           path: mozc-src/src/third_party_cache
@@ -181,13 +207,16 @@ jobs:
         env:
           ANDROID_NDK_HOME: ""
         run: bazelisk build package --config release_build --disk_cache=D:\bazel-disk-cache
+      - name: 同梱した追加モデルとMSIの版を確かめる
+        shell: pwsh
+        run: python -X utf8 kotori/mozc/tools/check_release.py --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-generator --require-collocations --work generator-package-check
       # Kotori の変更の単体テスト(モデルなしで動くもの。docs/IMPROVEMENT_PROPOSALS.md の案 02)。
       - name: テストする
         shell: cmd
         working-directory: .\mozc-src\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:lm_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test --config release_build --disk_cache=D:\bazel-disk-cache
+        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:lm_rewriter_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache
       - name: 応援案内の保存と画面を確かめる
         shell: pwsh
         working-directory: .\mozc-src\src

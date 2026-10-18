@@ -1,35 +1,31 @@
-"""README図版。500px幅でも結果を読めるサイズで公開済みデータを描く。"""
+"""README図版。最新の開発評価と、日付を固定した過去の実入力比較を描く。"""
 import difflib
+import json
+from pathlib import Path
 from asteria_style import Figure, CREAM, TEXT, SUB, GRAY, GRAY2
-from gen_ime_comparison import published_rows, main as ime_comparison
+from gen_ime_comparison import main as ime_comparison
+
+DATA = json.loads((Path(__file__).with_name("evaluation-2026-10-19.json")).read_text(encoding="utf-8"))
 
 
 def examples():
-    rows = [
-        ("かれはこうえんでこうえんをした", "", "彼は公園で公園をした", "彼は公園で公演をした"),
-        ("おんせいにんしきのせいどがあがった", "", "音声認識の制度が上がった", "音声認識の精度が上がった"),
-        ("あしたのかいぎはじゅうじからです", "", "明日の会議は従事からです", "明日の会議は１０時からです"),
-        ("このやくはむずかしい", "英語の文を日本語にしています。", "この薬は難しい", "この訳は難しい"),
-        ("ここではきものをぬいでください", "玄関で靴を脱いで。", "ここでは着物を脱いでください", "ここで履物を脱いでください"),
-    ]
-    f = Figure(1470, "同じ読みでも、意味で選ぶ。", "変換例 ／ Standard ／ 2026-10-01")
-    for i,(yomi,context,mozc,kotori) in enumerate(rows):
+    rows = DATA["ordinary_examples"]
+    f = Figure(1220, "日常の言葉を、基礎から。", "追加連語による改善例 ／ AIなし・前の文なし")
+    for i,row in enumerate(rows):
+        yomi, mozc, kotori = row["input"], row["before"], row["after"]
         y=f.body_top+i*244
         f.panel(24,y-8,592,228)
         f.text(40,y,yomi,20,SUB)
         yy=y+40
-        if context:
-            f.text(40,yy,"前の文："+context,18,SUB)
-            yy+=32
-        f.text(40,yy,"Mozc",20,SUB,bold=True)
+        f.text(40,yy,"変更前",20,SUB,bold=True)
         f.text(40,yy+29,mozc,28,TEXT,bold=True)
-        f.text(40,yy+73,"Asteria",20,CREAM,bold=True)
+        f.text(40,yy+73,"Asteria 開発版",20,CREAM,bold=True)
         x=40
         for op,_,_,j1,j2 in difflib.SequenceMatcher(None,mozc,kotori).get_opcodes():
             value=kotori[j1:j2]
             if value:
                 x+=f.text(x,yy+102,value,28,TEXT if op=="equal" else CREAM,bold=True)
-    f.footer("Kotori（現Asteria）の公開済み出力を保持。", "文脈を使う例は、記載した前の文を渡しています。")
+    f.footer("2026-10-19更新 ／ v1.1.4開発候補・オフライン評価", "日常81問：65→69正解。改善4問・改悪0問。", "実アプリの初回変換を測った結果ではありません。")
     f.save("examples.png")
 
 
@@ -54,56 +50,53 @@ def features():
 
 
 def accuracy():
-    rows = [
-        ("Kotori Unreal", 93.0, CREAM), ("Kotori High", 92.5, CREAM),
-        ("Kotori Standard", 91.5, CREAM), ("Kotori Low（GPU）", 88.0, CREAM),
-        ("Kotori Low（CPU）", 83.0, CREAM), ("azooKey + Zenzai（参考）", 85.0, GRAY),
-        ("Mozc", 51.0, GRAY2),
-    ]
-    f=Figure(1175,"品質設定ごとの正解率","AJIMEE-Bench 200問 ／ 前の文あり")
-    for i,(name,value,color) in enumerate(rows):
-        y=f.body_top+i*107
-        f.text(32,y,name,24,TEXT,bold=True)
-        f.text(473,y-7,f"{value:.1f}%",34,color,bold=True)
-        f.bar(32,y+46,560,24,value,color=color)
-    f.text(32,925,"日常の文 81問",24,TEXT,bold=True)
-    f.text(32,967,"Standard 97.5% ／ Mozc 80.2%",28,CREAM,bold=True)
-    f.footer("2026-10-01 ／ RTX 3060（CPU行を除く）", "azooKey参考：zenz-v3.2-small・推論5回。", "実入力比較とは別条件。現在版の再測定ではありません。")
+    f=Figure(1050,"Asteria 開発版の変換精度","AJIMEE-Bench 200問 ／ オフライン評価")
+    top = f.body_top
+    best = DATA["modes"][2]["scores"]["ajimee"]
+    f.text(32,top,f"{100*best['correct']/best['total']:.1f}%",76,CREAM,bold=True)
+    f.text(32,top+112,"188 / 200 正解",28,TEXT,bold=True)
+    f.text(32,top+162,"Standard・AI準備後・前の文あり",24,SUB)
+    f.rule(32,top+220,608)
+    for i,(mode,color) in enumerate(zip(DATA["modes"],[GRAY2,GRAY,CREAM])):
+        y=top+253+i*130
+        score=mode["scores"]["ajimee"]
+        value=100*score["correct"]/score["total"]
+        f.text(32,y,mode["label"],24,TEXT,bold=True)
+        f.text(470,y+35,f"{value:.1f}%",34,color,bold=True)
+        f.text(32,y+42,f"{score['correct']} / {score['total']} 正解",22,SUB)
+        f.bar(32,y+86,560,23,value,color=color)
+    f.footer("2026-10-19更新 ／ 次期版 v1.1.4 開発候補", "AIなしはMozc＋追加連語。StandardはRTX 3060で測定。", "開発用データでの評価。初回や実アプリの精度とは別です。", "他IMEを含む最新の実入力比較は未実施です。")
     f.save("accuracy.png")
 
 
 def compare():
-    groups = [
-        ("AJIMEE-Bench", "198問", "ajimee_198_percent"),
-        ("日常の文", "81問", "daily_81_percent"),
-        ("同音語の使い分け", "40問", "homophones_40_percent"),
-        ("人名・地名・新語", "40問", "names_40_percent"),
-    ]
-    data=published_rows()
-    colors=[CREAM,GRAY,GRAY2]
-    names=["Asteria（測定時：Kotori）","Microsoft IME","Google 日本語入力"]
-    f=Figure(1700,"同じ入力で、四つの比較。","実際のIME ／ Space 1回の第1候補 ／ 前の文なし")
-    for i,(name,count,key) in enumerate(groups):
+    colors=[GRAY2,GRAY,CREAM]
+    f=Figure(1760,"四つの開発評価で、条件を確認。","Asteria v1.1.4 開発候補 ／ オフライン評価")
+    for i,group in enumerate(DATA["sets"]):
+        key,name=group["key"],group["label"]
+        count=DATA["modes"][0]["scores"][key]["total"]
         y=f.body_top+i*350
-        f.text(32,y,name+" · "+count,28,TEXT,bold=True)
-        for j,(r,color,label) in enumerate(zip(data,colors,names)):
+        f.text(32,y,f"{name} · {count}問",28,TEXT,bold=True)
+        for j,(mode,color) in enumerate(zip(DATA["modes"],colors)):
             yy=y+53+j*90
-            value=float(r[key])
-            f.text(32,yy,label,22,TEXT,bold=j==0)
+            score=mode["scores"][key]
+            value=100*score["correct"]/score["total"]
+            f.text(32,yy,mode["label"],22,TEXT,bold=j==2)
             f.text(480,yy-5,f"{value:.1f}%",29,color,bold=True)
             f.bar(32,yy+37,560,23,value,color=color)
         if i<3: f.rule(32,y+324,608)
-    f.footer("2026-10-01 ／ RTX 3060 ／ Kotori beta.8・Unreal", "Microsoft IME：Windows 11 ／ Google：3.34.6260", "全角・半角の差は正規化。現在版の再測定ではありません。")
+    f.footer("2026-10-19更新 ／ StandardはAI準備後・RTX 3060", "AIなしはMozc＋追加連語。前文ありは指定した文脈を使用。", "調整・回帰用の固定データ。独立した製品評価ではありません。", "他IMEとの実入力比較とは測定条件が異なります。")
     f.save("compare.png")
 
 
 def lightness():
+    timing = DATA["native_input"]
     panels = [
-        ("入力中のAI稼働率", "GPUを使っている時間の割合", [("beta.4", 68.6), ("改善後", 42.6)], "%", 100),
-        ("待機中のVRAM", "Standard・入力をやめて10分後", [("解放前", 1.66), ("解放後", 0.0)], "GB", 2),
-        ("CPUでの変換", "長い文・打ってすぐSpaceの中央値", [("改善前", 380), ("改善後", 162)], "ms", 400),
+        ("キー応答の最大", "通常キーの応答時間", [(r["label"],r["key_max_ms"]) for r in timing], "ms", 4),
+        ("Space応答の最大", "起動直後とAI準備後を含む", [(r["label"],r["space_max_ms"]) for r in timing], "ms", 600),
+        ("入力シナリオの成功", "文字欠落・確定差分などを確認", [(r["label"],r["passed"]) for r in timing], "件", 30),
     ]
-    f=Figure(1150,"使わないときは、休む。","負荷・待ち時間の改善記録 ／ RTX 3060・Ryzen 7 5700X")
+    f=Figure(1230,"入力を続けられるか、確かめる。","ネイティブ入力処理の検査 ／ CPU・RTX 3060")
     for i,(head,sub,vals,unit,vmax) in enumerate(panels):
         y=f.body_top+i*270
         f.panel(24,y-8,592,248)
@@ -113,11 +106,10 @@ def lightness():
             yy=y+91+j*67
             color=GRAY if j==0 else CREAM
             f.text(40,yy,label,22,TEXT,bold=True)
-            formatted=f"{value:.2f}" if unit=="GB" else f"{value:.1f}" if unit=="%" else f"{value:.0f}"
-            f.text(418,yy-4,formatted+(" "+unit if unit!="%" else unit),30,color,bold=True)
+            formatted=f"{value:.2f}" if unit=="ms" else f"{value:.0f} / 30"
+            f.text(400,yy-4,formatted+" "+unit,28,color,bold=True)
             f.bar(40,yy+37,552,17,value,vmax,color)
-        if i==1: f.text(40,y+221,"0はモデル解放後の増分",16,SUB)
-    f.footer("2026-09-30〜10-01 ／ ADR0024・0033・0035", "CPUはデスクトップで測定。機器や文の長さで変わります。", "公開済みの値を保持。現在版の再測定ではありません。")
+    f.footer("2026-10-19更新 ／ v1.1.4開発候補・固定バイナリ", "各30件：新規起動15件＋AI準備後15件。最大値を表示。", "Windows SessionHandlerの検査。実アプリの測定とは別です。", "低性能PCの実機検証や旧版との速度比較は未実施です。")
     f.save("lightness.png")
 
 
@@ -140,4 +132,4 @@ def how():
 
 if __name__=="__main__":
     for draw in (features,examples,accuracy,compare,lightness,how,ime_comparison): draw()
-    print("ok: 7 readable figures; original measurement values preserved")
+    print("ok: current development figures and dated historical IME comparison")

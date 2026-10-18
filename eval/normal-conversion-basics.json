@@ -1,0 +1,24 @@
+{
+  "scope": "開発用の通常変換受け入れ例。独立精度ベンチマークではない。",
+  "cases": [
+    {"id":"greeting","area":"基本語彙","reading":"ありがとうございます","expected":["ありがとうございます"]},
+    {"id":"verb-negative-past","area":"活用","reading":"たべられなかった","expected":["食べられなかった"]},
+    {"id":"verb-progressive","area":"活用","reading":"かいていました","expected":["書いていました"]},
+    {"id":"verb-causative","area":"活用","reading":"よませてください","expected":["読ませてください"]},
+    {"id":"adjective-past","area":"活用","reading":"うつくしかった","expected":["美しかった"]},
+    {"id":"adjectival-negative","area":"接続","reading":"しずかではありません","expected":["静かではありません"]},
+    {"id":"particles","area":"助詞と文節","reading":"わたしはほんをよみます","expected":["私は本を読みます"]},
+    {"id":"verb-object","area":"助詞と文節","reading":"かれにてがみをおくりました","expected":["彼に手紙を送りました"]},
+    {"id":"loanword","area":"外来語","reading":"こんぴゅーたー","expected":["コンピューター"]},
+    {"id":"loanword-sentence","area":"外来語","reading":"さーばーをさいきどうします","expected":["サーバーを再起動します"]},
+    {"id":"place-tokyo","area":"固有名詞","reading":"とうきょう","expected":["東京"]},
+    {"id":"place-yokohama","area":"固有名詞","reading":"よこはまし","expected":["横浜市"]},
+    {"id":"place-hokkaido","area":"固有名詞","reading":"ほっかいどう","expected":["北海道"]},
+    {"id":"name-sato","area":"固有名詞","reading":"さとう","expected":["佐藤","砂糖"]},
+    {"id":"counter-people","area":"数字と助数詞","romaji":"3ninn","reading":"3にん","expected":["3人","三人"]},
+    {"id":"counter-long","area":"数字と助数詞","romaji":"10honn","reading":"10ほん","expected":["10本","十本"]},
+    {"id":"currency","area":"数字と助数詞","romaji":"1000enn","reading":"1000えん","expected":["1000円","1,000円","千円"]},
+    {"id":"date","area":"年月日","romaji":"2026nenn10gatu18niti","reading":"2026ねん10がつ18にち","expected":["2026年10月18日"]},
+    {"id":"punctuation","area":"句読点","romaji":"konnnitiha,sekai.","reading":"こんにちは、せかい。","expected":["こんにちは、世界。"]}
+  ]
+}

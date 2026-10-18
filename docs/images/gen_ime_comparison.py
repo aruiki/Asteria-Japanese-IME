@@ -15,8 +15,8 @@ def published_rows():
 
 def main():
     rows=published_rows()
-    f=Figure(790,"同じ条件で、正確さを比較。","AJIMEE-Bench 198問 ／ Space 1回の第1候補")
-    names=["Asteria（測定時：Kotori）","Microsoft IME","Google 日本語入力"]
+    f=Figure(790,"過去の実入力比較（2026-10-01）","AJIMEE-Bench 198問 ／ Space 1回の第1候補")
+    names=["Kotori beta.8・Unreal","Microsoft IME","Google 日本語入力"]
     for i,(r,name,color) in enumerate(zip(rows,names,[CREAM,GRAY,GRAY2])):
         y=f.body_top+i*133
         value=float(r["ajimee_198_percent"])

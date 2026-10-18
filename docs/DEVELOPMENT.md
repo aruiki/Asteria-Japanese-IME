@@ -24,8 +24,12 @@ for p in <リポジトリ>/mozc/patches/*.patch; do git apply --whitespace=nowar
 cd src && python build_tools/update_deps.py && python build_tools/build_qt.py --release --confirm_license
 ```
 
+追加生成モデルは `python training/contrastive/fetch_generator.py --out <Mozc>/src/data/kotori` で固定SHAを検査して配置する。公開前のローカル候補では `--source <GGUF>` を指定する。元モデル3件に加え、このモデルと `native_generator.json` がMSIビルドの必須入力になる。生成されたMSIは `check_release.py --local <MSI> --require-generator --work <専用出力先>` で展開し、モデルの実バイトと固定情報を確認する。
+
 モデルは `src/data/kotori/` に置く(zenz-v2.5-small・medium、TinySwallow-1.5B。作り方は
 `training/zenz/`・`training/llm/`、またはインストール先からコピー)。
+
+通常変換の追加連語もビルド前に生成する。`python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out <新規出力先>`を実行し、出力直下の`fast_collocations.txt`、`fast_collocations.json`、`NOTICE-fast-collocations.txt`を`<Mozc>/src/data/kotori/`へ置く。固定区間の取得とSHA検査、出典は[連語の手順](../training/collocations/README.md)。MSIの確認へ`--require-collocations`を加える。生のコーパス/辞書をGitへ追加しない。
 
 ### 1.3 ビルドと確かめ方
 
@@ -55,10 +59,11 @@ Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付け
 ### 1.4 パッチを作り直して PR にする
 
 ```sh
-bash mozc/tools/make_patches.sh ~/mz <google/mozc の clone(~/mz でよい)>
+git clone --bare --no-hardlinks <google/mozcの作業ツリー> <独立した基点clone.git>
+bash mozc/tools/make_patches.sh <Mozcの作業ツリー> <独立した基点clone.git>
 ```
 
-0002・0003 を作業ツリーから作り直し、素の Mozc に 0001〜0003 が順に当たるかまで確かめる。パッチは手で直さない。
+0002・0003 を作業ツリーから作り直し、素の Mozc に 0001〜0003 が順に当たるかまで確かめる。同じツリーをソースと基点へ指定せず、実行中のBazelを止め、TMPDIRは専用scratch領域へ指定する。reset/cleanはその中のcloneだけで行う。パッチは手で直さない。
 どのファイルが何のためかは `mozc/patches/README.md`。
 
 ### 1.5 リリース
@@ -164,3 +169,7 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 - まず `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」を見る。
 - 設計・配布方針の判断は ADR に記録する。通常の修正は既存カードと PR で追跡し、検証結果は verification にまとめる。
 - 仕様と矛盾するときは、実装を止めて Issue を立てる。`docs/SPEC.md` はメンテナの承認なしに変えない。
+
+### ローカル候補の更新可能な版
+
+普段のPCの導入版だけでなく、公開済み製品MSIの版とSHAを確認する。内容検査の`--local <候補MSI>`へ`--previous-local <公開済みMSI>`を加えると、Windows Installerが比較するProductVersionの先頭3項目で更新を検査する。同じBUILDでREVISIONだけを増やしても合格にしない。2026-10-19の公開v1.1.3は実再取得したMSIで3.34.6431.100を確認しており、開発用6339候補は公開版からの更新に使わない。

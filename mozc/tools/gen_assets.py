@@ -90,8 +90,11 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・LLVM OpenMP ランタイム(libomp.dll): Apache-2.0 WITH LLVM-exception
 ・zenz-v2.5-small: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-small-japanese-char)。8 bit に量子化して同梱
 ・zenz-v2.5-medium: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-medium-japanese-char)。8 bit に量子化して同梱
+・zenz-v2.5-native-generator-20261017: zenz-v2.5-smallの追加学習モデル、CC BY-SA 4.0。追加生成に使用
 ・TinySwallow-1.5B: Apache-2.0(Sakana AI)。5 bit に量子化して同梱
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
+・初期変換の追加連語: CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。短い連語へ加工。元のMozc40件はBSD-3-Clause。出典と変更内容は NOTICE-fast-collocations.txt
+・用例由来の追加連語: Japanese Usage Dictionary、BSD-2-Clause(Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo)。引用例の抽出・末尾の活用展開。帰属と全文は NOTICE-fast-collocations.txt
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
 各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
@@ -138,10 +141,26 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。\n\n"
     "■ llama.cpp / ggml b11259(llama.dll、ggml*.dll)\n"
     "  MIT License、Copyright The ggml authors。全文は LICENSE-llama.cpp.txt。\n"
-    "  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドをそのまま同梱しています。\n\n"
+    "  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドを使用しています。\n"
+    "  ggml-base.dllだけは同じb11259のソースから再構築しています。\n"
+    "  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。\n"
+    "  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。\n\n"
+    "■ 初期変換の追加連語(fast_collocations.txt)\n"
+    "  CC BY-SA 4.0、Wikipedia日本語版の執筆者、Keita Miwa。\n"
+    "  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。\n"
+    "  取得区間・変更・帰属はNOTICE-fast-collocations.txtとfast_collocations.json。\n"
+    "  元のMozc40件はBSD-3-Clause。\n\n"
+    "■ 用例由来の追加連語\n"
+    "  Japanese Usage Dictionary 2025-01-25、BSD-2-Clause。\n"
+    "  Copyright 2011 Hiroyuki Komatsu, Shoji Ogura, Tsuyoshi Horo。\n"
+    "  引用用例の短い連語を抽出し、末尾をMozcの活用規則で展開。\n"
+    "  出典とライセンス全文はNOTICE-fast-collocations.txt。\n\n"
     "■ LLVM OpenMP ランタイム(libomp.dll)\n"
     "  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。\n"
     "  https://github.com/llvm/llvm-project(llama.cpp の公式の Windows ビルドに含まれるもの)。\n\n"
     "■ Microsoft Visual C++ ランタイム(vcruntime140*.dll、msvcp140*.dll)\n"
     "  Microsoft Visual Studio のライセンスで再配布が認められたもの。\n", encoding="utf-8")
 print("ok", sorted(p.name for p in out.iterdir()))
+
+# 追加学習した派生モデルの表示も生成元へ保持する。
+(out / "NOTICE-zenz.txt").write_text('Kotori IME に同梱している言語モデル\n\nzenz-v2.5-small (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-small-japanese-char (CC BY-SA 4.0)\n\nzenz-v2.5-medium (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-medium\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-medium-japanese-char (CC BY-SA 4.0)\n\n変更点: 公開されている重みを llama.cpp の convert_hf_to_gguf.py で GGUF にし、\n8 bit(q8_0)に量子化した。語彙と学習した内容は変えていない。\nこれらのファイル(zenz-v2.5-small-q8_0.gguf、zenz-v2.5-medium-q8_0.gguf)は同じ CC BY-SA 4.0 で\n利用できる。\n\nllama.cpp (MIT): https://github.com/ggml-org/llama.cpp\n\n\n追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf\n  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。\n  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。\n  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。\n  SHA-256と学習原票識別: native_generator.json\n  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive\n  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。\n', encoding="utf-8")

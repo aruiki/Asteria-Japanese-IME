@@ -56,6 +56,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s mozc/tools -p "test_*.py" -v
+      - run: python -m unittest discover -s training/contrastive -p "test_*.py" -v
+      - run: python -m unittest discover -s training/collocations -p "test_*.py" -v
+      - run: python -m unittest discover -s training/initial_ranker -p "test_*.py" -v
 
   msrv:
     name: MSRV (1.80)

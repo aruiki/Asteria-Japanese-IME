@@ -1,0 +1,17 @@
+{
+  "filename": "zenz-v2.5-native-generator-20261017-q8_0.gguf",
+  "sha256": "49112e8b52e5da18fdb74d066111d44f92beaffe06c3d559807fb1aab1e38924",
+  "training_receipt_sha256": "414e8ad7aa3f109ac45eec217d458f46cc6e6b92d66bbdc300587ccb6bfadc90",
+  "dataset_manifest_sha256": "bff794466fd299c9db39170b0b71b519bc733f0779d48c522da48e04f6a3a676",
+  "selected_step": 400,
+  "role": "additional_generation_only_original_scorer_retained",
+  "distribution_status": "published_model_asset_product_candidate",
+  "base_models": {
+    "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c",
+    "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",
+    "tinyswallow-1.5b-q5_k_m.gguf": "0aa55c79e7741c4c58fe25a6a24fc45f1587bbd5fdd0b0a1482fc6244626ebc8"
+  },
+  "download_url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/model-native-generator-20261017/zenz-v2.5-native-generator-20261017-q8_0.gguf",
+  "license": "CC-BY-SA-4.0",
+  "source_model": "Miwa-Keita/zenz-v2.5-small"
+}

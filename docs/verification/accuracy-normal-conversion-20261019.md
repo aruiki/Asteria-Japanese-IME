@@ -1,0 +1,63 @@
+# 通常候補表示・ページ操作・保存の検証（2026-10-19）
+
+AI待機中に通常のMozc候補まで消す処理と、文字種メニュー非表示時のページ移動を修正した。実辞書の通常変換/操作と、明示保存した履歴の再起動保持を確認する。実TSF・実アプリ・導入/削除・独立verifierは別の未達条件であり、ここでは合格にしない。
+
+## 修正前の失敗と修正
+
+- source c4185b701の広いSessionHandlerシナリオは74/80。AI未準備時にKotoriScheduleRefreshとKotoriRefreshSuggestionがcandidate_window/all_candidate_wordsを消し、通常の予測・削除履歴・保留文字・取消にも影響していた。修正前のSessionTest.KotoriRefreshSuggestionをredとして保存（normal-suggestion-fallback-red-v1.log）。source4ee1c8559で削除をやめ、bounded callback・世代・保護入力・AI反映の条件は維持した。5シナリオが復旧し79/80。
+- 残るconversion.txtは既定の文字種メニュー非表示とMozcの表示あり前提が混在。表示ありを明示すると半角カナ/英字移動が復旧したが、辞書由来の候補数で最後のページ先頭がＳＹＯＵからｓｙｏｕへ変わる。期待値2箇所はその固定辞書に対応する正確な表記へ更新し、取消・学習・他の期待値は削らない。これを製品修正の成果に数えない。
+- 表示両設定を調べる別の構造検査で、既定の非表示設定のPageUp/ShiftUpがページ先頭index252ではなく末尾257へ着地する実不具合をredで検出（normal-lifecycle-navigation-tests-v3.log）。負IDを飛ばす際にMovePrevを使っていたのが原因。source8439fc26fでMovePrevPage/MoveNextPageを使い、非表示文字種だけのページを飛ばす。両設定のページ先頭・選択行とpreeditの一致・F6〜F10・確定結果を確認した。
+
+## 保存検査の非空虚性
+
+既存SessionHandlerInterpreterは終了時に履歴を消す試験用CLIであり、旧v1の再起動不一致は製品の保存不良とは判定しない。旧v1の「取消/シークレットが学習されない」はその消去だけでも成立するため、それだけを非学習の証明にしない。sourcec4185b701に明示profile必須の--preserve_profileを加え、明示時だけSync/Waitと保存、既定時は従来の消去を保持。実PIDを変え、確定選択の保存、取消/シークレットの非学習と、既定cleanupの対照を同じ検査へ入れた。
+
+CLIは入力ファイルを開けなくても空実行でexit0/PASSになる既存不具合もあった。旧c418のmissing入力は実exit0とprofile作成を観測し、正常入力exit0/不正command exit1の陽性対照も保存。8439はprofileへ触る前にopenを検査してmissingをexit1にする。新CLIの3対照はすべて成功。原票normal-cli-missing-input-red-v1/normal-cli-input-green-v1。Windows CLI入力のUnicode argv全般を修正した主張ではない。
+
+## 固定識別とネイティブ検査
+
+ソース8439fc26f21a90aa80c4cd694d57ca2f852ad658、生成連語c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0。normal-lifecycle-candidate-v1にexeと全runfilesを複製し、manifestをその複製先へ固定。converter SHA4199d8d6dbad67bf90c60de011d18e18c49b62214c96006f8e8575d5e9228f8e、session SHA126f3e4d75927f2d12029146fc589b7855e4b2e16da1c7991879e8249a198414。
+
+102.901秒のC++検査はSession190、Scenario81、EngineConverter90、EngineOutput18、計379件すべて成功。出力18件はキャッシュ、他3対象を実行。XMLをnormal-lifecycle-native-tests-v1へ複製。元の失敗・CLI制御の失敗は別原票のまま保持し、PASSへ書き換えない。Scenarioには元80件に文字種両設定の構造検査1件を追加した。
+
+実OSSデータのAIなし通常28項目（最大66.02ms）と、保存/非学習/JISかな/選択文字の再変換/確定取消/cleanup対照7項目（最大42.84ms）が固定バイナリで成功。事前上限3,000msであり、速度向上の主張ではない。原票normal-lifecycle-basics-v1/profile-v1。mozc/tools全107件、入力fileの実CLI3対照も成功。
+
+## 精度と残る確認
+
+固定4開発セット×3条件・978出力を修正後のconverterで実行し、用例連語版と全出力完全一致。AIなしAJIMEE103/200・日常69/81、準備後の前文なし175/200・前文あり188/200を維持。他の慣用句/ニュアンスも同じ。12実行ともexit0、原票normal-lifecycle-quality-v1。同期converterの開発用比較であり、初回即Spaceや実アプリの精度ではない。CPU/GPU各30シナリオ（新規PID/profileの初回15・準備後15）が入力欠落/確定差分などのdefect0で成功。CPU最大キー1.95ms/Space516.14ms、GPU2.76ms/230.67ms。AI準備後は同PIDのCPU=zenz、GPU=llm/RTX3060を照合した。初回キーは0.72/1.01msだが旧新反復比較ではなく速度向上としない。
+
+同じ256MiB private process commit上限で、対照3文/AI失敗時3文の入力継続が成功。peak8.49/225.96MiB、同PIDのAIerrorを観測。物理低メモリ実機ではない。原票normal-lifecycle-cold-{cpu,gpu}-v1、normal-lifecycle-memory-v1。
+
+Bazel shutdown後にmake_patches.shで再生成し、新規の基点cloneへの3パッチ適用と全139対象ソースの一致・実ソースのwhitespace検査を確認。patch0002 SHA190b5cc45a006ff0e8813aebb9b3c2787d7355d93991c8a33fdaa45a9ea5b5a6、0003 SHA78aff0996b765eea4e735ff33d1266fed143ae3181bfe69919bd09ef7bd88ceb。辞書/モデル本文を含めず、生成patchを手編集しない。原票normal-lifecycle-patch-restore-v1.json。新MSI反映/管理展開は後続で確認する。旧MSIab54f88e...（source dfff、3.34.6339.100、未署名）は用例連語同梱の管理展開検査に成功したが、通常候補非表示の不具合を含む旧ビルド候補として保持する。新修正を含む成果物と混同しない。
+
+「あいであきょく」の初回アイデア局、全語彙・実画面・低性能実機、署名と公開段階の条件は未完了。GitHub送信は過去の自動承認審査が人間の明示許可不足として拒否したため、明示許可が来るまで再試行しない。
+
+## 実アプリ検証の実行環境
+
+computer-useの正規@oai/skyをnode_replで初期化したが、ランチャーがZ:列挙時にWindows認証エラー1326で終了。kernel reset後の一度の再試行も同じエラーだった。UI操作/新MSIの導入を実施しておらず、実アプリの合格証拠にはしない。独自UI helperや認証/セキュリティ設定変更へ迂回しない。
+
+今回見つけた通常操作の回帰をCIでも検出できるよう、既存のWindows workflowへEngineOutputとSessionHandlerScenarioを追加した。テストを除去せず、ローカルで実行済みの対象を追加する変更。GitHub送信/CIの実行自体は未実施。既存installer_smokeの使い捨てランナー専用制約も維持する。
+
+## 公開版からの更新条件で追加検出した問題
+
+GitHubの公開一覧を再取得しLatest=v1.1.3を確認。公開MSIを実際に再取得し、API digest/配布sha256/実バイトがb7dbaee7e99dcea16544b169cadb7ea1e0c5b66f1225cbc01a044ad4293688d5で一致、ProductVersionは3.34.6431.100だった。開発機の導入済み3.34.6337.100との比較だけでは不十分で、これまでの6339開発候補は公開版から更新できない。旧MSIの同梱検査成功を更新成功へ拡大しない。
+
+check_releaseへ任意の--previous-localを追加し、公開済みMSIとの先頭3項目比較をローカル候補にも実施できるようにした。実6339候補は実6431公開MSIに対してexit1で拒否（normal-upgrade-6339-rejection-v1.log）。同じBUILDのREVISIONだけ増加も拒否、6432は内容検査へ進む対照、引数の誤用を含む4件を追加し、Python全111件が成功。公開基点はpublic-upgrade-base-v1/identity.json。
+
+ソースの数値BUILDを公開版より大きい6432へ変更し、生成パッチとfresh MSIで反映・実内容検査する。変換ロジックは8439のまま維持する。MSI後編集やCI制約の無効化で回避しない。
+
+8439のMSIは701.445秒で生成できたが、SHA5882eef1e4e2d18a8b6e1711fc7839568d42e2070c37e1a2c5439a7a71770058/1,662,574,592bytes/6339の旧開発候補として保存し、実公開6431との更新検査でexit1を保持（normal-upgrade-8439-rejection-v1）。
+
+449828059f1b9b3c0f6d0eb6e66211e23c953500は6432へのversion.bzlの1行だけの変更。変換ロジックの検査元8439との差分はこの1ファイルに限定した。正しいag16/srcからBazel shutdown後、make_patchesで再生成し、全139ファイルが再び一致。新しいpatch0002 SHA51f9b743b599172a08e00b9537b7d95312fca5e49054713d911ad11b82895945。0003は78aff099...のまま。誤ってag16ルートからshutdownした最初の呼出しはbatch mode警告で既存サーバーを止めていなかったため、srcから成功後にのみパッチ生成を行った。新6432 MSIのbuild/版・内容照合は未完了。
+
+## 6432候補の実成果物と最終ローカル検査
+
+source449828059、製品1ace494からのbuild95157は最終exit0、727.054秒。release-candidate-1.1.4-rc.1-upgrade/Asteria64.msiは1,662,558,208bytes、SHA068ed5c56cadd644f45557593b943f2ec2997b838ca21a4df0341e8df2598c28、ProductVersion3.34.6432.100。実再取得した公開6431より先頭3項目が大きく、UpgradeCodeは同じ45FB8DEB-0CFE-4924-96FB-9022888112E1、ProductCodeは異なることをCOMで照合。これは実上書き導入の成功ではなく、更新用メタデータの検査である。
+
+check_release --local ... --previous-local public-upgrade-base-v1/Asteria64.msi --require-generator --require-collocationsは実管理展開を含めexit0。4モデル/連語/出典・帰属/サーバーの版/通信DLL除外が成功。実Wixプロセスに渡された入力パスを記録し、server/TIP32・64等8ファイルと、展開物の全30 DLLがビルド元に一致した。OOM修正版ggml-base SHA e23b0ff...も一致。原票normal-upgrade-wix-inputs-v1.json、normal-upgrade-package-check-v1、normal-upgrade-payload-identity-v1.json。
+
+署名確認の初回helperはWindows PowerShellのMicrosoft.PowerShell.Security自動読込で失敗し、finish-v1のexit1を保持した。環境のPowerShell7.6.5で同じ署名を読み、NotSignedを実確認。payload helper v2は基準を変えず全項目成功。MSIを修正・再署名したわけではない。最終集約はnormal-upgrade-final-local-checks-v2.jsonで、古い失敗原票をPASSへ書き換えない。
+
+6432用exeと全runfilesもnormal-upgrade-candidate-v1へ固定。session SHA a9b62952567b92547ccdeac54a87116927dcfce2bc2954e5caf11890e91a5331、converter SHA efa98a1cd178a774c567dc9c8fbd0c49a19fda66f481a3607344afd87cca750b。新バイナリの実辞書通常28項目（最大46.23ms）、保存/再変換等7項目（最大51.29ms）、CLI入力file3対照が全成功。原票normal-upgrade-{basics,profile,cli}-v1。6432変更は版だけのため、C++379/品質978/起動60・低メモリ6入力は8439の検査をその識別のまま保持し、新バイナリで全件取り直したとはしない。
+
+2026-10-19のユーザー「そろそろリリースしますか？」を受け、変更コードと追加モデル1件（98,970,560bytes）を公開GitHubのaruiki/Asteria-Japanese-IMEへ送信しPR/Windows CIを行う明示許可を非同期で質問した。過去の自動承認審査がこの送信を明示許可不足として拒否したためで、回答前には送信しない。製品の公開は別途CI・実導入/入力/削除の結果を満たしてから行う。
