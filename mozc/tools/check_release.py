@@ -84,7 +84,34 @@ class Checks:
         self.ok = self.ok and cond
 
 
-def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks):
+def check_generator(root, check, required=False, identity=None):
+    """同梱モデルの自己申告を信用せず、検証用ソースの固定SHAと照合する。"""
+    if identity is None:
+        manifest = pathlib.Path(__file__).resolve().parents[2] / "training/contrastive/native_generator.json"
+        identity = json.loads(manifest.read_text(encoding="utf-8"))
+    model = root / identity["filename"]
+    metadata = root / "native_generator.json"
+    if not required and not model.exists() and not metadata.exists():
+        return  # 追加モデル導入前の公開版も検証可能にする。
+    check(model.is_file(), "同梱: " + model.name)
+    check(metadata.is_file(), "同梱: native_generator.json")
+    if metadata.is_file():
+        try:
+            packaged = json.loads(metadata.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError):
+            packaged = None
+        check(packaged == identity, "追加生成モデルの固定情報が検証ソースと一致")
+    models = {identity["filename"]: identity["sha256"], **identity.get("base_models", {})}
+    for name, expected in models.items():
+        path = root / name
+        check(path.is_file(), "固定モデルの同梱: " + name)
+        if path.is_file():
+            with path.open("rb") as stream:
+                got = hashlib.file_digest(stream, "sha256").hexdigest()
+            check(got == expected, "モデルSHA-256が評価対象と一致: " + name)
+
+
+def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require_generator=False):
     """MSI の大きさと、展開した同梱物・入れない物・実行ファイルの版を確かめる。"""
     size = msi.stat().st_size
     check(size <= MAX_MSI_BYTES, f"大きさ {size / 2**30:.2f} GiB ≦ {MAX_MSI_BYTES / 2**30:.1f} GiB(上限 2 GiB)")
@@ -95,6 +122,7 @@ def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks):
     root = ext / "PFiles" / "Kotori"
     for name in BUNDLED:
         check((root / name).exists(), f"同梱: {name}")
+    check_generator(root, check, require_generator)
     for name in ABSENT:
         check(not (root / name).exists(), f"入れない: {name}")
     fv = ps(f"(Get-Item '{root / 'mozc_server.exe'}').VersionInfo.FileVersion")
@@ -106,11 +134,12 @@ def main() -> int:
     ap.add_argument("tag", nargs="?", default="")
     ap.add_argument("--work", default=str(pathlib.Path.home() / "kotori-dev" / "work" / "check-release"))
     ap.add_argument("--local", default="", help="手元の MSI の中身だけを確かめる(ハッシュと前の版は見ない)")
+    ap.add_argument("--require-generator", action="store_true", help="新リリースの学習済み追加モデルを必須とする")
     args = ap.parse_args()
     check = Checks()
     work = pathlib.Path(args.work).resolve()
     if args.local:
-        check_contents(pathlib.Path(args.local).resolve(), work, check)
+        check_contents(pathlib.Path(args.local).resolve(), work, check, args.require_generator)
     else:
         releases = json.loads(run(["gh", "release", "list", "--repo", REPO, "--limit", "10",
                                    "--json", "tagName,isLatest"]))
@@ -129,7 +158,7 @@ def main() -> int:
                   f"ProductVersion {ver} > {prev}({prev_ver})(先頭 3 つで比べる)")
         else:
             print(f"--  ProductVersion {ver}(比べる前の版がない)")
-        check_contents(msi, work, check)
+        check_contents(msi, work, check, args.require_generator)
     print("すべて OK" if check.ok else "確かめに失敗した項目がある")
     return 0 if check.ok else 1
 

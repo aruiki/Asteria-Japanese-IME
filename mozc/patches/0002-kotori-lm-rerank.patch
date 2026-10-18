@@ -36893,10 +36893,10 @@ index 012d822a5..21ac2b3ec 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..df1054f44 100644
+index ada11a64a..86dc47bbb 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
-@@ -32,10 +32,10 @@ MAJOR = 3
+@@ -32,11 +32,10 @@ MAJOR = 3
  MINOR = 34
  
  # BUILD number used for the OSS version.
@@ -36905,10 +36905,11 @@ index ada11a64a..df1054f44 100644
  
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
-+BUILD = 6338
- 
+-
++BUILD = 6339
  # Represent the platform and release channel.
  REVISION = 100
+ 
 diff --git a/src/win32/base/display_name_resource.h b/src/win32/base/display_name_resource.h
 index 34ddf93fd..ef789ba71 100644
 --- a/src/win32/base/display_name_resource.h

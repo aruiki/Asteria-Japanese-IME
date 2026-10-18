@@ -10,5 +10,8 @@
     "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c",
     "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",
     "tinyswallow-1.5b-q5_k_m.gguf": "0aa55c79e7741c4c58fe25a6a24fc45f1587bbd5fdd0b0a1482fc6244626ebc8"
-  }
+  },
+  "download_url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/model-native-generator-20261017/zenz-v2.5-native-generator-20261017-q8_0.gguf",
+  "license": "CC-BY-SA-4.0",
+  "source_model": "Miwa-Keita/zenz-v2.5-small"
 }

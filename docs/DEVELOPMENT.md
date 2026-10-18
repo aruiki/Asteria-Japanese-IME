@@ -24,6 +24,8 @@ for p in <リポジトリ>/mozc/patches/*.patch; do git apply --whitespace=nowar
 cd src && python build_tools/update_deps.py && python build_tools/build_qt.py --release --confirm_license
 ```
 
+追加生成モデルは `python training/contrastive/fetch_generator.py --out <Mozc>/src/data/kotori` で固定SHAを検査して配置する。公開前のローカル候補では `--source <GGUF>` を指定する。元モデル3件に加え、このモデルと `native_generator.json` がMSIビルドの必須入力になる。生成されたMSIは `check_release.py --local <MSI> --require-generator --work <専用出力先>` で展開し、モデルの実バイトと固定情報を確認する。
+
 モデルは `src/data/kotori/` に置く(zenz-v2.5-small・medium、TinySwallow-1.5B。作り方は
 `training/zenz/`・`training/llm/`、またはインストール先からコピー)。
 

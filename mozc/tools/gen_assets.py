@@ -90,6 +90,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・LLVM OpenMP ランタイム(libomp.dll): Apache-2.0 WITH LLVM-exception
 ・zenz-v2.5-small: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-small-japanese-char)。8 bit に量子化して同梱
 ・zenz-v2.5-medium: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-medium-japanese-char)。8 bit に量子化して同梱
+・zenz-v2.5-native-generator-20261017: zenz-v2.5-smallの追加学習モデル、CC BY-SA 4.0。追加生成に使用
 ・TinySwallow-1.5B: Apache-2.0(Sakana AI)。5 bit に量子化して同梱
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
@@ -145,3 +146,6 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "■ Microsoft Visual C++ ランタイム(vcruntime140*.dll、msvcp140*.dll)\n"
     "  Microsoft Visual Studio のライセンスで再配布が認められたもの。\n", encoding="utf-8")
 print("ok", sorted(p.name for p in out.iterdir()))
+
+# 追加学習した派生モデルの表示も生成元へ保持する。
+(out / "NOTICE-zenz.txt").write_text('Kotori IME に同梱している言語モデル\n\nzenz-v2.5-small (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-small-japanese-char (CC BY-SA 4.0)\n\nzenz-v2.5-medium (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-medium\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-medium-japanese-char (CC BY-SA 4.0)\n\n変更点: 公開されている重みを llama.cpp の convert_hf_to_gguf.py で GGUF にし、\n8 bit(q8_0)に量子化した。語彙と学習した内容は変えていない。\nこれらのファイル(zenz-v2.5-small-q8_0.gguf、zenz-v2.5-medium-q8_0.gguf)は同じ CC BY-SA 4.0 で\n利用できる。\n\nllama.cpp (MIT): https://github.com/ggml-org/llama.cpp\n\n\n追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf\n  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。\n  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。\n  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。\n  SHA-256と学習原票識別: native_generator.json\n  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive\n  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。\n', encoding="utf-8")

@@ -136,12 +136,18 @@ jobs:
           curl -fsSL -o llama-bin.zip https://github.com/ggml-org/llama.cpp/releases/download/b11259/llama-b11259-bin-win-cpu-x64.zip
           mkdir -p llama-bin && unzip -q llama-bin.zip -d llama-bin
           PYTHON=python bash training/llm/make.sh "$PWD/llama-bin/llama-quantize.exe"
+      - name: 学習済み追加生成モデルを固定SHAで取得する
+        shell: pwsh
+        working-directory: kotori
+        run: python training/contrastive/fetch_generator.py --out target/kotori
       - name: モデルを置く
         shell: pwsh
         run: |
           Copy-Item kotori/target/kotori/zenz-v2.5-small-q8_0.gguf mozc-src/src/data/kotori/
           Copy-Item kotori/target/kotori/zenz-v2.5-medium-q8_0.gguf mozc-src/src/data/kotori/
           Copy-Item kotori/target/kotori/tinyswallow-1.5b-q5_k_m.gguf mozc-src/src/data/kotori/
+          Copy-Item kotori/target/kotori/zenz-v2.5-native-generator-20261017-q8_0.gguf mozc-src/src/data/kotori/
+          Copy-Item kotori/target/kotori/native_generator.json mozc-src/src/data/kotori/
       - uses: actions/cache@v4
         with:
           path: mozc-src/src/third_party_cache
@@ -181,6 +187,9 @@ jobs:
         env:
           ANDROID_NDK_HOME: ""
         run: bazelisk build package --config release_build --disk_cache=D:\bazel-disk-cache
+      - name: 同梱した追加モデルとMSIの版を確かめる
+        shell: pwsh
+        run: python -X utf8 kotori/mozc/tools/check_release.py --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-generator --work generator-package-check
       # Kotori の変更の単体テスト(モデルなしで動くもの。docs/IMPROVEMENT_PROPOSALS.md の案 02)。
       - name: テストする
         shell: cmd

@@ -22,3 +22,8 @@ python training/contrastive/stage_generator.py --base-dir 'C:/Program Files (x86
 ```
 
 モデル識別は `native_generator.json`。`distribution_status` はローカル候補であり、公開済みモデルではない。
+
+
+リリース候補では `fetch_generator.py --out target/kotori` が固定URLから取得し、固定SHAと一致するモデルだけを配置する。ローカル候補では `--source <GGUF>` を指定できる。既存の不一致モデルを上書きしない。モデルと `native_generator.json` はMSIへ含め、WiX実行前とMSI展開後に照合する。
+
+2026-10-18時点で取得URLのモデル資産は公開前。ローカルのMSIビルド・内容検証を先に行う。GitHubへの送信許可後にモデル資産を公開し、取得試験を通してからCI・PRを進める。未公開URLのままmainへ統合しない。

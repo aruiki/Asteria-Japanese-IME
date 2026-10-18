@@ -24,6 +24,7 @@
 | LLVM OpenMP ランタイム(`libomp.dll`) | Apache-2.0 WITH LLVM-exception | llama.cpp の公式 Windows ビルドに含まれる | 全文は `LICENSE-llvm-openmp.txt`(llvm-project llvmorg-20.1.0 の `openmp/LICENSE.TXT`) |
 | zenz-v2.5-small | CC BY-SA 4.0(Keita Miwa。元は ku-nlp/gpt2-small-japanese-char) | `training/zenz/fetch.sh`(版と SHA-256 を固定) | q8_0 に量子化して同梱。`NOTICE-zenz.txt` |
 | zenz-v2.5-medium | CC BY-SA 4.0(Keita Miwa。元は ku-nlp/gpt2-medium-japanese-char) | 同上 | q8_0 に量子化して同梱。GPU のない PC の Low と Unreal で使う(docs/adr/0024) |
+| zenz-v2.5-native-generator-20261017 | CC BY-SA 4.0 | zenz-v2.5-smallを追加学習。training/contrastive/native_generator.jsonでSHAを固定 | Q8_0、追加候補生成専用。NOTICE-zenz.txtに元モデル・変更点を表示 |
 | TinySwallow-1.5B | Apache-2.0(Sakana AI) | `training/llm/make.sh`(版を固定) | Q5_K_M に量子化して同梱。`NOTICE-tinyswallow.txt` |
 | カタカナ語英字辞典 / Kotoriカタカナ英語辞書 | CC-BY-SA-3.0 | KEINOS/google-ime-user-dictionary-ja-en、7d241dafcf6ee1f9eafefc0ae7a929c095860246。Mozc MODULE.bazelで各ファイルのSHA-256を固定 | カタカナ語英字辞典コミュニティ・KEINOS・EDICT/EDRDGへ帰属。正規化・読み検査・説明部分除去・重複除去・表記補完・最大4表記へ加工。MSIにKotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txtを同梱。加工後もCC-BY-SA-3.0 |
 | Microsoft Visual C++ ランタイム | Visual Studio のライセンス | MSVC | 再配布が認められたもの |

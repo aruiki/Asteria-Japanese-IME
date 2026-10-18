@@ -1,15 +1,17 @@
 diff --git a/src/data/kotori/BUILD.bazel b/src/data/kotori/BUILD.bazel
 new file mode 100644
-index 000000000..6994cb9d2
+index 000000000..4455afd75
 --- /dev/null
 +++ b/src/data/kotori/BUILD.bazel
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,19 @@
 +# Kotori: MSI に同梱する物(docs/adr/0016、0017)。モデル(*.gguf)はコミットしないので、ビルドの前に
 +# ここに置く(mozc/README.md)。
 +package(default_visibility = ["//visibility:public"])
 +
 +exports_files([
 +    "zenz-v2.5-small-q8_0.gguf",
++    "zenz-v2.5-native-generator-20261017-q8_0.gguf",
++    "native_generator.json",
 +    "zenz-v2.5-medium-q8_0.gguf",
 +    "tinyswallow-1.5b-q5_k_m.gguf",
 +    "NOTICE-zenz.txt",
@@ -1126,10 +1128,10 @@ index 000000000..2ed822c00
 +  インストール先の LICENSE-llama.cpp.txt を参照。
 diff --git a/src/data/kotori/NOTICE-zenz.txt b/src/data/kotori/NOTICE-zenz.txt
 new file mode 100644
-index 000000000..49c71071a
+index 000000000..e382e2554
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-zenz.txt
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,29 @@
 +Kotori IME に同梱している言語モデル
 +
 +zenz-v2.5-small (c) Keita Miwa
@@ -1148,6 +1150,17 @@ index 000000000..49c71071a
 +利用できる。
 +
 +llama.cpp (MIT): https://github.com/ggml-org/llama.cpp
++
++
++追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf
++  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。
++  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
++  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small
++  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。
++  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。
++  SHA-256と学習原票識別: native_generator.json
++  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive
++  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。
 diff --git a/src/data/kotori/banner.bmp b/src/data/kotori/banner.bmp
 new file mode 100644
 index 0000000000000000000000000000000000000000..fb01b211f568c8f4c1d22b1c57099f972e79ca97
@@ -1886,10 +1899,10 @@ HcmV?d00001
 
 diff --git a/src/data/kotori/license.rtf b/src/data/kotori/license.rtf
 new file mode 100644
-index 000000000..06f09f548
+index 000000000..c128b694a
 --- /dev/null
 +++ b/src/data/kotori/license.rtf
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,22 @@
 +{\rtf1\ansi\ansicpg932\deff0{\fonttbl{\f0\fnil\fcharset128 Yu Gothic UI;}}\viewkind4\uc1\pard\f0\fs18 Asteria\u26085?\u26412?\u-30050?\u20837?\u21147? \u20351?\u29992?\u-30159?\u-29954?\u12392?\u31532?\u19977?\u-32763?\u12477?\u12501?\u12488?\u12454?\u12455?\u12450?\u12398?\u-30616?\u31034?\par
 +\par
 +Asteria\u26085?\u26412?\u-30050?\u20837?\u21147?(\u20197?\u19979? Asteria)\u12399? Mozc(Copyright 2010-2026 Google Inc.\u12289?BSD-3-Clause)\u12434?\u25913?\u22793?\u12375?\u12383?\u26085?\u26412?\u-30050?\u20837?\u21147?\u12391?\u12377?\u12290?Asteria \u12399? Google \u12364?\u25552?\u20379?\u12539?\u25512?\u22888?\u12377?\u12427?\u12418?\u12398?\u12391?\u12399?\u12354?\u12426?\u12414?\u12379?\u12435?\u12290?Asteria \u29420?\u-32278?\u12398?\u25913?\u22793?\u-28440?\u20998?\u12418? BSD-3-Clause \u12391?\u25552?\u20379?\u12375?\u12414?\u12377?\u12290?\par
@@ -1903,6 +1916,7 @@ index 000000000..06f09f548
 +\u12539?LLVM OpenMP \u12521?\u12531?\u12479?\u12452?\u12512?(libomp.dll): Apache-2.0 WITH LLVM-exception\par
 +\u12539?zenz-v2.5-small: CC BY-SA 4.0(\u169? Keita Miwa\u12290?\u20803?\u12399? ku-nlp/gpt2-small-japanese-char)\u12290?8 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
 +\u12539?zenz-v2.5-medium: CC BY-SA 4.0(\u169? Keita Miwa\u12290?\u20803?\u12399? ku-nlp/gpt2-medium-japanese-char)\u12290?8 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
++\u12539?zenz-v2.5-native-generator-20261017: zenz-v2.5-small\u12398?\u-28675?\u21152?\u23398?\u32722?\u12514?\u12487?\u12523?\u12289?CC BY-SA 4.0\u12290?\u-28675?\u21152?\u29983?\u25104?\u12395?\u20351?\u29992?\par
 +\u12539?TinySwallow-1.5B: Apache-2.0(Sakana AI)\u12290?5 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
 +\u12539?\u12459?\u12479?\u12459?\u12490?\u-32015?\u-30050?\u-28770?\u26360?: CC BY-SA 3.0(\u12459?\u12479?\u12459?\u12490?\u-30050?\u-32015?\u23383?\u-28770?\u20856?\u12467?\u12511?\u12517?\u12491?\u12486?\u12451?\u12289?KEINOS\u12289?EDICT/EDRDG)\u12290?\u21152?\u24037?\u28168?\u12415?\u12487?\u12540?\u12479?\u12392?\u20986?\u25152?\u12399? KotoriEnglish.tsv\u12289?KotoriEnglish-source.json\u12289?NOTICE-katakana-english.txt\par
 +\u12539?Microsoft Visual C++ \u12521?\u12531?\u12479?\u12452?\u12512?: Microsoft \u12398?\u12521?\u12452?\u12475?\u12531?\u12473?\par
@@ -1912,8 +1926,31 @@ index 000000000..06f09f548
 +Asteria \u12399?\u12452?\u12531?\u12479?\u12540?\u12493?\u12483?\u12488?\u12395?\u25509?\u32154?\u12375?\u12414?\u12379?\u12435?\u12290?\u22793?\u25563?\u12392? AI \u12398?\u20966?\u29702?\u12399?\u12289?\u12377?\u12409?\u12390?\u12371?\u12398? PC \u12398?\u20013?\u12391?\u-30644?\u12356?\u12414?\u12377?\u12290?\par
 +}
 \ No newline at end of file
+diff --git a/src/data/kotori/native_generator.json b/src/data/kotori/native_generator.json
+new file mode 100644
+index 000000000..7aba017f0
+--- /dev/null
++++ b/src/data/kotori/native_generator.json
+@@ -0,0 +1,17 @@
++{
++  "filename": "zenz-v2.5-native-generator-20261017-q8_0.gguf",
++  "sha256": "49112e8b52e5da18fdb74d066111d44f92beaffe06c3d559807fb1aab1e38924",
++  "training_receipt_sha256": "414e8ad7aa3f109ac45eec217d458f46cc6e6b92d66bbdc300587ccb6bfadc90",
++  "dataset_manifest_sha256": "bff794466fd299c9db39170b0b71b519bc733f0779d48c522da48e04f6a3a676",
++  "selected_step": 400,
++  "role": "additional_generation_only_original_scorer_retained",
++  "distribution_status": "local_candidate_not_published",
++  "base_models": {
++    "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c",
++    "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",
++    "tinyswallow-1.5b-q5_k_m.gguf": "0aa55c79e7741c4c58fe25a6a24fc45f1587bbd5fdd0b0a1482fc6244626ebc8"
++  },
++  "download_url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/model-native-generator-20261017/zenz-v2.5-native-generator-20261017-q8_0.gguf",
++  "license": "CC-BY-SA-4.0",
++  "source_model": "Miwa-Keita/zenz-v2.5-small"
++}
 diff --git a/src/win32/installer/BUILD.bazel b/src/win32/installer/BUILD.bazel
-index 1c31b5159..81892f7cf 100644
+index 1c31b5159..c6821ba87 100644
 --- a/src/win32/installer/BUILD.bazel
 +++ b/src/win32/installer/BUILD.bazel
 @@ -56,6 +56,7 @@ mozc_py_binary(
@@ -1932,7 +1969,7 @@ index 1c31b5159..81892f7cf 100644
          "//gui/tool:mozc_tool_win",
          "//renderer/win32:win32_renderer_main",
          "//server:mozc_server_win",
-@@ -93,6 +95,27 @@ genrule(
+@@ -93,6 +95,29 @@ genrule(
          "//base:mozc_version_txt",
          "//data/images/win:product_icon.ico",
          "//data/installer:credits_en.html",
@@ -1941,6 +1978,8 @@ index 1c31b5159..81892f7cf 100644
 +        "//rewriter:KotoriEnglish-source.json",
 +        "//rewriter:NOTICE-katakana-english.txt",
 +        "//data/kotori:zenz-v2.5-small-q8_0.gguf",
++        "//data/kotori:zenz-v2.5-native-generator-20261017-q8_0.gguf",
++        "//data/kotori:native_generator.json",
 +        "//data/kotori:zenz-v2.5-medium-q8_0.gguf",
 +        "//data/kotori:NOTICE-tinyswallow.txt",
 +        # Kotori: build_installer.py は KotoriNoticeDir から読む。変わったら作り直すように並べる。
@@ -1960,11 +1999,13 @@ index 1c31b5159..81892f7cf 100644
          "@qt_win//:bin/Qt6Core.dll",
          "@wix//:wix.exe",
      ] + select({
-@@ -117,6 +140,20 @@ genrule(
+@@ -117,6 +142,22 @@ genrule(
          "--custom_action=$(location //win32/custom_action)",
          "--icon_path=$(location //data/images/win:product_icon.ico)",
          "--credit_file=$(location //data/installer:credits_en.html)",
 +        "--zenz_model=$(location //data/kotori:zenz-v2.5-small-q8_0.gguf)",
++        "--zenz_generator=$(location //data/kotori:zenz-v2.5-native-generator-20261017-q8_0.gguf)",
++        "--generator_manifest=$(location //data/kotori:native_generator.json)",
 +        "--zenz_medium_model=$(location //data/kotori:zenz-v2.5-medium-q8_0.gguf)",
 +        "--zenz_notice=$(location //data/kotori:NOTICE-zenz.txt)",
 +        "--english_dictionary=$(location //rewriter:KotoriEnglish.tsv)",
@@ -1994,14 +2035,16 @@ index 000000000..cb12e3fc0
 +  <String Id="ProgressDlgTextUpdating" Value="Asteriaを更新しています。完了までそのままお待ちください。" />
 +</WixLocalization>
 diff --git a/src/win32/installer/build_installer.py b/src/win32/installer/build_installer.py
-index c2e71a077..4f5f72f0e 100644
+index c2e71a077..2dbd9edf2 100644
 --- a/src/win32/installer/build_installer.py
 +++ b/src/win32/installer/build_installer.py
-@@ -154,6 +154,24 @@ def run_wix4(args) -> None:
+@@ -154,6 +154,26 @@ def run_wix4(args) -> None:
        '-define', f'MozcTIP64Path={mozc_tip64}',
        '-define', f'MozcBroker64Path={mozc_broker}',
        '-define', f'MozcServer64Path={mozc_server}',
 +      '-define', f'KotoriZenzModelPath={pathlib.Path(args.zenz_model).resolve()}',
++      '-define', f'KotoriZenzGeneratorPath={pathlib.Path(args.zenz_generator).resolve()}',
++      '-define', f'KotoriGeneratorManifestPath={pathlib.Path(args.generator_manifest).resolve()}',
 +      '-define', f'KotoriZenzMediumModelPath={pathlib.Path(args.zenz_medium_model).resolve()}',
 +      '-define', f'KotoriZenzNoticePath={pathlib.Path(args.zenz_notice).resolve()}',
 +      # Kotori: 第三者の表示は NOTICE-zenz.txt と同じ data/kotori に置く(カード 41)。
@@ -2022,11 +2065,31 @@ index c2e71a077..4f5f72f0e 100644
        '-define', f'MozcCacheService64Path={mozc_cache_service}',
        '-define', f'MozcRenderer64Path={mozc_renderer}',
        '-define', f'MozcToolPath={mozc_tool}',
-@@ -192,6 +210,14 @@ def main():
+@@ -176,6 +196,17 @@ def run_wix4(args) -> None:
+   exec_command(commands, cwd=os.getcwd())
+ 
+ 
++def verify_generator(model, manifest):
++  # Kotori: 評価した追加生成モデルと違うバイトをMSIへ入れない。
++  import hashlib
++  import json
++  identity = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
++  with pathlib.Path(model).open('rb') as stream:
++    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
++  if pathlib.Path(model).name != identity['filename'] or digest != identity['sha256']:
++    raise ValueError('追加生成モデルの名前またはSHA-256が評価対象と一致しません')
++
++
+ def main():
+   parser = argparse.ArgumentParser()
+   parser.add_argument('--output', type=str)
+@@ -192,6 +223,16 @@ def main():
    parser.add_argument('--custom_action', type=str)
    parser.add_argument('--icon_path', type=str)
    parser.add_argument('--credit_file', type=str)
 +  parser.add_argument('--zenz_model', type=str)
++  parser.add_argument('--zenz_generator', type=str, required=True)
++  parser.add_argument('--generator_manifest', type=str, required=True)
 +  parser.add_argument('--zenz_medium_model', type=str)
 +  parser.add_argument('--zenz_notice', type=str)
 +  parser.add_argument('--english_dictionary', type=str)
@@ -2037,8 +2100,16 @@ index c2e71a077..4f5f72f0e 100644
    parser.add_argument('--qt_core_dll', type=str)
    parser.add_argument('--wxs_path', type=str)
    parser.add_argument('--wix_path', type=str)
+@@ -220,6 +261,7 @@ def main():
+ 
+   args = parser.parse_args()
+ 
++  verify_generator(args.zenz_generator, args.generator_manifest)
+   run_wix4(args)
+ 
+ 
 diff --git a/src/win32/installer/installer_oss_64bit.wxs b/src/win32/installer/installer_oss_64bit.wxs
-index e30c37ad4..4596bf5d1 100644
+index e30c37ad4..bd37f2734 100644
 --- a/src/win32/installer/installer_oss_64bit.wxs
 +++ b/src/win32/installer/installer_oss_64bit.wxs
 @@ -48,7 +48,7 @@
@@ -2116,11 +2187,13 @@ index e30c37ad4..4596bf5d1 100644
        <ComponentRef Id="MozcTIP32" />
        <ComponentRef Id="MozcTIP64" />
        <?if $(var.MozcTIP64ArmPath) != "" and $(var.MozcTIP64XPath) != "" ?>
-@@ -148,6 +167,21 @@
+@@ -148,6 +167,23 @@
        <?endif?>
        <ComponentRef Id="MozcBroker" />
        <ComponentRef Id="MozcConverter" />
 +      <ComponentRef Id="KotoriZenzModel" />
++      <ComponentRef Id="KotoriZenzGenerator" />
++      <ComponentRef Id="KotoriGeneratorManifest" />
 +      <ComponentRef Id="KotoriZenzMediumModel" />
 +      <ComponentRef Id="KotoriZenzNotice" />
 +      <ComponentRef Id="KotoriLlmModel" />
@@ -2138,7 +2211,7 @@ index e30c37ad4..4596bf5d1 100644
        <ComponentRef Id="MozcCacheService" />
        <ComponentRef Id="MozcRenderer" />
        <ComponentRef Id="MozcTool" />
-@@ -242,6 +276,45 @@
+@@ -242,6 +278,52 @@
  
      <StandardDirectory Id="ProgramFilesFolder">
        <Directory Id="MozcDir" Name="Kotori">
@@ -2148,6 +2221,13 @@ index e30c37ad4..4596bf5d1 100644
 +        <!-- Kotori: GPU のない PC の Low と Unreal で使う大きい zenz(docs/adr/0024)。 -->
 +        <Component Id="KotoriZenzMediumModel">
 +          <File Id="zenz_medium_model.gguf" Name="zenz-v2.5-medium-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.KotoriZenzMediumModelPath)" Vital="yes" />
++        </Component>
++        <!-- Kotori: 追加生成だけに使う学習済みモデルと固定情報。 -->
++        <Component Id="KotoriZenzGenerator">
++          <File Id="zenz_generator.gguf" Name="zenz-v2.5-native-generator-20261017-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.KotoriZenzGeneratorPath)" Vital="yes" />
++        </Component>
++        <Component Id="KotoriGeneratorManifest">
++          <File Id="native_generator.json" Name="native_generator.json" DiskId="1" Source="$(var.KotoriGeneratorManifestPath)" Vital="yes" />
 +        </Component>
 +        <Component Id="KotoriLlmModel">
 +          <File Id="llm_model.gguf" Name="tinyswallow-1.5b-q5_k_m.gguf" DiskId="1" Checksum="yes" Source="$(var.KotoriLlmModelPath)" Vital="yes" />
@@ -2184,7 +2264,7 @@ index e30c37ad4..4596bf5d1 100644
          <Component Id="MozcConverter">
            <File Id="mozc_server.exe" Name="mozc_server.exe" DiskId="1" Checksum="yes" Source="$(var.MozcServer64Path)" Vital="yes" />
          </Component>
-@@ -381,5 +454,45 @@
+@@ -381,5 +463,45 @@
      <Component Id="PrelaunchProcesses" Directory="TARGETDIR">
        <RegistryValue Id="RunBroker" Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Kotori Prelauncher" Action="write" Type="string" Value="&quot;[MozcDir]mozc_broker.exe&quot; --mode=prelaunch_processes" />
      </Component>
