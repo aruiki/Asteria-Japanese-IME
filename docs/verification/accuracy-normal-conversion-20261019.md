@@ -31,3 +31,9 @@ CLIは入力ファイルを開けなくても空実行でexit0/PASSになる既�
 Bazel shutdown後にmake_patches.shで再生成し、新規の基点cloneへの3パッチ適用と全139対象ソースの一致・実ソースのwhitespace検査を確認。patch0002 SHA190b5cc45a006ff0e8813aebb9b3c2787d7355d93991c8a33fdaa45a9ea5b5a6、0003 SHA78aff0996b765eea4e735ff33d1266fed143ae3181bfe69919bd09ef7bd88ceb。辞書/モデル本文を含めず、生成patchを手編集しない。原票normal-lifecycle-patch-restore-v1.json。新MSI反映/管理展開は後続で確認する。旧MSIab54f88e...（source dfff、3.34.6339.100、未署名）は用例連語同梱の管理展開検査に成功したが、通常候補非表示の不具合を含む旧ビルド候補として保持する。新修正を含む成果物と混同しない。
 
 「あいであきょく」の初回アイデア局、全語彙・実画面・低性能実機、署名と公開段階の条件は未完了。GitHub送信は過去の自動承認審査が人間の明示許可不足として拒否したため、明示許可が来るまで再試行しない。
+
+## 実アプリ検証の実行環境
+
+computer-useの正規@oai/skyをnode_replで初期化したが、ランチャーがZ:列挙時にWindows認証エラー1326で終了。kernel reset後の一度の再試行も同じエラーだった。UI操作/新MSIの導入を実施しておらず、実アプリの合格証拠にはしない。独自UI helperや認証/セキュリティ設定変更へ迂回しない。
+
+今回見つけた通常操作の回帰をCIでも検出できるよう、既存のWindows workflowへEngineOutputとSessionHandlerScenarioを追加した。テストを除去せず、ローカルで実行済みの対象を追加する変更。GitHub送信/CIの実行自体は未実施。既存installer_smokeの使い捨てランナー専用制約も維持する。
