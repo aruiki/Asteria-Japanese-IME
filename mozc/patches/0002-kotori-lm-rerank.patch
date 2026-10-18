@@ -24707,6 +24707,19 @@ zOgk(bd7cyDvsxi{C{?TFg6nR~AP52?1ZW1=##B3j>WD~rSsb!&r2s+H@Y-BgDg;zb
 zL@613W7Zf1G&4<#nt(BZ;xoE2_j8mrXY(!KeiIne+sK-zQeq6KNh!`3eBt9B?)?Em
 Ce@$lq
 
+diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
+index 5d8232f36..9391a06fd 100644
+--- a/src/data_manager/oss/BUILD.bazel
++++ b/src/data_manager/oss/BUILD.bazel
+@@ -64,7 +64,7 @@ mozc_dataset(
+     boundary_def = "//data/rules:boundary.def",
+     cforms = "//data/rules:cforms.def",
+     collocation_src = (
+-        "//data/dictionary_oss:collocation.txt"
++        "//data/kotori:fast_collocations.txt"
+     ),
+     collocation_suppression_src = (
+         "//data/dictionary_oss:collocation_suppression.txt"
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
 index fd03a6c0c..0ebf41883 100644
 --- a/src/engine/engine_converter.cc
@@ -28501,6 +28514,78 @@ index 4bbcddeca..9f1330688 100644
 +        "//engine:modules",
 +    ],
 +)
+diff --git a/src/rewriter/collocation_rewriter.cc b/src/rewriter/collocation_rewriter.cc
+index a4bbac287..164760b43 100644
+--- a/src/rewriter/collocation_rewriter.cc
++++ b/src/rewriter/collocation_rewriter.cc
+@@ -461,6 +461,14 @@ bool CollocationRewriter::RewriteCollocation(Segments* segments) const {
+         seg.candidates_size() == 0) {
+       return false;
+     }
++    // Kotori: 軽量な連語補正で、AI選択済み・ユーザー保護済みの候補を戻さない。
++    const auto& top = seg.candidate(0);
++    if (top.kotori_ai_evaluated ||
++        (top.attributes & (converter::Attribute::USER_DICTIONARY |
++                           converter::Attribute::NO_MODIFICATION |
++                           converter::Attribute::COMMAND_CANDIDATE))) {
++      return false;
++    }
+   }
+ 
+   std::vector<bool> segs_changed(segments->segments_size(), false);
+diff --git a/src/rewriter/collocation_rewriter_test.cc b/src/rewriter/collocation_rewriter_test.cc
+index b3bf25072..ff43d8e8f 100644
+--- a/src/rewriter/collocation_rewriter_test.cc
++++ b/src/rewriter/collocation_rewriter_test.cc
+@@ -39,6 +39,7 @@
+ #include "absl/types/span.h"
+ #include "base/container/tuple.h"
+ #include "converter/candidate.h"
++#include "converter/attribute.h"
+ #include "converter/segments.h"
+ #include "data_manager/testing/mock_data_manager.h"
+ #include "dictionary/pos_matcher.h"
+@@ -165,6 +166,40 @@ TEST_F(CollocationRewriterTest, NekowoKaitai) {
+   EXPECT_EQ(GetTopValue(segments), "猫を飼いたい") << segments.DebugString();
+ }
+ 
++TEST_F(CollocationRewriterTest, ProtectedTopAndAiChoiceArePreserved) {
++  const uint16_t id = pos_matcher_.GetUnknownId();
++  const std::vector<CandidateData> left = {
++      {"ねこを", "ねこ", "ネコを", "ネコを", 0, id, id},
++      {"ねこを", "ねこ", "猫を", "猫を", 0, id, id},
++  };
++  const std::vector<CandidateData> right = {
++      {"かいたい", "かいたい", "買いたい", "買いたい", 0, id, id},
++      {"かいたい", "かいたい", "飼いたい", "飼いたい", 0, id, id},
++  };
++  const std::vector<SegmentData> data = {{"ねこを", left}, {"かいたい", right}};
++  Segments segments;
++  MakeSegments(data, &segments);
++  ASSERT_TRUE(Rewrite(&segments));
++  ASSERT_EQ(GetTopValue(segments), "猫を飼いたい");
++
++  for (size_t index = 0; index < 2; ++index) {
++    for (uint32_t attribute : {converter::Attribute::USER_DICTIONARY,
++                               converter::Attribute::NO_MODIFICATION,
++                               converter::Attribute::COMMAND_CANDIDATE}) {
++      MakeSegments(data, &segments);
++      segments.mutable_conversion_segment(index)->mutable_candidate(0)
++          ->attributes |= attribute;
++      EXPECT_FALSE(Rewrite(&segments));
++      EXPECT_EQ(GetTopValue(segments), "ネコを買いたい");
++    }
++    MakeSegments(data, &segments);
++    segments.mutable_conversion_segment(index)->mutable_candidate(0)
++        ->kotori_ai_evaluated = true;
++    EXPECT_FALSE(Rewrite(&segments));
++    EXPECT_EQ(GetTopValue(segments), "ネコを買いたい");
++  }
++}
++
+ TEST_F(CollocationRewriterTest, MagurowoKaitai) {
+   // Make the following Segments:
+   // "まぐろを" | "かいたい"
 diff --git a/src/rewriter/english_variants_rewriter.cc b/src/rewriter/english_variants_rewriter.cc
 index b75c03feb..54188c42c 100644
 --- a/src/rewriter/english_variants_rewriter.cc
