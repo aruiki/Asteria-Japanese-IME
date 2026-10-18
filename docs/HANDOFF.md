@@ -27,6 +27,6 @@ Bazel shutdown後に生成パッチを再作成し、基点cloneへ適用した�
 1. 追加モデル資産model-native-generator-20261017はprerelease/latest=falseで公開済み。4資産のsize/digestと固定URLから再取得したGGUFのSHAが一致。draft PR/Windows CI、同一CI成果物の実導入/入力/削除へ進む。
 2. 初回「あいであきょく」→「アイデア局」は未解決。準備後の「アイデア曲」と混同せず、語彙・頻度・候補包含/順位/分節を分けて改善する。文字3gram順位案は日常の回帰で不採用、個別語句の分岐/参照変更で通さない。
 3. 新MSIの実導入・実アプリの入力/保護欄/フォーカス・削除、署名/配布条件、独立verifierは未完了。[実アプリ条件](ACCEPTANCE.md)をCLIや展開成功で代替しない。
-4. 追加依頼のブランディングを更新する。旧Kotori88.4%は198問の過去実入力比較、開発版94.0%はStandard・AI準備後・前文ありのオフライン200問。異なる測定条件を混ぜて他IMEより高い精度と主張しない。
+4. 追加依頼のブランディングはREADME・図版・プレビューへ反映済み。[測定条件](BENCHMARKS.md)と[更新検証](verification/release-preparation-v1.1.4-20261019.md)。旧Kotori88.4%は198問の過去実入力比較、開発版94.0%はStandard・AI準備後・前文ありのオフライン200問。異なる測定条件を混ぜて他IMEより高い精度と主張しない。
 
 規約は[AGENTS.md](../AGENTS.md)、コマンドは[DEVELOPMENT.md](DEVELOPMENT.md)、作業票は[カード81](tasks/81-accuracy-guide.md)。独立FAIL記録をPASSへ書き換えず、.goal-completeを作らない。

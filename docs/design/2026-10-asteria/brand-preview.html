@@ -3,10 +3,11 @@
 <img class="hero" src="../../images/asteria-hero.png" alt="Asteria — アステリア。考えたまま、言葉になる。">
 <div class="intro"><h1>Asteria — アステリア</h1><strong>書くことに、集中できる日本語入力。</strong><p>いつもの操作に、文脈を読むAIを。<br>Windows向けの、完全ローカルな日本語IMEです。</p></div>
 <div class="pair"><img src="asteria-icon.png" alt="製品アイコン"><div><strong>月の余白</strong><p>濃紺と生成り。紙と墨の手触り。<br>製品アイコンの表示名はAsteriaです。</p><div class="small-icons"><img src="asteria-icon.png" alt="16px" title="16px" style="--size:16px"><img src="asteria-icon.png" alt="20px" title="20px" style="--size:20px"><img src="asteria-icon.png" alt="24px" title="24px" style="--size:24px"><img src="asteria-icon.png" alt="32px" title="32px" style="--size:32px"><img src="asteria-icon.png" alt="48px" title="48px" style="--size:48px"></div></div></div>
-<h2>文脈から、自然な言葉を選ぶ</h2><p>「公園」と「公演」、「制度」と「精度」。読みだけでは選びにくい言葉を、文章の意味から選び分けます。</p><img class="figure" src="../../images/examples.png" alt="変換の例">
-<h2>同じ条件で測った、変換の正確さ</h2><p>AJIMEE-Bench 198問を、実際に各IMEへ入力して比較しました。</p><img class="figure" src="../../images/ime-comparison.png" alt="実入力比較"><p class="note">2026-10-01時点のKotori beta.8 / Unrealで測定。現在版の再測定値ではありません。</p>
+<h2>開発版の変換精度</h2><p>2026-10-19更新。次期版v1.1.4開発候補は、AJIMEE-Bench 200問のオフライン評価で188問正解（94.0%）。Standard設定・AI準備後・前の文ありでの値です。</p><img class="figure" src="../../images/accuracy.png" alt="開発版のオフライン評価。AIなし51.5%、Standard前文なし87.5%、前文あり94.0%"><p class="note">公開中のv1.1.3とは別の開発候補です。調整・回帰用データでの評価であり、初回や実アプリの精度ではありません。他IMEを含む最新の実入力比較は未実施です。<a href="../../BENCHMARKS.md">測定条件と固定ソース</a></p>
+<h2>日常の言葉を、基礎から</h2><p>文脈を読むAIに加え、辞書と連語も改善しています。AIなし・前文なしの日常81問で65→69問正解、改善4問・改悪0問でした。</p><img class="figure" src="../../images/examples.png" alt="追加連語の変更前後。雨が降ってきた、時間を計る、体重を量る、厚い本">
 <h2>毎日の入力に、六つの工夫</h2><img class="figure" src="../../images/features.png" alt="特長">
-<h2>入力の流れを、大切に</h2><p>通常のキー入力はMozcが処理するため、AIの計算完了を待ちません。</p><img class="figure" src="../../images/lightness.png" alt="性能の改善記録">
+<h2>入力の流れを、大切に</h2><p>通常のキー入力はMozcが処理します。開発候補のネイティブ入力処理をCPU・GPUで各30シナリオ確認し、文字欠落や確定差分などの検出不具合は0件でした。</p><img class="figure" src="../../images/lightness.png" alt="CPU・GPUのネイティブ入力検査と最大応答時間"><p class="note">起動直後とAI準備後を含む検査です。実アプリや低性能PCの実機測定とは別です。</p>
 <h2>言葉を選ぶ仕組み</h2><img class="figure" src="../../images/how.png" alt="候補の生成・評価・読み確認・表示">
-<h2>公開済みの評価図</h2><img class="figure" src="../../images/compare.png" alt="四つの実入力比較"><img class="figure" src="../../images/accuracy.png" alt="変換器の評価">
+<h2>四つの開発評価</h2><img class="figure" src="../../images/compare.png" alt="AJIMEE・日常・慣用句・ニュアンスの開発評価。AIなしとStandardの前文なし・ありを比較">
+<details><summary>過去の実入力比較（2026-10-01）</summary><p>旧Kotori beta.8・Unrealの198問実入力比較です。旧版の88.4%を開発版の94.0%へ置き換えた比較ではありません。</p><img class="figure" src="../../images/ime-comparison.png" alt="過去の実入力比較。2026-10-01のKotori beta.8・Unreal"><p><a href="../../BENCHMARKS.md#過去の実入力比較">当時の条件とCSV</a></p></details>
 <footer>READMEの図版と文章を確認するためのローカルプレビュー。<a href="../../../README.md">README.md</a> ／ <a href="generation.md">生成記録</a></footer></main></html>

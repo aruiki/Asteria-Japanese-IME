@@ -5,12 +5,20 @@
 - 生成方法: Codex内蔵image_gen。参照画像は concepts/05-moon-ink.png。
 - 製品アイコン: asteria-icon.png。文字なし、タイル外は透過。
 - READMEヒーロー: ../../images/asteria-hero.png。
-- 比較図7枚: 公開済みデータをPillowで新規描画。数値・棒の比率・測定条件を維持。
+- 図版7枚: Pillowで描画。数値・棒の比率・測定条件をコードで管理。
 - 図版再生成: python docs/images/gen_readme_images.py
 - 共通スタイル: docs/images/asteria_style.py（紺の紙、生成り、明朝見出し、細い罫線）。
 - 実入力比較: eval/imebench/comparison-2026-10-01.csvを直接読み込む。
 - 実画面の写真(settings*.png / candidate-window*.png)は今回の図版生成対象外。
 - 設定・辞書ソフトのアイコンは従来の図柄を保持。
+
+## 2026-10-19の情報更新
+
+READMEとプレビューの主な掲載値を、旧Kotoriの88.4%からAsteria v1.1.4開発候補の188/200（94.0%）へ更新。94.0%はStandard・AI準備後・前文ありのオフライン開発評価であり、旧198問の実入力比較とは別条件。旧比較は日付付きの過去資料へ移し、値を保持する。
+
+`../../images/evaluation-2026-10-19.json`に固定原票から12件の正解数と改善例4件を転記し、source・converter・原票SHAを記録。accuracy/compare/examples/lightnessを最新の開発評価から生成する。未測定のHigh/Unreal/Lowや他IMEの最新精度は補間しない。旧比較の生成元は引き続き当時のCSV。
+
+測定の説明は[ベンチマーク](../../BENCHMARKS.md)。図版の更新だけで実アプリの検証や製品リリースが完了した扱いにはしない。
 
 ## moonIcon
 

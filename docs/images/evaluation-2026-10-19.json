@@ -1,0 +1,139 @@
+{
+  "updated": "2026-10-19",
+  "product": "Asteria v1.1.4 development candidate",
+  "measurement": "offline_development_regression",
+  "source_commit": "8439fc26f21a90aa80c4cd694d57ca2f852ad658",
+  "converter_sha256": "4199d8d6dbad67bf90c60de011d18e18c49b62214c96006f8e8575d5e9228f8e",
+  "evidence": "../verification/accuracy-normal-conversion-20261019.md",
+  "raw_receipt": "target/accuracy-guide/normal-lifecycle-quality-v1/summary.json",
+  "raw_receipt_sha256": "4fe6375a001e6a7cc36d50e8f53e694152937f22abbc1f88af11439a24c4de32",
+  "sets": [
+    {
+      "key": "ajimee",
+      "label": "AJIMEE-Bench"
+    },
+    {
+      "key": "daily",
+      "label": "日常の文"
+    },
+    {
+      "key": "idioms",
+      "label": "慣用句"
+    },
+    {
+      "key": "nuance",
+      "label": "ニュアンス"
+    }
+  ],
+  "modes": [
+    {
+      "key": "mozc-no-context",
+      "label": "AIなし・前文なし",
+      "scores": {
+        "ajimee": {
+          "correct": 103,
+          "total": 200
+        },
+        "idioms": {
+          "correct": 22,
+          "total": 25
+        },
+        "nuance": {
+          "correct": 11,
+          "total": 20
+        },
+        "daily": {
+          "correct": 69,
+          "total": 81
+        }
+      }
+    },
+    {
+      "key": "ai-no-context",
+      "label": "Standard・前文なし",
+      "scores": {
+        "ajimee": {
+          "correct": 175,
+          "total": 200
+        },
+        "idioms": {
+          "correct": 24,
+          "total": 25
+        },
+        "nuance": {
+          "correct": 17,
+          "total": 20
+        },
+        "daily": {
+          "correct": 79,
+          "total": 81
+        }
+      }
+    },
+    {
+      "key": "ai-context",
+      "label": "Standard・前文あり",
+      "scores": {
+        "ajimee": {
+          "correct": 188,
+          "total": 200
+        },
+        "idioms": {
+          "correct": 24,
+          "total": 25
+        },
+        "nuance": {
+          "correct": 17,
+          "total": 20
+        },
+        "daily": {
+          "correct": 79,
+          "total": 81
+        }
+      }
+    }
+  ],
+  "ordinary_examples": [
+    {
+      "input": "あめがふってきた",
+      "before": "雨が振ってきた",
+      "after": "雨が降ってきた"
+    },
+    {
+      "input": "じかんをはかる",
+      "before": "時間を図る",
+      "after": "時間を計る"
+    },
+    {
+      "input": "たいじゅうをはかる",
+      "before": "体重を図る",
+      "after": "体重を量る"
+    },
+    {
+      "input": "あついほん",
+      "before": "暑い本",
+      "after": "厚い本"
+    }
+  ],
+  "ordinary_examples_evidence": "../verification/accuracy-usage-collocations-20261018.md",
+  "native_input": [
+    {
+      "label": "CPU",
+      "key_max_ms": 1.9420999997237232,
+      "space_max_ms": 516.1342000001241,
+      "passed": 30,
+      "cases": 30,
+      "raw_receipt": "target/accuracy-guide/normal-lifecycle-cold-cpu-v1/summary.json",
+      "raw_receipt_sha256": "6049bf5ea5200ba8fa71e89e02291e33691ee87d757e7d9eac35af82fa5531ec"
+    },
+    {
+      "label": "GPU",
+      "key_max_ms": 2.759800000603718,
+      "space_max_ms": 230.6682999997065,
+      "passed": 30,
+      "cases": 30,
+      "raw_receipt": "target/accuracy-guide/normal-lifecycle-cold-gpu-v1/summary.json",
+      "raw_receipt_sha256": "362d3737fe96d6611fc7faebc118f512670178e18cf3779112b51d25b5ab158c"
+    }
+  ]
+}
