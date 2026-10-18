@@ -76,6 +76,14 @@
   "records": 31208,
   "sample_sha256": "f886d411a7565171733edc9a3e6aa5f659affcc030eae277e5a6213165564255",
   "source_file_size": 4131415181,
-  "result_sha256": "f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c",
-  "baseline_sha256": "45fe60749f79e44bd7255b771522e963fd9d2a54005e4b2cf19d5e8204253812"
+  "result_sha256": "c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0",
+  "baseline_sha256": "45fe60749f79e44bd7255b771522e963fd9d2a54005e4b2cf19d5e8204253812",
+  "wikipedia_result_sha256": "f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c",
+  "usage_source": {
+    "repository": "hiroyuki-komatsu/japanese-usage-dictionary",
+    "tag": "2025-01-25",
+    "usage_sha256": "9a5ff4ab0be399e01e6aeb8637a166d421299f92a3c39df93fab6bcbaf3e68b8",
+    "license_sha256": "91e74c9b189a60a3f5ba13b4aa28f87f25ee9252a64d547784e72752d089631a",
+    "cforms_sha256": "947d82de803181bb9df8bb4fede6d0d3c3677c7de88c946ff3a35dbfc2bce0ab"
+  }
 }

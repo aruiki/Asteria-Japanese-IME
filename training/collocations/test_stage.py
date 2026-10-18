@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from stage import fetch_range, load_chunk, save_fixed
+from stage import fetch_range, fixed_file, load_chunk, save_fixed
 
 
 class Response(io.BytesIO):
@@ -16,6 +16,29 @@ class Response(io.BytesIO):
 
 
 class StageTest(unittest.TestCase):
+    def test_small_fixed_file_rejects_partial_or_changed_response(self):
+        payload = b'fixed usage'
+        expected = hashlib.sha256(payload).hexdigest()
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)/'usage'
+            response = Response(payload); response.status = 200
+            with mock.patch('urllib.request.urlopen', return_value=response):
+                self.assertEqual(fixed_file('https://example.test/fixed', path, expected).read_bytes(), payload)
+            changed = Response(b'substitution'); changed.status = 200
+            for response in (Response(payload), changed):
+                with mock.patch('urllib.request.urlopen', return_value=response):
+                    with self.assertRaises(ValueError):
+                        fixed_file('https://example.test/fixed', Path(temp)/'other', expected)
+
+    def test_wrong_readonly_usage_cache_is_not_overwritten_or_ignored(self):
+        with tempfile.TemporaryDirectory() as temp:
+            cache = Path(temp)/'cache'; cache.write_bytes(b'wrong')
+            with mock.patch('urllib.request.urlopen') as fetch:
+                with self.assertRaises(ValueError):
+                    fixed_file('https://example.test/fixed', Path(temp)/'out', '0'*64, cache)
+            self.assertEqual(cache.read_bytes(), b'wrong')
+            fetch.assert_not_called()
+
     def test_range_must_be_bounded_and_exact(self):
         with mock.patch('urllib.request.urlopen', return_value=Response(b'abc')) as call:
             self.assertEqual(fetch_range('https://example.test/fixed', 2, 3, 10), b'abc')

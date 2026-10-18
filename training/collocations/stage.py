@@ -108,12 +108,30 @@ def ajimee(path, out):
     return path
 
 
+def fixed_file(url, path, expected, cache=None):
+    """固定SHAの小さい公開原票だけを取得し、別の既存データを上書きしない。"""
+    existing = path if path.exists() else cache
+    if existing and existing.exists():
+        data = existing.read_bytes()
+    else:
+        with urllib.request.urlopen(url, timeout=45) as response:
+            if response.status != 200:
+                raise ValueError('固定原票の全体応答ではありません')
+            data = response.read(1048577)
+    if len(data) > 1048576 or digest(data) != expected:
+        raise ValueError('固定原票のサイズまたはSHAが一致しません')
+    save_fixed(path, data)
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--cache-dir', type=Path, help='既存取得原票の読み取り専用の再利用')
     parser.add_argument('--ajimee', type=Path)
+    parser.add_argument('--usage-dir', type=Path, help='固定用例辞書とLICENSEの読み取り専用キャッシュ')
+    parser.add_argument('--cforms', type=Path, help='既定はbaselineと同じMozcのdata/rules/cforms.def')
     args = parser.parse_args()
     config_path = Path(__file__).with_name('sources.json')
     config = json.loads(config_path.read_text(encoding='utf-8'))
@@ -130,10 +148,32 @@ def main():
     for path in exclusions:
         command += ['--exclude', str(path)]
     subprocess.run(command, check=True)
+    wikipedia_data = generated / 'fast_collocations.txt'
+    if digest(wikipedia_data.read_bytes()) != config['wikipedia_result_sha256']:
+        raise ValueError('比較済みのWikipedia連語を再現できません')
+    usage = config['usage_source']
+    url = f"https://raw.githubusercontent.com/{usage['repository']}/{usage['tag']}/"
+    paths = {}
+    for filename, expected in [('usage_dict.txt', usage['usage_sha256']), ('LICENSE', usage['license_sha256'])]:
+        paths[filename] = fixed_file(url + filename, source / 'usage' / filename, expected,
+                                    args.usage_dir / filename if args.usage_dir else None)
+    cforms = args.cforms or args.baseline.parent.parent / 'rules/cforms.def'
+    if digest(cforms.read_bytes()) != usage['cforms_sha256']:
+        raise ValueError('固定したMozc活用規則のSHAが一致しません')
+    usage_generated = args.out / 'usage-generated'
+    subprocess.run([sys.executable, '-X', 'utf8', str(ROOT / 'mozc/tools/build_usage_collocations.py'),
+                    '--baseline', str(wikipedia_data), '--usage', str(paths['usage_dict.txt']),
+                    '--cforms', str(cforms), '--out', str(usage_generated)], check=True)
+    usage_receipt = json.loads((usage_generated / 'fast_collocations.json').read_text(encoding='utf-8'))
+    generated = usage_generated
     data = (generated / 'fast_collocations.txt').read_bytes()
     if digest(data) != config['result_sha256']:
         raise ValueError('比較済みの連語データSHAを再現できません')
-    metadata = json.loads((generated / 'fast_collocations.json').read_text(encoding='utf-8'))
+    metadata = json.loads((args.out / 'generated/fast_collocations.json').read_text(encoding='utf-8'))
+    metadata.update(result_sha256=config['result_sha256'], combined_entries=usage_receipt['combined_entries'],
+                    usage_source=usage, usage_generation=usage_receipt,
+                    wikipedia_result_sha256=config['wikipedia_result_sha256'])
+    metadata['license'] += '; BSD-2-Clause (additional usage phrases)'
     metadata['exclusion_files'] = {
         (str(path.relative_to(ROOT)).replace('\\', '/') if path.is_relative_to(ROOT)
          else 'AJIMEE-Bench/evaluation_items.json'): digest(path.read_bytes()) for path in exclusions}
@@ -146,7 +186,15 @@ def main():
 https://huggingface.co/datasets/{config['source']}/tree/{config['revision']}
 Wikipedia由来の学習区間01〜07だけを使用。dev区間とCommon Crawl部分は使用していません。
 変更: 複数の文・取得区間に共通する短い日本語の連語を抽出し、評価読みを除外しました。
-追加連語もCC BY-SA 4.0で提供します。元のMozc40件はGoogle Inc.のBSD-3-Clauseデータです。
+Wikipedia由来の追加連語もCC BY-SA 4.0で提供します。元のMozc40件はGoogle Inc.のBSD-3-Clauseデータです。
+
+用例由来の追加データ: Japanese Usage Dictionary、BSD-2-Clause。
+https://github.com/{usage['repository']}/tree/{usage['tag']}
+変更: 引用用例から対象語の語幹を含む連語を抽出し、末尾だけを固定Mozc活用規則で展開。
+用例辞書SHA-256: {usage['usage_sha256']}
+活用規則SHA-256: {usage['cforms_sha256']}
+
+{paths['LICENSE'].read_text(encoding='utf-8')}
 
 結果SHA-256: {config['result_sha256']}
 実行時はコンパイル済みデータを使い、モデルやネットワークへのアクセスは追加しません。

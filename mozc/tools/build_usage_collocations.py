@@ -11,6 +11,7 @@ from build_fast_collocations import fragments
 
 USAGE_SHA = '9a5ff4ab0be399e01e6aeb8637a166d421299f92a3c39df93fab6bcbaf3e68b8'
 BASE_SHA = 'f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c'
+CFORMS_SHA = '947d82de803181bb9df8bb4fede6d0d3c3677c7de88c946ff3a35dbfc2bce0ab'
 CONTENT = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fffァ-ヺ]')
 
 
@@ -67,7 +68,7 @@ def main():
     for name in ('baseline', 'usage', 'cforms', 'out'):
         ap.add_argument('--' + name, type=Path, required=True)
     args = ap.parse_args()
-    if digest(args.baseline) != BASE_SHA or digest(args.usage) != USAGE_SHA:
+    if digest(args.baseline) != BASE_SHA or digest(args.usage) != USAGE_SHA or digest(args.cforms) != CFORMS_SHA:
         raise ValueError('Fixed baseline/usage SHA mismatch')
     phrases, audit = extract(args.usage.read_text(encoding='utf-8'), forms(args.cforms.read_text(encoding='utf-8')))
     baseline = set(args.baseline.read_text(encoding='utf-8').splitlines())

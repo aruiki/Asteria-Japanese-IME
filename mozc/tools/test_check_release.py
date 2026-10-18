@@ -148,8 +148,32 @@ class CollocationsPayloadTest(unittest.TestCase):
             identity, metadata = self.fixture(root)
             (root / 'fast_collocations.json').write_bytes(b'{')
             self.assertFalse(self.check_payload(root, identity))
+            (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertTrue(self.check_payload(root, identity))
             metadata['evaluation_labels_used'] = True
             (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertFalse(self.check_payload(root, identity))
+
+    def test_usage_source_or_attribution_cannot_be_substituted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            identity, metadata = self.fixture(root)
+            usage = dict(repository='fixed/usage', tag='2025-01-25', usage_sha256='a'*64,
+                         license_sha256='b'*64, cforms_sha256='c'*64)
+            identity['usage_source'] = dict(usage)
+            metadata['usage_source'] = dict(usage)
+            path = root / 'fast_collocations.json'
+            path.write_text(json.dumps(metadata), encoding='utf-8')
+            notice = root / 'NOTICE-fast-collocations.txt'
+            notice.write_text(notice.read_text(encoding='utf-8') + ' BSD-2-Clause Hiroyuki Komatsu Shoji Ogura Tsuyoshi Horo ' + ' '.join(usage.values()), encoding='utf-8')
+            self.assertTrue(self.check_payload(root, identity))
+            metadata['usage_source']['tag'] = 'substituted'
+            path.write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertFalse(self.check_payload(root, identity))
+            metadata['usage_source'] = dict(usage)
+            path.write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertTrue(self.check_payload(root, identity))
+            notice.write_text(notice.read_text(encoding='utf-8').replace('Hiroyuki Komatsu', ''), encoding='utf-8')
             self.assertFalse(self.check_payload(root, identity))
 
 

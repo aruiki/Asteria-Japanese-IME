@@ -1,6 +1,6 @@
 # 初期候補用の連語データ
 
-Mozcの既存CollocationRewriterへ渡す短い連語を作る。実行時モデルを増やす変更ではない。辞書本文/コーパスはGitへ追加しない。採否は[ADR0064](../../docs/adr/0064-contextless-collocations.md)の同条件比較後に決める。
+Mozcの既存CollocationRewriterへ渡す短い連語を作る。実行時モデルを増やす変更ではない。辞書本文/コーパスはGitへ追加しない。Wikipedia部分は[ADR0064](../../docs/adr/0064-contextless-collocations.md)、既存用例を加える規則は[ADR0066](../../docs/adr/0066-usage-collocations.md)。
 
 元データは[Miwa-Keita/zenz-v2.5-dataset](https://huggingface.co/datasets/Miwa-Keita/zenz-v2.5-dataset)、revision `7d9c9ea36347b638a627c1d264da48ebc7eb38aa`。Wikipedia部分のCC BY-SA 4.0だけを使用し、元のWikipedia執筆者とデータ加工者Keita Miwaを出典とする。Common Crawl部分は使用しない。追加連語もCC BY-SA 4.0で提供する。Mozcの元40件はGoogleによるBSD-3-Clauseのデータとして保持する。
 
@@ -17,6 +17,10 @@ Copy-Item target/kotori/fast-collocations-v1/NOTICE-fast-collocations.txt <Mozc>
 
 `--out`は新しいディレクトリを指定する。`--cache-dir`で既存の取得原票を読み取り専用で再利用でき、`--ajimee`で固定SHAのAJIMEEを渡せる。既定は固定revisionから取得。除外は製品の`eval/sets/*.json`の読みと固定AJIMEEの読みだけで、参照表記を抽出へ渡さない。900の評価読みを除外対象とし、近似一致1件・重複文285件を排除。Wikipedia学習文29,326件から生成し、元40件+追加8,405件を保持する。外部の既存5例も除外した初期試作と結果SHAは同一だった。
 
-結果SHAは`f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c`。CIがこのコマンドで生成し、Bazelが既存CollocationRewriter用のデータへコンパイルする。実行時の読取や通信は追加しない。再構築・出典確認用の本文/manifest/NOTICEもMSIへ同梱し、ビルド時と`check_release.py --require-collocations`の管理展開で欠落/異なるSHAを拒否する。生成物は`make_patches.sh`の対象外。本文をGitへ追加しない。
+Wikipedia基礎部分のSHAは`f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c`。次に固定Japanese Usage Dictionary 2025-01-25から引用用例を抽出し、Mozc cforms.defの活用規則で末尾を展開する。定義全体・単独の同義語引用を連語へ足さず、後続名詞のある形容詞などの語尾を無条件に変えない。元の8,445件に26,216件を追加し、計34,661件、602,066bytes、最終SHAは`c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0`。
+
+用例由来の追加分はBSD-2-Clause（Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo）。usage_dict.txt、LICENSE、cforms.defのSHAはsources.jsonで固定し、ライセンス全文と出典・変更をNOTICE-fast-collocations.txtへ含める。`--usage-dir`でusage_dict.txtとLICENSEの読み取り専用キャッシュを指定できる。既定は固定tagから取得する。活用規則は`--baseline`と同じMozcのdata/rules/cforms.defを使用し、異なるSHAを拒否する。
+
+CIがこのコマンドで生成し、Bazelが既存CollocationRewriter用のデータへコンパイルする。実行時の読取や通信は追加しない。再構築・出典確認用の本文/manifest/NOTICEもMSIへ同梱し、ビルド時と`check_release.py --require-collocations`の管理展開で欠落/異なるSHA/用例の出典差し替えを拒否する。生成物は`make_patches.sh`の対象外。本文をGitへ追加しない。
 
 実測結果と限界は[連語の検証記録](../../docs/verification/accuracy-fast-collocations-20261018.md)へ保存する。データの件数を精度の代わりにせず、実TSF・初回入力・通常変換の確認は別に残す。

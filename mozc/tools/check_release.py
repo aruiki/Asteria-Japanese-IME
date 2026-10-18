@@ -156,6 +156,12 @@ def check_collocations(root, check, required=False, identity=None):
         notice = (root / names[2]).read_text(encoding='utf-8')
         attribution = all(value in notice for value in
                           ('CC BY-SA 4.0', identity['source'], identity['revision'], expected))
+        if 'usage_source' in identity:
+            usage = identity['usage_source']
+            valid = valid and metadata.get('usage_source') == usage
+            attribution = attribution and all(value in notice for value in
+                (usage['repository'], usage['tag'], usage['usage_sha256'], usage['cforms_sha256'],
+                 'BSD-2-Clause', 'Hiroyuki Komatsu', 'Shoji Ogura', 'Tsuyoshi Horo'))
     except (ValueError, KeyError, TypeError, UnicodeError):
         valid = attribution = False
     check(valid, '連語manifestの出典・学習区間・結果SHAが固定情報と一致')

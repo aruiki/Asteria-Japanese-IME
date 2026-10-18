@@ -94,6 +94,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・TinySwallow-1.5B: Apache-2.0(Sakana AI)。5 bit に量子化して同梱
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
 ・初期変換の追加連語: CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。短い連語へ加工。元のMozc40件はBSD-3-Clause。出典と変更内容は NOTICE-fast-collocations.txt
+・用例由来の追加連語: Japanese Usage Dictionary、BSD-2-Clause(Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo)。引用例の抽出・末尾の活用展開。帰属と全文は NOTICE-fast-collocations.txt
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
 各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
@@ -149,6 +150,11 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。\n"
     "  取得区間・変更・帰属はNOTICE-fast-collocations.txtとfast_collocations.json。\n"
     "  元のMozc40件はBSD-3-Clause。\n\n"
+    "■ 用例由来の追加連語\n"
+    "  Japanese Usage Dictionary 2025-01-25、BSD-2-Clause。\n"
+    "  Copyright 2011 Hiroyuki Komatsu, Shoji Ogura, Tsuyoshi Horo。\n"
+    "  引用用例の短い連語を抽出し、末尾をMozcの活用規則で展開。\n"
+    "  出典とライセンス全文はNOTICE-fast-collocations.txt。\n\n"
     "■ LLVM OpenMP ランタイム(libomp.dll)\n"
     "  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。\n"
     "  https://github.com/llvm/llvm-project(llama.cpp の公式の Windows ビルドに含まれるもの)。\n\n"
