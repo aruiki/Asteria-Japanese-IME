@@ -39,6 +39,8 @@ Linux での評価: `bazel build //converter:converter_main -c opt` のあと、
 `python3 mozc/eval_baseline.py bazel-bin/converter/converter_main`(`eval/fetch.sh` で評価セットを取得しておく)。
 モデルは `training/zenz/convert.py ... --outtype q8_0` で作る。
 
+初期変換の連語は`training/collocations/stage.py`で固定Wikipedia学習区間から生成し、本文・manifest・NOTICEを`src/data/kotori/`へ置く。取得/配置コマンドは[手順](../training/collocations/README.md)。Bazelで既存Mozcの連語データへコンパイルするため、実行時モデル/通信/I/Oは増えない。辞書本文はパッチやGitへ含めない。
+
 ビルドの時間: 初回は約 70 分(Qt 約 25 分、Mozc 約 40 分)。Qt と Bazel の結果は Actions の
 キャッシュに残し、次からは変わったところだけ作り直す。Windows のビルドは MSI を公開するときと、
 パッチを変えたときだけに絞る。変換の中身(LM リランクなど)は Linux でビルド・評価して詰め、

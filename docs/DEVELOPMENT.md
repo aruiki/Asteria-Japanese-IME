@@ -29,6 +29,8 @@ cd src && python build_tools/update_deps.py && python build_tools/build_qt.py --
 モデルは `src/data/kotori/` に置く(zenz-v2.5-small・medium、TinySwallow-1.5B。作り方は
 `training/zenz/`・`training/llm/`、またはインストール先からコピー)。
 
+通常変換の追加連語もビルド前に生成する。`python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out <新規出力先>`を実行し、出力直下の`fast_collocations.txt`、`fast_collocations.json`、`NOTICE-fast-collocations.txt`を`<Mozc>/src/data/kotori/`へ置く。固定区間の取得とSHA検査、出典は[連語の手順](../training/collocations/README.md)。MSIの確認へ`--require-collocations`を加える。生のコーパス/辞書をGitへ追加しない。
+
 ### 1.3 ビルドと確かめ方
 
 Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付ける(`//` が書き換えられるため)。

@@ -28,6 +28,7 @@
 | TinySwallow-1.5B | Apache-2.0(Sakana AI) | `training/llm/make.sh`(版を固定) | Q5_K_M に量子化して同梱。`NOTICE-tinyswallow.txt` |
 | カタカナ語英字辞典 / Kotoriカタカナ英語辞書 | CC-BY-SA-3.0 | KEINOS/google-ime-user-dictionary-ja-en、7d241dafcf6ee1f9eafefc0ae7a929c095860246。Mozc MODULE.bazelで各ファイルのSHA-256を固定 | カタカナ語英字辞典コミュニティ・KEINOS・EDICT/EDRDGへ帰属。正規化・読み検査・説明部分除去・重複除去・表記補完・最大4表記へ加工。MSIにKotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txtを同梱。加工後もCC-BY-SA-3.0 |
 | Microsoft Visual C++ ランタイム | Visual Studio のライセンス | MSVC | 再配布が認められたもの |
+| 初期変換の追加連語 | CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa) | zenz-v2.5-datasetのWikipedia学習区間01〜07。training/collocations/sources.jsonでrevision/範囲/SHAを固定 | 短い連語へ加工。Common Crawl/dev区間・評価参照表記は使用しない。元のMozc40件はBSD-3-Clause。fast_collocations.txt/jsonとNOTICE-fast-collocations.txtを同梱 |
 
 ## 旧 Rust 版(`kotori-server`、TSF TIP)の配布物に同梱するもの
 

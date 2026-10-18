@@ -21,7 +21,7 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/kotori-patch.XXXXXX")"
 echo "patch scratch: $WORK"
 cd "$MZ"
 FILES=$( (git -c core.quotepath=off diff --name-only $BASE; git -c core.quotepath=off ls-files --others --exclude-standard) |
-  grep -v '\.gguf$' | grep -v '^src/data/kotori/fast_collocations.txt$' |
+  grep -v '\.gguf$' | grep -vE '^src/data/kotori/(fast_collocations\.(txt|json)|NOTICE-fast-collocations\.txt)$' |
   grep -v '^src/third_party' | grep -v '^src/bazel-' | sort -u)
 echo "$(echo "$FILES" | wc -l) files"
 # 作り直す clone は 1 行ずつ確かめる(&& でつなぐと set -e が効かず、失敗すると Mozc の作業ツリーのまま

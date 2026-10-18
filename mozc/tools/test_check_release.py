@@ -1,6 +1,6 @@
 """移行後の配布名と、旧版を確認するフォールバック。"""
 import unittest
-from check_release import choose_asset_name, check_generator, product_release_pair, Checks
+from check_release import choose_asset_name, check_generator, check_collocations, product_release_pair, Checks
 import hashlib
 import json
 from pathlib import Path
@@ -90,6 +90,67 @@ class GeneratorPayloadTest(unittest.TestCase):
             check = Checks()
             check_generator(root, check, required=True, identity=identity)
             self.assertFalse(check.ok)
+
+
+class CollocationsPayloadTest(unittest.TestCase):
+    def fixture(self, root):
+        data = '司会を務め\n猫を飼う\n'.encode('utf-8')
+        identity = dict(source='public/wiki', revision='pinned-revision',
+                        sample_sha256='fixed-corpus', result_sha256=hashlib.sha256(data).hexdigest())
+        metadata = dict(identity, corpus_sha256=identity['sample_sha256'],
+                        filename='fast_collocations.txt', evaluation_labels_used=False, combined_entries=2)
+        (root / 'fast_collocations.txt').write_bytes(data)
+        (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+        (root / 'NOTICE-fast-collocations.txt').write_text(
+            'CC BY-SA 4.0 ' + identity['source'] + ' ' + identity['revision'] + ' ' + identity['result_sha256'],
+            encoding='utf-8')
+        return identity, metadata
+
+    def check_payload(self, root, identity):
+        check = Checks()
+        check_collocations(root, check, required=True, identity=identity)
+        return check.ok
+
+    def test_missing_new_payload_fails_but_legacy_can_be_checked(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            identity = dict(result_sha256='0' * 64)
+            legacy = Checks()
+            check_collocations(root, legacy, identity=identity)
+            self.assertTrue(legacy.ok)
+            self.assertFalse(self.check_payload(root, identity))
+
+    def test_original_passes_but_dictionary_and_metadata_substitution_fails(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            identity, metadata = self.fixture(root)
+            self.assertTrue(self.check_payload(root, identity))
+            data = b'substituted\n'
+            (root / 'fast_collocations.txt').write_bytes(data)
+            metadata.update(result_sha256=hashlib.sha256(data).hexdigest(), combined_entries=1)
+            (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertFalse(self.check_payload(root, identity))
+
+    def test_missing_notice_and_wrong_corpus_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            identity, metadata = self.fixture(root)
+            (root / 'NOTICE-fast-collocations.txt').unlink()
+            self.assertFalse(self.check_payload(root, identity))
+            identity, metadata = self.fixture(root)
+            metadata['corpus_sha256'] = 'different-corpus'
+            (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertFalse(self.check_payload(root, identity))
+
+    def test_malformed_manifest_and_evaluation_labels_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            identity, metadata = self.fixture(root)
+            (root / 'fast_collocations.json').write_bytes(b'{')
+            self.assertFalse(self.check_payload(root, identity))
+            metadata['evaluation_labels_used'] = True
+            (root / 'fast_collocations.json').write_text(json.dumps(metadata), encoding='utf-8')
+            self.assertFalse(self.check_payload(root, identity))
 
 
 if __name__ == '__main__': unittest.main()

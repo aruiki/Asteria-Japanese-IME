@@ -129,7 +129,41 @@ def check_generator(root, check, required=False, identity=None):
             check(got == expected, "モデルSHA-256が評価対象と一致: " + name)
 
 
-def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require_generator=False):
+def check_collocations(root, check, required=False, identity=None):
+    """原データとmanifestを同時に差し替えても固定した採用データとは認めない。"""
+    if identity is None:
+        path = pathlib.Path(__file__).resolve().parents[2] / 'training/collocations/sources.json'
+        identity = json.loads(path.read_text(encoding='utf-8'))
+    names = ('fast_collocations.txt', 'fast_collocations.json', 'NOTICE-fast-collocations.txt')
+    if not required and not any((root / name).exists() for name in names):
+        return  # 導入前の公開版を引き続き検証する。
+    for name in names:
+        check((root / name).is_file(), '連語データ同梱: ' + name)
+    if not all((root / name).is_file() for name in names):
+        return
+    data = (root / names[0]).read_bytes()
+    expected = identity['result_sha256']
+    check(hashlib.sha256(data).hexdigest() == expected, '連語SHA-256が比較対象と一致')
+    try:
+        metadata = json.loads((root / names[1]).read_text(encoding='utf-8'))
+        valid = (metadata['result_sha256'] == expected and
+                 metadata['filename'] == names[0] and
+                 metadata['source'] == identity['source'] and
+                 metadata['revision'] == identity['revision'] and
+                 metadata['corpus_sha256'] == identity['sample_sha256'] and
+                 metadata['evaluation_labels_used'] is False and
+                 metadata['combined_entries'] == len(data.splitlines()))
+        notice = (root / names[2]).read_text(encoding='utf-8')
+        attribution = all(value in notice for value in
+                          ('CC BY-SA 4.0', identity['source'], identity['revision'], expected))
+    except (ValueError, KeyError, TypeError, UnicodeError):
+        valid = attribution = False
+    check(valid, '連語manifestの出典・学習区間・結果SHAが固定情報と一致')
+    check(attribution, '連語の帰属・ライセンス・変更対象の表示')
+
+
+def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require_generator=False,
+                   require_collocations=False):
     """MSI の大きさと、展開した同梱物・入れない物・実行ファイルの版を確かめる。"""
     size = msi.stat().st_size
     check(size <= MAX_MSI_BYTES, f"大きさ {size / 2**30:.2f} GiB ≦ {MAX_MSI_BYTES / 2**30:.1f} GiB(上限 2 GiB)")
@@ -141,6 +175,7 @@ def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require
     for name in BUNDLED:
         check((root / name).exists(), f"同梱: {name}")
     check_generator(root, check, require_generator)
+    check_collocations(root, check, require_collocations)
     for name in ABSENT:
         check(not (root / name).exists(), f"入れない: {name}")
     fv = ps(f"(Get-Item '{root / 'mozc_server.exe'}').VersionInfo.FileVersion")
@@ -153,11 +188,13 @@ def main() -> int:
     ap.add_argument("--work", default=str(pathlib.Path.home() / "kotori-dev" / "work" / "check-release"))
     ap.add_argument("--local", default="", help="手元の MSI の中身だけを確かめる(ハッシュと前の版は見ない)")
     ap.add_argument("--require-generator", action="store_true", help="新リリースの学習済み追加モデルを必須とする")
+    ap.add_argument("--require-collocations", action="store_true", help="固定した初期連語と出典の同梱を必須とする")
     args = ap.parse_args()
     check = Checks()
     work = pathlib.Path(args.work).resolve()
     if args.local:
-        check_contents(pathlib.Path(args.local).resolve(), work, check, args.require_generator)
+        check_contents(pathlib.Path(args.local).resolve(), work, check, args.require_generator,
+                       args.require_collocations)
     else:
         releases = json.loads(run(["gh", "release", "list", "--repo", REPO,
                                    "--limit", str(RELEASE_LIST_LIMIT),
@@ -176,7 +213,7 @@ def main() -> int:
                   f"ProductVersion {ver} > {prev}({prev_ver})(先頭 3 つで比べる)")
         else:
             print(f"--  ProductVersion {ver}(比べる前の版がない)")
-        check_contents(msi, work, check, args.require_generator)
+        check_contents(msi, work, check, args.require_generator, args.require_collocations)
     print("すべて OK" if check.ok else "確かめに失敗した項目がある")
     return 0 if check.ok else 1
 

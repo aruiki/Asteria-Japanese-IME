@@ -20,6 +20,7 @@ from native_pairs import exclusion_filter
 
 REVISION = '7d9c9ea36347b638a627c1d264da48ebc7eb38aa'
 CORPUS_SHA = '3d47371a7704fa359d8baeed03b25f4d820e68b299fb75f3fe348bb583878552'
+CANONICAL_CORPUS_SHA = 'f886d411a7565171733edc9a3e6aa5f659affcc030eae277e5a6213165564255'
 TRAIN_GROUPS = {f'train_wikipedia.jsonl:{i:02}' for i in range(1, 8)}
 JAPANESE = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff々ぁ-ゖァ-ヺー]+')
 KANJI = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff]')
@@ -89,9 +90,11 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     manifest = json.loads(args.corpus_manifest.read_text(encoding='utf-8'))
+    corpus_sha = sha(args.corpus)
     if (manifest.get('source') != 'Miwa-Keita/zenz-v2.5-dataset' or
             manifest.get('revision') != REVISION or
-            manifest.get('sample_sha256') != CORPUS_SHA or sha(args.corpus) != CORPUS_SHA):
+            corpus_sha not in {CORPUS_SHA, CANONICAL_CORPUS_SHA} or
+            manifest.get('sample_sha256') != corpus_sha):
         raise ValueError('固定コーパスの識別またはSHAが一致しません')
     chunks = {chunk['group']: chunk for chunk in manifest['chunks']}
     if any(chunks.get(group, {}).get('license') != 'CC-BY-SA-4.0' for group in TRAIN_GROUPS):
@@ -111,7 +114,7 @@ def main():
     output = args.out / 'fast_collocations.txt'
     output.write_text(''.join(value + '\n' for value in combined), encoding='utf-8', newline='\n')
     receipt = dict(
-        source=manifest['source'], revision=REVISION, corpus_sha256=CORPUS_SHA,
+        source=manifest['source'], revision=REVISION, corpus_sha256=corpus_sha,
         corpus_manifest_sha256=sha(args.corpus_manifest), generator_sha256=sha(__file__),
         baseline_sha256=sha(args.baseline), exclusion_files={str(p.resolve()): sha(p) for p in args.exclude},
         exclusion_readings=len(exclusions), used_groups=sorted(TRAIN_GROUPS),

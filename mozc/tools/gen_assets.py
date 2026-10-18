@@ -93,6 +93,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・zenz-v2.5-native-generator-20261017: zenz-v2.5-smallの追加学習モデル、CC BY-SA 4.0。追加生成に使用
 ・TinySwallow-1.5B: Apache-2.0(Sakana AI)。5 bit に量子化して同梱
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
+・初期変換の追加連語: CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。短い連語へ加工。元のMozc40件はBSD-3-Clause。出典と変更内容は NOTICE-fast-collocations.txt
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
 各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
@@ -143,6 +144,11 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  ggml-base.dllだけは同じb11259のソースから再構築しています。\n"
     "  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。\n"
     "  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。\n\n"
+    "■ 初期変換の追加連語(fast_collocations.txt)\n"
+    "  CC BY-SA 4.0、Wikipedia日本語版の執筆者、Keita Miwa。\n"
+    "  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。\n"
+    "  取得区間・変更・帰属はNOTICE-fast-collocations.txtとfast_collocations.json。\n"
+    "  元のMozc40件はBSD-3-Clause。\n\n"
     "■ LLVM OpenMP ランタイム(libomp.dll)\n"
     "  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。\n"
     "  https://github.com/llvm/llvm-project(llama.cpp の公式の Windows ビルドに含まれるもの)。\n\n"
