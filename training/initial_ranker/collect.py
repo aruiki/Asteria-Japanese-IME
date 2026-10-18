@@ -11,7 +11,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'mozc'))
 sys.path.insert(0, str(ROOT / 'mozc/tools'))
-from eval_baseline import first_candidates
+from eval_baseline import first_candidates, kata_to_hira
 from conversion_training import reading_key
 
 
@@ -24,6 +24,11 @@ def native_reading(text):
     # Composerは直前の英数/記号に応じて読みに含む句読点をASCIIへ揃える。
     # 参照表記の採点は変えず、かな・英字・数字の差も許容しない。
     return reading_key(text).replace('、', ',').replace('。', '.')
+
+
+def command_reading(text):
+    # 既存製品評価と同じ変換。NFKCは「…」等も別の入力にしてしまう。
+    return kata_to_hira(text)
 
 
 def parse_blocks(raw, readings):
@@ -70,7 +75,7 @@ def main():
                  for i, r in enumerate(json.loads(line) for line in args.data.read_text(encoding='utf-8').splitlines())]
     else:
         items = json.loads(args.data.read_text(encoding='utf-8'))
-    readings = [reading_key(item['input']) for item in items]
+    readings = [command_reading(item['input']) for item in items]
     if not readings or any(not r or any(c.isspace() or ord(c) < 32 for c in r) for r in readings):
         raise ValueError('Empty/unsafe native argument')
     args.out.mkdir(parents=True, exist_ok=False)

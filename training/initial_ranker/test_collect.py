@@ -1,5 +1,5 @@
 import unittest
-from collect import parse_blocks
+from collect import command_reading, parse_blocks
 
 
 def raw_trace(key='ねこ', text='猫', rank=0):
@@ -9,6 +9,9 @@ def raw_trace(key='ねこ', text='猫', rank=0):
 
 
 class TraceTest(unittest.TestCase):
+    def test_exact_command_keeps_punctuation_and_width(self):
+        self.assertEqual(command_reading('ミテ…１２ヨ'), 'みて…１２よ')
+
     def test_composer_comma_variants_are_the_same_reading_but_kana_changes_fail(self):
         row = parse_blocks(raw_trace(key='ねこ,', text='猫、'), ['ねこ、'])[0]
         self.assertEqual(row['reading'], 'ねこ、')
