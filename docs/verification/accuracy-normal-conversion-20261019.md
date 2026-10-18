@@ -1,0 +1,33 @@
+# 通常候補表示・ページ操作・保存の検証（2026-10-19）
+
+AI待機中に通常のMozc候補まで消す処理と、文字種メニュー非表示時のページ移動を修正した。実辞書の通常変換/操作と、明示保存した履歴の再起動保持を確認する。実TSF・実アプリ・導入/削除・独立verifierは別の未達条件であり、ここでは合格にしない。
+
+## 修正前の失敗と修正
+
+- source c4185b701の広いSessionHandlerシナリオは74/80。AI未準備時にKotoriScheduleRefreshとKotoriRefreshSuggestionがcandidate_window/all_candidate_wordsを消し、通常の予測・削除履歴・保留文字・取消にも影響していた。修正前のSessionTest.KotoriRefreshSuggestionをredとして保存（normal-suggestion-fallback-red-v1.log）。source4ee1c8559で削除をやめ、bounded callback・世代・保護入力・AI反映の条件は維持した。5シナリオが復旧し79/80。
+- 残るconversion.txtは既定の文字種メニュー非表示とMozcの表示あり前提が混在。表示ありを明示すると半角カナ/英字移動が復旧したが、辞書由来の候補数で最後のページ先頭がＳＹＯＵからｓｙｏｕへ変わる。期待値2箇所はその固定辞書に対応する正確な表記へ更新し、取消・学習・他の期待値は削らない。これを製品修正の成果に数えない。
+- 表示両設定を調べる別の構造検査で、既定の非表示設定のPageUp/ShiftUpがページ先頭index252ではなく末尾257へ着地する実不具合をredで検出（normal-lifecycle-navigation-tests-v3.log）。負IDを飛ばす際にMovePrevを使っていたのが原因。source8439fc26fでMovePrevPage/MoveNextPageを使い、非表示文字種だけのページを飛ばす。両設定のページ先頭・選択行とpreeditの一致・F6〜F10・確定結果を確認した。
+
+## 保存検査の非空虚性
+
+既存SessionHandlerInterpreterは終了時に履歴を消す試験用CLIであり、旧v1の再起動不一致は製品の保存不良とは判定しない。旧v1の「取消/シークレットが学習されない」はその消去だけでも成立するため、それだけを非学習の証明にしない。sourcec4185b701に明示profile必須の--preserve_profileを加え、明示時だけSync/Waitと保存、既定時は従来の消去を保持。実PIDを変え、確定選択の保存、取消/シークレットの非学習と、既定cleanupの対照を同じ検査へ入れた。
+
+CLIは入力ファイルを開けなくても空実行でexit0/PASSになる既存不具合もあった。旧c418のmissing入力は実exit0とprofile作成を観測し、正常入力exit0/不正command exit1の陽性対照も保存。8439はprofileへ触る前にopenを検査してmissingをexit1にする。新CLIの3対照はすべて成功。原票normal-cli-missing-input-red-v1/normal-cli-input-green-v1。Windows CLI入力のUnicode argv全般を修正した主張ではない。
+
+## 固定識別とネイティブ検査
+
+ソース8439fc26f21a90aa80c4cd694d57ca2f852ad658、生成連語c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0。normal-lifecycle-candidate-v1にexeと全runfilesを複製し、manifestをその複製先へ固定。converter SHA4199d8d6dbad67bf90c60de011d18e18c49b62214c96006f8e8575d5e9228f8e、session SHA126f3e4d75927f2d12029146fc589b7855e4b2e16da1c7991879e8249a198414。
+
+102.901秒のC++検査はSession190、Scenario81、EngineConverter90、EngineOutput18、計379件すべて成功。出力18件はキャッシュ、他3対象を実行。XMLをnormal-lifecycle-native-tests-v1へ複製。元の失敗・CLI制御の失敗は別原票のまま保持し、PASSへ書き換えない。Scenarioには元80件に文字種両設定の構造検査1件を追加した。
+
+実OSSデータのAIなし通常28項目（最大66.02ms）と、保存/非学習/JISかな/選択文字の再変換/確定取消/cleanup対照7項目（最大42.84ms）が固定バイナリで成功。事前上限3,000msであり、速度向上の主張ではない。原票normal-lifecycle-basics-v1/profile-v1。mozc/tools全107件、入力fileの実CLI3対照も成功。
+
+## 精度と残る確認
+
+固定4開発セット×3条件・978出力を修正後のconverterで実行し、用例連語版と全出力完全一致。AIなしAJIMEE103/200・日常69/81、準備後の前文なし175/200・前文あり188/200を維持。他の慣用句/ニュアンスも同じ。12実行ともexit0、原票normal-lifecycle-quality-v1。同期converterの開発用比較であり、初回即Spaceや実アプリの精度ではない。CPU/GPU各30シナリオ（新規PID/profileの初回15・準備後15）が入力欠落/確定差分などのdefect0で成功。CPU最大キー1.95ms/Space516.14ms、GPU2.76ms/230.67ms。AI準備後は同PIDのCPU=zenz、GPU=llm/RTX3060を照合した。初回キーは0.72/1.01msだが旧新反復比較ではなく速度向上としない。
+
+同じ256MiB private process commit上限で、対照3文/AI失敗時3文の入力継続が成功。peak8.49/225.96MiB、同PIDのAIerrorを観測。物理低メモリ実機ではない。原票normal-lifecycle-cold-{cpu,gpu}-v1、normal-lifecycle-memory-v1。
+
+Bazel shutdown後にmake_patches.shで再生成し、新規の基点cloneへの3パッチ適用と全139対象ソースの一致・実ソースのwhitespace検査を確認。patch0002 SHA190b5cc45a006ff0e8813aebb9b3c2787d7355d93991c8a33fdaa45a9ea5b5a6、0003 SHA78aff0996b765eea4e735ff33d1266fed143ae3181bfe69919bd09ef7bd88ceb。辞書/モデル本文を含めず、生成patchを手編集しない。原票normal-lifecycle-patch-restore-v1.json。新MSI反映/管理展開は後続で確認する。旧MSIab54f88e...（source dfff、3.34.6339.100、未署名）は用例連語同梱の管理展開検査に成功したが、通常候補非表示の不具合を含む旧ビルド候補として保持する。新修正を含む成果物と混同しない。
+
+「あいであきょく」の初回アイデア局、全語彙・実画面・低性能実機、署名と公開段階の条件は未完了。GitHub送信は過去の自動承認審査が人間の明示許可不足として拒否したため、明示許可が来るまで再試行しない。

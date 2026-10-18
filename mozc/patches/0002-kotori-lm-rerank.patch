@@ -24707,6 +24707,33 @@ zOgk(bd7cyDvsxi{C{?TFg6nR~AP52?1ZW1=##B3j>WD~rSsb!&r2s+H@Y-BgDg;zb
 zL@613W7Zf1G&4<#nt(BZ;xoE2_j8mrXY(!KeiIne+sK-zQeq6KNh!`3eBt9B?)?Em
 Ce@$lq
 
+diff --git a/src/data/test/session/scenario/conversion.txt b/src/data/test/session/scenario/conversion.txt
+index fbff8075b..f26b9240a 100644
+--- a/src/data/test/session/scenario/conversion.txt
++++ b/src/data/test/session/scenario/conversion.txt
+@@ -4,6 +4,8 @@ SET_CONFIG	preedit_method	ROMAN
+ SWITCH_COMPOSITION_MODE	HIRAGANA
+ SET_CONFIG	session_keymap	MSIME
+ SET_CONFIG	use_cascading_window	false
++# Kotori: この標準操作試験は文字種候補を表示する設定で実行する。
++SET_CONFIG	kotori_hide_character_types	false
+ SEND_KEY	ON
+ RESET_CONTEXT
+ 
+@@ -67,11 +69,11 @@ EXPECT_PREEDIT	Ｓｙｏｕ
+ SEND_KEY	PAGEDOWN
+ EXPECT_PREEDIT	相
+ SEND_KEY	PAGEUP
+-EXPECT_PREEDIT	ＳＹＯＵ
++EXPECT_PREEDIT	ｓｙｏｕ
+ SEND_KEY	SHIFT DOWN
+ EXPECT_PREEDIT	相
+ SEND_KEY	SHIFT UP
+-EXPECT_PREEDIT	ＳＹＯＵ
++EXPECT_PREEDIT	ｓｙｏｕ
+ 
+ # Convert without history
+ 
 diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
 index 5d8232f36..9391a06fd 100644
 --- a/src/data_manager/oss/BUILD.bazel
@@ -24721,7 +24748,7 @@ index 5d8232f36..9391a06fd 100644
      collocation_suppression_src = (
          "//data/dictionary_oss:collocation_suppression.txt"
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..0ebf41883 100644
+index fd03a6c0c..b086d8f3f 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -130,6 +130,39 @@ EngineConverter::EngineConverter(
@@ -25196,10 +25223,10 @@ index fd03a6c0c..0ebf41883 100644
    ResetResult();
  
    candidate_list_.MoveNextPage();
-+  // Kotori: Space/矢印では非表示の文字種へ移動しない。直接のFキー選択は保持。
++  // Kotori: 非表示の文字種だけのページは飛ばし、次ページの先頭へ移動する。
 +  if (config_->kotori_hide_character_types()) {
 +    for (size_t n = 0; n < transliteration::NUM_T13N_TYPES + 1 && candidate_list_.focused_id() < 0; ++n)
-+      candidate_list_.MoveNext();
++      candidate_list_.MoveNextPage();
 +  }
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
@@ -25220,10 +25247,10 @@ index fd03a6c0c..0ebf41883 100644
    ResetResult();
  
    candidate_list_.MovePrevPage();
-+  // Kotori: Space/矢印では非表示の文字種へ移動しない。直接のFキー選択は保持。
++  // Kotori: 非表示の文字種だけのページは飛ばし、前ページの先頭へ移動する。
 +  if (config_->kotori_hide_character_types()) {
 +    for (size_t n = 0; n < transliteration::NUM_T13N_TYPES + 1 && candidate_list_.focused_id() < 0; ++n)
-+      candidate_list_.MovePrev();
++      candidate_list_.MovePrevPage();
 +  }
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
@@ -36590,7 +36617,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..1d7433553 100644
+index 8186b0a8d..b79c1a141 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -36611,7 +36638,7 @@ index 8186b0a8d..1d7433553 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +542,75 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +542,67 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -36643,13 +36670,8 @@ index 8186b0a8d..1d7433553 100644
 +  callback->mutable_session_command()->set_type(
 +      commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
 +  callback->set_delay_millisec(delay);
-+  // Kotori: 未評価の候補を先に表示しない。読みは即座に表示し、候補だけを
-+  // 最初の取り直しまで待つ。取り直し後は AI が使えなくても通常候補へ戻す。
-+  // 内部の候補は保持するため、待つ間の Space / Tab 操作は妨げない。
-+  if (count == 0) {
-+    command->mutable_output()->clear_candidate_window();
-+    command->mutable_output()->clear_all_candidate_words();
-+  }
++  // Kotori: AIの準備/取り直しを待つ間も、通常のMozc候補を維持する。
++  // 検証済みのAI結果だけを後で反映し、入力や候補選択を待たせない。
 +}
 +
 +bool Session::KotoriRefreshSuggestion(commands::Command* command) {
@@ -36677,17 +36699,14 @@ index 8186b0a8d..1d7433553 100644
 +  Output(command);
 +  ++kotori_refresh_count_;
 +  KotoriScheduleRefresh(command, kotori_refresh_count_, !ready);
-+  if (!ready && command->output().has_callback()) {
-+    command->mutable_output()->clear_candidate_window();
-+    command->mutable_output()->clear_all_candidate_words();
-+  }
++  // Kotori: 未準備/失敗時の再試行でも、通常候補を消して空表示にしない。
 +  return true;
 +}
 +
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -2676,7 +2745,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2737,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -36696,7 +36715,7 @@ index 8186b0a8d..1d7433553 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2867,6 +2936,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +2928,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -36736,11 +36755,36 @@ index a9903ecd3..db1e0dae1 100644
  
    // Undo stack. *begin is the oldest, and *back is the newest.
 diff --git a/src/session/session_handler_main.cc b/src/session/session_handler_main.cc
-index 4718077e2..c373cf7f3 100644
+index 4718077e2..9532e7021 100644
 --- a/src/session/session_handler_main.cc
 +++ b/src/session/session_handler_main.cc
-@@ -214,7 +214,8 @@ int main(int argc, char** argv) {
+@@ -83,6 +83,8 @@ ABSL_DECLARE_FLAG(bool, use_history_rewriter);
+ 
+ ABSL_FLAG(std::string, input, "", "Input file. ");
+ ABSL_FLAG(std::string, profile, "", "User profile directory");
++// Kotori: 終了時に消去しない検査は専用profileを明示して実行する。
++ABSL_FLAG(bool, preserve_profile, false, "Preserve explicit profile for offline lifecycle tests");
+ ABSL_FLAG(std::string, dictionary, "", "Dictionary: 'oss' or 'test'");
+ ABSL_FLAG(bool, test, false, "Run as a test and quit.");
+ 
+@@ -212,9 +214,24 @@ absl::StatusOr<std::unique_ptr<Engine>> CreateEngine(
+ 
+ int main(int argc, char** argv) {
    mozc::InitMozc(argv[0], &argc, &argv);
++  if (absl::GetFlag(FLAGS_preserve_profile) && absl::GetFlag(FLAGS_profile).empty()) {
++    std::cout << "ERROR: --preserve_profile requires an explicit --profile" << std::endl;
++    return 1;
++  }
++  // Kotori: 入力ファイルを開けなかった検査を空実行のPASSにしない。
++  std::unique_ptr<mozc::InputFileStream> file_input;
++  const std::string filepath = absl::GetFlag(FLAGS_input);
++  if (!filepath.empty()) {
++    file_input = std::make_unique<mozc::InputFileStream>(filepath);
++    if (!file_input->is_open()) {
++      std::cout << "ERROR: Failed to open input file: " << filepath << std::endl;
++      return 1;
++    }
++  }
    if (!absl::GetFlag(FLAGS_profile).empty()) {
      const std::string profile = absl::GetFlag(FLAGS_profile);
 -    if (!mozc::FileUtil::CreateDirectory(profile).ok()) {
@@ -36749,8 +36793,102 @@ index 4718077e2..c373cf7f3 100644
        std::cout << "ERROR: Failed to create profile directory: " << profile
                  << std::endl;
        return 1;
+@@ -237,17 +254,20 @@ int main(int argc, char** argv) {
+     return 1;
+   }
+   mozc::session::SessionHandlerInterpreter handler(*std::move(engine));
++  handler.SetPreserveProfileForTesting(absl::GetFlag(FLAGS_preserve_profile));
+ 
+   std::string line;
+   int line_number = 1;
+-  if (const std::string filepath = absl::GetFlag(FLAGS_input);
+-      !filepath.empty()) {
+-    mozc::InputFileStream input(filepath);
++  if (file_input) {
+     bool is_passed = true;
+-    while (std::getline(input, line)) {
++    while (std::getline(*file_input, line)) {
+       is_passed &= mozc::ParseLine(handler, line, line_number++);
+     }
+ 
++    if (file_input->bad()) {
++      std::cout << "ERROR: Failed to read input file: " << filepath << std::endl;
++      return 1;
++    }
+     if (is_test) {
+       if (is_passed) {
+         std::cout << "[ PASSED ] " << filepath << std::endl;
+diff --git a/src/session/session_handler_scenario_test.cc b/src/session/session_handler_scenario_test.cc
+index 1bce7497e..a620ff697 100644
+--- a/src/session/session_handler_scenario_test.cc
++++ b/src/session/session_handler_scenario_test.cc
+@@ -217,6 +217,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
+   }
+ }
+ 
++// Kotori: 文字種メニュー表示の両設定で候補移動と直接変換を保つ。
++TEST_F(SessionHandlerScenarioTestBase, KotoriCharacterTypeNavigation) {
++  for (const bool hide_types : {true, false}) {
++    SCOPED_TRACE(hide_types);
++    handler_->ClearAll();
++    ParseLine(*handler_, absl::StrCat("SET_CONFIG\tkotori_hide_character_types\t",
++                                     hide_types ? "true" : "false"));
++    for (const char* line : {
++             "SET_CONFIG\tpreedit_method\tROMAN",
++             "SET_CONFIG\tsession_keymap\tMSIME",
++             "SET_CONFIG\tuse_cascading_window\tfalse",
++             "SEND_KEY\tON", "RESET_CONTEXT", "SEND_KEYS\tsyou",
++             "SEND_KEY\tSPACE"}) {
++      ParseLine(*handler_, line);
++    }
++    for (const char* key : {"SHIFT SPACE", "SHIFT TAB", "PAGEDOWN", "PAGEUP",
++                            "SHIFT DOWN", "SHIFT UP"}) {
++      ParseLine(*handler_, absl::StrCat("SEND_KEY\t", key));
++      const auto& output = handler_->LastOutput();
++      ASSERT_TRUE(output.has_candidate_window()) << key;
++      const auto& window = output.candidate_window();
++      ASSERT_TRUE(window.has_focused_index()) << key;
++      ASSERT_GT(window.candidate_size(), 0) << key;
++      if (std::string(key) == "PAGEDOWN" || std::string(key) == "PAGEUP" ||
++          std::string(key) == "SHIFT DOWN" || std::string(key) == "SHIFT UP") {
++        // ページ移動は先頭行へ。候補数による英字の大小変化と区別する。
++        EXPECT_EQ(window.focused_index(), window.candidate(0).index()) << key;
++      }
++      bool focused_found = false;
++      std::string preedit;
++      for (const auto& segment : output.preedit().segment()) {
++        preedit += segment.value();
++      }
++      for (const auto& candidate : window.candidate()) {
++        if (hide_types) EXPECT_GE(candidate.id(), 0) << key;
++        if (candidate.index() == window.focused_index()) {
++          focused_found = true;
++          EXPECT_EQ(candidate.value(), preedit) << key;
++        }
++      }
++      EXPECT_TRUE(focused_found) << key;
++      EXPECT_FALSE(window.has_sub_candidate_window()) << key;
++      if (!hide_types && std::string(key) == "SHIFT SPACE") {
++        ParseLine(*handler_, "EXPECT_PREEDIT\tｼｮｳ");
++      }
++    }
++    for (const auto& [key, expected] :
++         std::vector<std::pair<const char*, const char*>>{
++             {"F6", "しょう"}, {"F7", "ショウ"}, {"F8", "ｼｮｳ"},
++             {"F9", "ｓｙｏｕ"}, {"F10", "syou"}}) {
++      ParseLine(*handler_, absl::StrCat("SEND_KEY\t", key));
++      ParseLine(*handler_, absl::StrCat("EXPECT_PREEDIT\t", expected));
++    }
++    ParseLine(*handler_, "SEND_KEY\tENTER");
++    ParseLine(*handler_, "EXPECT_RESULT\tsyou");
++  }
++}
++
+ class SessionHandlerScenarioTestForRequest
+     : public SessionHandlerScenarioTestBase,
+       public WithParamInterface<std::tuple<const char*, commands::Request>> {
 diff --git a/src/session/session_handler_tool.cc b/src/session/session_handler_tool.cc
-index e22e60a8c..12394a671 100644
+index e22e60a8c..d4e77df81 100644
 --- a/src/session/session_handler_tool.cc
 +++ b/src/session/session_handler_tool.cc
 @@ -211,6 +211,15 @@ bool SessionHandlerTool::UndoOrRewind(commands::Output* output) {
@@ -36782,7 +36920,21 @@ index e22e60a8c..12394a671 100644
      commands::Input input2;
      input2.set_type(commands::Input::SEND_COMMAND);
      *input2.mutable_command() = command.output().callback().session_command();
-@@ -668,6 +681,9 @@ absl::Status SessionHandlerInterpreter::Eval(
+@@ -313,10 +326,12 @@ SessionHandlerInterpreter::SessionHandlerInterpreter(
+ }
+ 
+ SessionHandlerInterpreter::~SessionHandlerInterpreter() {
++  // Kotori: 通常は既存どおり状態を消去。明示した保存検査だけは先に同期する。
++  if (preserve_profile_) SyncDataToStorage();
+   // Shut down.
+   CHECK(client_->DeleteSession());
+ 
+-  ClearState();
++  if (!preserve_profile_) ClearState();
+ }
+ 
+ void SessionHandlerInterpreter::ClearState() {
+@@ -668,6 +683,9 @@ absl::Status SessionHandlerInterpreter::Eval(
      MOZC_ASSERT_TRUE(client_->SubmitCandidate(id, last_output_.get()));
    } else if (command == "UNDO_OR_REWIND") {
      MOZC_ASSERT_TRUE(client_->UndoOrRewind(last_output_.get()));
@@ -36793,7 +36945,7 @@ index e22e60a8c..12394a671 100644
      MOZC_ASSERT_TRUE(args.size() == 1 || args.size() == 2);
      std::optional<int> id = std::nullopt;
 diff --git a/src/session/session_handler_tool.h b/src/session/session_handler_tool.h
-index 4d3669e06..5df1ea7d9 100644
+index 4d3669e06..a94d9a579 100644
 --- a/src/session/session_handler_tool.h
 +++ b/src/session/session_handler_tool.h
 @@ -81,6 +81,8 @@ class SessionHandlerTool {
@@ -36805,8 +36957,25 @@ index 4d3669e06..5df1ea7d9 100644
    // Try to delete the candidate from the history.
    // The target candidate is specified with the |id|. If |id| is not specified,
    // the current focused candidate will be specified.
+@@ -113,6 +115,8 @@ class SessionHandlerInterpreter final {
+   void ClearState();
+   void ClearAll();
+   void ResetContext();
++  // Kotori: CLIの明示した専用プロファイルで保存/再起動を検査する。
++  void SetPreserveProfileForTesting(bool preserve) { preserve_profile_ = preserve; }
+   void SyncDataToStorage();
+   void ClearUserPrediction();
+   void ClearUsageStats();
+@@ -133,6 +137,7 @@ class SessionHandlerInterpreter final {
+   config::Config config_;
+   std::unique_ptr<commands::Output> last_output_;
+   std::unique_ptr<commands::Request> request_;
++  bool preserve_profile_ = false;
+ };
+ 
+ }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..21ac2b3ec 100644
+index 012d822a5..1659772c3 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -36915,14 +37084,14 @@ index 012d822a5..21ac2b3ec 100644
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
-+  // 通常候補の抑制を検証する。AI の遅延表示は KotoriRefreshSuggestion で検証。
++  // 通常候補の抑制を検証する。AI の非同期反映と通常候補維持は KotoriRefreshSuggestion で検証。
 +  config::Config config;
 +  config.set_kotori_lm_enabled(false);
 +  session.SetConfig(config);
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10544,194 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10544,198 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -36961,8 +37130,10 @@ index 012d822a5..21ac2b3ec 100644
 +  EXPECT_EQ(command.output().callback().session_command().type(),
 +            commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
 +  EXPECT_EQ(command.output().callback().delay_millisec(), 200);
-+  EXPECT_FALSE(command.output().has_candidate_window());
-+  EXPECT_FALSE(command.output().has_all_candidate_words());
++  // Kotori: AI準備前でも、通常の候補と読みを即表示する。
++  ASSERT_TRUE(command.output().has_candidate_window());
++  EXPECT_EQ(command.output().candidate_window().candidate(0).value(), "あいうえお");
++  EXPECT_TRUE(command.output().has_all_candidate_words());
 +  EXPECT_TRUE(command.output().has_preedit());
 +
 +  auto refresh = [&] {
@@ -36999,7 +37170,7 @@ index 012d822a5..21ac2b3ec 100644
 +  EXPECT_EQ(command.output().candidate_window().candidate(0).value(),
 +            "あいうえおの続き");
 +
-+  // AI が評価できない間は候補を待ち、上限で通常候補に戻す。
++  // Kotori: AIが評価できない間も、全ての取り直しで通常候補を維持する。
 +  Segments unavailable = converted;
 +  unavailable.mutable_conversion_segment(0)->mutable_candidate(0)
 +      ->kotori_ai_evaluated = false;
@@ -37008,11 +37179,13 @@ index 012d822a5..21ac2b3ec 100644
 +      .WillRepeatedly(DoAll(SetArgPointee<1>(unavailable), Return(true)))
 +      .RetiresOnSaturation();
 +  InsertCharacterChars("a", &session, &command);
-+  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_candidate_window());
++  EXPECT_TRUE(command.output().has_all_candidate_words());
 +  for (int i = 0; i < kotori::kMaxLiveRefreshes; ++i) {
 +    EXPECT_TRUE(refresh());
-+    EXPECT_EQ(command.output().has_candidate_window(),
-+              i == kotori::kMaxLiveRefreshes - 1);
++    ASSERT_TRUE(command.output().has_candidate_window());
++    EXPECT_TRUE(command.output().has_all_candidate_words());
++    EXPECT_EQ(command.output().candidate_window().candidate(0).value(), "あいうえお");
 +    EXPECT_EQ(command.output().has_callback(),
 +              i != kotori::kMaxLiveRefreshes - 1);
 +  }

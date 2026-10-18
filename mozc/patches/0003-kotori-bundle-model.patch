@@ -1075,10 +1075,10 @@ index 000000000..990756638
 +==============================================================================
 diff --git a/src/data/kotori/NOTICE-third-party.txt b/src/data/kotori/NOTICE-third-party.txt
 new file mode 100644
-index 000000000..7a3825159
+index 000000000..ad4e1c961
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-third-party.txt
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,48 @@
 +Asteria日本語入力に同梱している第三者のソフトウェア
 +
 +この PC のインストール先(C:\Program Files (x86)\Kotori)にあるファイルと、そのライセンスの一覧です。
@@ -1114,6 +1114,12 @@ index 000000000..7a3825159
 +  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。
 +  取得区間・変更・帰属はNOTICE-fast-collocations.txtとfast_collocations.json。
 +  元のMozc40件はBSD-3-Clause。
++
++■ 用例由来の追加連語
++  Japanese Usage Dictionary 2025-01-25、BSD-2-Clause。
++  Copyright 2011 Hiroyuki Komatsu, Shoji Ogura, Tsuyoshi Horo。
++  引用用例の短い連語を抽出し、末尾をMozcの活用規則で展開。
++  出典とライセンス全文はNOTICE-fast-collocations.txt。
 +
 +■ LLVM OpenMP ランタイム(libomp.dll)
 +  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。
@@ -1911,10 +1917,10 @@ HcmV?d00001
 
 diff --git a/src/data/kotori/license.rtf b/src/data/kotori/license.rtf
 new file mode 100644
-index 000000000..b984f6fad
+index 000000000..768d76123
 --- /dev/null
 +++ b/src/data/kotori/license.rtf
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +{\rtf1\ansi\ansicpg932\deff0{\fonttbl{\f0\fnil\fcharset128 Yu Gothic UI;}}\viewkind4\uc1\pard\f0\fs18 Asteria\u26085?\u26412?\u-30050?\u20837?\u21147? \u20351?\u29992?\u-30159?\u-29954?\u12392?\u31532?\u19977?\u-32763?\u12477?\u12501?\u12488?\u12454?\u12455?\u12450?\u12398?\u-30616?\u31034?\par
 +\par
 +Asteria\u26085?\u26412?\u-30050?\u20837?\u21147?(\u20197?\u19979? Asteria)\u12399? Mozc(Copyright 2010-2026 Google Inc.\u12289?BSD-3-Clause)\u12434?\u25913?\u22793?\u12375?\u12383?\u26085?\u26412?\u-30050?\u20837?\u21147?\u12391?\u12377?\u12290?Asteria \u12399? Google \u12364?\u25552?\u20379?\u12539?\u25512?\u22888?\u12377?\u12427?\u12418?\u12398?\u12391?\u12399?\u12354?\u12426?\u12414?\u12379?\u12435?\u12290?Asteria \u29420?\u-32278?\u12398?\u25913?\u22793?\u-28440?\u20998?\u12418? BSD-3-Clause \u12391?\u25552?\u20379?\u12375?\u12414?\u12377?\u12290?\par
@@ -1932,6 +1938,7 @@ index 000000000..b984f6fad
 +\u12539?TinySwallow-1.5B: Apache-2.0(Sakana AI)\u12290?5 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
 +\u12539?\u12459?\u12479?\u12459?\u12490?\u-32015?\u-30050?\u-28770?\u26360?: CC BY-SA 3.0(\u12459?\u12479?\u12459?\u12490?\u-30050?\u-32015?\u23383?\u-28770?\u20856?\u12467?\u12511?\u12517?\u12491?\u12486?\u12451?\u12289?KEINOS\u12289?EDICT/EDRDG)\u12290?\u21152?\u24037?\u28168?\u12415?\u12487?\u12540?\u12479?\u12392?\u20986?\u25152?\u12399? KotoriEnglish.tsv\u12289?KotoriEnglish-source.json\u12289?NOTICE-katakana-english.txt\par
 +\u12539?\u21021?\u26399?\u22793?\u25563?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: CC BY-SA 4.0(Wikipedia\u26085?\u26412?\u-30050?\u29256?\u12398?\u22519?\u31558?\u-32763?\u12289?Keita Miwa)\u12290?\u30701?\u12356?\u-28637?\u-30050?\u12408?\u21152?\u24037?\u12290?\u20803?\u12398?Mozc40\u20214?\u12399?BSD-3-Clause\u12290?\u20986?\u20856?\u12392?\u22793?\u26356?\u20869?\u23481?\u12399? NOTICE-fast-collocations.txt\par
++\u12539?\u29992?\u20363?\u30001?\u26469?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: Japanese Usage Dictionary\u12289?BSD-2-Clause(Hiroyuki Komatsu\u12289?Shoji Ogura\u12289?Tsuyoshi Horo)\u12290?\u24341?\u29992?\u20363?\u12398?\u25277?\u20986?\u12539?\u26411?\u23614?\u12398?\u27963?\u29992?\u23637?\u-27253?\u12290?\u24112?\u23646?\u12392?\u20840?\u25991?\u12399? NOTICE-fast-collocations.txt\par
 +\u12539?Microsoft Visual C++ \u12521?\u12531?\u12479?\u12452?\u12512?: Microsoft \u12398?\u12521?\u12452?\u12475?\u12531?\u12473?\par
 +\par
 +\u21508?\u12521?\u12452?\u12475?\u12531?\u12473?\u12398?\u20869?\u23481?\u12539?\u21442?\u29031?\u20808?\u12392?\u24112?\u23646?\u-30616?\u31034?\u12399?\u12289?\u12452?\u12531?\u12473?\u12488?\u12540?\u12523?\u20808?(C:\\Program Files (x86)\\Kotori)\u12398? NOTICE-*.txt \u12392? documents \u12501?\u12457?\u12523?\u12480?\u12395?\u12354?\u12426?\u12414?\u12377?\u12290?\par
@@ -2056,7 +2063,7 @@ index 000000000..cb12e3fc0
 +  <String Id="ProgressDlgTextUpdating" Value="Asteriaを更新しています。完了までそのままお待ちください。" />
 +</WixLocalization>
 diff --git a/src/win32/installer/build_installer.py b/src/win32/installer/build_installer.py
-index c2e71a077..31eccf2e7 100644
+index c2e71a077..2a8ca9226 100644
 --- a/src/win32/installer/build_installer.py
 +++ b/src/win32/installer/build_installer.py
 @@ -154,6 +154,30 @@ def run_wix4(args) -> None:
@@ -2090,7 +2097,7 @@ index c2e71a077..31eccf2e7 100644
        '-define', f'MozcCacheService64Path={mozc_cache_service}',
        '-define', f'MozcRenderer64Path={mozc_renderer}',
        '-define', f'MozcToolPath={mozc_tool}',
-@@ -176,6 +200,39 @@ def run_wix4(args) -> None:
+@@ -176,6 +200,49 @@ def run_wix4(args) -> None:
    exec_command(commands, cwd=os.getcwd())
  
  
@@ -2109,12 +2116,18 @@ index c2e71a077..31eccf2e7 100644
 +  # Kotori: manifestと辞書を同時に変えても比較対象の代わりにはしない。
 +  import hashlib
 +  import json
-+  expected = 'f576ffc696ad81f244fb5791a2571ac1edb320f2a2f20d0773ea6a044f01b29c'
++  expected = 'c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0'
 +  revision = '7d9c9ea36347b638a627c1d264da48ebc7eb38aa'
 +  source = 'Miwa-Keita/zenz-v2.5-dataset'
 +  data = pathlib.Path(data_path).read_bytes()
 +  metadata = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
 +  notice = pathlib.Path(notice_path).read_text(encoding='utf-8')
++  usage = {
++      'repository': 'hiroyuki-komatsu/japanese-usage-dictionary', 'tag': '2025-01-25',
++      'usage_sha256': '9a5ff4ab0be399e01e6aeb8637a166d421299f92a3c39df93fab6bcbaf3e68b8',
++      'license_sha256': '91e74c9b189a60a3f5ba13b4aa28f87f25ee9252a64d547784e72752d089631a',
++      'cforms_sha256': '947d82de803181bb9df8bb4fede6d0d3c3677c7de88c946ff3a35dbfc2bce0ab',
++  }
 +  if (pathlib.Path(data_path).name != 'fast_collocations.txt' or
 +      hashlib.sha256(data).hexdigest() != expected or
 +      metadata.get('result_sha256') != expected or
@@ -2122,6 +2135,10 @@ index c2e71a077..31eccf2e7 100644
 +      metadata.get('source') != source or metadata.get('revision') != revision or
 +      metadata.get('corpus_sha256') != 'f886d411a7565171733edc9a3e6aa5f659affcc030eae277e5a6213165564255' or
 +      metadata.get('evaluation_labels_used') is not False or
++      metadata.get('usage_source') != usage or
++      not all(value in notice for value in (usage['repository'], usage['tag'],
++          usage['usage_sha256'], usage['cforms_sha256'], 'BSD-2-Clause',
++          'Hiroyuki Komatsu', 'Shoji Ogura', 'Tsuyoshi Horo')) or
 +      metadata.get('combined_entries') != len(data.splitlines()) or
 +      not all(value in notice for value in ('CC BY-SA 4.0', source, revision, expected))):
 +    raise ValueError('初期連語データまたは出典が固定した比較対象と一致しません')
@@ -2130,7 +2147,7 @@ index c2e71a077..31eccf2e7 100644
  def main():
    parser = argparse.ArgumentParser()
    parser.add_argument('--output', type=str)
-@@ -192,6 +249,20 @@ def main():
+@@ -192,6 +259,20 @@ def main():
    parser.add_argument('--custom_action', type=str)
    parser.add_argument('--icon_path', type=str)
    parser.add_argument('--credit_file', type=str)
@@ -2151,7 +2168,7 @@ index c2e71a077..31eccf2e7 100644
    parser.add_argument('--qt_core_dll', type=str)
    parser.add_argument('--wxs_path', type=str)
    parser.add_argument('--wix_path', type=str)
-@@ -220,6 +291,8 @@ def main():
+@@ -220,6 +301,8 @@ def main():
  
    args = parser.parse_args()
  
