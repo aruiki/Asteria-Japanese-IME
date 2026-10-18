@@ -4,9 +4,9 @@
 
 ## 公開記録と開発対象
 
-前回公開記録は[Asteria v1.1.3](verification/release-v1.1.3-20261012.md)、commit dc9323ce1b96f20090290fbd7153515353235bcd、未署名。今回GitHubを更新していない。導入済み3.34.6337.100も変更していない。
+前回公開記録は[Asteria v1.1.3](verification/release-v1.1.3-20261012.md)、commit dc9323ce1b96f20090290fbd7153515353235bcd、未署名。利用者の「送信してPR・Windows CIへ進む」の明示許可後、開発枝をpushし、追加モデル資産を公開・固定URLからの再取得/SHA照合まで完了した。製品リリースは未公開。導入済み3.34.6337.100も変更していない。
 
-ユーザーの「普通の変換に必要なものを欠かさずに開発」を[必要条件](NORMAL_CONVERSION.md)で追跡する。製品枝はcodex/contextless-usage-collocations-20261018、専用MozcはC:/Users/aruik/ag16の同名枝。最新ソース449828059f1b9b3c0f6d0eb6e66211e23c953500（8439からBUILDを6432へ変更した1ファイルのみ）。既存mzsupport/mzcontext16の作業は保持する。
+ユーザーの「普通の変換に必要なものを欠かさずに開発」を[必要条件](NORMAL_CONVERSION.md)で追跡する。製品枝はcodex/contextless-usage-collocations-20261018、専用MozcはC:/Users/aruik/ag16の同名枝。最新ソースb5b144bd9ca717d2768dee7d52fa904ec7a4a0f8（449828から追加モデルの公開状態metadataだけを更新）。ローカルMSIのビルド対象は449828のまま。既存mzsupport/mzcontext16の作業は保持する。
 
 ## 完了した実装と検証
 
@@ -24,9 +24,9 @@ Bazel shutdown後に生成パッチを再作成し、基点cloneへ適用した�
 
 ## 次の作業と残る条件
 
-1. ユーザーのリリース質問後、コードと追加モデル約99MBのGitHub送信・PR/Windows CIについて明示許可を質問済み。回答待ちの間は送信しない。許可後にモデル資産の公開/固定SHAでの再取得、PR/Windows CI、同一CI成果物の実導入/入力/削除へ進む。
+1. 追加モデル資産model-native-generator-20261017はprerelease/latest=falseで公開済み。4資産のsize/digestと固定URLから再取得したGGUFのSHAが一致。draft PR/Windows CI、同一CI成果物の実導入/入力/削除へ進む。
 2. 初回「あいであきょく」→「アイデア局」は未解決。準備後の「アイデア曲」と混同せず、語彙・頻度・候補包含/順位/分節を分けて改善する。文字3gram順位案は日常の回帰で不採用、個別語句の分岐/参照変更で通さない。
 3. 新MSIの実導入・実アプリの入力/保護欄/フォーカス・削除、署名/配布条件、独立verifierは未完了。[実アプリ条件](ACCEPTANCE.md)をCLIや展開成功で代替しない。
-4. GitHubコード/モデル送信は自動承認審査が人間の明示許可不足として拒否した。許可なしで再試行しない。明示許可後にモデル資産の公開/再取得、PR/Windows CIを行い、未公開モデルURLのままmainへ統合しない。
+4. 追加依頼のブランディングを更新する。旧Kotori88.4%は198問の過去実入力比較、開発版94.0%はStandard・AI準備後・前文ありのオフライン200問。異なる測定条件を混ぜて他IMEより高い精度と主張しない。
 
 規約は[AGENTS.md](../AGENTS.md)、コマンドは[DEVELOPMENT.md](DEVELOPMENT.md)、作業票は[カード81](tasks/81-accuracy-guide.md)。独立FAIL記録をPASSへ書き換えず、.goal-completeを作らない。

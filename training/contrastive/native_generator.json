@@ -5,7 +5,7 @@
   "dataset_manifest_sha256": "bff794466fd299c9db39170b0b71b519bc733f0779d48c522da48e04f6a3a676",
   "selected_step": 400,
   "role": "additional_generation_only_original_scorer_retained",
-  "distribution_status": "local_candidate_not_published",
+  "distribution_status": "published_model_asset_product_candidate",
   "base_models": {
     "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c",
     "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",

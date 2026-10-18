@@ -21,9 +21,9 @@ python training/contrastive/native_pairs.py --observed target/accuracy-guide/har
 python training/contrastive/stage_generator.py --base-dir 'C:/Program Files (x86)/Kotori' --generator target/accuracy-guide/native-joint-512-v1/native-q8_0.gguf --out target/accuracy-guide/learned-generator-bundle-v1
 ```
 
-モデル識別は `native_generator.json`。`distribution_status` はローカル候補であり、公開済みモデルではない。
+モデル識別は `native_generator.json`。追加生成モデルは[モデル資産のプレリリース](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/model-native-generator-20261017)で公開済み。製品版のインストーラーとは別であり、`distribution_status` は製品候補用の公開モデル資産を示す。
 
 
 リリース候補では `fetch_generator.py --out target/kotori` が固定URLから取得し、固定SHAと一致するモデルだけを配置する。ローカル候補では `--source <GGUF>` を指定できる。既存の不一致モデルを上書きしない。モデルと `native_generator.json` はMSIへ含め、WiX実行前とMSI展開後に照合する。
 
-2026-10-18時点で取得URLのモデル資産は公開前。ローカルのMSIビルド・内容検証を先に行う。GitHubへの送信許可後にモデル資産を公開し、取得試験を通してからCI・PRを進める。未公開URLのままmainへ統合しない。
+2026-10-19、利用者の明示許可後にモデル資産を公開。固定URLからの再取得で98,970,560bytes・SHA-256の一致を確認した。取得原票は `target/accuracy-guide/published-generator-verification-v1.json`。製品リリースと実アプリの受入れは別条件。
