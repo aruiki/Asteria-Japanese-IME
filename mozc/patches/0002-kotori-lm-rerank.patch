@@ -30160,10 +30160,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..624ffb2aa
+index 000000000..fea6f6195
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3336 @@
+@@ -0,0 +1,3344 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31964,6 +31964,9 @@ index 000000000..624ffb2aa
 +}
 +
 +bool LmRewriter::HasGpu() const {
++  // Kotori: 起動直後も打鍵でDLL/backendの初期化を待たない。
++  // 評価専用の同期ロードだけは、従来どおり要求内で機器を調べる。
++  if (!sync_load_) return gpu_available_.load();
 +  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu();
 +}
 +
@@ -33199,6 +33202,11 @@ index 000000000..624ffb2aa
 +        loading_ = true;
 +        {
 +          absl::MutexLock model_lock(mutex_);
++          // Kotori: PrepareForが品質/モデルを選ぶ前に非同期側でGPUを判定する。
++          // 判定中の入力は未準備の結果を使い、モデルロードやDLL初期化を待たない。
++          if (config.kotori_lm_enabled()) {
++            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu());
++          }
 +          WriteStatus(config, "loading");
 +          size_t k = 0, llm_top = 0;
 +          int beams = 0;
@@ -33502,10 +33510,10 @@ index 000000000..624ffb2aa
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..8cb8a3b5d
+index 000000000..edc149e9e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,495 @@
+@@ -0,0 +1,498 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -33814,7 +33822,7 @@ index 000000000..8cb8a3b5d
 +                       const std::string& context) const;
 +  // 覚えておいた予測と、まだ始めていない予測の仕事を捨てる。
 +  void ClearPredictions() const;
-+  // AI を載せる GPU があるか。
++  // AI を載せる GPU があるか。通常入力ではワーカーの判定済み結果だけを読む。
 +  bool HasGpu() const;
 +  // この設定で LLM を使うか(GPU があり、AI モデルが zenz のみでない)。
 +  bool UsesLlm(const config::Config& config) const;
@@ -33912,6 +33920,9 @@ index 000000000..8cb8a3b5d
 +  mutable std::atomic<bool> loading_{false};
 +  // 要求の中で読み込む(KOTORI_LM_PRELOAD=0。評価用)。
 +  bool sync_load_ = false;
++  // Kotori: DLL/backend初期化はワーカーで行う。未判定はAIなしで返し、
++  // 打鍵側から初回のstatic初期化を待たない。GPU/CPUの選択結果は復帰時も再確認する。
++  mutable std::atomic<bool> gpu_available_{false};
 +  bool identify_correction_models_ = false;
 +  // 変換で AI に使う時間の上限(ms、KOTORI_LM_BUDGET。0 なら上限なし、負なら GPU の有無で決める)。
 +  int budget_ms_ = -1;

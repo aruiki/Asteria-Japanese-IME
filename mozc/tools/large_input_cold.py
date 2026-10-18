@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+import traceback
 from first_display_compare import Session
 from large_input_campaign import assess, parse_output, sha
 
@@ -19,6 +20,9 @@ def status_text(path):
         return path.read_text(encoding='utf-8')
     except FileNotFoundError:
         return ''
+    except PermissionError:
+        # Windowsの置換中/一時ロックは未確認とする。PIDやreadyを補って通さない。
+        return 'status_read_error=permission_denied\n'
 
 
 def ready_status(text, pid, cpu=False):
@@ -146,17 +150,19 @@ def main():
         env['KOTORI_LM_DEVICE'] = 'cpu'
     if args.threads is not None:
         env['KOTORI_LM_THREADS'] = str(args.threads)
-    rows, completed, error = [], [], None
+    rows, completed, error, error_traceback = [], [], None, None
     try:
         for phase in ('no-warmup', 'loaded'):
             capture_phase(args, cases, phase, env, Output, text_format, rows)
             completed.append(phase)
     except Exception as exc:
         error = repr(exc)
+        error_traceback = traceback.format_exc()
     if identities(args) != before:
         error = 'Measurement artifacts changed during execution'
     report = summarize(rows, cases, completed, error)
     report.update(native_tsf=False, low_end_hardware_verified=False, cpu=args.cpu,
+                  error_traceback=error_traceback,
                   source_commit=args.source_commit, identities=before,
                   dictionary_identity='embedded_oss_data_covered_by_executable_sha256',
                   environment={k: v for k, v in env.items() if k.startswith('KOTORI_')},

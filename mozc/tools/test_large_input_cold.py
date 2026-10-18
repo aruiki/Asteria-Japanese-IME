@@ -1,9 +1,18 @@
 """コールド起動検証が応答欠落・異なるPID・空の結果を成功扱いしない。"""
 import unittest
-from large_input_cold import ready_status, summarize
+from pathlib import Path
+from unittest import mock
+from large_input_cold import ready_status, status_text, summarize
 
 
 class ColdReadinessTest(unittest.TestCase):
+    def test_locked_status_is_unknown_and_cannot_prove_readiness(self):
+        with mock.patch.object(Path, 'read_text', side_effect=PermissionError('locked')):
+            text = status_text(Path('unused-status'))
+        self.assertIn('status_read_error=permission_denied', text)
+        self.assertFalse(ready_status(text, 123, True))
+        self.assertFalse(ready_status(text, 123))
+
     def test_requires_the_current_process_and_actual_device(self):
         status = 'state=zenz\npid=123\ndevice=CPU\n'
         self.assertTrue(ready_status(status, 123, True))
