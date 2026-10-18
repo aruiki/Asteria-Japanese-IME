@@ -41,9 +41,9 @@ def main():
         def check(condition, message):
             if not condition: row['failures'].append(message)
 
-        def phase(name, function):
-            session = Session(args.exe, env, profile, args.out/(label+'-'+name+'.stderr.txt'))
-            row['phases'].append(dict(name=name, pid=session.proc.pid))
+        def phase(name, function, preserve=True):
+            session = Session(args.exe, env, profile, args.out/(label+'-'+name+'.stderr.txt'), preserve_profile=preserve)
+            row['phases'].append(dict(name=name, pid=session.proc.pid, preserve_profile=preserve))
             failed = True
 
             def send(command):
@@ -103,7 +103,7 @@ def main():
                 else:
                     confirmed = send('SEND_KEY\tEnter')
                     check(confirmed['result'] == alternate, 'confirm_different_from_selection')
-            phase('choose', first)
+            phase('choose', first, preserve=mode != 'default-cleanup')
 
             def reopened(send, check):
                 actual = hashi(send, check)['value']
@@ -117,6 +117,7 @@ def main():
     scenario('confirmed-history-after-restart', learning('confirmed'))
     scenario('canceled-selection-not-learned', learning('cancel'))
     scenario('incognito-confirmation-not-learned', learning('incognito'))
+    scenario('default-cli-cleanup-control', learning('default-cleanup'))
 
     def kana(phase, check, row):
         def action(send, check):
@@ -154,8 +155,8 @@ def main():
     report = dict(source_commit=args.source_commit, identities=identity, native_tsf=False,
                   ai_enabled=False, scenarios=len(rows), failed=[r['id'] for r in rows if r['failures']],
                   artifacts_changed=identity != {str(p): sha256(p) for p in files}, rows=rows,
-                  max_response_ms=max(e['ms'] for r in rows for e in r['events']))
-    report['passed'] = report['scenarios'] == 6 and not report['failed'] and not report['artifacts_changed']
+                  max_response_ms=max((e['ms'] for r in rows for e in r['events']), default=None))
+    report['passed'] = report['scenarios'] == 7 and not report['failed'] and not report['artifacts_changed']
     (args.out/'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({k: v for k, v in report.items() if k not in ('rows', 'identities')}, ensure_ascii=False), flush=True)
     return 0 if report['passed'] else 2

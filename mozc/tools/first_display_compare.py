@@ -56,12 +56,15 @@ def preedit(output, field):
 
 
 class Session:
-    def __init__(self, exe, env, profile, stderr_path):
+    def __init__(self, exe, env, profile, stderr_path, preserve_profile=False):
         self.lines = queue.Queue()
         self.err = stderr_path.open("wb")
+        command = [str(exe), "--dictionary=oss", "--profile=" + str(profile / "session"),
+                   "--use_history_rewriter=true"]
+        if preserve_profile:
+            command.append("--preserve_profile=true")
         self.proc = subprocess.Popen(
-            [str(exe), "--dictionary=oss", "--profile=" + str(profile / "session"),
-             "--use_history_rewriter=true"],
+            command,
             cwd=str(exe) + ".runfiles/_main", env=env,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.err)
 
