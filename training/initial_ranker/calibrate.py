@@ -53,6 +53,7 @@ def main():
                   observations_sha256=digest(observations_path), calibration_cases=len(scored),
                   chosen=chosen, configs=configs, corpus_only_calibration=True,
                   evaluation_results_used_for_selection=False, product_adopted=False,
+                  selection_model_script_sha256=digest(Path(__file__).with_name('model.py')),
                   configuration_script_sha256=digest(__file__))
     (args.out / 'configuration.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps(report), flush=True)

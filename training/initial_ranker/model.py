@@ -4,6 +4,7 @@ import gzip
 import json
 import math
 from pathlib import Path
+import re
 import unicodedata
 
 
@@ -65,12 +66,26 @@ MARGINS = (0, 100, 250)
 MAX_COST_DELTA = 3453
 
 
+def preserves_explicit_forms(current, candidate):
+    """文脈の弱い文字統計で数字表記・英字・区切りを勝手に変えない。"""
+    current, candidate = normalize(current), normalize(candidate)
+    numbers = r'[0-9一二三四五六七八九十百千万億兆〇零壱弐参拾]+'
+    original_numbers = re.findall(numbers, current)
+    if original_numbers and original_numbers != re.findall(numbers, candidate):
+        return False
+    if re.findall('[A-Za-z]+', current) != re.findall('[A-Za-z]+', candidate):
+        return False
+    separators = lambda text: ''.join(c for c in text if unicodedata.category(c)[0] in 'PS')
+    return separators(current) == separators(candidate)
+
+
 def ranked_choice(row, weight, margin):
     """現在の候補を対照にし、元コストと統計スコア両方で判断する。"""
     if not weight:
         return row['top1']
     current = next(c for c in row['scored'] if c['text'] == row['top1'])
-    winner = min(row['scored'], key=lambda c: c['cost_delta'] + weight * c['stat_cost'])
+    eligible = [c for c in row['scored'] if preserves_explicit_forms(row['top1'], c['text'])]
+    winner = min(eligible, key=lambda c: c['cost_delta'] + weight * c['stat_cost'])
     gain = (current['cost_delta'] + weight * current['stat_cost'] -
             winner['cost_delta'] - weight * winner['stat_cost'])
     return winner['text'] if gain > margin else row['top1']

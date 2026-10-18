@@ -33,6 +33,13 @@ class ModelTest(unittest.TestCase):
         with self.assertRaises(ValueError): CharacterModel.fit(['秘密\x02境界'])
         with self.assertRaises(ValueError): select_configuration([])
 
+    def test_statistics_cannot_restyle_numbers_english_or_punctuation(self):
+        for current, other in [('第二弾。', '第2弾。'), ('Officeを使う', 'OFFICEを使う'),
+                               ('東京・大阪', '東京大阪')]:
+            row = dict(top1=current, references=[current], scored=[dict(text=current, cost_delta=0, stat_cost=100),
+                                                                  dict(text=other, cost_delta=0, stat_cost=1)])
+            self.assertEqual(ranked_choice(row, 400, 0), current)
+
     def test_split_rejects_other_sources_and_removes_same_reading_from_train(self):
         dev = dict(input='あいうえおかきくけこ', output='独立した較正文です', split='train', source_group='train_wikipedia.jsonl:07')
         rows = [dev, dict(dev, source_group='train_wikipedia.jsonl:01'), dict(dev, source_group='train_common_crawl.jsonl:01'),
