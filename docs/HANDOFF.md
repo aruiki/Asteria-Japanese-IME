@@ -6,7 +6,7 @@
 
 前回公開記録は[Asteria v1.1.3](verification/release-v1.1.3-20261012.md)、commit dc9323ce1b96f20090290fbd7153515353235bcd、未署名。今回GitHubを更新していない。導入済み3.34.6337.100も変更していない。
 
-ユーザーの「普通の変換に必要なものを欠かさずに開発」を[必要条件](NORMAL_CONVERSION.md)で追跡する。製品枝はcodex/contextless-usage-collocations-20261018、専用MozcはC:/Users/aruik/ag16の同名枝。最新ソース8439fc26f21a90aa80c4cd694d57ca2f852ad658。既存mzsupport/mzcontext16の作業は保持する。
+ユーザーの「普通の変換に必要なものを欠かさずに開発」を[必要条件](NORMAL_CONVERSION.md)で追跡する。製品枝はcodex/contextless-usage-collocations-20261018、専用MozcはC:/Users/aruik/ag16の同名枝。最新ソース449828059f1b9b3c0f6d0eb6e66211e23c953500（8439からBUILDを6432へ変更した1ファイルのみ）。既存mzsupport/mzcontext16の作業は保持する。
 
 ## 完了した実装と検証
 
@@ -22,7 +22,7 @@ Bazel shutdown後に生成パッチを再作成し、基点cloneへ適用した�
 
 ## 次の作業と残る条件
 
-1. 最新8439ソースから新MSIを生成し、管理展開で4モデル/連語/NOTICE/runtime/版とビルド元のバイト一致を確認する。
+1. 公開v1.1.3を実再取得した結果6431だったため、6339候補を更新不可として保持し、最新449828の6432から新MSIを生成する。`check_release --previous-local <公開MSI>`で先頭3項目の更新条件も満たすことを確認する。その上で管理展開で4モデル/連語/NOTICE/runtime/版とビルド元のバイト一致を確認する。
 2. 初回「あいであきょく」→「アイデア局」は未解決。準備後の「アイデア曲」と混同せず、語彙・頻度・候補包含/順位/分節を分けて改善する。文字3gram順位案は日常の回帰で不採用、個別語句の分岐/参照変更で通さない。
 3. 新MSIの実導入・実アプリの入力/保護欄/フォーカス・削除、署名/配布条件、独立verifierは未完了。[実アプリ条件](ACCEPTANCE.md)をCLIや展開成功で代替しない。
 4. GitHubコード/モデル送信は自動承認審査が人間の明示許可不足として拒否した。許可なしで再試行しない。明示許可後にモデル資産の公開/再取得、PR/Windows CIを行い、未公開モデルURLのままmainへ統合しない。
