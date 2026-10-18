@@ -55,3 +55,7 @@ MSI同梱の経路は前段の実MSIで確認済みだが、この較正はそ�
 「あいであきょく」は初回185msで「アイデア局」、state=llm確認後137msで「アイデア曲」。`check_startup_quality.py` は不一致を成功扱いせずexit2。原票 `confidence-default-idea-startup-v1/`。隔離converterでの再現であり、インストール済みIMEでの実アプリ確認ではない。今回の順位付け変更はこの初回課題を解消していない。
 
 この修正を含む新MSI・実TSF・導入/削除・CPU/低資源/障害時・新しい未使用評価・署名・独立verifierは未実施。コード/モデルのGitHub送信は既存の自動承認拒否に対する明示許可待ちで、PR/CI/公開はまだ行っていない。
+
+## 後続のローカル受入れ
+
+上記は較正を固定した時点の記録。その後、[較正済みMSI](accuracy-calibrated-installer-20261018.md)の生成・管理展開・モデル全4件のSHA・サーバーのビルド元一致まで成功した。[CPU即時Space](accuracy-cpu-startup-20261018.md)も30件の入力経路・28件の表記一致を確認。実TSF・導入/削除・低性能/低メモリ・独立verifierなどの未完了条件は継続する。
