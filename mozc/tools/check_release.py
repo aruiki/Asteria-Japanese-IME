@@ -9,6 +9,7 @@ GitHub Releases から `Asteria64.msi`（旧版は `Kotori64.msi`） と `.sha25
 
 使い方: python mozc/tools/check_release.py [タグ(既定は Latest)] [--work フォルダ]
        python mozc/tools/check_release.py --local <MSI>(手元でビルドした MSI の中身だけを確かめる)
+  公開済みMSIからの更新も確認: --local <候補MSI> --previous-local <公開済みMSI>
   gh(GitHub CLI)と Windows の msiexec を使う。
 """
 import argparse
@@ -193,14 +194,24 @@ def main() -> int:
     ap.add_argument("tag", nargs="?", default="")
     ap.add_argument("--work", default=str(pathlib.Path.home() / "kotori-dev" / "work" / "check-release"))
     ap.add_argument("--local", default="", help="手元の MSI の中身だけを確かめる(ハッシュと前の版は見ない)")
+    ap.add_argument("--previous-local", default="", help="比較する公開済みMSI。--localと併用し、ProductVersionの先頭3項目で更新可能か確認する")
     ap.add_argument("--require-generator", action="store_true", help="新リリースの学習済み追加モデルを必須とする")
     ap.add_argument("--require-collocations", action="store_true", help="固定した初期連語と出典の同梱を必須とする")
     args = ap.parse_args()
+    if args.previous_local and not args.local:
+        ap.error("--previous-local requires --local")
     check = Checks()
     work = pathlib.Path(args.work).resolve()
     if args.local:
-        check_contents(pathlib.Path(args.local).resolve(), work, check, args.require_generator,
-                       args.require_collocations)
+        msi = pathlib.Path(args.local).resolve()
+        if args.previous_local:
+            ver = msi_version(msi)
+            previous = msi_version(pathlib.Path(args.previous_local).resolve())
+            check(as_tuple(ver)[:3] > as_tuple(previous)[:3],
+                  f"ProductVersion {ver} > 公開済みMSI({previous})(先頭 3 つで比べる)")
+        if check.ok:
+            check_contents(msi, work, check, args.require_generator,
+                           args.require_collocations)
     else:
         releases = json.loads(run(["gh", "release", "list", "--repo", REPO,
                                    "--limit", str(RELEASE_LIST_LIMIT),

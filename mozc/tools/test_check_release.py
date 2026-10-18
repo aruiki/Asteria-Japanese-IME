@@ -1,5 +1,7 @@
 """移行後の配布名と、旧版を確認するフォールバック。"""
 import unittest
+from unittest import mock
+import check_release
 from check_release import choose_asset_name, check_generator, check_collocations, product_release_pair, Checks
 import hashlib
 import json
@@ -49,6 +51,31 @@ class ProductReleasePairTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             product_release_pair(releases, listing_truncated=True)
         self.assertEqual(product_release_pair(releases), ('v1.1.3', ''))
+
+
+class LocalUpgradeGateTest(unittest.TestCase):
+    def run_local(self, current, previous):
+        with mock.patch('sys.argv', ['check_release.py', '--local', 'candidate.msi',
+                                     '--previous-local', 'public.msi', '--work', 'unused-check']), \
+             mock.patch.object(check_release, 'msi_version', side_effect=[current, previous]), \
+             mock.patch.object(check_release, 'check_contents') as contents:
+            result = check_release.main()
+        return result, contents.called
+
+    def test_rejects_candidate_older_than_public_even_if_newer_than_this_pc(self):
+        self.assertEqual(self.run_local('3.34.6339.100', '3.34.6431.100'), (1, False))
+
+    def test_revision_only_increase_cannot_pass_windows_upgrade_gate(self):
+        self.assertEqual(self.run_local('3.34.6431.101', '3.34.6431.100'), (1, False))
+
+    def test_higher_build_reaches_payload_validation(self):
+        self.assertEqual(self.run_local('3.34.6432.100', '3.34.6431.100'), (0, True))
+
+    def test_previous_local_without_candidate_fails_argument_validation(self):
+        with mock.patch('sys.argv', ['check_release.py', '--previous-local', 'public.msi']):
+            with self.assertRaises(SystemExit) as error:
+                check_release.main()
+        self.assertEqual(error.exception.code, 2)
 
 
 class GeneratorPayloadTest(unittest.TestCase):

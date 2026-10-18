@@ -169,3 +169,7 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 - まず `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」を見る。
 - 設計・配布方針の判断は ADR に記録する。通常の修正は既存カードと PR で追跡し、検証結果は verification にまとめる。
 - 仕様と矛盾するときは、実装を止めて Issue を立てる。`docs/SPEC.md` はメンテナの承認なしに変えない。
+
+### ローカル候補の更新可能な版
+
+普段のPCの導入版だけでなく、公開済み製品MSIの版とSHAを確認する。内容検査の`--local <候補MSI>`へ`--previous-local <公開済みMSI>`を加えると、Windows Installerが比較するProductVersionの先頭3項目で更新を検査する。同じBUILDでREVISIONだけを増やしても合格にしない。2026-10-19の公開v1.1.3は実再取得したMSIで3.34.6431.100を確認しており、開発用6339候補は公開版からの更新に使わない。
