@@ -17,7 +17,7 @@
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
 </h2>
 
 <p align="center">
@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.1">新しいリリース候補 v1.1.4-rc.1</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.2">新しいリリース候補 v1.1.4-rc.2</a>
 </p>
 
 ## 実際の入力
@@ -39,7 +39,7 @@
 
 ## 開発版の変換精度（2026-10-19更新）
 
-**v1.1.4 RC**は、AJIMEE-Bench 200問のオフライン評価で **188問正解（94.0%）** でした。Standard設定でAIの準備を終え、指定した前の文を渡した場合の値です。
+**v1.1.4-rc.2**は、AJIMEE-Bench 200問のオフライン評価で **188問正解（94.0%）** でした。Standard設定でAIの準備を終え、指定した前の文を渡した場合の値です。
 
 <p align="center">
   <img src="docs/images/accuracy.png" alt="Asteria開発版のAJIMEE-Bench 200問評価。AIなし51.5%、Standard前文なし87.5%、前文あり94.0%。オフライン評価" width="640">
@@ -51,7 +51,7 @@
 | Standard・AI準備後・前文なし | 175 / 200 | 87.5% |
 | AIなし・前文なし（Mozc＋追加連語） | 103 / 200 | 51.5% |
 
-正式版v1.1.3とは別のリリース候補です。調整・回帰用データを固定変換器で測った結果であり、起動直後や実アプリでの精度を示す値ではありません。他IMEを含む最新の実入力比較は未実施です。
+リリース候補の評価です。調整・回帰用データを固定変換器で測った結果であり、起動直後や実アプリでの精度を示す値ではありません。他IMEを含む最新の実入力比較は未実施です。
 
 [測定条件・四つの評価セット](docs/BENCHMARKS.md) ／ [過去の実入力比較（2026-10-01）](docs/BENCHMARKS.md#過去の実入力比較) ／ [評価方法・データ](eval/README.md)
 
@@ -128,7 +128,7 @@ Asteriaには、カタカナ語から英語表記を選べる辞書も標準搭�
 
 ### 1. MSIをダウンロード
 
-[**Asteria64.msi をダウンロード**](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi)
+[**Asteria64.msi をダウンロード**](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi)
 
 ### 2. インストーラーを実行
 
@@ -265,7 +265,7 @@ Mozcへの変更はBSD-3-Clauseです。
 ---
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">⬇ Asteria日本語入力を試す</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi">⬇ Asteria日本語入力を試す</a>
 </h2>
 
 <p align="center">
