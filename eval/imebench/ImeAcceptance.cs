@@ -22,32 +22,40 @@ static class AcceptanceNative {
 sealed class ImeObservation : NativeWindow {
   public readonly Control Edit;
   public string Composition = "";
+  public byte[] Attributes = new byte[0];
   public readonly List<Dictionary<string, object>> Events = new List<Dictionary<string, object>>();
   public ImeObservation(Control edit) { Edit = edit; AssignHandle(edit.Handle); }
-  string Read(uint index) {
+  byte[] ReadBytes(uint index) {
     IntPtr context = Native.ImmGetContext(Edit.Handle);
-    if (context == IntPtr.Zero) return "";
+    if (context == IntPtr.Zero) return new byte[0];
     try {
       int size = AcceptanceNative.ImmGetCompositionStringW(context, index, null, 0);
-      if (size <= 0) return "";
-      if (size > 8192 || size % 2 != 0) throw new Exception("Invalid IME composition size: " + size);
+      if (size <= 0) return new byte[0];
+      if (size > 8192) throw new Exception("Invalid IME composition size: " + size);
       byte[] buffer = new byte[size];
       int got = AcceptanceNative.ImmGetCompositionStringW(context, index, buffer, (uint)size);
       if (got != size) throw new Exception("IME composition changed while reading");
-      return Encoding.Unicode.GetString(buffer);
+      return buffer;
     } finally { Native.ImmReleaseContext(Edit.Handle, context); }
+  }
+  string Read(uint index) {
+    byte[] buffer = ReadBytes(index);
+    if (buffer.Length % 2 != 0) throw new Exception("Invalid UTF-16 IME composition size");
+    return Encoding.Unicode.GetString(buffer);
   }
   protected override void WndProc(ref Message message) {
     if (message.Msg == 0x10F) { // WM_IME_COMPOSITION。確定結果はホストによる処理の前に採取する。
       long flags = message.LParam.ToInt64();
       if ((flags & 8) != 0) Composition = Read(8); // GCS_COMPSTR
+      if ((flags & 16) != 0) Attributes = ReadBytes(16); // GCS_COMPATTR
       Events.Add(new Dictionary<string, object> {
-        {"message", "composition"}, {"flags", flags}, {"preedit", Composition},
+        {"message", "composition"}, {"flags", flags}, {"preedit", Composition}, {"attributes", Attributes},
         {"result", (flags & 0x800) != 0 ? Read(0x800) : ""}
       });
     }
     if (message.Msg == 0x10E) { // WM_IME_ENDCOMPOSITION
       Composition = "";
+      Attributes = new byte[0];
       Events.Add(new Dictionary<string, object> {{"message", "end"}});
     }
     base.WndProc(ref message);
@@ -120,7 +128,7 @@ sealed class Acceptance : Form {
   }
   void Reset(ImeObservation edit) {
     Focus(edit, true); Press(0x1B); Press(0x1B);
-    Ui(() => { edit.Edit.Text = ""; edit.Composition = ""; edit.Events.Clear(); });
+    Ui(() => { edit.Edit.Text = ""; edit.Composition = ""; edit.Attributes = new byte[0]; edit.Events.Clear(); });
   }
   Dictionary<string, object> Snapshot(ImeObservation edit) {
     Dictionary<string, object> result = null;
@@ -139,6 +147,15 @@ sealed class Acceptance : Form {
   }
   string Preedit(ImeObservation edit) { string text = ""; Ui(() => text = edit.Composition); return text; }
   string TextOf(ImeObservation edit) { string text = ""; Ui(() => text = ReadText(edit.Edit)); return text; }
+  bool Converted(ImeObservation edit) {
+    bool converted = false;
+    Ui(() => {
+      // ひらがな候補も変換済みになり得る。文字列が変わることを条件にしない。
+      foreach (byte attribute in edit.Attributes)
+        if (attribute == 1 || attribute == 2 || attribute == 5) converted = true;
+    });
+    return converted;
+  }
   void WaitUntil(Func<bool> condition, string message) {
     // AIの非同期配送を観測する。固定sleepの直後を完成扱いにしない。
     var timer = Stopwatch.StartNew();
@@ -186,8 +203,8 @@ sealed class Acceptance : Form {
       report["loaded_tip"] = tip;
       Check("richedit_preedit_space_commit", row => Convert(r, "toukyou", "東京"));
       Check("candidate_down_page_roundtrip_commit", row => {
-        Reset(a); Type(a, "hashi"); string reading = Preedit(a); Press(0x20);
-        WaitUntil(() => Preedit(a).Length > 0 && Preedit(a) != reading, "Converted candidates were not delivered");
+        Reset(a); Type(a, "hashi"); Press(0x20);
+        WaitUntil(() => Preedit(a).Length > 0 && Converted(a), "Converted candidates were not delivered");
         string initial = Preedit(a); Require(initial.Length > 0, "No converted preedit");
         Press(0x28); string down = Preedit(a);
         Press(0x22); string next = Preedit(a);

@@ -22,6 +22,8 @@ Standard・AI準備後・指定した前文ありで、AJIMEE-Bench 200問中188
 
 測定ソースは`8439fc26f21a90aa80c4cd694d57ca2f852ad658`、converter SHA-256は`4199d8d6dbad67bf90c60de011d18e18c49b62214c96006f8e8575d5e9228f8e`。後続のローカル6432候補は版番号、その後はモデル公開状態のmetadataだけの変更です。測定済みバイナリの識別を維持しています。
 
+AIの初回結果を待つ次版のソース`8af4797f92689474635dd49cf8163cef7aedc198`、converter SHA-256 `66ae75a21889d7ef085a5124ce0f39775715774d4f739ab86f7b5c272fefe505`でも、同じ4セット×3条件978出力が一致しました。予測の開発29例も先頭候補が全件一致しています。[次版の固定検証記録](verification/ai-first-publication-20261019.md)。下記の入力応答の図表は先行版の測定で、次版のAI結果到着までの時間を示すものではありません。
+
 固定正解数・出典と原票SHAは[図版用データ](images/evaluation-2026-10-19.json)、手順と検証範囲は[通常変換の検証](verification/accuracy-normal-conversion-20261019.md)と[評価方法](../eval/README.md)を参照してください。
 
 ## 日常の変換例
