@@ -35,7 +35,11 @@ CIのggml-base.dllは`758a9469ee5b9a46e6e78af3238eec9751879b5e8940b3c4aa61731b68
 3. 通常欄のフォーカス移動と、合成した公開文字列によるパスワード欄の見える挙動を検査する。内部AI停止/非学習の証明にはしない。
 4. 同じ起動中のWindowsで削除→同一MSI再導入→ファイルSHA一致→再入力→削除を行う。再起動後の復旧・旧版からの上書き・失敗時rollbackは別条件。
 
-追加8項目は空/部分成功・重複・異なるTIPでは成功にしない。ローカルではC#コンパイルとPythonの成功/失敗receipt対照を実行する。ネイティブ入力試験の結果はCI実行後に追記する。
+追加8項目は空/部分成功・重複・異なるTIPでは成功にしない。ローカルC#コンパイルとPython113件が成功。
+
+[run39183067546](https://github.com/aruiki/Asteria-Japanese-IME/actions/runs/39183067546)で追加8項目、再導入exit0、再入力、削除exit3010が全成功。実MSIのSHA/版・導入server/renderer/TIPのSHAを確認した。PR169の全9チェックも成功し、mainc5473b24acabca1e16b38a9b63f704cbb8bd8e95へ統合した。
+
+最初の追加試験run39182787163はRichEdit観測中の意図しない確定で失敗した。RichTextBox.Textによる観測を、未確定文字の直接取得とWM_GETTEXTへ変更した同候補の後続試験が成功。失敗原票も`target/accuracy-guide/candidate-acceptance-39182787163/`に保持。成功原票は`candidate-acceptance-39183067546/`。製品MSIは変更していない。
 
 ## 残る範囲
 

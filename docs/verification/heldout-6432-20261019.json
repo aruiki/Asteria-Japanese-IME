@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-19",
+  "scope": "final reporting only; offline synchronized converter; not installed TSF",
+  "source_commit": "449828059f1b9b3c0f6d0eb6e66211e23c953500",
+  "converter_sha256": "efa98a1cd178a774c567dc9c8fbd0c49a19fda66f481a3607344afd87cca750b",
+  "dictionary_sha256": "bfbafc9640b07a3c5a51a694413f4ac196e9994ac968331261cbd0624eafccea",
+  "dataset": {
+    "path": "eval/sets/kotori-heldout.json",
+    "sha256": "4b7bdcfe74aa3c186fa4e215b09e0a80d512f6aba47f415fae2271e8f11c0051",
+    "cases": 300
+  },
+  "models_sha256": {
+    "tinyswallow-1.5b-q5_k_m.gguf": "0aa55c79e7741c4c58fe25a6a24fc45f1587bbd5fdd0b0a1482fc6244626ebc8",
+    "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",
+    "zenz-v2.5-native-generator-20261017-q8_0.gguf": "49112e8b52e5da18fdb74d066111d44f92beaffe06c3d559807fb1aab1e38924",
+    "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c"
+  },
+  "standard": {
+    "correct": 290,
+    "cases": 300,
+    "wilson_95_percent": [
+      94.0,
+      98.2
+    ],
+    "context": true,
+    "models_ready": true
+  },
+  "previous_fixed_source": {
+    "source_commit": "5a750cd579b36c690714be02fd0fd64cc4ecb84c",
+    "correct": 289,
+    "improved": 2,
+    "regressed": 1
+  },
+  "ai_off": {
+    "role": "same Mozc-based development build plus additional collocations; empty model/runtime directories",
+    "correct": 247,
+    "cases": 300
+  },
+  "standard_vs_ai_off": {
+    "improved": 49,
+    "regressed": 6,
+    "domains": [
+      {
+        "domain": "work",
+        "cases": 50,
+        "ai_off_correct": 44,
+        "standard_correct": 50
+      },
+      {
+        "domain": "chat",
+        "cases": 50,
+        "ai_off_correct": 37,
+        "standard_correct": 47
+      },
+      {
+        "domain": "tech",
+        "cases": 50,
+        "ai_off_correct": 46,
+        "standard_correct": 50
+      },
+      {
+        "domain": "name",
+        "cases": 50,
+        "ai_off_correct": 45,
+        "standard_correct": 48
+      },
+      {
+        "domain": "num",
+        "cases": 50,
+        "ai_off_correct": 27,
+        "standard_correct": 45
+      },
+      {
+        "domain": "news",
+        "cases": 50,
+        "ai_off_correct": 48,
+        "standard_correct": 50
+      }
+    ],
+    "standard_not_below_ai_off_in_every_domain": true
+  },
+  "raw_receipts_sha256": {
+    "standard_results": "dd959d2b9d50cfdc5f07dd3e42c75179128dc5bbe8a49b9ab0db610a37b021ea",
+    "standard_manifest": "47f948c712faef659ed87adde389b9f73a7b5cbd0a6877fb88aadd345459fcf1",
+    "ai_off_results": "b2dbe40c4605998ce61026eda1e4233fec0d6c466969c52c994eedbb5006ac87",
+    "ai_off_manifest": "007181cb7942c2394a5594e8d4bf51bdfc4e8c4a607168adbad6929c1a7dec3c"
+  },
+  "selection_policy": "not used to select model, weights, beam counts or thresholds",
+  "known_regression": "h-chat-50: 遅れてごめん、今着く -> 遅れてごめん、今作",
+  "unverified": [
+    "real application AI on/off impact",
+    "initial input accuracy",
+    "low-end hardware",
+    "full installer and application acceptance"
+  ]
+}
