@@ -15,6 +15,8 @@ static class AcceptanceNative {
   [DllImport("imm32.dll", CharSet = CharSet.Unicode)]
   public static extern int ImmGetCompositionStringW(IntPtr context, uint index, byte[] buffer, uint length);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowTextW(IntPtr window, StringBuilder text, int maximum);
 }
 
 sealed class ImeObservation : NativeWindow {
@@ -123,13 +125,20 @@ sealed class Acceptance : Form {
   Dictionary<string, object> Snapshot(ImeObservation edit) {
     Dictionary<string, object> result = null;
     Ui(() => result = new Dictionary<string, object> {
-      {"text", edit.Edit.Text}, {"preedit", edit.Composition},
+      {"text", ReadText(edit.Edit)}, {"preedit", edit.Composition},
       {"events", edit.Events.ToArray()}
     });
     return result;
   }
-  string Preedit(ImeObservation edit) { return (string)Snapshot(edit)["preedit"]; }
-  string TextOf(ImeObservation edit) { return (string)Snapshot(edit)["text"]; }
+  static string ReadText(Control edit) {
+    // RichTextBox.TextのStreamOutは未確定文字を確定させることがある。
+    // 観測で入力を変えないよう、ホストのWM_GETTEXT経路を使う。
+    var text = new StringBuilder(8192);
+    AcceptanceNative.GetWindowTextW(edit.Handle, text, text.Capacity);
+    return text.ToString();
+  }
+  string Preedit(ImeObservation edit) { string text = ""; Ui(() => text = edit.Composition); return text; }
+  string TextOf(ImeObservation edit) { string text = ""; Ui(() => text = ReadText(edit.Edit)); return text; }
   void Check(string name, Action<Dictionary<string, object>> action) {
     var row = new Dictionary<string, object> {{"name", name}, {"passed", false}};
     checks.Add(row);

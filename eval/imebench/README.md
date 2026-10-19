@@ -46,4 +46,3 @@ python eval/imebench/imebench.py kotori     # Kotori(インストール済みの
 `Candidate installer acceptance`（`.github/workflows/installer-candidate.yml`）は、PR168の成功CIで作ったMSIをrun/head/SHAで固定して使う。`installer_smoke.py --acceptance --reinstall`が導入・EDIT/RichEditの8項目・同一MSI再導入・削除を確認する。使い捨てGitHub Windowsランナー専用で、普段のPCでは実行を拒否する。
 
 これは固定候補の入力回帰試験であり、下の他IMEとの精度比較とは別。AIの有効/無効比較、候補UIの見た目、保護欄内部のAI/学習停止、Notepad/ブラウザ/Office、実低性能機、旧版上書きや再起動後の復旧は別途検証する。[対象と制限](../../docs/verification/candidate-automatic-acceptance-20261019.md)。
-
