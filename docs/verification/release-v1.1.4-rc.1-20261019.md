@@ -18,4 +18,4 @@
 
 最終報告用の固定300問はStandard290/300、AIなし247/300（49改善/6改悪）。以前の固定source289/300比は2改善/1改悪。モデル・係数の選択に使わないオフラインconverterの結果であり、実アプリの精度比較ではない。[携帯可能な固定結果](heldout-6432-20261019.json)。AJIMEE188/200とは別のデータ。
 
-公開後は`target/accuracy-guide/verify_public_rc114_v1.py`で公開MSI・SHA・配布情報を再取得し、前公開6431と`check_release.py --local --previous-local --require-generator --require-collocations`で照合する。結果は`target/accuracy-guide/public-rc114-check-v1/`。製品完成/独立verifierの判定とはしない。
+公開後に`target/accuracy-guide/verify_public_rc114_v1.py`で公開MSI・SHA・配布情報を再取得し、前公開6431と`check_release.py --local --previous-local --require-generator --require-collocations`で照合成功（exit0）。公開された実バイトも上記SHAと一致。原票は`target/accuracy-guide/public-rc114-check-v1/`。製品完成/独立verifierの判定とはしない。
