@@ -31,7 +31,7 @@ Acc@1 が最大の重みを JSON で出す。λ_lm = 1、T = 1000 に固定し�
 | Kotori の調整・回帰用(`eval/sets/kotori-idioms`・`nuance`・`daily`) | 評価できる | 本プロジェクトで作成。生成の数や LLM の重みを選ぶのにも使った(docs/adr/0016、0023)ので、未知の文の精度には使わない |
 | Kotori の調整・回帰用: 漢数字を含む熟語・慣用句(`eval/sets/kotori-kanjinum.json`、29 問) | 評価できる | 本プロジェクトで作成。熟語の中の漢数字を算用数字にしないかを見る。2026-09-30: Mozc 89.7%(読みの誤りを直す前)、Standard 96.6% |
 | Kotori の調整用: 打ち間違い・同音語・人名と新語(`eval/sets/kotori-typo`・`homophone`・`names`、各 40 問) | 評価できる | ATOK が強いとされる所を測るために作成(`eval/sets/make_atok_sets.py`)。打ち間違いは、意図した文が正解 |
-| **Kotori の最終評価用(`eval/sets/kotori-heldout.json`、120 問)** | 評価できる | 本プロジェクトで作成(下記)。**調整に使わない** |
+| **Kotori の最終評価用(`eval/sets/kotori-heldout.json`、300 問)** | 評価できる | 本プロジェクトで作成(下記)。**調整に使わない** |
 
 ### kotori-heldout(最終評価用、300 問)
 
