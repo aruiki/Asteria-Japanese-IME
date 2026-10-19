@@ -7,6 +7,8 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 
 ## いまの製品と方針
 
+- 2026-10-19の利用者指示: GPUのAIを主体とし、正常な準備・推論中は読みの表示と編集を続け、候補一覧とSpaceによる変換表示はAIの初回結果を待つ。Mozc候補の先出しへ戻さない。[ADR0067](docs/adr/0067-ai-first-candidate-publication.md)を参照する。
+
 - 製品は **Mozc をベースにした Windows の IME**(docs/adr/0012)。google/mozc をコミットで固定して取得し、
   `mozc/patches/` のパッチで AI の変換(zenz-v2.5 の生成・採点、TinySwallow-1.5B の採点、入力中の予測)と
   設定画面、インストーラを加える。配布は GitHub Releases の `Asteria64.msi`。

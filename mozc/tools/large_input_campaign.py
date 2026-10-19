@@ -132,8 +132,12 @@ def main():
     def send(command):
         nonlocal command_count
         command_count+=1
-        e=session.send(command); p=parse_output(e['output'],Output,text_format)
+        e=session.send_conversion(command) if command in {'SEND_KEY\tSpace','SEND_KEY\tTab'} else session.send(command)
+        command_count+=len(e.get('callback_events',[]))
+        p=parse_output(e['output'],Output,text_format)
         p.update(ms=e['response_ms'],raw=e['output'],command=command)
+        if 'operation_ms' in e:
+            p.update(operation_ms=e['operation_ms'],callback_events=e['callback_events'],initial_event=e['initial_event'])
         return p
     def reset():
         send('SEND_KEY\tESC\nSEND_KEY\tESC\nRESET_CONTEXT\nSEND_KEY\tON\nSWITCH_COMPOSITION_MODE\tHIRAGANA')

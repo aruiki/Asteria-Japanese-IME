@@ -1,12 +1,12 @@
-# 現在の引き継ぎ（2026-10-19、通常候補・ページ操作の修正）
+# 現在の引き継ぎ（2026-10-19、GPU AIを待つ候補表示）
 
 この文書は現在の状況と次の作業を更新する。過去の作業指示は[履歴](HANDOFF_HISTORY_20261012.md)、測定は個別verificationを参照し、履歴の「現在」を再実行指示にしない。
 
-v1.1.4-rc.1を公開済み。利用者の方針に従い、リリースノートは変更点中心に簡潔にし、個別の誤変換は開発上の課題として管理する。[公開記録](verification/release-v1.1.4-rc.1-20261019.md)。初回候補の改善を次の開発で優先する。
+v1.1.4-rc.1を公開済み。次版は利用者の明示指示によりGPUのAIを主体とし、最初の結果を待って候補を表示する。[ADR0067](adr/0067-ai-first-candidate-publication.md)。通常Space・入力中候補に加えて明示Tabも非同期化し、保留Enter/後続入力/取消を保持。製品の作業枝はcodex/gpu-ai-first-candidates-20261019（予測用の枝をfast-forwardで統合）、Mozcはcodex/gpu-ai-first-predictions-20261019、PR171へまとめる。Mozc sourceは8af4797f9。[固定バイナリの前後比較](verification/ai-first-publication-20261019.md)でC++534件・Python119件、品質978出力一致、予測29件の先頭表示一致、通常28/保存等7項目を確認。PR171の旧Windows run39187992825は旧シナリオの配送前検査で失敗し、修正後に全81シナリオ成功。修正後の新MSI・実TSFはCIで確認する。以下の公開RCの検証は新バイナリの検証とは区別する。
 
 ## 公開記録と開発対象
 
-最新RCは[v1.1.4-rc.1](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.1)、tag71300bff41d14b81a9c2f5d12830bfeeb7670fe0、ProductVersion3.34.6435.100、SHA0f12eb1db8726e7a3c49186626098a100c64c36ffd9cab97c9dbe526ffcdf57a。Latestは正式版v1.1.3のまま。利用者の「送信してPR・Windows CIへ進む」の明示許可後、追加モデル資産の公開・固定URL再取得/SHA照合も完了。普段の導入済み3.34.6337.100は変更していない。
+最新RCは[v1.1.4-rc.1](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.1)、tag71300bff41d14b81a9c2f5d12830bfeeb7670fe0、ProductVersion3.34.6435.100、SHA0f12eb1db8726e7a3c49186626098a100c64c36ffd9cab97c9dbe526ffcdf57a。Latestは正式版v1.1.3のまま。利用者の「送信してPR・Windows CIへ進む」の明示許可後、追加モデル資産の公開・固定URL再取得/SHA照合も完了。利用者からRC導入済みの報告がある。今回の開発試験は隔離セッションで行い、普段の導入済みバイナリの版は再確認していない。
 
 ユーザーの「普通の変換に必要なものを欠かさずに開発」を[必要条件](NORMAL_CONVERSION.md)で追跡する。製品枝はcodex/contextless-usage-collocations-20261018、専用MozcはC:/Users/aruik/ag16の同名枝。最新ソースb5b144bd9ca717d2768dee7d52fa904ec7a4a0f8（449828から追加モデルの公開状態metadataだけを更新）。ローカルMSIのビルド対象は449828のまま。既存mzsupport/mzcontext16の作業は保持する。
 
@@ -28,8 +28,8 @@ Bazel shutdown後に生成パッチを再作成し、基点cloneへ適用した�
 
 ## 次の作業と残る条件
 
-1. RC公開・自動入力確認・公開ファイル再取得照合は完了。配布情報・SHAをReleaseへ添付済み。次版の変更は新しいソース・バイナリで検証する。
-2. 初回「あいであきょく」→「アイデア局」は未解決。準備後の「アイデア曲」と混同せず、語彙・頻度・候補包含/順位/分節を分けて改善する。文字3gram順位案は日常の回帰で不採用、個別語句の分岐/参照変更で通さない。
+1. RC公開・自動入力確認・公開ファイル再取得照合は完了。配布情報・SHAをReleaseへ添付済み。次版のPR171は修正headの全CI成功後、新MSIのSHA/版/ソースを固定し、installer-candidateのrun/head/SHAを更新して8項目・再導入・削除を確認、統合・公開する。旧runのMSIを次版の証拠にしない。既存の送信/CI/公開許可は再質問しない。
+2. 新しい通常Space経路はAIの初回結果を待ち、GPU指定の隔離試験で「アイデア曲」を最初から確定できた。新MSI・実TSFでは継続確認する。CPU指定の参照不一致は残る。文字3gram順位案や個別語句の分岐で通した変更ではない。
 3. EDIT/RichEditの実入力・取消・欄移動・保護欄の見える挙動・同一MSI再導入・削除はCIで成功。AI寄与・保護欄内部のAI/学習・複数アプリ・低性能実機・旧版更新/再起動復旧・独立verifierは残る。[実アプリ条件](ACCEPTANCE.md)の全完了とはしない。
 4. 追加依頼のブランディングはREADME・図版・プレビューへ反映済み。[測定条件](BENCHMARKS.md)と[更新検証](verification/release-preparation-v1.1.4-20261019.md)。旧Kotori88.4%は198問の過去実入力比較、開発版94.0%はStandard・AI準備後・前文ありのオフライン200問。異なる測定条件を混ぜて他IMEより高い精度と主張しない。
 
