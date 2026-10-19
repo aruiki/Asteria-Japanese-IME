@@ -24772,11 +24772,31 @@ index 5d8232f36..9391a06fd 100644
      ),
      collocation_suppression_src = (
          "//data/dictionary_oss:collocation_suppression.txt"
+diff --git a/src/engine/BUILD.bazel b/src/engine/BUILD.bazel
+index 40a10582d..b8e671c01 100644
+--- a/src/engine/BUILD.bazel
++++ b/src/engine/BUILD.bazel
+@@ -416,6 +416,7 @@ mozc_cc_library(
+         ":candidate_list",
+         ":engine_converter_interface",
+         ":engine_output",
++        "//base/strings:japanese",
+         "//base:text_normalizer",
+         "//base:util",
+         "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..2e8a543f9 100644
+index fd03a6c0c..dca1be69c 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
-@@ -130,6 +130,42 @@ EngineConverter::EngineConverter(
+@@ -46,6 +46,7 @@
+ #include "absl/log/log.h"
+ #include "absl/strings/str_cat.h"
+ #include "absl/strings/string_view.h"
++#include "base/strings/japanese.h"
+ #include "base/text_normalizer.h"
+ #include "base/util.h"
+ #include "base/vlog.h"
+@@ -130,6 +131,42 @@ EngineConverter::EngineConverter(
    conversion_preferences_.request_suggestion = true;
    candidate_list_.set_page_size(request_->candidate_page_size());
    SetConfig(std::move(config));
@@ -24819,7 +24839,7 @@ index fd03a6c0c..2e8a543f9 100644
  }
  
  bool EngineConverter::CheckState(
-@@ -148,6 +184,7 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
+@@ -148,6 +185,7 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
  bool EngineConverter::Convert(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -24827,7 +24847,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | CONVERSION));
  
    DCHECK(request_);
-@@ -157,6 +194,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -157,6 +195,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    SetRequestType(ConversionRequest::CONVERSION, options);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -24835,7 +24855,7 @@ index fd03a6c0c..2e8a543f9 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -164,12 +202,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -164,12 +203,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
            .SetOptions(std::move(options))
            .Build();
  
@@ -24861,7 +24881,7 @@ index fd03a6c0c..2e8a543f9 100644
    segment_index_ = 0;
    state_ = CONVERSION;
    // If TalkBack is enabled, the candidate list should be always visible to
-@@ -181,6 +231,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -181,6 +232,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    return true;
  }
  
@@ -24947,7 +24967,7 @@ index fd03a6c0c..2e8a543f9 100644
  bool EngineConverter::GetReadingText(absl::string_view source_text,
                                       std::string* reading) {
    DCHECK(reading);
-@@ -490,6 +619,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
+@@ -490,6 +620,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
  bool EngineConverter::Suggest(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -24955,7 +24975,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION));
    candidate_list_visible_ = false;
  
-@@ -541,6 +671,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -541,6 +672,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    DCHECK(config_);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -24963,7 +24983,7 @@ index fd03a6c0c..2e8a543f9 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +730,116 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +731,123 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25050,11 +25070,18 @@ index fd03a6c0c..2e8a543f9 100644
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversion(
 +    const composer::Composer& composer, const commands::Context& context,
 +    const ConversionPreferences& preferences) {
++  return KotoriPrepareConversionImpl(composer, context, preferences, false);
++}
++
++EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversionImpl(
++    const composer::Composer& composer, const commands::Context& context,
++    const ConversionPreferences& preferences, bool cached_only) {
 +  const auto generation = KotoriObserveInput(composer);
 +  if (!generation.IsCurrent() || composer.Empty()) return KotoriAiStatus::kUnavailable;
 +  ConversionRequest::Options options;
 +  options.request_type = ConversionRequest::CONVERSION;
 +  options.kotori_preview = true;
++  options.kotori_preview_cached_only = cached_only;
 +  options.enable_user_history_for_conversion = preferences.use_history;
 +  const ConversionRequest request = ConversionRequestBuilder()
 +      .SetKotoriInputGeneration(generation).SetComposer(composer)
@@ -25081,7 +25108,7 @@ index fd03a6c0c..2e8a543f9 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,6 +848,7 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +856,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25089,15 +25116,107 @@ index fd03a6c0c..2e8a543f9 100644
    // TODO(komatsu): DCHECK should be
    // DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION));
    DCHECK(CheckState(COMPOSITION | SUGGESTION | CONVERSION | PREDICTION));
-@@ -626,6 +863,7 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+   ResetResult();
++  // Kotori: 既にAIが評価した本文だけを参照する。途中の単語を通常変換へ
++  // 先に固定せず、初回Tabは予測用の生成・採点そのものを非同期に待つ。
++  KotoriPrepareConversionImpl(composer, context, preferences, true);
+ 
+   // Initialize the segments and conversion_request for prediction
+   ConversionRequest::Options options;
+@@ -624,8 +872,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+   DCHECK(config_);
+   SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
++  options.kotori_preview = input_generation.IsCurrent();
++  options.skip_slow_rewriters = composer.GetInputFieldType() == commands::Context::PASSWORD;
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
 +          .SetKotoriInputGeneration(input_generation)
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -690,7 +928,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -641,11 +892,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+        candidate_list_.size() > 0 && candidate_list_.focused() &&
+        candidate_list_.focused_index() == candidate_list_.last_index());
+ 
+-  segments_.clear_conversion_segments();
++  Segments predicted = segments_;
++  predicted.clear_conversion_segments();
+ 
+   if (predict_expand || predict_first) {
+     const bool result = converter_->StartPredictionWithPreviousSuggestion(
+-        conversion_request, previous_suggestions_, &segments_);
++        conversion_request, previous_suggestions_, &predicted);
+     if (!result && predict_first) {
+       // Returns false if we failed at the first prediction.
+       // If predict_expand is true, it means we have prevous_suggestions_.
+@@ -655,9 +907,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+     }
+   } else {
+     converter_->PrependCandidates(conversion_request, previous_suggestions_,
+-                                  &segments_);
++                                  &predicted);
+   }
+ 
++  if (predicted.kotori_ai_status() == Segments::KotoriAiStatus::kPending) {
++    kotori_awaiting_ai_ = true;
++    return false;
++  }
++  kotori_awaiting_ai_ = false;
++  KotoriPreservePredictionBody(&predicted);
++  segments_ = std::move(predicted);
+   segment_index_ = 0;
+   state_ = PREDICTION;
+   UpdateCandidateList();
+@@ -666,6 +925,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+   return true;
+ }
+ 
++// Kotori: モデルの半角英数を、通常変換で実際に表示した文字幅へ合わせる。
++// 語句は変えない。全半角英数だけを正規化して一致する本文を対象にする。
++void EngineConverter::KotoriPreservePredictionBody(Segments* predicted) const {
++  if (!kotori_prepared_conversion_ || predicted->conversion_segments_size() != 1 ||
++      kotori_prepared_conversion_->kotori_ai_status() != Segments::KotoriAiStatus::kReady) return;
++  std::string body, corrected_reading;
++  bool no_learning = false;
++  for (const Segment& segment : kotori_prepared_conversion_->conversion_segments()) {
++    if (segment.candidates_size() == 0 || !segment.candidate(0).kotori_ai_evaluated) return;
++    const auto& chosen = segment.candidate(0);
++    body += chosen.value;
++    no_learning |= (chosen.attributes & converter::Attribute::NO_LEARNING) != 0;
++    if (kotori_prepared_conversion_->conversion_segments_size() == 1) {
++      corrected_reading = chosen.kotori_corrected_reading;
++    }
++  }
++  Segment* segment = predicted->mutable_conversion_segment(0);
++  if (body.empty() || segment->candidates_size() == 0) return;
++  auto* candidate = segment->mutable_candidate(0);
++  if (!candidate->kotori_ai_evaluated ||
++      !japanese::FullWidthAsciiToHalfWidthAscii(candidate->value).starts_with(
++          japanese::FullWidthAsciiToHalfWidthAscii(body))) return;
++  auto preserve = [&](std::string* value) {
++    const size_t chars = std::min(Util::CharsLen(*value), Util::CharsLen(body));
++    const std::string prefix(Util::Utf8SubString(*value, 0, chars));
++    const std::string displayed(Util::Utf8SubString(body, 0, chars));
++    if (japanese::FullWidthAsciiToHalfWidthAscii(prefix) !=
++        japanese::FullWidthAsciiToHalfWidthAscii(displayed)) return;
++    *value = absl::StrCat(displayed, Util::Utf8SubString(*value, chars));
++  };
++  const std::string before = candidate->value;
++  preserve(&candidate->value);
++  preserve(&candidate->content_value);
++  if (candidate->value != before) candidate->inner_segment_boundary.clear();
++  // 補正した本文を継承する予測も、元の誤読みに対応づけて学習しない。
++  if (no_learning) {
++    candidate->attributes |= converter::Attribute::NO_LEARNING;
++    candidate->kotori_corrected_reading = candidate->value == body ? corrected_reading : "";
++  }
++}
++
+ void EngineConverter::MaybeExpandPrediction(
+     const composer::Composer& composer) {
+   DCHECK(CheckState(PREDICTION | CONVERSION));
+@@ -690,7 +990,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25125,7 +25244,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +958,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1020,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25133,7 +25252,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +976,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1038,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25141,7 +25260,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1008,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1070,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25149,7 +25268,7 @@ index fd03a6c0c..2e8a543f9 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1021,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1083,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25157,7 +25276,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1122,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1184,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25165,7 +25284,7 @@ index fd03a6c0c..2e8a543f9 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,6 +1182,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,6 +1244,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25173,7 +25292,7 @@ index fd03a6c0c..2e8a543f9 100644
    const std::string key = composer.GetQueryForConversion();
    const std::string preedit = composer.GetStringForSubmission();
    std::string normalized_preedit = TextNormalizer::NormalizeText(preedit);
-@@ -956,6 +1220,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+@@ -956,6 +1282,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25181,7 +25300,7 @@ index fd03a6c0c..2e8a543f9 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1112,14 +1377,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1439,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25303,7 +25422,7 @@ index fd03a6c0c..2e8a543f9 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1500,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1562,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25315,7 +25434,7 @@ index fd03a6c0c..2e8a543f9 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1515,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1577,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25327,7 +25446,7 @@ index fd03a6c0c..2e8a543f9 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1530,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1592,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25339,7 +25458,7 @@ index fd03a6c0c..2e8a543f9 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1293,10 +1680,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1293,10 +1742,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
      // Conversion on Prediction or Conversion
      FillConversion(output->mutable_preedit());
    }
@@ -25353,7 +25472,7 @@ index fd03a6c0c..2e8a543f9 100644
    }
  
    // All candidate words
-@@ -1319,6 +1709,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1771,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25364,7 +25483,7 @@ index fd03a6c0c..2e8a543f9 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1727,8 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1789,8 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
@@ -25373,7 +25492,7 @@ index fd03a6c0c..2e8a543f9 100644
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2108,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2170,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -25400,7 +25519,7 @@ index fd03a6c0c..2e8a543f9 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2239,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2301,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -25419,7 +25538,7 @@ index fd03a6c0c..2e8a543f9 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2258,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2320,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -25428,7 +25547,7 @@ index fd03a6c0c..2e8a543f9 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..975fa052d 100644
+index 6d061cfca..5845a6eb6 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -25473,7 +25592,7 @@ index 6d061cfca..975fa052d 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -274,6 +288,20 @@ class EngineConverter : public EngineConverterInterface {
+@@ -274,6 +288,24 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -25482,6 +25601,10 @@ index 6d061cfca..975fa052d 100644
 +      const composer::Composer& composer);
 +  void KotoriInvalidateInput();
 +  void KotoriPopulateCorrectedAlternatives(const ConversionRequest& request);
++  void KotoriPreservePredictionBody(Segments* predicted) const;
++  KotoriAiStatus KotoriPrepareConversionImpl(
++      const composer::Composer& composer, const commands::Context& context,
++      const ConversionPreferences& preferences, bool cached_only);
 +  std::shared_ptr<std::atomic<uint64_t>> kotori_input_generation_ =
 +      std::make_shared<std::atomic<uint64_t>>(1);
 +  std::string kotori_last_input_;
@@ -25494,7 +25617,7 @@ index 6d061cfca..975fa052d 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +372,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +376,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -25503,7 +25626,7 @@ index 6d061cfca..975fa052d 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +454,10 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +458,10 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
@@ -25556,7 +25679,7 @@ index f8e3b43ec..e7ee6e114 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..705f1c208 100644
+index 808058c64..be317dfc9 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
 @@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
@@ -25567,13 +25690,20 @@ index 808058c64..705f1c208 100644
      request_ = std::make_shared<Request>();
  
      table_ = std::make_shared<composer::Table>();
-@@ -124,6 +125,15 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
+@@ -124,6 +125,22 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
      composer_.reset();
    }
  
 +  static ConversionRequest::KotoriInputGeneration ObserveKotoriInput(
 +      EngineConverter& converter, const composer::Composer& composer) {
 +    return converter.KotoriObserveInput(composer);
++  }
++
++  static void PrepareKotoriConversion(EngineConverter* converter, const Segments& segments) {
++    converter->kotori_prepared_conversion_ = segments;
++  }
++  static void PreserveKotoriBody(const EngineConverter& converter, Segments* segments) {
++    converter.KotoriPreservePredictionBody(segments);
 +  }
 +
 +  static void FillKotoriWindow(const EngineConverter& converter, commands::CandidateWindow* window) {
@@ -25583,7 +25713,7 @@ index 808058c64..705f1c208 100644
    static void GetSegments(const EngineConverter& converter, Segments* dest) {
      CHECK(dest);
      *dest = converter.segments_;
-@@ -2472,6 +2482,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
+@@ -2472,6 +2489,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
    }
  }
  
@@ -25615,7 +25745,7 @@ index 808058c64..705f1c208 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4005,181 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4012,181 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
@@ -25797,7 +25927,7 @@ index 808058c64..705f1c208 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5032,147 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5039,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -25941,6 +26071,58 @@ index 808058c64..705f1c208 100644
 +  before = ObserveKotoriInput(converter, *composer_);
 +  converter.OnStartComposition(Context::default_instance());
 +  EXPECT_FALSE(before.IsCurrent());
++}
++
++
++TEST_F(EngineConverterTest, KotoriPredictionKeepsDisplayedCharacterWidthAndContinuation) {
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments body;
++  AddSegmentWithSingleCandidate(&body, "かいぎは", "会議は");
++  AddSegmentWithSingleCandidate(&body, "じゅうじ", "１０時");
++  for (auto& segment : body.conversion_segments()) segment.mutable_candidate(0)->kotori_ai_evaluated = true;
++  body.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  PrepareKotoriConversion(&converter, body);
++  Segments predicted;
++  AddSegmentWithSingleCandidate(&predicted, "かいぎはじゅうじ", "会議は10時からです");
++  auto* candidate = predicted.mutable_conversion_segment(0)->mutable_candidate(0);
++  candidate->kotori_ai_evaluated = true;
++  PreserveKotoriBody(converter, &predicted);
++  EXPECT_EQ(candidate->value, "会議は１０時からです");
++  EXPECT_EQ(candidate->content_value, "会議は１０時からです");
++  candidate->value = "会議は従事からです";
++  PreserveKotoriBody(converter, &predicted);
++  EXPECT_EQ(candidate->value, "会議は従事からです");  // 別の語句を補修して通さない。
++  candidate->value = "会議は10時からです";
++  candidate->kotori_ai_evaluated = false;
++  PreserveKotoriBody(converter, &predicted);
++  EXPECT_EQ(candidate->value, "会議は10時からです");
++}
++
++
++TEST_F(EngineConverterTest, KotoriPredictionCarriesCorrectedBodyLearningPolicy) {
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments body;
++  AddSegmentWithSingleCandidate(&body, "ちょとまって", "ちょっと待って");
++  auto* chosen = body.mutable_conversion_segment(0)->mutable_candidate(0);
++  chosen->kotori_ai_evaluated = true;
++  chosen->kotori_corrected_reading = "ちょっとまって";
++  chosen->attributes |= converter::Attribute::NO_LEARNING;
++  body.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  PrepareKotoriConversion(&converter, body);
++  Segments prediction;
++  AddSegmentWithSingleCandidate(&prediction, "ちょとまって", "ちょっと待ってください");
++  auto* candidate = prediction.mutable_conversion_segment(0)->mutable_candidate(0);
++  candidate->kotori_ai_evaluated = true;
++  PreserveKotoriBody(converter, &prediction);
++  EXPECT_NE(candidate->attributes & converter::Attribute::NO_LEARNING, 0);
++  EXPECT_TRUE(candidate->kotori_corrected_reading.empty());  // 続き全体の読みではない。
++  EXPECT_EQ(candidate->key, "ちょとまって");
++  candidate->value = "ちょっと待って";
++  PreserveKotoriBody(converter, &prediction);
++  EXPECT_EQ(candidate->kotori_corrected_reading, "ちょっとまって");
++  EXPECT_NE(candidate->attributes & converter::Attribute::NO_LEARNING, 0);
 +}
 +
  }  // namespace engine
@@ -28446,16 +28628,19 @@ index 728f7f963..1e21bf5fd 100644
 +
  }  // namespace mozc
 diff --git a/src/request/options.h b/src/request/options.h
-index 0d2eb3455..1b13074f1 100644
+index 0d2eb3455..195e2e128 100644
 --- a/src/request/options.h
 +++ b/src/request/options.h
-@@ -94,6 +94,10 @@ struct ConversionOptions {
+@@ -94,6 +94,13 @@ struct ConversionOptions {
    // TODO(noriyukit): Fix such a hacky handling for realtime conversion.
    bool skip_slow_rewriters = false;
  
-+  // Kotori: 入力中の候補に出す AI の変換(手が止まった後の取り直し、docs/adr/0039)。
-+  // 覚えておいた結果があれば、裏の予測の計算を止めずにそれを使う。
++  // Kotori: 変換・明示予測のAI評価を非同期で準備する(docs/adr/0067)。
++  // 覚えておいた結果があれば、モデルの計算を待たずにそれを使う。
 +  bool kotori_preview = false;
++  // 表示済み本文の表記/学習属性を参照するときは、新たな変換を始めない。
++  // Tabの途中語を、通常変換の短い語へ固定してしまうのを避ける。
++  bool kotori_preview_cached_only = false;
 +
    // If true, partial candidates are created on prediction/suggestion.
    // For example, "私の" is created from composition "わたしのなまえ".
@@ -30477,10 +30662,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..697eb2e5f
+index 000000000..43ed7be54
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3384 @@
+@@ -0,0 +1,3482 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -32277,6 +32462,7 @@ index 000000000..697eb2e5f
 +void LmRewriter::ClearPredictions() const {
 +  std::lock_guard<std::mutex> lock(job_mu_);
 +  cache_.clear();
++  prediction_memo_.clear();
 +  if (job_ && !job_->convert && !job_->preview) job_.reset();
 +}
 +
@@ -32336,6 +32522,7 @@ index 000000000..697eb2e5f
 +    if (!*memo) return std::nullopt;
 +    return ResizeFor(**memo, segments);
 +  }
++  if (preview && request.options().kotori_preview_cached_only) return std::nullopt;
 +  if (preview && PreviewUnavailable(memo_key, request.kotori_input_generation())) {
 +    return std::nullopt;
 +  }
@@ -33316,6 +33503,56 @@ index 000000000..697eb2e5f
 +  return true;
 +}
 +
++std::string LmRewriter::PredictionMemoKey(const ConversionRequest& request,
++                                          const Segments& segments) const {
++  // 要求の候補素材も照合する。履歴無効・候補拡張で別のリストを流用しない。
++  std::string key = MemoKey(request.config(), ConversionReading(segments),
++                             HistoryContext(request, segments));
++  absl::StrAppend(&key, "\x1eP", request.options().enable_user_history_for_conversion);
++  if (segments.conversion_segments_size() == 1) {
++    for (const auto& candidate : segments.conversion_segment(0).candidates()) {
++      absl::StrAppend(&key, "\x1f", candidate->value, "\x1f", candidate->attributes);
++    }
++  }
++  return key;
++}
++
++bool LmRewriter::RewritePredictionPreview(const ConversionRequest& request,
++                                           Segments* segments) const {
++  if (!predict_ || !request.config().kotori_lm_predict() ||
++      segments->conversion_segments_size() != 1) return false;
++  const std::string reading = ConversionReading(*segments);
++  const size_t len = Util::CharsLen(reading);
++  if (len < 2 || len > kMaxPredictChars) return false;
++  const std::string key = PredictionMemoKey(request, *segments);
++  const auto& input = request.kotori_input_generation();
++  if (input.IsSet() && !input.IsCurrent()) return false;
++  std::lock_guard<std::mutex> lock(job_mu_);
++  for (const auto& memo : prediction_memo_) {
++    if (memo.key != key || !memo.input.IsSame(input) ||
++        memo.epoch != model_epoch_.load()) continue;
++    if (!memo.segment) return false;  // 実際の処理失敗は同じ入力世代だけに適用。
++    *segments->mutable_conversion_segment(0) = *memo.segment;
++    segments->set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++    return true;
++  }
++  segments->set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  if ((running_preview_ != key || !running_preview_input_.IsSame(input)) &&
++      !(job_ && job_->prediction_key == key && job_->input_generation.IsSame(input))) {
++    Job job{reading, HistoryContext(request, *segments), request.config(), false,
++            std::make_shared<Segments>(*segments), input};
++    job.prediction_key = key;
++    job.prediction_context = request.context();
++    job.prediction_request = request.request();
++    job.prediction_options = request.options();
++    job.prediction_options.kotori_preview = false;
++    job_ = std::move(job);
++    new_job_ = true;
++    job_cv_.notify_one();
++  }
++  return false;
++}
++
 +void LmRewriter::StorePredictions(const std::string& reading,
 +                                  const std::string& context,
 +                                  const std::vector<Prediction>& preds) const {
@@ -33566,12 +33803,52 @@ index 000000000..697eb2e5f
 +      job_.reset();
 +      new_job_ = false;
 +      if (job.preview) {
-+        running_preview_ = MemoKey(job.config, job.reading, job.context);
++        running_preview_ = job.prediction_key.empty()
++            ? MemoKey(job.config, job.reading, job.context) : job.prediction_key;
 +        running_preview_input_ = job.input_generation;
 +      }
 +    }
 +    last_config = job.config;
 +    status_pending = true;
++    if (!job.prediction_key.empty()) {
++      const ConversionRequest request = ConversionRequestBuilder()
++          .SetConfigView(job.config).SetContextView(job.prediction_context)
++          .SetRequestView(job.prediction_request).SetKey(job.reading)
++          .SetKotoriInputGeneration(job.input_generation)
++          .SetOptions(job.prediction_options).Build();
++      bool rewritten = false;
++      uint64_t epoch = 0;
++      auto cancelled = [&] {
++        return stop_.load() || new_job_.load() ||
++            (job.input_generation.IsSet() && !job.input_generation.IsCurrent());
++      };
++      {
++        absl::MutexLock model_lock(mutex_);
++        if (!cancelled()) {
++          size_t k = 0, top = 0;
++          int beams = 0;
++          ZenzScorer* llm = nullptr;
++          PrepareFor(job.config, &k, &llm, &beams, &top, true, true);
++          if (llm != nullptr && !cancelled()) {
++            rewritten = RewritePrediction(request, job.preview.get());
++          }
++        }
++        epoch = model_epoch_.load();
++      }
++      std::lock_guard<std::mutex> lock(job_mu_);
++      if (!cancelled()) {
++        std::optional<Segment> result;
++        if (rewritten && job.preview->conversion_segments_size() == 1) {
++          result = job.preview->conversion_segment(0);
++          if (result->candidates_size() > 0) result->mutable_candidate(0)->kotori_ai_evaluated = true;
++        }
++        prediction_memo_.push_back({job.prediction_key, job.input_generation, epoch, std::move(result)});
++        while (prediction_memo_.size() > 16) prediction_memo_.pop_front();
++      }
++      running_preview_.clear();
++      running_preview_input_ = {};
++      continue;
++    }
 +    if (job.preview) {
 +      ConversionRequest::Options options;
 +      options.request_type = ConversionRequest::CONVERSION;
@@ -33663,7 +33940,8 @@ index 000000000..697eb2e5f
 +  }
 +  // サジェストのための変換(1 打鍵ごと)では、AI の変換を動かさない(入力が重くなるため)。
 +  if (request.options().skip_slow_rewriters) return false;
-+  if (!request.config().kotori_lm_enabled() || request.incognito_mode()) return false;
++  if (!request.config().kotori_lm_enabled() || request.incognito_mode() ||
++      request.context().input_field_type() == commands::Context::PASSWORD) return false;
 +  if (kotori_internal::HasTypingCorrectedTop(*segments)) return false;
 +  // Kotori: 文全体で選んだ結果を覚えていれば、ロックを取らずに当てはめる(入力中の候補の取り直しと、
 +  // その後の Space。docs/adr/0039)。取り直しでは文節ごとの見直しもしない(先頭だけ使う)。
@@ -33679,12 +33957,17 @@ index 000000000..697eb2e5f
 +    }
 +    if (request.options().kotori_preview) {
 +      const std::string key = MemoKey(request.config(), ConversionReading(*segments), context);
-+      if (!segments->kotori_sentences().empty() &&
++      if (!request.options().kotori_preview_cached_only &&
++          !segments->kotori_sentences().empty() &&
 +          !PreviewUnavailable(key, request.kotori_input_generation())) {
 +        segments->set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
 +      }
 +      return changed;
 +    }
++  }
++  if (request.request_type() == ConversionRequest::PREDICTION &&
++      request.options().kotori_preview) {
++    return RewritePredictionPreview(request, segments);
 +  }
 +  // LLM がないときの Tab、GPU がなく長い読みでは AI を使わないので、ロックを待たない。
 +  if (request.request_type() == ConversionRequest::PREDICTION &&
@@ -33867,10 +34150,10 @@ index 000000000..697eb2e5f
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..393c920b8
+index 000000000..a041766f9
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,504 @@
+@@ -0,0 +1,520 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -34167,6 +34450,11 @@ index 000000000..393c920b8
 +    bool convert = false;  // 予測ではなく先回りの変換
 +    std::shared_ptr<Segments> preview;  // 入力中の評価用。変換器の状態を共有しない。
 +    ConversionRequest::KotoriInputGeneration input_generation = {};
++    // Kotori: Tabの候補素材と要求を所有し、キー処理から採点を分離する。
++    std::string prediction_key;
++    commands::Context prediction_context;
++    commands::Request prediction_request;
++    ConversionRequest::Options prediction_options;
 +  };
 +  // 先回りの変換で生成した文(読みと前の文ごと)。
 +  struct Generated {
@@ -34217,6 +34505,17 @@ index 000000000..393c920b8
 +  // 入力中のサジェスト(SUGGESTION): 裏で計算済みの予測を出し、今の読みの計算を頼む(待たない)。
 +  bool RewriteSuggestion(const ConversionRequest& request,
 +                         Segments* segments) const;
++  bool RewritePredictionPreview(const ConversionRequest& request,
++                                 Segments* segments) const;
++  std::string PredictionMemoKey(const ConversionRequest& request,
++                                const Segments& segments) const;
++  struct PredictionMemo {
++    std::string key;
++    ConversionRequest::KotoriInputGeneration input;
++    uint64_t epoch;
++    std::optional<Segment> segment;
++  };
++  mutable std::deque<PredictionMemo> prediction_memo_;  // job_mu_で保護。
 +  void WorkerLoop();
 +  bool RewriteEachSegment(const ConversionRequest& request,
 +                          ZenzScorer* scorer, size_t k, bool keep_top,
@@ -34377,10 +34676,10 @@ index 000000000..393c920b8
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..6427a4ec4
+index 000000000..af4da8884
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1028 @@
+@@ -0,0 +1,1138 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -35094,6 +35393,38 @@ index 000000000..6427a4ec4
 +  bool PreviewFailed(const Snapshot& input, const std::string& key = "test-preview") const {
 +    return rewriter_->PreviewUnavailable(key, input);
 +  }
++  ConversionRequest PredictionRequest(Snapshot input) const {
++    ConversionRequest::Options options;
++    options.request_type = ConversionRequest::PREDICTION;
++    options.kotori_preview = true;
++    return ConversionRequestBuilder().SetConfig(config_)
++        .SetKotoriInputGeneration(input).SetOptions(options).Build();
++  }
++  void SeedPrediction(const ConversionRequest& request, const Segments& material,
++                       std::optional<Segment> result) {
++    std::lock_guard<std::mutex> lock(rewriter_->job_mu_);
++    rewriter_->prediction_memo_.push_back({rewriter_->PredictionMemoKey(request, material),
++        request.kotori_input_generation(), rewriter_->model_epoch_.load(), std::move(result)});
++  }
++  bool PreviewPrediction(const ConversionRequest& request, Segments* material) const {
++    return rewriter_->RewritePredictionPreview(request, material);
++  }
++  void StopWorkerForMemoTest() {
++    // メモ照合は単体で検査する。ワーカーの配送は実モデル試験で確認する。
++    {
++      std::lock_guard<std::mutex> lock(rewriter_->job_mu_);
++      rewriter_->stop_ = true;
++    }
++    rewriter_->job_cv_.notify_all();
++    if (rewriter_->worker_.joinable()) rewriter_->worker_.join();
++  }
++  bool CachedOnlyConversion(const ConversionRequest& request, Segments* segments) const {
++    rewriter_->CheckResizeSegmentsRequest(request, *segments);
++    rewriter_->Rewrite(request, segments);
++    std::lock_guard<std::mutex> lock(rewriter_->job_mu_);
++    return rewriter_->job_.has_value();
++  }
++  void ClearPredictionCache() { rewriter_->ClearPredictions(); }
 +  void ReloadModel() { ++rewriter_->model_epoch_; }
 +  void ReplaceModelHashes() {
 +    std::lock_guard<std::mutex> lock(rewriter_->job_mu_);
@@ -35406,6 +35737,84 @@ index 000000000..6427a4ec4
 +  EXPECT_FALSE(PreviewFailed(Snapshot{owner, 2}));
 +  auto other = std::make_shared<std::atomic<uint64_t>>(1);
 +  EXPECT_FALSE(PreviewFailed(Snapshot{other, 1}));
++}
++
++
++TEST_F(LmRewriterGenerationTest, PredictionPreviewPublishesOnlyMatchingAiResult) {
++  StopWorkerForMemoTest();
++  auto owner = std::make_shared<std::atomic<uint64_t>>(1);
++  const auto request = PredictionRequest(Snapshot{owner, 1});
++  Segments material;
++  auto* segment = material.add_segment();
++  segment->set_key("あいうえお");
++  auto* candidate = segment->add_candidate();
++  candidate->key = "あいうえお";
++  candidate->value = "あいうえお";
++  Segment evaluated = *segment;
++  evaluated.mutable_candidate(0)->value = "阿伊宇江於の続き";
++  evaluated.mutable_candidate(0)->kotori_ai_evaluated = true;
++  SeedPrediction(request, material, evaluated);
++  Segments output = material;
++  EXPECT_TRUE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kReady);
++  EXPECT_EQ(output.conversion_segment(0).candidate(0).value, "阿伊宇江於の続き");
++  // 同じ読みでも、候補素材が変われば古い一覧を公開しない。
++  output = material;
++  output.mutable_conversion_segment(0)->mutable_candidate(0)->value = "別の候補素材";
++  EXPECT_FALSE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kPending);
++  EXPECT_EQ(output.conversion_segment(0).candidate(0).value, "別の候補素材");
++  // 古い世代には結果を渡さず、新しい仕事も作らない。
++  ++*owner;
++  output = material;
++  EXPECT_FALSE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kUnavailable);
++}
++
++TEST_F(LmRewriterGenerationTest, PredictionFailureIsLimitedToInputAndModelEpoch) {
++  StopWorkerForMemoTest();
++  auto owner = std::make_shared<std::atomic<uint64_t>>(1);
++  const auto request = PredictionRequest(Snapshot{owner, 1});
++  Segments material;
++  auto* segment = material.add_segment();
++  segment->set_key("あいうえお");
++  segment->add_candidate()->value = "あいうえお";
++  SeedPrediction(request, material, std::nullopt);
++  Segments output = material;
++  EXPECT_FALSE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kUnavailable);
++  ClearPredictionCache();
++  output = material;
++  EXPECT_FALSE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kPending);
++  // モデル世代が変わった結果も再利用しない。
++  SeedPrediction(request, material, std::nullopt);
++  ReloadModel();
++  output = material;
++  EXPECT_FALSE(PreviewPrediction(request, &output));
++  EXPECT_EQ(output.kotori_ai_status(), Segments::KotoriAiStatus::kPending);
++}
++
++
++TEST_F(LmRewriterGenerationTest, CachedOnlyBodyLookupDoesNotStartConversion) {
++  StopWorkerForMemoTest();
++  auto owner = std::make_shared<std::atomic<uint64_t>>(1);
++  ConversionRequest::Options options;
++  options.request_type = ConversionRequest::CONVERSION;
++  options.kotori_preview = true;
++  options.kotori_preview_cached_only = true;
++  const auto request = ConversionRequestBuilder().SetConfig(Request(Snapshot{owner, 1}).config())
++      .SetKotoriInputGeneration(Snapshot{owner, 1}).SetOptions(options).Build();
++  Segments material;
++  auto* segment = material.add_segment();
++  segment->set_key("しつれいい");
++  auto* candidate = segment->add_candidate();
++  candidate->key = "しつれいい";
++  candidate->value = "失礼医";
++  material.kotori_sentences().push_back(*candidate);
++  EXPECT_FALSE(CachedOnlyConversion(request, &material));
++  EXPECT_EQ(material.kotori_ai_status(), Segments::KotoriAiStatus::kUnavailable);
++  EXPECT_EQ(material.conversion_segment(0).candidate(0).value, "失礼医");
 +}
 +
 +}  // namespace mozc
@@ -36572,7 +36981,7 @@ index eda5d517e..2c99a39c7 100644
    if (run_level == mozc::RunLevel::RESTRICTED) {
      MOZC_VLOG(1) << "Mozc server starts with timeout mode";
 diff --git a/src/session/BUILD.bazel b/src/session/BUILD.bazel
-index 2da5b8d46..837bb82ff 100644
+index 2da5b8d46..5c2243e3e 100644
 --- a/src/session/BUILD.bazel
 +++ b/src/session/BUILD.bazel
 @@ -56,6 +56,7 @@ mozc_cc_library(
@@ -36591,7 +37000,20 @@ index 2da5b8d46..837bb82ff 100644
          "//base:vlog",
          "//base/strings:assign",
          "//base/strings:unicode",
-@@ -678,3 +680,18 @@ mozc_cc_test(
+@@ -531,6 +533,12 @@ mozc_cc_test(
+     data = [
+         "//data/test/session/scenario:scenario_files",
+     ],
++    # Kotori: 小辞書の回帰はAI有効・モデル未導入を再現する。常用環境のモデルや
++    # DLLへ接続しない。実モデルと実TSFの検査は別の固定成果物で行う。
++    env = {
++        "KOTORI_MODEL_DIR": "missing-asteria-scenario-models",
++        "KOTORI_RUNTIME_DIR": "missing-asteria-scenario-runtime",
++    },
+     shard_count = 8,
+     tags = [
+         "noandroid",  # TODO(b/73698251): disabled due to errors
+@@ -678,3 +686,18 @@ mozc_cc_test(
          "@com_google_absl//absl/strings",
      ],
  )
@@ -36808,7 +37230,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..b428391fc 100644
+index 8186b0a8d..a03e815af 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -36858,7 +37280,7 @@ index 8186b0a8d..b428391fc 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +564,129 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +564,134 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -36872,7 +37294,8 @@ index 8186b0a8d..b428391fc 100644
 +void Session::KotoriScheduleRefresh(commands::Command* command, int count,
 +                                    bool waiting) {
 +  if (context_->state() != ImeContext::COMPOSITION ||
-+      context_->GetRequest().mixed_conversion() ||
++      (context_->GetRequest().mixed_conversion() && !waiting &&
++       !context_->converter().KotoriIsAwaitingAi()) ||
 +      !context_->GetConfig().kotori_lm_enabled() ||
 +      context_->GetConfig().incognito_mode() ||
 +      context_->GetRequest().is_incognito_mode() ||
@@ -36908,7 +37331,11 @@ index 8186b0a8d..b428391fc 100644
 +  command->mutable_output()->set_consumed(true);
 +  if (kotori_conversion_pending_) {
 +    const bool commit = kotori_commit_pending_;
-+    KotoriConvert(command, kotori_pending_preferences_);
++    if (kotori_prediction_pending_) {
++      PredictAndConvert(command);
++    } else {
++      KotoriConvert(command, kotori_pending_preferences_);
++    }
 +    if (!kotori_conversion_pending_ && context_->state() == ImeContext::CONVERSION && commit) {
 +      Commit(command);
 +      KotoriReplayFollowingKeys(command);
@@ -36988,7 +37415,7 @@ index 8186b0a8d..b428391fc 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -717,6 +862,28 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +867,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -37007,7 +37434,8 @@ index 8186b0a8d..b428391fc 100644
 +      return true;
 +    }
 +    if (key_command != keymap::CompositionState::CONVERT &&
-+        key_command != keymap::CompositionState::CONVERT_WITHOUT_HISTORY) {
++        key_command != keymap::CompositionState::CONVERT_WITHOUT_HISTORY &&
++        key_command != keymap::CompositionState::PREDICT_AND_CONVERT) {
 +      kotori_conversion_pending_ = false;
 +      kotori_commit_pending_ = false;
 +      context_->mutable_converter()->KotoriInputFieldTypeChanged();
@@ -37017,7 +37445,7 @@ index 8186b0a8d..b428391fc 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -2371,13 +2538,28 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,13 +2544,29 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -37029,6 +37457,7 @@ index 8186b0a8d..b428391fc 100644
 +
 +bool Session::KotoriConvert(commands::Command* command,
 +                            const ConversionPreferences& preferences) {
++  kotori_prediction_pending_ = false;
 +  command->mutable_output()->set_consumed(true);
 +  if (context_->mutable_converter()->KotoriPrepareConversion(
 +          context_->composer(), context_->client_context(), preferences) ==
@@ -37050,7 +37479,7 @@ index 8186b0a8d..b428391fc 100644
    SetSessionState(ImeContext::CONVERSION, context_.get());
    Output(command);
    return true;
-@@ -2389,16 +2571,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2578,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -37068,7 +37497,7 @@ index 8186b0a8d..b428391fc 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2849,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2856,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -37077,7 +37506,30 @@ index 8186b0a8d..b428391fc 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2738,6 +2911,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2691,8 +2871,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+   }
+ 
+   command->mutable_output()->set_consumed(true);
+-  if (context_->mutable_converter()->Predict(context_->composer(),
+-                                             context_->client_context())) {
++  const bool predicted = context_->mutable_converter()->Predict(
++      context_->composer(), context_->client_context());
++  if (context_->converter().KotoriIsAwaitingAi()) {
++    kotori_conversion_pending_ = true;
++    kotori_prediction_pending_ = true;
++    kotori_pending_preferences_ = context_->converter().conversion_preferences();
++    OutputComposition(command);
++    KotoriScheduleRefresh(command, 0, true);
++    return true;
++  }
++  kotori_conversion_pending_ = false;
++  kotori_prediction_pending_ = false;
++  kotori_commit_pending_ = false;
++  if (predicted) {
+     SetSessionState(ImeContext::CONVERSION, context_.get());
+     Output(command);
+   } else {
+@@ -2738,6 +2930,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -37091,7 +37543,7 @@ index 8186b0a8d..b428391fc 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3047,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3066,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -37103,7 +37555,7 @@ index 8186b0a8d..b428391fc 100644
        command->input().context().input_field_type());
    Output(command);
 diff --git a/src/session/session.h b/src/session/session.h
-index a9903ecd3..fdb4bc55d 100644
+index a9903ecd3..18a55dafe 100644
 --- a/src/session/session.h
 +++ b/src/session/session.h
 @@ -116,6 +116,10 @@ class Session {
@@ -37117,7 +37569,7 @@ index a9903ecd3..fdb4bc55d 100644
    // Fills Output::Callback with the Undo SessionCommand to ask the
    // client to send back the SessionCommand to the server.
    // This function is called when the key event representing the
-@@ -275,6 +279,23 @@ class Session {
+@@ -275,6 +279,24 @@ class Session {
   private:
    friend class SessionTestPeer;
  
@@ -37127,6 +37579,7 @@ index a9903ecd3..fdb4bc55d 100644
 +                             bool waiting = false);
 +  int kotori_refresh_count_ = 0;
 +  bool kotori_conversion_pending_ = false;
++  bool kotori_prediction_pending_ = false;
 +  bool kotori_commit_pending_ = false;
 +  // Enter後の次の打鍵は、前の変換を取り消さず順番を保って配送する。
 +  std::deque<commands::Input> kotori_following_keys_;
@@ -37206,10 +37659,18 @@ index 4718077e2..9532e7021 100644
        if (is_passed) {
          std::cout << "[ PASSED ] " << filepath << std::endl;
 diff --git a/src/session/session_handler_scenario_test.cc b/src/session/session_handler_scenario_test.cc
-index 1bce7497e..a620ff697 100644
+index 1bce7497e..ffd4b8fd7 100644
 --- a/src/session/session_handler_scenario_test.cc
 +++ b/src/session/session_handler_scenario_test.cc
-@@ -217,6 +217,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
+@@ -74,6 +74,7 @@ class SessionHandlerScenarioTestBase : public SessionHandlerTestBase {
+     std::unique_ptr<EngineInterface> engine =
+         MockDataEngineFactory::Create().value();
+     handler_ = std::make_unique<SessionHandlerInterpreter>(std::move(engine));
++    handler_->SetKotoriAutoRefreshForTesting(true);
+ 
+   }
+ 
+@@ -217,6 +218,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
    }
  }
  
@@ -37275,10 +37736,20 @@ index 1bce7497e..a620ff697 100644
      : public SessionHandlerScenarioTestBase,
        public WithParamInterface<std::tuple<const char*, commands::Request>> {
 diff --git a/src/session/session_handler_tool.cc b/src/session/session_handler_tool.cc
-index e22e60a8c..d4e77df81 100644
+index e22e60a8c..e73696162 100644
 --- a/src/session/session_handler_tool.cc
 +++ b/src/session/session_handler_tool.cc
-@@ -211,6 +211,15 @@ bool SessionHandlerTool::UndoOrRewind(commands::Output* output) {
+@@ -31,7 +31,9 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <chrono>
+ #include <memory>
++#include <thread>
+ #include <optional>
+ #include <string>
+ #include <utility>
+@@ -211,6 +213,15 @@ bool SessionHandlerTool::UndoOrRewind(commands::Output* output) {
    return EvalCommand(&input, output);
  }
  
@@ -37294,7 +37765,7 @@ index e22e60a8c..d4e77df81 100644
  bool SessionHandlerTool::DeleteCandidateFromHistory(std::optional<int> id,
                                                      commands::Output* output) {
    commands::Input input;
-@@ -281,7 +290,11 @@ bool SessionHandlerTool::EvalCommandInternal(commands::Input* input,
+@@ -281,7 +292,11 @@ bool SessionHandlerTool::EvalCommandInternal(commands::Input* input,
    // If callback is allowed and the callback field exists, evaluate the callback
    // command.
    if (result && allow_callback && command.output().has_callback() &&
@@ -37307,7 +37778,39 @@ index e22e60a8c..d4e77df81 100644
      commands::Input input2;
      input2.set_type(commands::Input::SEND_COMMAND);
      *input2.mutable_command() = command.output().callback().session_command();
-@@ -313,10 +326,12 @@ SessionHandlerInterpreter::SessionHandlerInterpreter(
+@@ -289,6 +304,31 @@ bool SessionHandlerTool::EvalCommandInternal(commands::Input* input,
+     // Disallow further recursion.
+     result = EvalCommandInternal(&input2, output, false);
+   }
++  // Kotori: 旧シナリオのEXPECTは結果配送後に評価する。読みの表示とAI待機を
++  // 調べるCLIでは無効のままにし、pendingの観測を残す。
++  if (result && allow_callback && kotori_auto_refresh_ &&
++      command.output().has_callback() && command.output().callback().has_session_command() &&
++      command.output().callback().session_command().type() == commands::SessionCommand::KOTORI_REFRESH_SUGGESTION) {
++    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
++    auto waiting = [&] {
++      const auto& value = command.output();
++      return value.has_callback() && value.callback().has_session_command() &&
++          value.callback().session_command().type() == commands::SessionCommand::KOTORI_REFRESH_SUGGESTION &&
++          !value.has_result() && value.candidate_window().candidate_size() == 0 &&
++          value.all_candidate_words().candidates_size() == 0;
++    };
++    while (waiting()) {
++      if (std::chrono::steady_clock::now() >= deadline) return false;
++      std::this_thread::sleep_for(std::chrono::milliseconds(1));
++      commands::Input refresh;
++      refresh.set_type(commands::Input::SEND_COMMAND);
++      refresh.mutable_command()->set_type(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
++      commands::Output refreshed;
++      if (!EvalCommandInternal(&refresh, &refreshed, false)) return false;
++      *command.mutable_output() = std::move(refreshed);
++    }
++    if (output != nullptr) *output = command.output();
++  }
+   callback_text_.clear();
+   return result;
+ }
+@@ -313,10 +353,12 @@ SessionHandlerInterpreter::SessionHandlerInterpreter(
  }
  
  SessionHandlerInterpreter::~SessionHandlerInterpreter() {
@@ -37321,7 +37824,7 @@ index e22e60a8c..d4e77df81 100644
  }
  
  void SessionHandlerInterpreter::ClearState() {
-@@ -668,6 +683,9 @@ absl::Status SessionHandlerInterpreter::Eval(
+@@ -668,6 +710,9 @@ absl::Status SessionHandlerInterpreter::Eval(
      MOZC_ASSERT_TRUE(client_->SubmitCandidate(id, last_output_.get()));
    } else if (command == "UNDO_OR_REWIND") {
      MOZC_ASSERT_TRUE(client_->UndoOrRewind(last_output_.get()));
@@ -37332,28 +37835,41 @@ index e22e60a8c..d4e77df81 100644
      MOZC_ASSERT_TRUE(args.size() == 1 || args.size() == 2);
      std::optional<int> id = std::nullopt;
 diff --git a/src/session/session_handler_tool.h b/src/session/session_handler_tool.h
-index 4d3669e06..a94d9a579 100644
+index 4d3669e06..48cb80565 100644
 --- a/src/session/session_handler_tool.h
 +++ b/src/session/session_handler_tool.h
-@@ -81,6 +81,8 @@ class SessionHandlerTool {
+@@ -81,6 +81,10 @@ class SessionHandlerTool {
    bool Reload();
    bool ResetContext();
    bool UndoOrRewind(commands::Output* output);
 +  // Kotori: 入力中の候補を取り直させる(KOTORI_REFRESH_SUGGESTION。docs/adr/0039)。
 +  bool KotoriRefresh(commands::Output* output);
++  // Kotori: 同期の既存シナリオでは非同期結果の配送を待つ。CLIは明示的に駆動する。
++  void SetKotoriAutoRefreshForTesting(bool enabled) { kotori_auto_refresh_ = enabled; }
    // Try to delete the candidate from the history.
    // The target candidate is specified with the |id|. If |id| is not specified,
    // the current focused candidate will be specified.
-@@ -113,6 +115,8 @@ class SessionHandlerInterpreter final {
+@@ -102,6 +106,7 @@ class SessionHandlerTool {
+   EngineInterface* engine_ = nullptr;
+   std::unique_ptr<SessionHandler> handler_;
+   std::string callback_text_;
++  bool kotori_auto_refresh_ = false;
+ };
+ 
+ class SessionHandlerInterpreter final {
+@@ -113,6 +118,11 @@ class SessionHandlerInterpreter final {
    void ClearState();
    void ClearAll();
    void ResetContext();
 +  // Kotori: CLIの明示した専用プロファイルで保存/再起動を検査する。
 +  void SetPreserveProfileForTesting(bool preserve) { preserve_profile_ = preserve; }
++  void SetKotoriAutoRefreshForTesting(bool enabled) {
++    client_->SetKotoriAutoRefreshForTesting(enabled);
++  }
    void SyncDataToStorage();
    void ClearUserPrediction();
    void ClearUsageStats();
-@@ -133,6 +137,7 @@ class SessionHandlerInterpreter final {
+@@ -133,6 +143,7 @@ class SessionHandlerInterpreter final {
    config::Config config_;
    std::unique_ptr<commands::Output> last_output_;
    std::unique_ptr<commands::Request> request_;
@@ -37362,7 +37878,7 @@ index 4d3669e06..a94d9a579 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..411a09f33 100644
+index 012d822a5..475b59416 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -37419,7 +37935,17 @@ index 012d822a5..411a09f33 100644
    commands::Command command;
  
    Segments segments;
-@@ -7878,6 +7890,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -3799,6 +3811,9 @@ TEST_F(SessionTest, Issue1816861) {
+   candidate = segment->add_candidate();
+   candidate->value = "陰謀説";
+ 
++  // Kotori: 部分確定後の残りの読みを、Tabの予測前にAI用の素材として変換する。
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillOnce(DoAll(SetArgPointee<1>(segments), Return(true)));
+   EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
+       .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
+ 
+@@ -7878,6 +7893,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -37429,7 +37955,7 @@ index 012d822a5..411a09f33 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9159,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9162,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -37467,7 +37993,7 @@ index 012d822a5..411a09f33 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9851,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9854,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
@@ -37478,7 +38004,7 @@ index 012d822a5..411a09f33 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10544,401 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10547,510 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -37876,6 +38402,115 @@ index 012d822a5..411a09f33 100644
 +      EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
 +    }
 +  }
++}
++
++
++TEST_F(SessionTest, KotoriAiFirstTabWaitsAndPreservesQueuedEnterAndTyping) {
++  MockEngine engine;
++  auto converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  Segments suggestion;
++  auto* segment = suggestion.add_segment();
++  segment->set_key("あいうえお");
++  AddCandidate("あいうえお", "あいうえお", segment);
++  suggestion.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  EXPECT_CALL(*converter, StartPrediction(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(suggestion), Return(true)));
++  bool body_ready = false;
++  bool prediction_ready = false;
++  ConversionRequest::KotoriInputGeneration input;
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly([&](const ConversionRequest& request, Segments* segments) {
++        EXPECT_TRUE(request.options().kotori_preview);
++        input = request.kotori_input_generation();
++        EXPECT_TRUE(request.options().kotori_preview_cached_only);
++        *segments = suggestion;
++        segments->set_kotori_ai_status(Segments::KotoriAiStatus::kUnavailable);
++        if (body_ready) {
++          segments->set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++          auto* candidate = segments->mutable_segment(0)->mutable_candidate(0);
++          candidate->value = "阿伊宇江於";
++          candidate->kotori_ai_evaluated = true;
++        }
++        return true;
++      });
++  EXPECT_CALL(*converter, PrependCandidates(_, _, _))
++      .WillRepeatedly([&](const ConversionRequest& request, const Segment&, Segments* segments) {
++        EXPECT_EQ(request.request_type(), ConversionRequest::PREDICTION);
++        EXPECT_TRUE(request.options().kotori_preview);
++        *segments = suggestion;
++        if (prediction_ready) {
++          segments->set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++          auto* candidate = segments->mutable_segment(0)->mutable_candidate(0);
++          candidate->value = "阿伊宇江於の続き";
++          candidate->kotori_ai_evaluated = true;
++        }
++      });
++  commands::Command command;
++  InsertCharacterChars("aiueo", &session, &command);
++  ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::TAB, &session, &command));
++  EXPECT_EQ(GetComposition(command), "あいうえお");
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_TRUE(command.output().has_callback());
++  ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::ENTER, &session, &command));
++  InsertCharacterChars("sa", &session, &command);
++  EXPECT_EQ(GetComposition(command), "あいうえおさ");
++  EXPECT_TRUE(input.IsCurrent());
++  body_ready = true;
++  ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION, &session, &command));
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  EXPECT_FALSE(command.output().has_result());
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_TRUE(command.output().has_callback());
++  prediction_ready = true;
++  ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION, &session, &command));
++  ASSERT_TRUE(command.output().has_result());
++  EXPECT_EQ(command.output().result().value(), "阿伊宇江於の続き");
++  EXPECT_EQ(GetComposition(command), "さ");
++  EXPECT_FALSE(input.IsCurrent());
++}
++
++
++TEST_F(SessionTest, KotoriMixedConversionDeliversPendingAiResult) {
++  MockEngine engine;
++  auto converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  commands::Request request;
++  request.set_mixed_conversion(true);
++  InitSessionToPrecomposition(&session, request);
++  Segments pending;
++  auto* segment = pending.add_segment();
++  segment->set_key("あいうえお");
++  AddCandidate("あいうえお", "あいうえお", segment);
++  pending.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  EXPECT_CALL(*converter, StartPrediction(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(pending), Return(true)));
++  bool ready = false;
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly([&](const ConversionRequest&, Segments* segments) {
++        *segments = pending;
++        if (ready) {
++          segments->set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++          segments->mutable_segment(0)->mutable_candidate(0)->value = "阿伊宇江於";
++          segments->mutable_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++        }
++        return true;
++      });
++  commands::Command command;
++  InsertCharacterChars("aiueo", &session, &command);
++  command.Clear();
++  ASSERT_TRUE(session.Convert(&command));
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  ASSERT_TRUE(command.output().has_callback());
++  ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION, &session, &command));
++  EXPECT_TRUE(command.output().has_callback());
++  ready = true;
++  ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION, &session, &command));
++  EXPECT_EQ(session.context().state(), ImeContext::CONVERSION);
++  EXPECT_EQ(GetComposition(command), "阿伊宇江於");
++  EXPECT_FALSE(command.output().has_callback());
 +}
 +
  }  // namespace session

@@ -2,7 +2,7 @@
 
 この文書は現在の状況と次の作業を更新する。過去の作業指示は[履歴](HANDOFF_HISTORY_20261012.md)、測定は個別verificationを参照し、履歴の「現在」を再実行指示にしない。
 
-v1.1.4-rc.1を公開済み。次版は利用者の明示指示によりGPUのAIを主体とし、最初の結果を待って候補を表示する。[ADR0067](adr/0067-ai-first-candidate-publication.md)。通常Spaceと入力中候補の非同期待機を実装し、[固定バイナリの前後比較](verification/ai-first-publication-20261019.md)で旧版失敗・新版成功、C++365件、品質978出力一致を確認。製品/Mozc枝はcodex/gpu-ai-first-candidates-20261019、Mozc source bba6fb37e。新MSI・Windows CIとTabの明示予測経路は継続する。以下の公開RCの検証は新バイナリの検証とは区別する。
+v1.1.4-rc.1を公開済み。次版は利用者の明示指示によりGPUのAIを主体とし、最初の結果を待って候補を表示する。[ADR0067](adr/0067-ai-first-candidate-publication.md)。通常Space・入力中候補に加えて明示Tabも非同期化し、保留Enter/後続入力/取消を保持。製品の作業枝はcodex/gpu-ai-first-candidates-20261019（予測用の枝をfast-forwardで統合）、Mozcはcodex/gpu-ai-first-predictions-20261019、PR171へまとめる。Mozc sourceは8af4797f9。[固定バイナリの前後比較](verification/ai-first-publication-20261019.md)でC++534件・Python119件、品質978出力一致、予測29件の先頭表示一致、通常28/保存等7項目を確認。PR171の旧Windows run39187992825は旧シナリオの配送前検査で失敗し、修正後に全81シナリオ成功。修正後の新MSI・実TSFはCIで確認する。以下の公開RCの検証は新バイナリの検証とは区別する。
 
 ## 公開記録と開発対象
 
@@ -28,7 +28,7 @@ Bazel shutdown後に生成パッチを再作成し、基点cloneへ適用した�
 
 ## 次の作業と残る条件
 
-1. RC公開・自動入力確認・公開ファイル再取得照合は完了。配布情報・SHAをReleaseへ添付済み。次版の変更は新しいソース・バイナリで検証する。
+1. RC公開・自動入力確認・公開ファイル再取得照合は完了。配布情報・SHAをReleaseへ添付済み。次版のPR171は修正headの全CI成功後、新MSIのSHA/版/ソースを固定し、installer-candidateのrun/head/SHAを更新して8項目・再導入・削除を確認、統合・公開する。旧runのMSIを次版の証拠にしない。既存の送信/CI/公開許可は再質問しない。
 2. 新しい通常Space経路はAIの初回結果を待ち、GPU指定の隔離試験で「アイデア曲」を最初から確定できた。新MSI・実TSFでは継続確認する。CPU指定の参照不一致は残る。文字3gram順位案や個別語句の分岐で通した変更ではない。
 3. EDIT/RichEditの実入力・取消・欄移動・保護欄の見える挙動・同一MSI再導入・削除はCIで成功。AI寄与・保護欄内部のAI/学習・複数アプリ・低性能実機・旧版更新/再起動復旧・独立verifierは残る。[実アプリ条件](ACCEPTANCE.md)の全完了とはしない。
 4. 追加依頼のブランディングはREADME・図版・プレビューへ反映済み。[測定条件](BENCHMARKS.md)と[更新検証](verification/release-preparation-v1.1.4-20261019.md)。旧Kotori88.4%は198問の過去実入力比較、開発版94.0%はStandard・AI準備後・前文ありのオフライン200問。異なる測定条件を混ぜて他IMEより高い精度と主張しない。

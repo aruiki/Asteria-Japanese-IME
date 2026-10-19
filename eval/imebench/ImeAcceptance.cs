@@ -139,6 +139,14 @@ sealed class Acceptance : Form {
   }
   string Preedit(ImeObservation edit) { string text = ""; Ui(() => text = edit.Composition); return text; }
   string TextOf(ImeObservation edit) { string text = ""; Ui(() => text = ReadText(edit.Edit)); return text; }
+  void WaitUntil(Func<bool> condition, string message) {
+    // AIの非同期配送を観測する。固定sleepの直後を完成扱いにしない。
+    var timer = Stopwatch.StartNew();
+    while (!condition()) {
+      Require(timer.ElapsedMilliseconds < 15000, message);
+      Thread.Sleep(25);
+    }
+  }
   void Check(string name, Action<Dictionary<string, object>> action) {
     var row = new Dictionary<string, object> {{"name", name}, {"passed", false}};
     checks.Add(row);
@@ -149,10 +157,10 @@ sealed class Acceptance : Form {
   void Convert(ImeObservation edit, string keys, string expected) {
     Reset(edit); Type(edit, keys);
     Require(Preedit(edit).Length > 0, "No native preedit observed before Space");
-    Press(0x20); Thread.Sleep(500);
-    Require(Preedit(edit) == expected, "Converted preedit mismatch: " + Preedit(edit));
+    Press(0x20);
+    WaitUntil(() => Preedit(edit) == expected, "Converted preedit was not delivered: " + expected);
     Press(0x0D);
-    Require(TextOf(edit) == expected && Preedit(edit) == "", "Committed text differs from displayed preedit");
+    WaitUntil(() => TextOf(edit) == expected && Preedit(edit) == "", "Committed text differs from displayed preedit");
   }
   void Run() {
     report["complete"] = false; report["native_tsf"] = true;
@@ -178,7 +186,8 @@ sealed class Acceptance : Form {
       report["loaded_tip"] = tip;
       Check("richedit_preedit_space_commit", row => Convert(r, "toukyou", "東京"));
       Check("candidate_down_page_roundtrip_commit", row => {
-        Reset(a); Type(a, "hashi"); Press(0x20); Thread.Sleep(500);
+        Reset(a); Type(a, "hashi"); string reading = Preedit(a); Press(0x20);
+        WaitUntil(() => Preedit(a).Length > 0 && Preedit(a) != reading, "Converted candidates were not delivered");
         string initial = Preedit(a); Require(initial.Length > 0, "No converted preedit");
         Press(0x28); string down = Preedit(a);
         Press(0x22); string next = Preedit(a);
@@ -217,7 +226,7 @@ sealed class Acceptance : Form {
         Require(Preedit(a) == "" && TextOf(a) == "にほんご", "Focus loss lost or retained uncommitted composition");
         Require(TextOf(b) == "" && Preedit(b) == "", "Composition leaked into the next field");
         Type(b, "toukyou"); Press(0x20); Press(0x0D);
-        Require(TextOf(b) == "東京" && TextOf(a) == "にほんご", "Focus destination input failed");
+        WaitUntil(() => TextOf(b) == "東京" && TextOf(a) == "にほんご", "Focus destination input failed");
         Focus(a, true); Require(Preedit(a) == "", "Old composition resumed after refocusing");
       });
       Check("password_host_visible_behavior", row => {

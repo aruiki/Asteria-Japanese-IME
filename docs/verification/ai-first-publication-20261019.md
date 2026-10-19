@@ -1,6 +1,24 @@
 # GPU AIを待つ初回候補表示（2026-10-19）
 
-利用者の明示指示に基づく[ADR0067](../adr/0067-ai-first-candidate-publication.md)の通常Space・入力中候補の実装記録。公開済みv1.1.4-rc.1を改変した記録ではない。
+利用者の明示指示に基づく[ADR0067](../adr/0067-ai-first-candidate-publication.md)の通常Space・入力中候補・明示Tabの実装記録。公開済みv1.1.4-rc.1を改変した記録ではない。
+
+## 最新: Tabとシナリオ配送の修正
+
+Mozc source `8af4797f92689474635dd49cf8163cef7aedc198`。Tabも候補素材と要求を所有するワーカーで生成・採点し、入力/モデル世代・設定・文脈・候補素材が一致した結果だけを公開する。Spaceと同じ保留Enter・後続入力・取消を使う。評価済み本文の全半角英数表記とNO_LEARNINGを継ぎ、予測で延長した候補へ本文だけの補正読みを流用しない。mixed_conversionでも明示的なAI待機の配送callbackを継続する。
+
+固定v5 (`ai-first-tab-native-candidate-v5`) のsession SHAは`763d0184545ce7163dfee7b4f0e5b6b73c602622fbf4e6c15d94905ba90deb6f`、converter SHAは`66ae75a21889d7ef085a5124ce0f39775715774d4f739ab86f7b5c272fefe505`。ビルド時diffとbba6からのコミットdiffはSHA`f4aaa29683d217f0d50ffc2107389dae916b0f093428ba46e918f74d6c62779c`で一致した。
+
+- Windows CIと同じ13対象のC++534件成功。Engine92/LM70/Session196/Scenario81を含む。`ai-first-all-ci-tests-v1.log`と`ai-first-tab-test-counts.json`。Python119件成功、`ai-first-tab-python-v3.log`。
+- GPU/実モデルのSpace→保留Enter→後続入力の検査成功、`ai-first-tab-space-regression-v5`。明示Tabの同じ操作、取消・編集・AI-off、通常変換で評価した本文とTabの表記/確定一致も成功、`ai-first-tab-queue-gpu-v5`。後者の冷起動入力は既存予測データの「おせわに」、期待prefix「お世話に」。RTX3060を選択。最大キー/配送応答はそれぞれ36.23/35.73msだが、AI結果到着時間や反復性能比較ではない。
+- 固定予測29件の前後比較 (`ai-first-tab-prediction-quality-v2`) は先頭表示29件すべて一致、1位12/29・3位以内20/29を維持、表示と確定の不一致0。データSHA`e0eacca8d1a68c03342dbb2e226743cfc2994753480c44c602ac1c8b9ae2bb79`。調整用予測prefix一致であり、通常変換の正解率や独立評価ではない。
+- 最終v5の通常変換4セット×3条件978出力が基準と完全一致 (`ai-first-tab-quality-v3`)。Standard AJIMEE前文あり188/200、なし175/200を維持。AI-offの通常28項目/保存等7項目も成功 (`ai-first-tab-normal-basics-v5` / `ai-first-tab-normal-lifecycle-v5`)。
+- Bazelをsrcからshutdown後にパッチ再生成・3パッチ再適用を実施。140ソースの正規化バイト一致、`ai-first-tab-patch-generation-v1.log` / `ai-first-tab-patch-receipt.json`。モデル/生コーパスは含めていない。
+- インストール後の8項目のC#ハーネスは、Space後の固定500ms待機から、期待する未確定/確定結果を15秒以内に観測する方式へ更新。期待文字列・全8項目・TIP識別・候補操作は保持。ローカルはコンパイルのみ成功し、開発PCでは実行していない。実行は使い捨てWindowsランナーで行う。
+- 初回Tabの前に通常変換を強制したv3案は3位以内20→13/29で不採用。既に評価済みの本文だけを参照する修正後に20/29へ戻った。モデルや正解集合は変更していない。失敗原票`ai-first-tab-prediction-quality-v1`を保持する。
+- 冷起動Tabで「あいであきょく」から「アイデア曲」を期待した検査は、実際には「アイデア局長に就任した」と補完して参照不一致、`ai-first-tab-real-gpu-v5`を失敗のまま保持。初回Tabには評価済み通常変換本文が存在しないため、本文保持の検査と混同しない。通常Spaceでの「アイデア曲」と、Space後の本文保持を別に検査した。予測自体の語義選択の改善を達成したとは主張しない。
+- PR171の初回Windows run39187992825はMSI構築後の旧シナリオ7/8 shardsで失敗し、実入力/成果物公開へ進まなかった。旧シナリオが非同期配送前に候補を検査していたため、試験ハーネスでcallback処理を有効化し、AI有効・モデルなしへ環境を固定した。全81シナリオ成功。AI無効化や期待値削除で通していない。次回CIには`--test_output=errors`を追加した。
+
+以下は先行するSpace実装時点の記録であり、現在の配布物の検証へ読み替えない。
 
 ## 実装と固定対象
 
@@ -33,4 +51,4 @@ CPU指定の`ai-first-real-cpu-v1`では待機・配送・ライブ/Space/確定
 
 ## 次の確認
 
-Windows CI・新MSIの実入力と、Tabの明示予測経路を引き続き確認する。今回の変更は通常Space・入力中の候補表示が対象で、Tabの同期予測自体は変更していない。新MSIでの結果を得る前に公開RCの実アプリ確認を引き継がない。製品完成・独立verifier・`.goal-complete`の判定ではない。
+修正後のWindows CI・新MSIの実入力を引き続き確認する。新MSIでの結果を得る前に公開RCの実アプリ確認を引き継がない。製品完成・独立verifier・`.goal-complete`の判定ではない。

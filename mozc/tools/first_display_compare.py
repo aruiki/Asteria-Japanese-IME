@@ -109,6 +109,33 @@ class Session:
                 "preedit_key": preedit(text, "key"), "preedit_value": preedit(text, "value"),
                 "output": text}
 
+    def send_conversion(self, command, timeout=90):
+        """明示的な変換だけAIの完了を待つ。キー応答と到着までの時間を分ける。"""
+        if not 0 < timeout <= 120:
+            raise ValueError('conversion timeout must be between 0 and 120 seconds')
+        started = time.monotonic()
+        initial = event = self.send(command)
+        callbacks = []
+
+        def pending(text):
+            callback = re.search(r'^callback \{(.*?)^\}', text, re.M | re.S)
+            return callback and re.search(r'\btype:\s*KOTORI_REFRESH_SUGGESTION\b', callback.group(1))
+
+        while pending(event['output']) and not re.search(r'^result \{', event['output'], re.M):
+            remaining = started + timeout - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('AI conversion did not finish: ' + command)
+            delay = re.search(r'delay_millisec:\s*(\d+)', event['output'])
+            time.sleep(min(remaining, max(.01, min(1, int(delay.group(1)) / 1000 if delay else .1))))
+            event = self.send('KOTORI_REFRESH')
+            callbacks.append(event)
+            if re.search(r'^consumed: false\s*$', event['output'], re.M):
+                raise RuntimeError('AI conversion was canceled before delivery: ' + command)
+        return dict(event, command=command, response_ms=initial['response_ms'],
+                    completion_response_ms=event['response_ms'],
+                    operation_ms=(time.monotonic() - started) * 1000,
+                    initial_event=initial, callback_events=callbacks)
+
     def close(self, failed=False):
         try:
             if failed:
@@ -174,9 +201,9 @@ def evaluate(args, items, enabled):
                     time.sleep(delay)
                     events.append(session.send("KOTORI_REFRESH"))
                 settled = events[-1]
-                tab = session.send("SEND_KEY\tTab")
+                tab = session.send_conversion("SEND_KEY\tTab")
                 session.send("SEND_KEY\tESC")
-                space = session.send("SEND_KEY\tSpace")
+                space = session.send_conversion("SEND_KEY\tSpace")
                 rows.append(dict(item, romaji=romaji, key_max_ms=max(key_ms),
                                  immediate=last, settled=settled, updates=events[1:],
                                  tab=tab, space=space))
