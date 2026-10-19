@@ -226,13 +226,13 @@ jobs:
           $env:QT_PLUGIN_PATH = "$taskQtRoot/plugins"
           bazelisk test //gui/tool:kotori_support_reminder_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # 実際のMSIで導入・TSF経由の日本語入力・アンインストールを確認する。
+      # 同じrunの新MSIで候補8項目・再導入・入力・削除まで確認する。
       # 開発者のPCではなく、この使い捨てWindowsランナーだけを変更する。
-      - name: インストーラーの導入・実入力・削除を確かめる
+      - name: インストーラーの候補操作・再導入・入力・削除を確かめる
         shell: pwsh
         env:
           KOTORI_DISPOSABLE_RUNNER: ${{ runner.environment }}
-        run: python -X utf8 kotori/mozc/tools/installer_smoke.py --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke
+        run: python -X utf8 kotori/mozc/tools/installer_smoke.py --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke --acceptance --reinstall
       - name: インストーラーの検証ログを保存する
         if: always()
         uses: actions/upload-artifact@v4
