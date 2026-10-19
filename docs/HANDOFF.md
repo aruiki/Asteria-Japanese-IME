@@ -1,6 +1,8 @@
-# 現在の引き継ぎ（2026-10-19、GPU AI主体のRC準備）
+# 現在の引き継ぎ（2026-10-19、RC2公開完了・後続入力の文脈改善）
 
 現在の指示と次の作業を記す。過去の経緯はgit履歴と各verificationを参照する。
+
+[v1.1.4-rc.2を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.2)。公開MSI・SHA・配布情報・ソース検証情報を取得し直し、同梱検査とアイコン資源まで一致を確認した。[公開記録](verification/release-v1.1.4-rc.2-20261019.md)。
 
 ## 現在のソースとMSI
 
@@ -14,16 +16,15 @@ PR171は全9チェック成功後、main `039886e8f5377318512fdc8bff8750e7f13c90
 
 [固定バイナリの前後比較](verification/ai-first-publication-20261019.md): C++534件・Python119件、通常28項目・保存等7項目成功。開発4セット×3条件978出力と予測29件の先頭表示が従来と一致。Standard AJIMEEは前文あり188/200、なし175/200を維持。最終評価300例も290/300、旧6432候補と全出力一致。ただし旧版とのruntime DLL差があり、同一DLLの性能比較ではない。
 
-実GPUの隔離SessionHandlerでSpace・Tab・保留Enter・後続入力・編集/取消を確認した。これは実TSFでのAI寄与の証明ではない。冷起動Tabの語義選択の参照不一致は検証記録に保持し、解消したとしない。新MSIの基本実入力は「日本語」「東京」の2件で、追加8項目・再導入は新しい固定MSIを使うCandidate installer acceptanceで確認する。
+実GPUの隔離SessionHandlerでSpace・Tab・保留Enter・後続入力・編集/取消を確認した。これは実TSFでのAI寄与の証明ではない。冷起動Tabの語義選択の参照不一致は検証記録に保持し、解消したとしない。新MSIの基本実入力は「日本語」「東京」の2件。さらにrun39225823304で追加8項目・同一MSI再導入・入力・削除が全成功し、PR172も全8チェック成功後main3da3672へ統合した。
 
 ## 次の具体作業
 
-1. このMSIの管理展開・同梱物・旧公開6435から版が上がることをcheck_release.pyで確認する。旧公開MSIはSHA `0f12eb1db8726e7a3c49186626098a100c64c36ffd9cab97c9dbe526ffcdf57a`、ProductVersion `3.34.6435.100`。
-2. `.github/workflows/installer-candidate.yml`はrun39213557813/head76aa7e3/SHA c219へ固定した。追加8項目・同一MSI再導入・入力・削除と一般CIが成功してから統合する。旧6435の受入れを新MSIへ流用しない。
-3. ADR0044の条件とbuild入力一致を確認し、CIの同一MSIを次のRC `v1.1.4-rc.2`として公開、再取得照合する。現在の公開はrc.1（GitHub上prerelease=falseでLatestでもある）。既存区分は勝手に変更せず、rc.2はrelease_tag.pyに従いprerelease=true/Latest=falseを予定。READMEは新RCへの直接リンクにした。
-4. 公開・CI許可は取得済み。個別語句の誤変換や署名の説明を逐一リリースノートへ列記しないという利用者指示を守る。正規GUIが認証1326で起動できないため、普段のPCで操作を迂回せず、使い捨てWindowsランナーを使う。
-5. 次の後続打鍵の文脈引継ぎ修正は専用Mozc別枝`codex/post-release-following-context-20261019`、source `ee3fa5f45824c6ade7573de704e23a9488acadbb`に保存済み。C++ Session197件成功。今回の8af/MSIには含めていない。現行RC公開後、別の変更としてパッチ化・実GPU/入力確認へ進む。
+1. 後続打鍵の文脈引継ぎ修正は専用Mozc別枝`codex/post-release-following-context-20261019`、source `ee3fa5f45824c6ade7573de704e23a9488acadbb`。C++ Session197件成功、元実装での失敗も保存済み。公開した8af/MSI6438には含めていない。
+2. 次修正のSessionHandlerを固定コピーし、公開6438のモデル/DLLとRTX3060でTab・保留Enter・後続入力・取消/編集を確認した。52イベントで失敗なし。これは隔離SessionHandlerであり、実TSFのAI寄与ではない。明示的な前文/後文を持つ連続入力も確認し、パッチ化・CIへ進む。
+3. 次の変更は別PRで扱う。成功済みRC2の再build・再公開は不要。利用者の公開・CI許可は取得済み。個別語句や署名の説明を逐一リリースノートへ列記しない指示を守る。
+
 
 実アプリのAI ON/OFF寄与、複数アプリ・低性能実機・旧版更新/再起動・保護欄内部のAI/学習・独立verifierは残る。再導入の3010を再起動確認にしない。goalはactive、製品完成や`.goal-complete`にしない。
 
-[通常変換の必要条件](NORMAL_CONVERSION.md)、[精度改善カード81](tasks/81-accuracy-guide.md)、[紹介情報の条件](BENCHMARKS.md)、[前RCの公開記録](verification/release-v1.1.4-rc.1-20261019.md)。規約は[AGENTS.md](../AGENTS.md)、コマンドは[DEVELOPMENT.md](DEVELOPMENT.md)。
+[通常変換の必要条件](NORMAL_CONVERSION.md)、[精度改善カード81](tasks/81-accuracy-guide.md)、[紹介情報の条件](BENCHMARKS.md)、[RC2の公開記録](verification/release-v1.1.4-rc.2-20261019.md)。規約は[AGENTS.md](../AGENTS.md)、コマンドは[DEVELOPMENT.md](DEVELOPMENT.md)。

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="正式版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%AD%A3%E5%BC%8F%E7%89%88&color=111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.2"><img alt="v1.1.4-rc.2" src="https://img.shields.io/badge/release-v1.1.4--rc.2-111C2D"></a>
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
   <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-536779">
