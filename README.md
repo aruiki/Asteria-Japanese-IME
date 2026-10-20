@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.2"><img alt="v1.1.4-rc.2" src="https://img.shields.io/badge/release-v1.1.4--rc.2-111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.3"><img alt="v1.1.4-rc.3" src="https://img.shields.io/badge/release-v1.1.4--rc.3-111C2D"></a>
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
   <img alt="オフライン" src="https://img.shields.io/badge/%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-%E9%80%9A%E4%BF%A1%E3%81%AA%E3%81%97-536779">
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.3/Asteria64.msi">⬇ Asteria日本語入力をダウンロード</a>
 </h2>
 
 <p align="center">
@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.2">新しいリリース候補 v1.1.4-rc.2</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.3">新しいリリース候補 v1.1.4-rc.3</a>
 </p>
 
 ## 実際の入力
@@ -128,7 +128,7 @@ Asteriaには、カタカナ語から英語表記を選べる辞書も標準搭�
 
 ### 1. MSIをダウンロード
 
-[**Asteria64.msi をダウンロード**](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi)
+[**Asteria64.msi をダウンロード**](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.3/Asteria64.msi)
 
 ### 2. インストーラーを実行
 
@@ -265,7 +265,7 @@ Mozcへの変更はBSD-3-Clauseです。
 ---
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.2/Asteria64.msi">⬇ Asteria日本語入力を試す</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.3/Asteria64.msi">⬇ Asteria日本語入力を試す</a>
 </h2>
 
 <p align="center">
