@@ -44,7 +44,7 @@
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
 
 
-残る受入れ・配布条件（公開版はv1.1.3。旧RCの作成を繰り返す指示ではない）:
+残る受入れ・配布条件（現在の配布候補はv1.1.4-rc.3。公開は製品全体の完成判定ではない）:
 
 44〜47は[ACCEPTANCE](../ACCEPTANCE.md)と各カードの未完了条件を確認して進める。署名・SPEC承認などの外部条件は、現在のチャットやGitHubで状態を再確認する。
 
