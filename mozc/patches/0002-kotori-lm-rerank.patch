@@ -37230,7 +37230,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..a03e815af 100644
+index 8186b0a8d..03a9c7c55 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -37280,7 +37280,7 @@ index 8186b0a8d..a03e815af 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +564,134 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +564,147 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -37337,8 +37337,9 @@ index 8186b0a8d..a03e815af 100644
 +      KotoriConvert(command, kotori_pending_preferences_);
 +    }
 +    if (!kotori_conversion_pending_ && context_->state() == ImeContext::CONVERSION && commit) {
++      const commands::Context committed_context = context_->client_context();
 +      Commit(command);
-+      KotoriReplayFollowingKeys(command);
++      KotoriReplayFollowingKeys(command, committed_context);
 +    }
 +    return true;
 +  }
@@ -37392,7 +37393,8 @@ index 8186b0a8d..a03e815af 100644
 +  return true;
 +}
 +
-+void Session::KotoriReplayFollowingKeys(commands::Command* command) {
++void Session::KotoriReplayFollowingKeys(
++    commands::Command* command, const commands::Context& committed_context) {
 +  auto following = std::move(kotori_following_keys_);
 +  kotori_following_keys_.clear();
 +  kotori_following_composer_.reset();
@@ -37400,6 +37402,17 @@ index 8186b0a8d..a03e815af 100644
 +  for (const auto& input : following) {
 +    commands::Command next;
 +    *next.mutable_input() = input;
++    // Kotori: 保留中のキーは、ホストが確定結果を反映する前に受け取っている。
++    // 末尾で確定した本文を周囲文へ足してから、次の合成を始める。
++    // 周囲文が得られていない場合は、従来どおり変換器の履歴へ任せる。
++    if (result.cursor_offset() == 0 &&
++        (committed_context.has_preceding_text() ||
++         (input.has_context() && input.context().has_preceding_text()))) {
++      commands::Context replay_context = committed_context;
++      if (input.has_context()) replay_context.MergeFrom(input.context());
++      replay_context.mutable_preceding_text()->append(result.value());
++      *next.mutable_input()->mutable_context() = std::move(replay_context);
++    }
 +    SendKey(&next);
 +    if (next.output().has_result()) {
 +      result.mutable_value()->append(next.output().result().value());
@@ -37415,7 +37428,7 @@ index 8186b0a8d..a03e815af 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -717,6 +867,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +880,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -37445,7 +37458,7 @@ index 8186b0a8d..a03e815af 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -2371,13 +2544,29 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,13 +2557,29 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -37479,7 +37492,7 @@ index 8186b0a8d..a03e815af 100644
    SetSessionState(ImeContext::CONVERSION, context_.get());
    Output(command);
    return true;
-@@ -2389,16 +2578,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2591,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -37497,7 +37510,7 @@ index 8186b0a8d..a03e815af 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2856,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2869,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -37506,7 +37519,7 @@ index 8186b0a8d..a03e815af 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2871,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2884,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -37529,7 +37542,7 @@ index 8186b0a8d..a03e815af 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +2930,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +2943,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -37543,7 +37556,7 @@ index 8186b0a8d..a03e815af 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3066,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3079,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -37555,7 +37568,7 @@ index 8186b0a8d..a03e815af 100644
        command->input().context().input_field_type());
    Output(command);
 diff --git a/src/session/session.h b/src/session/session.h
-index a9903ecd3..18a55dafe 100644
+index a9903ecd3..c47893e38 100644
 --- a/src/session/session.h
 +++ b/src/session/session.h
 @@ -116,6 +116,10 @@ class Session {
@@ -37569,7 +37582,7 @@ index a9903ecd3..18a55dafe 100644
    // Fills Output::Callback with the Undo SessionCommand to ask the
    // client to send back the SessionCommand to the server.
    // This function is called when the key event representing the
-@@ -275,6 +279,24 @@ class Session {
+@@ -275,6 +279,25 @@ class Session {
   private:
    friend class SessionTestPeer;
  
@@ -37586,7 +37599,8 @@ index a9903ecd3..18a55dafe 100644
 +  std::unique_ptr<composer::Composer> kotori_following_composer_;
 +  bool KotoriQueueFollowingKey(commands::Command* command,
 +                               keymap::CompositionState::Commands action);
-+  void KotoriReplayFollowingKeys(commands::Command* command);
++  void KotoriReplayFollowingKeys(commands::Command* command,
++                                 const commands::Context& committed_context);
 +  engine::ConversionPreferences kotori_pending_preferences_;
 +  bool KotoriConvert(commands::Command* command,
 +                     const engine::ConversionPreferences& preferences);
@@ -37878,7 +37892,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..475b59416 100644
+index 012d822a5..2213ae442 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -38004,7 +38018,7 @@ index 012d822a5..475b59416 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10547,510 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10547,574 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -38399,11 +38413,75 @@ index 012d822a5..475b59416 100644
 +                              &session, &command));
 +      EXPECT_EQ(command.output().result().value(), "阿伊宇江於");
 +      EXPECT_EQ(GetComposition(command), "さ");
++      EXPECT_TRUE(session.context().client_context().preceding_text().empty());
 +      EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
 +    }
 +  }
 +}
 +
++
++
++TEST_F(SessionTest, KotoriQueuedTypingKeepsCommittedPrecedingContext) {
++  for (const std::string& preceding : {std::string("前の文。"), std::string()}) {
++    for (const int following_context_mode : {0, 1, 2}) {
++      SCOPED_TRACE(preceding);
++      SCOPED_TRACE(following_context_mode);
++      MockEngine engine;
++      auto converter = CreateEngineConverterMock(&engine);
++      Session session(engine);
++      InitSessionToPrecomposition(&session);
++      Segments pending;
++      auto* segment = pending.add_segment();
++      segment->set_key("あいうえお");
++      AddCandidate("あいうえお", "あいうえお", segment);
++      pending.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++      std::string observed_preceding, observed_following;
++      EXPECT_CALL(*converter, StartPrediction(_, _))
++          .WillRepeatedly([&](const ConversionRequest& request, Segments* segments) {
++            observed_preceding = request.context().preceding_text();
++            observed_following = request.context().following_text();
++            *segments = pending;
++            return true;
++          });
++      bool finished = false;
++      EXPECT_CALL(*converter, StartConversion(_, _))
++          .WillRepeatedly([&](const ConversionRequest&, Segments* segments) {
++            *segments = pending;
++            if (finished) {
++              segments->set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++              auto* candidate = segments->mutable_segment(0)->mutable_candidate(0);
++              candidate->value = "亜伊宇江尾";
++              candidate->kotori_ai_evaluated = true;
++            }
++            return true;
++          });
++      commands::Context surrounding;
++      surrounding.set_preceding_text(preceding);
++      surrounding.set_following_text("後ろの文。");
++      commands::Command command;
++      InsertCharacterCharsWithContext("aiueo", surrounding, &session, &command);
++      ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::SPACE, &session, &command));
++      ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::ENTER, &session, &command));
++      ASSERT_FALSE(command.output().has_result());
++      if (following_context_mode == 1) {
++        InsertCharacterCharsWithContext("ka", surrounding, &session, &command);
++      } else if (following_context_mode == 2) {
++        commands::Context partial;
++        partial.set_following_text(surrounding.following_text());
++        InsertCharacterCharsWithContext("ka", partial, &session, &command);
++      } else {
++        InsertCharacterChars("ka", &session, &command);
++      }
++      finished = true;
++      ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION,
++                              &session, &command));
++      EXPECT_EQ(command.output().result().value(), "亜伊宇江尾");
++      EXPECT_EQ(GetComposition(command), "か");
++      EXPECT_EQ(observed_preceding, preceding + "亜伊宇江尾");
++      EXPECT_EQ(observed_following, "後ろの文。");
++    }
++  }
++}
 +
 +TEST_F(SessionTest, KotoriAiFirstTabWaitsAndPreservesQueuedEnterAndTyping) {
 +  MockEngine engine;
