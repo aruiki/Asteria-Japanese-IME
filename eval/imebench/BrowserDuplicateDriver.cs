@@ -27,11 +27,17 @@ static class BrowserDuplicateDriver {
       int delay = int.Parse(args[2]), candidateMoves = 0;
       Require(marker.StartsWith("AsteriaDuplicateProbe-") && marker.Length > 30, "Invalid test window marker");
       IntPtr edge = IntPtr.Zero;
-      EnumWindows((window, unused) => {
-        var title = new StringBuilder(512); AcceptanceNative.GetWindowTextW(window, title, title.Capacity);
-        if (title.ToString().Contains(marker)) { edge = window; return false; }
-        return true;
-      }, IntPtr.Zero);
+      var windowWait = Stopwatch.StartNew();
+      while (edge == IntPtr.Zero && windowWait.ElapsedMilliseconds < 10000) {
+        EnumWindows((window, unused) => {
+          var title = new StringBuilder(512); AcceptanceNative.GetWindowTextW(window, title, title.Capacity);
+          if (title.ToString().Contains(marker) && DuplicateNative.IsWindowVisible(window)) {
+            edge = window; return false;
+          }
+          return true;
+        }, IntPtr.Zero);
+        if (edge == IntPtr.Zero) Thread.Sleep(50);
+      }
       Require(edge != IntPtr.Zero, "Disposable browser window was not found");
       uint pid; DuplicateNative.GetWindowThreadProcessId(edge, out pid);
       var process = Process.GetProcessById((int)pid);
