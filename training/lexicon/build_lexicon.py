@@ -73,7 +73,7 @@ def build(source, mozc, out, config):
     missing = set(POS_MAPPING.values()) - ids.keys()
     if missing:
         raise ValueError('Mozcに品詞がありません: ' + repr(missing))
-    known, matching_pos, reading_min = {}, {}, {}
+    known, matching_pos, reading_min, reading_pos_min = {}, {}, {}, {}
     noun_ids = {ids[pos] for pos in POS_MAPPING.values()}
     inputs = sorted(directory.glob('dictionary[0-9][0-9].txt'))
     if len(inputs) != 10:
@@ -88,6 +88,8 @@ def build(source, mozc, out, config):
             if left_id == right_id and int(left_id) in noun_ids:
                 matching_key = (reading, surface, int(left_id))
                 matching_pos[matching_key] = min(cost, matching_pos.get(matching_key, cost))
+                reading_pos_key = reading, int(left_id)
+                reading_pos_min[reading_pos_key] = min(cost, reading_pos_min.get(reading_pos_key, cost))
             reading_min[reading] = min(cost, reading_min.get(reading, cost))
     pairs, common, audit = {}, defaultdict(dict), Counter()
     for row in rows(source):
@@ -120,6 +122,9 @@ def build(source, mozc, out, config):
             mapped = common_quantile(raw, *distributions[pos])
             if reading in reading_min:
                 mapped = max(mapped, reading_min[reading] + KNOWN_READING_MARGIN)
+            # 数詞/助数詞など異なる接続IDの安い経路を、一般名詞の下限に流用しない。
+            if (reading, ids[pos]) in reading_pos_min:
+                mapped = max(mapped, reading_pos_min[(reading, ids[pos])] + KNOWN_READING_MARGIN)
             if mapped > 32767:
                 audit['cost_overflow'] += 1
                 continue
@@ -130,6 +135,7 @@ def build(source, mozc, out, config):
                    generator_sha256=sha(__file__), audit=dict(audit), output_entries=sum(count.values()),
                    by_pos=dict(count), calibration_common={p: len(v) for p, v in common.items()},
                    min_common=MIN_COMMON, known_reading_margin=KNOWN_READING_MARGIN,
+                   same_pos_reading_floor=True,
                    mozc_source_inputs={p.name: sha(p) for p in inputs + [directory / 'id.def']},
                    bytes=path.stat().st_size, sha256=sha(path), seconds=time.monotonic() - started,
                    evaluation_labels_used=False, product_adopted=False)

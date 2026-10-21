@@ -85,6 +85,8 @@ class LexiconTest(unittest.TestCase):
             rows.append(word(IndexForm='動詞', ReadingForm='どうし'))
             baseline.append('どうし\t999\t999\t100\t動詞\n')
             protected = rows[1]['ReadingForm']
+            # 別品詞や数詞の安い経路は、新しい一般名詞の較正下限には使えない。
+            baseline.append(f'{protected}\t999\t998\t100\t別品詞の安い語\n')
             rows += [word(), word(IndexForm='新表記', ReadingForm=protected, Cost='0')]
             for n in range(10):
                 (directory / f'dictionary{n:02}.txt').write_text(''.join(baseline) if n == 0 else '', encoding='utf-8')
