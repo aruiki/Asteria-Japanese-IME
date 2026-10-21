@@ -68,6 +68,8 @@ bash mozc/tools/make_patches.sh <Mozcの作業ツリー> <独立した基点clon
 
 ### 1.5 リリース
 
+2026-10-21の利用者指定により、正式v2.0.0もコード署名は必須としない。実署名状態・SHA・対応ソース・同じMSIの実入力検査を明示する。正式版としての公開と製品全体の完成判定は区別する。
+
 1. main にマージする(CI の「Mozc (Windows)」が MSI のビルドと単体テストを回す)。
 2. Actions の「Mozc (Windows)」を main で手動実行する(`gh workflow run "Mozc (Windows)" --ref main -f channel=beta`)。
    段階(docs/adr/0037)は `channel` で選ぶ。

@@ -4,7 +4,7 @@ Windows 10 1809以降 / Windows 11・64bit向けの日本語入力です。モ�
 
 ## ダウンロードと導入
 
-1. [公式GitHub Releaseのv1.1.4-rc.4](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)から、[Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.4/Asteria64.msi)をダウンロードします。約1.66 GBのリリース候補です。
+1. [公式GitHub Releaseのv2.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)から、[Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi)をダウンロードします。約1.66 GBの正式版です。
 2. MSIを開き、インストーラーの案内に従います。管理者の確認が表示されます。
 3. **Windows + Space**から「Asteria日本語入力」を選びます。設定はデスクトップやスタートメニューの「Asteria」から開けます。
 
@@ -22,18 +22,18 @@ GPU AIにはVulkan対応の専用GPU（VRAM 3 GiB以上）を使用します。G
 
 ## ファイルを照合する
 
-同じReleaseにある [Asteria64.msi.sha256](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.4/Asteria64.msi.sha256)と比較できます。PowerShellで確認する場合:
+同じReleaseにある [Asteria64.msi.sha256](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi.sha256)と比較できます。PowerShellで確認する場合:
 
 ~~~powershell
 Get-FileHash -Algorithm SHA256 .\Asteria64.msi
 ~~~
 
-v1.1.4-rc.4のSHA-256:
+v2.0.0のSHA-256:
 
 ~~~text
-2b37f6fbdcb069251e820e2009b096111cc2253e79ffac65d973fa11ce18e301
+1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a
 ~~~
 
-ハッシュは、公開ファイルとの一致を確認するものです。[対応ソースと検証範囲](verification/release-v1.1.4-rc.4-20261021.md)も公開しています。
+ハッシュは、公開ファイルとの一致を確認するものです。[対応ソースと検証範囲](verification/release-v2.0.0-20261021.md)も公開しています。
 
 更新・アンインストール・保存データ・詳しい操作は[使い方と困ったとき](USER_GUIDE.md)へ。[Asteriaの紹介へ戻る](../README.md)。

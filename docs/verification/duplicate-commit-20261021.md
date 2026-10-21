@@ -37,8 +37,10 @@ Mozc source: 785bd83a7f236b49925f7a83764d5beadf3bb378。修正前039a7251fa16a77
 - make_patches.shで再生成し、3patchの順次適用と140ソースの正規化バイト一致を確認。0001/0003は不変。原票duplicate-stale-output-patch-receipt-v1.json。
 - Pythonの受入れ原票検証3件、Windows C#のコンパイル成功。追加試験は利用者の実デスクトップで実行していない。
 
-## 新MSIでの確認待ち
+## 新MSIでの確認
 
-新MSI自身を導入し、既存8条件に加えてEDIT/RichEdit計28条件とEdgeのtextarea/contenteditable計14条件を実SendInputで検査する。候補クリックは選択を確認してからEnterで確定する。DevToolsによる文字入力は使わない。新MSIの全CI、導入/再導入/入力/削除、SHA、署名状態、版上昇、公開後の実取得は未完了。旧版で失敗した追加条件の合格を旧MSIへ求めず、新MSIのWindows buildの必須検査として適用する。
+新MSI3.34.6442.100、SHA1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72aでWindows run39582216741が成功。導入/再導入/入力/削除、既存8項目、EDIT/RichEdit二重入力28条件、Edge textarea/contenteditable14条件がすべて成功した。追加run39614663634では同じMSIを元のnative8→Edge14の順で確認し、既知のSpace直後Enterも「ゴールに設定して」1回、compositionend1回、全14条件成功。導入binary/hash、全イベントとDOMを保存した。
+
+実配布MSIの全バイトSHA、版上昇、NotSigned、4モデル、140ソース、公開後の全4資産再取得も成功。[正式版公開記録](release-v2.0.0-20261021.md)。
 
 この検証を全アプリ・GPU実機の導入TSF・低性能PC・保護欄内部・旧版更新・再起動・独立製品完成判定の代わりにしない。

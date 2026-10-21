@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/marketing/assets/hero.png" alt="Asteria — GPUで考える、日本語入力。文脈を読むAIも、あなたのPCの中に。" width="100%">
+  <img src="docs/marketing/assets/hero.png?v=2.0.0" alt="Asteria — GPUで考える、日本語入力。文脈を読むAIも、あなたのPCの中に。" width="100%">
 </p>
 
 <h1 align="center">Asteria — アステリア</h1>
@@ -11,20 +11,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4"><img alt="リリース候補 v1.1.4-rc.4" src="https://img.shields.io/badge/RC-v1.1.4--rc.4-111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0"><img alt="正式版 v2.0.0" src="https://img.shields.io/badge/Release-v2.0.0-111C2D"></a>
   <img alt="Windows 10 / 11・64bit" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-111C2D">
   <img alt="無料・オープンソース" src="https://img.shields.io/badge/無料-オープンソース-536779">
   <img alt="AIもオフライン" src="https://img.shields.io/badge/AI-オフライン-536779">
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.4/Asteria64.msi">↓ Windows版をダウンロード</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Windows版をダウンロード</a>
 </h2>
 
 <p align="center">
-  v1.1.4-rc.4 · リリース候補 · 2026-10-21公開 · 約1.66 GB · 未署名<br>
+  v2.0.0 · 正式版 · 2026-10-21公開 · 約1.66 GB · 未署名<br>
   <a href="docs/INSTALL.md">導入ガイド・SmartScreenの説明</a> ／
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4">更新内容・SHA-256</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0">更新内容・SHA-256</a>
 </p>
 
 ## 言葉を選ぶ。その手がかりは、文脈。
@@ -44,7 +44,7 @@
   <img src="docs/images/typing-demo.gif?v=one-space" alt="音声認識の精度が上がった — Space 1回で変換したAsteriaの実入力録画" width="100%">
 </p>
 
-実際に入力・変換した録画です。RC4の全機能・全アプリの動作を保証する動画ではありません。
+実際に入力・変換した録画です。v2.0.0の全機能・全アプリの動作を保証する動画ではありません。
 
 ## AIが考えている間も、書き進める
 
@@ -69,7 +69,7 @@ Spaceで変換を求め、Enterで確定。その後に続けて打った文字�
 
 ## 3ステップで使い始める
 
-1. [Asteria64.msiをダウンロード](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.4/Asteria64.msi)します。
+1. [Asteria64.msiをダウンロード](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi)します。
 2. MSIを開いてインストールします。管理者の確認が表示されます。
 3. **Windows + Space → Asteria日本語入力**を選びます。設定はデスクトップやスタートメニューの「Asteria」から開けます。
 
@@ -117,9 +117,9 @@ StandardはRTX 3060で測定。指定した文脈を渡したオフライン評�
 
 </details>
 
-RC4はリリース候補です。同じMSIの導入・入力・削除と、EDIT/RichEditでの候補操作8項目を確認しています。実アプリでのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部、旧版からの更新、再起動、独立した製品完成判定は未検証です。
+v2.0.0は正式版です。同じ新MSIの導入・再導入・入力・削除、候補操作8項目、EDIT/RichEditの二重入力28条件とEdgeのtextarea/contenteditableの14条件を確認しています。実アプリでのGPU AI ON/OFF寄与、Officeなど未確認のアプリ、低性能実機、保護欄内部、旧版からの更新、再起動、独立した製品完成判定は未検証です。
 
-[RC4の公開・検証記録](docs/verification/release-v1.1.4-rc.4-20261021.md) ／ [評価方法とデータ](eval/README.md) ／ [過去の実入力比較](docs/BENCHMARKS.md#過去の実入力比較)
+[v2.0.0の公開・検証記録](docs/verification/release-v2.0.0-20261021.md) ／ [評価方法とデータ](eval/README.md) ／ [過去の実入力比較](docs/BENCHMARKS.md#過去の実入力比較)
 
 ## 使い方・応援・開発
 
@@ -132,7 +132,7 @@ RC4はリリース候補です。同じMSIの導入・入力・削除と、EDIT/
 Asteriaは無料のオープンソースソフトウェアです。コードはApache License 2.0 / MIT License、Mozcへの変更はBSD-3-Clause。同梱コンポーネントを含む[ライセンス](docs/licenses.md)と[セキュリティ方針](SECURITY.md)を公開しています。
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v1.1.4-rc.4/Asteria64.msi">↓ Asteriaを試す</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Asteriaを試す</a>
 </h2>
 
 <p align="center">GPUで動くAI · 文章はPCの中に · Windows 10 / 11・64bit</p>

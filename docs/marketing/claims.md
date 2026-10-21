@@ -10,11 +10,11 @@
 | GPUなしはCPU向けLow | [ハードウェア別の設定](../adr/0024-cost-and-cpu-low.md)。内蔵GPU不使用。低性能実機の現在版確認は未完了 |
 | 英語表記31,068読み・36,402組 | [利用ガイド](../USER_GUIDE.md#使う)。入力モードの変更・追加インポート不要 |
 | 188/200、94.0% | [測定条件](../BENCHMARKS.md)。Standard、RTX 3060、AI準備後、指定前文あり、オフラインの調整・回帰用200問。RC4対応sourceでも第一候補数を維持。実アプリ精度や他IMEの最新比較へ転用しない |
-| RC4で選べる別候補を保持 | [候補保持の検証](../verification/scored-alternatives-20261020.md)。候補包含の改善であり、第一候補精度の改善ではない |
-| 導入・入力・削除確認 | [同じRC4 MSIの記録](../verification/release-v1.1.4-rc.4-20261021.md)。EDIT/RichEdit限定。旧版更新・再起動・全アプリ受入れではない |
+| 採点済みの別候補を保持 | [候補保持の検証](../verification/scored-alternatives-20261020.md)。候補包含の改善であり、第一候補精度の改善ではない |
+| 導入・入力・削除確認 | [同じv2.0.0 MSIの記録](../verification/release-v2.0.0-20261021.md)。EDIT/RichEditとEdgeの限定条件。旧版更新・再起動・全アプリ受入れではない |
 | 無料・オープンソース | [ライセンス](../licenses.md)。支援の有無による機能制限なし |
 | 未署名とSmartScreenの案内 | 実MSIのNotSigned、[Microsoft一次資料](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)。警告の意味と出所確認を案内し、安全性や回避成功は保証しない |
 
-RC4の直接URLを使います。`/releases/latest` は既存RC2を示すため、RC4の最新版バッジやダウンロードへ混用しません。
+v2.0.0の明示URLを使い、GitHubのLatestも正式版v2.0.0であることを確認します。配布MSIは未署名です。
 
-本体・モデル・版番号・Release区分は今回の刷新対象外です。「正式2.0」「全アプリ確認済み」「瞬時にAI候補」「他IMEより高精度」といった表現へ拡張しません。
+正式版への切替を、全アプリ・GPU実機の導入TSF・低性能PC・内部privacy・再起動・独立完成判定の検証済みという意味へ広げません。
