@@ -41,6 +41,7 @@ def build(candidate, frequency, mozc, out):
     corpus_config = json.loads(Path(__file__).with_name('corpus_sources.json').read_text('utf-8'))
     if (counts['limit_bytes'] != 0 or counts['corpus'] != corpus_config or
             counts['sharding']['full_source_sha256'] != corpus_config['files'][0]['sha256'] or
+            counts['policy_sha256'] != sha(Path(__file__).with_name('frequency_policy.json')) or
             not counts['exclusion_files'] or not counts['reserved_interval_readings']):
         raise ValueError('固定した全量・評価除外済みの頻度集計が必要です')
     data_file = frequency / 'word_frequency.tsv'
@@ -63,7 +64,7 @@ def build(candidate, frequency, mozc, out):
             frequencies[key] = tuple(map(int, (occurrences, documents, buckets)))
     out.mkdir(parents=True, exist_ok=False)
     output = out / 'short_lexicon.tsv'
-    audit = Counter()
+    audit, selected_pos = Counter(), Counter()
     with (candidate / 'short_lexicon.tsv').open(encoding='utf-8') as source, output.open('w', encoding='utf-8', newline='\n') as target:
         for line in source:
             reading, left, right, cost, surface = line.rstrip('\n').split('\t')
@@ -78,11 +79,13 @@ def build(candidate, frequency, mozc, out):
                 continue
             target.write(f'{reading}\t{left}\t{right}\t{mapped}\t{surface}\n')
             audit['selected_entries'] += 1
+            selected_pos[pos] += 1
     summary = dict(lexical, parent_candidate_sha256=lexical['sha256'], policy=policy,
                    policy_sha256=sha(policy_path), generator_sha256=sha(__file__),
                    frequency_manifest_sha256=sha(frequency / 'frequency.json'),
                    frequency_data_sha256=sha(data_file), selection_audit=dict(audit),
-                   output_entries=audit['selected_entries'], bytes=output.stat().st_size, sha256=sha(output),
+                   output_entries=audit['selected_entries'], by_pos=dict(selected_pos),
+                   bytes=output.stat().st_size, sha256=sha(output),
                    seconds=time.monotonic() - started, evaluation_labels_used=False, product_adopted=False,
                    license='CC-BY-SA-4.0 frequency-derived selection; SudachiDict notices retained')
     (out / 'short_lexicon.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
