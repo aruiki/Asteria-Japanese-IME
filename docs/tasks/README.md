@@ -40,7 +40,6 @@
 
 | 番号 | 目的 | 状態 |
 | --- | --- | --- |
-| 83 | 最新候補の二重入力確認とv2.0.0正式公開 | [作業カード](83-v2-stable-and-duplicate-input.md)、正式版公開・新MSI検証済み、案内とサイトの最終確認中 |
 | 81 | 精度改善指南書を測定・製品改善へ接続する | [作業カード](81-accuracy-guide.md)、専用枝で基準測定と診断を実装中 |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
 
@@ -108,3 +107,5 @@ Mozc 版に切り替えたため中止し、`archived/` に移した。
   強い続き予測・実アプリTSF・配布の受け入れが残る。利用者指定でbuild等はローカル。
 
 - 77: 万単位の入力探索と補正保護（PR160、全8CI成功、main統合済み）。詳細はdone/77-large-input-campaign.md。
+
+- 83: 最新RC4で再現した二重入力を修正し、正式v2.0.0/Latest公開、同じ新MSIと案内・公式サイトの公開確認を完了。[完了カード](done/83-v2-stable-and-duplicate-input.md)。製品全体の独立完成判定とは別。

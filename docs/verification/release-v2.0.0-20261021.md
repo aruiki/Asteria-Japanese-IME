@@ -48,6 +48,16 @@ RC4の固定開発評価（Standard AJIMEE前文あり188/200、94.0%等）は�
 
 原票: target/accuracy-guide/ci-artifact-39582216741/、edge-fixed-original-order-39614663634/、release-v2-assets-v1/、public-v2-check-v1/。初回ローカルpreflightは同梱検査成功後にPowerShell5/7のmodule混在で署名コマンドが停止した。失敗ログを保持し、完了済み検査を再実行せず適切なpwshで署名照合以降を再開して成功した。
 
-## 公開案内
+## 公開案内・公式サイトの確認完了
 
-README・導入ガイド・紹介3画像・Release本文を正式版の実URLとSHAへ揃える。公式7ページと公開表示の最終確認は別の完了記録へ追記する。
+製品PR181は全7CI成功後、main aeabb92189c59485b42bc4cfd6ba3b754c9a260aへ統合。README/INSTALLの版・正式区分・実配布URL・SHAを揃え、3紹介画像を正式v2.0.0へ更新した。Release本文は画像commit0dae1d19c047c18e3af9767f6a1421459903b61cの不変URLを参照し、docs/marketing/release-copy.mdと同じ内容を公開している。
+
+公式サイトは[kanai PR10](https://github.com/aruiki/kanai/pull/10)、source merge46fb446902122e59202b489a67034350960089e2。既存の公開21ファイル（.nojekyllを含む）を保持し、未使用の旧サイト3資産を新規配備へ混ぜずに、公開7ページ・releases.js・3画像を更新した。commit3f68e6c2696005c1c0ca5ebf9318d9c966aff576をgh-pagesへ配備。push後に自動ビルドが始まらなかったためPages build APIで開始し、[run39620353670](https://github.com/aruiki/kanai/actions/runs/39620353670)のbuild/deploy/report全成功とPages APIのbuilt/同commitを確認した。
+
+公開20ファイルを新しくHTTP取得し、全件200・配備commitの全バイトSHA一致。旧比較CSV/PNG、実録GIF/MP4、支援URLと月アイコンは保持。7ページ×1440px/390pxの全14画面で、v2.0.0表示・画像読込・横はみ出しなし・見出し1件・skip linkのTab focus・JavaScript例外なしを確認し、全14配置を画像で目視した。FAQの展開表示とstatusの履歴も保存した。
+
+公開GitHub README/Release×1440px/390pxの全4画面でもHTTP200、正式版/未署名/実MSIリンクと全画像の読込を確認し目視した。サイト7ページの日英本文・JSON-LD・配布欄、README・Releaseの版と区分はv2.0.0で一致。配布欄の内部版と全SHAも同じMSIに対応する。
+
+原票: v2-site-deploy-manifest-v1.json、v2-site-public-v1.json、v2-site-public-browser-v1/、v2-marketing-public-browser-v1/。記録統合前の総合監査v2-goal-pre-record-audit-passed-v1.jsonは全要件成功。初回総合監査のRelease本文差は49箇所のCRLFだけで、正規化後の全文一致を確認してv2-release-body-line-ending-audit-v1.jsonへ保存した。MSI/資産の全バイト照合を緩めた変更ではない。
+
+今回の公開ゴールは完了。導入済みGPU実機等の7未検証範囲と過去の独立FAILはそのまま残る。SNSへの外部投稿、利用者PCのインストール/入力操作、製品全体の独立完成判定は実施していない。
