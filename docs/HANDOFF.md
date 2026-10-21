@@ -1,39 +1,29 @@
-# 現在の引き継ぎ（2026-10-20、RC3公開・採点済み候補保持の開発）
+# 現在の引き継ぎ（2026-10-21、RC4公開・再取得照合完了）
 
-現在の指示と次の作業を記す。過去の経緯はgit履歴と各verificationを参照する。
+[v1.1.4-rc.4を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)。採点済み候補保持と予測期限の修正を製品パッチ/新MSIへ反映した。公開4資産を再取得し、全バイト・同梱・アイコンが一致。[公開記録](verification/release-v1.1.4-rc.4-20261021.md)。
 
-[v1.1.4-rc.3を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.3)。確定待ちの後続入力へ、直前の確定本文と既知の周囲文を渡す。公開MSI・SHA・配布情報・ソース情報を取得し直し、全バイト・同梱内容・アイコンが一致した。[公開記録](verification/release-v1.1.4-rc.3-20261020.md)。
+## 公開ソースとMSI
 
-## 公開版のソースとMSI
+PR176は全8CI成功後、main feaeddc3ee40a9efc3ab4049166e042fef1d69faへmerge commitで統合。製品head 813e78aa568826b1cf68eeeab494616d82b3b8a0、CI checkout ed86426e326770f837401069f58e41bf75cdc993、統合commitのtreeは同一。Mozc source039a7251fa16a77a91cb67f5158e20073a3f3762、140 source再構成一致、98+2入力blobを固定。
 
-PR174は全8チェック成功後、main 5b60b68b1d6b6ce469896e719774f954774d9085へmerge commitで統合。製品head 0b98251c4842bfc574190f7cac5dfe922e2e1dab、CI checkout e1d07706df3b9ab679fef76b94cd82ee7789cfbf、統合commitのtreeは同一。Mozc sourceはee3fa5f45824c6ade7573de704e23a9488acadbb。
+[Windows run39433685950](https://github.com/aruiki/Asteria-Japanese-IME/actions/runs/39433685950)で同じMSIのbuild・C++・Qt・同梱検査・候補8項目・導入/再導入/入力/削除が成功。版3.34.6440.100、SHA-256 2b37f6fbdcb069251e820e2009b096111cc2253e79ffac65d973fa11ce18e301。導入server/renderer/TIPと管理展開した実バイトが一致した。
 
-[Windows run39249434607](https://github.com/aruiki/Asteria-Japanese-IME/actions/runs/39249434607)で同じ新MSIのbuild・C++・Qt画面・同梱検査・候補操作8項目・導入/再導入/日本語入力/削除がすべて成功。ProductVersion 3.34.6439.100、SHA-256 606c5dc07bdf0c53b031f13ad91c4bd1545b280b4ec276146379157339c90045。導入server/renderer/TIPと管理展開した実バイトも一致した。
+RC4はprerelease=true/Latest=false、既存RC2のLatest区分は不変。AuthenticodeはNotSigned。同一MSI/同じbootの再導入を旧版更新/再起動の検証へ読み替えない。
 
-RC3はprerelease=true/Latest=false。公開時点のLatestは既存RC2で、その区分は変更していない。AuthenticodeはNotSigned、配布情報に実測値と受入れ範囲を保存した。削除3010を再起動確認にしない。
+## 実装と固定実モデル検証
 
-## 検証の範囲
+[採点済み候補保持](verification/scored-alternatives-20261020.md)は有限採点済みの別仮説を最大8件、読みと既存文節keyが合う場合だけ保持。第一候補/ユーザー辞書を保ち、新規代替はNO_LEARNING。700ms予算・閾値・モデルは不変。期限後の部分集合を通常cacheへ保存せず、弱い続きは本文の先頭を置き換えない。
 
-GPUのAIの最初の生成・採点結果を待ってSpace・入力中候補・Tabを表示し、入力/編集/取消、保留Enterと後続打鍵を処理する。[ADR0067](adr/0067-ai-first-candidate-publication.md)。RC3の[文脈引継ぎ](verification/queued-context-20261019.md)は末尾確定が対象で、元実装の6assert失敗と修正後Session197件成功を保持する。実GPUの旧/新2文比較では確定文は一致し、後続文7候補の採点が変わった。全体の精度向上の数値ではない。
+最終ソースでC++445件・工具2件成功。同じモデル/DLL・辞書・データ・評価器で978の第一候補が全一致、Standard AJIMEE前文あり188/200・なし175/200を維持。候補包含は前文なし189→193/200、あり193→195/200、改悪0。最終300例も290/300、全出力一致。予測29例は先頭一致12→12、上位3一致19→20、改悪0・確定差0。第一候補精度や速度の改善とはしない。
 
-変換精度の既存の固定評価はStandard AJIMEE前文あり188/200、なし175/200。開発978出力・予測29件・最終評価290/300の[RC2までの固定検証](verification/ai-first-publication-20261019.md)を、新たなRC3/MSI測定とはしない。今回のconverter/model/閾値は変えていない。
+固定EXEの隔離Sessionと実GPUで欠落2候補の実ID選択・表示・確定、AI待機/編集/取消/保留Enter/後続打鍵、Tab、[文脈引継ぎ](verification/queued-context-20261019.md)、通常変換/保存を確認。[AI主体の候補表示](adr/0067-ai-first-candidate-publication.md)を維持する。ローカル詳細検査と新MSIのEDIT/RichEdit受入れは別の証拠。
 
-実導入の受入れはWinForms EDIT/RichEdit限定。実TSFのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧版からの更新/再起動、独立verifierは残る。goalはactive、製品完成や.goal-completeにしない。
+推論DLLの追加監査で、4モデルと他の推論DLLは評価時と全バイト一致。ggml-base.dllのSHA差はCOFF時刻欄の3バイトだけで、その他全バイトは一致した。新MSIの実モデル/DLLでも実GPUの欠落2候補の選択・表示・確定が成功。元の不一致原票と差の全バイト検査を[公開記録](verification/release-v1.1.4-rc.4-20261021.md)に残した。
 
-## 次版の採点済み候補保持
+## 残る製品検証
 
-[実装と固定検証](verification/scored-alternatives-20261020.md)。公開RC3/MSI6439には含めない。Mozc source039a7251fa16a77a91cb67f5158e20073a3f3762を製品パッチへ反映し、3patchの再適用と140 sourceの正規化バイト一致を確認した。
+実アプリGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧公開版更新、再起動、独立verifierは残る。配布情報のremaining_verificationへ7範囲をnot_verified、product_complete=falseとして保存。製品完成や.goal-completeにしない。
 
-- 採点済みの別仮説を最大8件、読みと既存文節keyが一致する場合だけ保持する。第一候補・ユーザー辞書を保ち、新規代替はNO_LEARNING。元実装の回帰2件の失敗を保持し、最終ソースではC++445件と工具2件が成功。
-- 同じ6438のモデル/DLL・辞書・データ・評価器で旧/新を前後比較。全978の第一候補一致、AJIMEEは前文あり188/200・なし175/200を維持。候補包含は前文なし189→193/200、あり193→195/200。最終評価300例も290/300、全出力一致。
-- 固定SessionHandlerと実GPUで、欠落していた2候補の選択・表示・確定、AI待機/編集/取消/保留Enter/後続入力、Tab、文脈引継ぎ、通常変換/保存を確認した。実TSFの検査ではない。
-- 予測の700ms予算と閾値は変えず、期限直前に有限の採点が済んだ候補を保持する。未採点・読み不足を拒否し、弱い続きは先頭本文を置き換えず、期限後の部分集合は通常cacheへ保存しない。初期案の予測改悪ログを保持し、修正後29例は先頭一致12→12、上位3一致19→20、改悪0、確定差0。速度改善は主張しない。
-- 新MSIはまだ未検証。新しいWindows runと同じMSIの候補8項目・再導入/入力/削除を確認してから統合・次版公開へ進む。
-
-## 次の具体作業
-
-1. この変更の全適用CIと新Windows MSIを確認する。旧RC3の8項目成功を次MSIへ流用しない。
-2. 成功後にMSIの実SHA/版・同梱物・導入binary・CI source/treeを照合し、ADR0044の条件を満たして統合・次版公開・再取得照合まで進める。
-3. 実アプリGPU ON/OFF寄与・複数アプリ・低性能・内部privacy・旧版更新/再起動・独立verifierは引き続き残る。公開/CI許可は取得済み。
+次の製品検証は、導入済みMSIとactive TIPのSHAを固定し、実アプリでGPU AI ON/OFFの候補差と表示/Space/確定の一致を確認する。複数アプリ・低性能・内部privacy・旧版更新/再起動・独立verifierもそれぞれの条件で確認する。今回の限定受入れを代用しない。
 
 [通常変換の条件](NORMAL_CONVERSION.md)、[精度改善カード81](tasks/81-accuracy-guide.md)、[測定値の紹介条件](BENCHMARKS.md)。規約は[AGENTS.md](../AGENTS.md)、コマンドは[DEVELOPMENT.md](DEVELOPMENT.md)。
