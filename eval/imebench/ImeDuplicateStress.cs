@@ -146,16 +146,25 @@ sealed partial class Acceptance {
       {"trials", rows}
     };
     report["duplicate_stress"] = summary;
+    Exception firstFailure = null;
+    Action<Action> collect = action => {
+      try { action(); }
+      catch (Exception error) {
+        if (Environment.GetEnvironmentVariable("ASTERIA_PROBE_COLLECT_ALL") != "true") throw;
+        if (firstFailure == null) firstFailure = error;
+      }
+    };
     var edits = new ImeObservation[] {a, r};
     for (int i = 0; i < edits.Length; i++) {
       string host = i == 0 ? "EDIT" : "RichEdit";
       foreach (int delay in new int[] {0, 30, 250})
         foreach (string mode in new string[] {"space_enter", "enter", "down_enter", "focus"})
-          DuplicateTrial(edits[i], host, mode, delay, rows);
-      DuplicateTrial(edits[i], host, "click", 0, rows);
-      IntentionalRepeat(edits[i], host, rows);
+          collect(() => DuplicateTrial(edits[i], host, mode, delay, rows));
+      collect(() => DuplicateTrial(edits[i], host, "click", 0, rows));
+      collect(() => IntentionalRepeat(edits[i], host, rows));
     }
     Require(rows.Count == 28, "Incomplete duplicate stress suite");
+    if (firstFailure != null) throw new Exception("Baseline native scenarios failed", firstFailure);
     summary["complete"] = true;
     Save();
   }
