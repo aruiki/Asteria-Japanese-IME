@@ -58,6 +58,8 @@ sealed partial class Acceptance {
   }
   void RawPress(ushort key) { Key(key, false); Key(key, true); }
   void ClickFirstCandidate(Dictionary<string, object> row) {
+    // 最初のSpaceは変換表示だけの場合がある。一覧を開いてから実クリックする。
+    if (DuplicateNative.VisibleCandidate() == IntPtr.Zero) RawPress(0x28);
     IntPtr candidate = IntPtr.Zero;
     WaitUntil(() => {
       candidate = DuplicateNative.VisibleCandidate();
