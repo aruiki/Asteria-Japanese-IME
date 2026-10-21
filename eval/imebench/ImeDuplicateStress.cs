@@ -9,16 +9,31 @@ using System.Text;
 using System.Threading;
 
 static class DuplicateNative {
+  delegate bool WindowCallback(IntPtr window, IntPtr parameter);
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
   [StructLayout(LayoutKind.Sequential)] public struct Point { public int X, Y; }
   [DllImport("user32.dll", CharSet = CharSet.Unicode)]
   public static extern IntPtr FindWindowW(string className, string title);
+  [DllImport("user32.dll")] static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  static extern int GetClassNameW(IntPtr window, StringBuilder text, int maximum);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point point);
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
+  public static IntPtr VisibleCandidate() {
+    IntPtr found = IntPtr.Zero;
+    EnumWindows((window, unused) => {
+      var name = new StringBuilder(128); GetClassNameW(window, name, name.Capacity);
+      if (name.ToString() == "KotoriCandidateWindow" && IsWindowVisible(window)) {
+        found = window; return false;
+      }
+      return true;
+    }, IntPtr.Zero);
+    return found;
+  }
 }
 
 sealed partial class Acceptance {
@@ -45,8 +60,8 @@ sealed partial class Acceptance {
   void ClickFirstCandidate(Dictionary<string, object> row) {
     IntPtr candidate = IntPtr.Zero;
     WaitUntil(() => {
-      candidate = DuplicateNative.FindWindowW("KotoriCandidateWindow", null);
-      return candidate != IntPtr.Zero && DuplicateNative.IsWindowVisible(candidate);
+      candidate = DuplicateNative.VisibleCandidate();
+      return candidate != IntPtr.Zero;
     }, "No visible installed candidate window for click probe");
     uint pid; DuplicateNative.GetWindowThreadProcessId(candidate, out pid);
     string renderer = Process.GetProcessById((int)pid).MainModule.FileName;
@@ -79,7 +94,13 @@ sealed partial class Acceptance {
         WaitUntil(() => Converted(edit), "No converted preedit before candidate action");
       Thread.Sleep(delay);
       if (mode == "down_enter") Press(0x28);
-      if (mode == "click") ClickFirstCandidate(row);
+      if (mode == "click") {
+        ClickFirstCandidate(row); Thread.Sleep(180);
+        row["after_click"] = Snapshot(edit);
+        Require(Results(edit).Length == 0 && Preedit(edit).Length > 0,
+                "Candidate selection unexpectedly committed or lost composition");
+        RawPress(0x0D);
+      }
       else if (mode == "focus") Focus(edit == a ? b : a, true);
       else RawPress(0x0D);
       WaitUntil(() => Results(edit).Length > 0 && Preedit(edit) == "", "No completed native commit in duplicate probe");

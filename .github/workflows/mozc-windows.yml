@@ -232,7 +232,10 @@ jobs:
         shell: pwsh
         env:
           KOTORI_DISPOSABLE_RUNNER: ${{ runner.environment }}
-        run: python -X utf8 kotori/mozc/tools/installer_smoke.py --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke --acceptance --reinstall
+        run: |
+          python -m pip install playwright==1.58.0
+          if ($LASTEXITCODE -ne 0) { throw 'Browser probe dependency installation failed' }
+          python -X utf8 kotori/mozc/tools/installer_smoke.py --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke --acceptance --duplicate-stress --browser-duplicate-stress --reinstall
       - name: インストーラーの検証ログを保存する
         if: always()
         uses: actions/upload-artifact@v4
