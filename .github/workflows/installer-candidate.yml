@@ -21,24 +21,23 @@ jobs:
     timeout-minutes: 25
     env:
       KOTORI_DISPOSABLE_RUNNER: github-hosted
-      ASTERIA_PROBE_COLLECT_ALL: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      # MSIは再ビルドせず、全8CI成功/統合済みPR176の固定成果物を検証する。
+      # MSIは再ビルドせず、成功済みCI/PR180の同じ新MSIの固定成果物を検証する。
       # このworkflowは製品公開を行わない。期限切れ/消失/違うSHAなら失敗する。
       - name: Verify source run and obtain fixed candidate
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $run = gh run view 39433685950 --repo aruiki/Asteria-Japanese-IME --json headSha,status,conclusion | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $run.headSha -ne '813e78aa568826b1cf68eeeab494616d82b3b8a0' -or $run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw '固定CIの出所または成功条件が違う' }
-          gh run download 39433685950 --repo aruiki/Asteria-Japanese-IME --name Asteria64.msi --dir installer
+          $run = gh run view 39582216741 --repo aruiki/Asteria-Japanese-IME --json headSha,status,conclusion | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.headSha -ne '34763f4c2474de6e773ca207e4ce1510ccc9d191' -or $run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw '固定CIの出所または成功条件が違う' }
+          gh run download 39582216741 --repo aruiki/Asteria-Japanese-IME --name Asteria64.msi --dir installer
           if ($LASTEXITCODE -ne 0) { throw '固定MSIを取得できない' }
           $hash = (Get-FileHash installer/Asteria64.msi -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne '2b37f6fbdcb069251e820e2009b096111cc2253e79ffac65d973fa11ce18e301') { throw '固定MSIのSHA-256が違う' }
+          if ($hash -ne '1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a') { throw '固定MSIのSHA-256が違う' }
       - name: Install, exercise native controls, reinstall and uninstall
         shell: pwsh
         run: |
