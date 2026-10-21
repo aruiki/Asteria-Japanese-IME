@@ -9,9 +9,22 @@ import zipfile
 
 from collect_frequency import Exclusions, flush, merge_counts, reserved, shard_corpus
 from stage_tokenizer import extract_verified
+from build_frequency_lexicon import select
 
 
 class FrequencyTest(unittest.TestCase):
+    def test_rare_words_and_names_do_not_get_unearned_cost_advantage(self):
+        policy = json.loads(Path(__file__).with_name('frequency_lexicon_policy.json').read_text('utf-8'))
+        noun = '名詞,一般,*,*,*,*,*'
+        person = '名詞,固有名詞,人名,一般,*,*,*'
+        self.assertIsNone(select(5000, 'しんご', noun, (10, 4, 7), policy)[0])
+        self.assertIsNone(select(5000, 'しんご', noun, (10, 6, 3), policy)[0])
+        self.assertIsNone(select(5000, 'しんご', person, (30, 19, 7), policy)[0])
+        costs = [select(5000, 'しんご', noun, (count, count, 7), policy)[0] for count in (5, 10, 20, 80, 1000)]
+        self.assertEqual(costs, sorted(costs, reverse=True))
+        self.assertGreaterEqual(min(costs), 5000)
+        self.assertGreater(select(5000, 'しんご' * 6, noun, (80, 80, 7), policy)[0], 5000)
+
     def test_near_duplicate_index_matches_exhaustive_jaccard(self):
         randomizer = random.Random(1122)
         values = {''.join(randomizer.choices('あいうえおかきくけこさしすせそ', k=20)) for _ in range(80)}

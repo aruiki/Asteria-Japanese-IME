@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "status": "fixed before frequency candidate conversion",
+  "min_documents": 5,
+  "min_person_documents": 20,
+  "min_content_buckets": 3,
+  "rarity_margin": 2000,
+  "cost_reduction_per_frequency_doubling": 500,
+  "reading_length_margin_start": 12,
+  "cost_per_additional_reading_character": 100,
+  "max_cost": 32767,
+  "cost_rule": "previous lexical cost plus nonnegative rarity and reading length margins; never lower previous candidate costs",
+  "evaluation_word_exceptions": false,
+  "adoption_protocol": "docs/adr/0068-short-input-lexicon.md"
+}
