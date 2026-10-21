@@ -104,6 +104,10 @@ window.snapshot=id=>({value:document.getElementById(id).value??document.getEleme
                         elif commits[0] != commits[1]:
                             raise RuntimeError("Two intentional equal readings did not remain equal")
                         row["passed"] = True
+                    except Exception as error:
+                        row["error"] = str(error)
+                        if os.environ.get("ASTERIA_PROBE_COLLECT_ALL") != "true":
+                            raise
                     finally:
                         row["after"] = page.evaluate("snapshot", host)
                         page.screenshot(path=str(args.out / (host + "-" + mode + "-" + str(delay) + ".png")))
@@ -112,6 +116,9 @@ window.snapshot=id=>({value:document.getElementById(id).value??document.getEleme
                 raise RuntimeError("Edge process did not load the installed Asteria TIP")
             if len(report["trials"]) != 14:
                 raise RuntimeError("Incomplete browser duplicate suite")
+            failed = [row for row in report["trials"] if not row["passed"]]
+            if failed:
+                raise RuntimeError("Baseline diagnostic recorded " + str(len(failed)) + " failed scenarios")
             report["complete"] = True
         except Exception as error:
             report["error"] = str(error)
