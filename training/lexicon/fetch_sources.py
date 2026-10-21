@@ -70,5 +70,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--cache', type=Path)
+    parser.add_argument('--config', type=Path, help='別の版固定コーパスの取得設定')
     args = parser.parse_args()
-    print(json.dumps(load_sources(args.out, args.cache), ensure_ascii=False, indent=2))
+    print(json.dumps(load_sources(args.out, args.cache, args.config), ensure_ascii=False, indent=2))

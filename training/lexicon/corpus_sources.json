@@ -1,0 +1,21 @@
+{
+  "repository": "Miwa-Keita/zenz-v2.5-dataset",
+  "commit": "7d9c9ea36347b638a627c1d264da48ebc7eb38aa",
+  "version": "wikipedia-7d9c9ea36347",
+  "license": "CC-BY-SA-4.0 Wikipedia portion only",
+  "status": "candidate_not_adopted",
+  "files": [
+    {
+      "name": "train_wikipedia.jsonl",
+      "url": "https://huggingface.co/datasets/Miwa-Keita/zenz-v2.5-dataset/resolve/7d9c9ea36347b638a627c1d264da48ebc7eb38aa/train_wikipedia.jsonl",
+      "bytes": 4131415181,
+      "sha256": "c477d5d75ee3359949839f56465ba65b2e3c7c1f81b812ef7c5d85bed7323476"
+    },
+    {
+      "name": "README.md",
+      "url": "https://huggingface.co/datasets/Miwa-Keita/zenz-v2.5-dataset/resolve/7d9c9ea36347b638a627c1d264da48ebc7eb38aa/README.md",
+      "bytes": 3999,
+      "sha256": "b985b9535d9caf52876b313f6c41fb121a9f621255031b92d922f58fffc93a24"
+    }
+  ]
+}
