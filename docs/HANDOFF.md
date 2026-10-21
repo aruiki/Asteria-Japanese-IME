@@ -1,4 +1,6 @@
-# 現在の引き継ぎ（2026-10-21、RC4公開・再取得照合完了）
+# 現在の引き継ぎ（2026-10-21、RC4公開済み・紹介資料刷新）
+
+最新の依頼は「本体ビルドを変えずにプロモーション・マーケティングを刷新」。READMEをGPU AIとローカル処理の紹介へ再構成し、既存の月ロゴによる3画像、告知コピー、添付文を活かした導入ガイド・RC4本文を用意した。[素材](marketing/README.md)、[確認記録](verification/marketing-refresh-20261021.md)、[カード82](tasks/82-marketing-refresh.md)。100 build入力と実MSIのハッシュ一致を確認。製品本体・モデル・版番号は変更せず、2.0への切替も行っていない。公開反映はPRの全適用CI成功後に確認する。
 
 [v1.1.4-rc.4を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)。採点済み候補保持と予測期限の修正を製品パッチ/新MSIへ反映した。公開4資産を再取得し、全バイト・同梱・アイコンが一致。[公開記録](verification/release-v1.1.4-rc.4-20261021.md)。
 
