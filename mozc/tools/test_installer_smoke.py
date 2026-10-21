@@ -3,7 +3,7 @@ import copy
 from pathlib import Path
 import unittest
 
-from installer_smoke import ACCEPTANCE_CHECKS, validate_acceptance
+from installer_smoke import ACCEPTANCE_CHECKS, validate_acceptance, validate_duplicate_stress
 
 
 class AcceptanceReceiptTest(unittest.TestCase):
@@ -33,6 +33,29 @@ class AcceptanceReceiptTest(unittest.TestCase):
         for variant in variants:
             with self.subTest(variant=variant), self.assertRaises(RuntimeError):
                 validate_acceptance(variant, self.install)
+
+
+class DuplicateReceiptTest(unittest.TestCase):
+    def test_all_native_paths_are_required(self):
+        rows = [dict(host=host, mode=mode, space_to_action_ms=delay, passed=True)
+                for host in ("EDIT", "RichEdit")
+                for mode in ("space_enter", "enter", "down_enter", "focus")
+                for delay in (0, 30, 250)]
+        rows += [dict(host=host, mode=mode, passed=True)
+                 for host in ("EDIT", "RichEdit") for mode in ("click", "intentional_repeat")]
+        report = dict(duplicate_stress=dict(complete=True, trials=rows))
+        validate_duplicate_stress(report)
+        for missing in range(len(rows)):
+            partial = copy.deepcopy(report)
+            partial["duplicate_stress"]["trials"].pop(missing)
+            with self.assertRaises(RuntimeError):
+                validate_duplicate_stress(partial)
+        failed = copy.deepcopy(report)
+        failed["duplicate_stress"]["trials"][-1]["passed"] = False
+        with self.assertRaises(RuntimeError):
+            validate_duplicate_stress(failed)
+        with self.assertRaises(RuntimeError):
+            validate_duplicate_stress({})
 
 
 if __name__ == "__main__":

@@ -40,6 +40,7 @@
 
 | 番号 | 目的 | 状態 |
 | --- | --- | --- |
+| 83 | 最新候補の二重入力確認とv2.0.0正式公開 | [作業カード](83-v2-stable-and-duplicate-input.md)、6438/6440の実TSF検査を準備 |
 | 81 | 精度改善指南書を測定・製品改善へ接続する | [作業カード](81-accuracy-guide.md)、専用枝で基準測定と診断を実装中 |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
 

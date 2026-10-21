@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/installer-candidate.yml
       - eval/imebench/ImeAcceptance.cs
+      - eval/imebench/ImeDuplicateStress.cs
       - mozc/tools/installer_smoke.py
       - mozc/tools/test_installer_smoke.py
   workflow_dispatch:

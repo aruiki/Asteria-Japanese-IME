@@ -37432,7 +37432,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..03a9c7c55 100644
+index 8186b0a8d..748d5cfed 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -37482,7 +37482,7 @@ index 8186b0a8d..03a9c7c55 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +564,147 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +564,150 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -37540,6 +37540,9 @@ index 8186b0a8d..03a9c7c55 100644
 +    }
 +    if (!kotori_conversion_pending_ && context_->state() == ImeContext::CONVERSION && commit) {
 +      const commands::Context committed_context = context_->client_context();
++      // Kotori: 変換表示と確定を同じ応答へ重ねない。古いpreeditが残ると、
++      // TSFが確定済み本文をもう一度未確定文字として挿入してしまう。
++      command->mutable_output()->Clear();
 +      Commit(command);
 +      KotoriReplayFollowingKeys(command, committed_context);
 +    }
@@ -37630,7 +37633,7 @@ index 8186b0a8d..03a9c7c55 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -717,6 +880,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +883,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -37660,7 +37663,7 @@ index 8186b0a8d..03a9c7c55 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -2371,13 +2557,29 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,13 +2560,29 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -37694,7 +37697,7 @@ index 8186b0a8d..03a9c7c55 100644
    SetSessionState(ImeContext::CONVERSION, context_.get());
    Output(command);
    return true;
-@@ -2389,16 +2591,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2594,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -37712,7 +37715,7 @@ index 8186b0a8d..03a9c7c55 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2869,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2872,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -37721,7 +37724,7 @@ index 8186b0a8d..03a9c7c55 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2884,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2887,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -37744,7 +37747,7 @@ index 8186b0a8d..03a9c7c55 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +2943,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +2946,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -37758,7 +37761,7 @@ index 8186b0a8d..03a9c7c55 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3079,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3082,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -38094,7 +38097,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..2213ae442 100644
+index 012d822a5..0b5590a4f 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -38220,7 +38223,7 @@ index 012d822a5..2213ae442 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10547,574 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10547,648 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -38477,6 +38480,80 @@ index 012d822a5..2213ae442 100644
 +  EXPECT_EQ(evaluations, before + 1);  // 確定で再採点しない。
 +  ASSERT_TRUE(command.output().has_result());
 +  EXPECT_EQ(command.output().result().value(), "阿伊宇江於");
++  // Kotori: 同じ応答内に確定済み本文をpreeditとして残すと、TSFが二度挿入する。
++  EXPECT_FALSE(command.output().has_preedit());
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_FALSE(command.output().has_all_candidate_words());
++  EXPECT_EQ(session.context().state(), ImeContext::PRECOMPOSITION);
++  EXPECT_FALSE(command.output().has_callback());
++  kotori::g_live_first_ms = 0;
++  kotori::g_live_next_ms = 0;
++}
++
++TEST_F(SessionTest, KotoriQueuedTabCommitClearsConvertedOutput) {
++  MockEngine engine;
++  auto converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  Segments suggestion;
++  auto* segment = suggestion.add_segment();
++  segment->set_key("あいうえお");
++  AddCandidate("あいうえお", "あいうえお", segment);
++  suggestion.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  EXPECT_CALL(*converter, StartPrediction(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(suggestion), Return(true)));
++  Segments pending = suggestion;
++  Segments ready = suggestion;
++  ready.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  ready.mutable_segment(0)->mutable_candidate(0)->value = "阿伊宇江於";
++  ready.mutable_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  bool finished = false;
++  int evaluations = 0;
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly([&](const ConversionRequest& request, Segments* segments) {
++        EXPECT_TRUE(request.options().kotori_preview);
++        EXPECT_TRUE(request.kotori_input_generation().IsCurrent());
++        ++evaluations;
++        *segments = finished ? ready : pending;
++        return true;
++      });
++  EXPECT_CALL(*converter, PrependCandidates(_, _, _))
++      .WillRepeatedly([&](const ConversionRequest&, const Segment&, Segments* segments) {
++        *segments = finished ? ready : pending;
++      });
++  kotori::g_live_first_ms = 200;
++  kotori::g_live_next_ms = 0;
++  commands::Command command;
++  InsertCharacterChars("aiueo", &session, &command);
++  EXPECT_EQ(GetComposition(command), "あいうえお");
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_FALSE(command.output().has_all_candidate_words());
++  ASSERT_TRUE(command.output().has_callback());
++  ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::TAB, &session, &command));
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  EXPECT_EQ(GetComposition(command), "あいうえお");
++  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_callback());
++  ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::ENTER, &session, &command));
++  EXPECT_FALSE(command.output().has_result());
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  // モデルのロードが従来の回数上限より長くても、未評価候補へ切り替えない。
++  for (int i = 0; i < kotori::kMaxLiveRefreshes + 2; ++i) {
++    ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION,
++                            &session, &command));
++    EXPECT_FALSE(command.output().has_candidate_window());
++    EXPECT_FALSE(command.output().has_result());
++    EXPECT_TRUE(command.output().has_callback());
++  }
++  finished = true;
++  ASSERT_TRUE(SendCommand(commands::SessionCommand::KOTORI_REFRESH_SUGGESTION,
++                          &session, &command));
++  ASSERT_TRUE(command.output().has_result());
++  EXPECT_EQ(command.output().result().value(), "阿伊宇江於");
++  // Kotori: 同じ応答内に確定済み本文をpreeditとして残すと、TSFが二度挿入する。
++  EXPECT_FALSE(command.output().has_preedit());
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_FALSE(command.output().has_all_candidate_words());
 +  EXPECT_EQ(session.context().state(), ImeContext::PRECOMPOSITION);
 +  EXPECT_FALSE(command.output().has_callback());
 +  kotori::g_live_first_ms = 0;
