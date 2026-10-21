@@ -26,6 +26,8 @@ AIの初回結果を待つ次版のソース`8af4797f92689474635dd49cf8163cef7ae
 
 固定正解数・出典と原票SHAは[図版用データ](images/evaluation-2026-10-19.json)、手順と検証範囲は[通常変換の検証](verification/accuracy-normal-conversion-20261019.md)と[評価方法](../eval/README.md)を参照してください。
 
+次の候補保持修正source039a7251fa16a77a91cb67f5158e20073a3f3762、converter SHA-256 14284c10d8ef4193eb95dc37e052ce67de4b0457ac223ecdccab0adc3f2be4d2も、同じ4セット×3条件978出力の第一候補が一致しました。AJIMEEの正解候補包含は前文なし189→193/200、前文あり193→195/200。第一候補正解数は変わりません。固定した最終評価300例も290/300で全出力一致。[条件と限界](verification/scored-alternatives-20261020.md)。次のMSIや実アプリ全般の精度を表す値ではありません。
+
 ## 日常の変換例
 
 追加連語の変更前後で、AIなし・前文なしの日常81問は65→69正解。改善4問・改悪0問でした。

@@ -30662,10 +30662,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..43ed7be54
+index 000000000..110b2b3bc
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3482 @@
+@@ -0,0 +1,3587 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31868,6 +31868,30 @@ index 000000000..43ed7be54
 +  SplitIntoSegmentsImpl(units, max, keys, values);
 +}
 +
++std::optional<std::vector<std::string>> AlignSentenceToSegments(
++    const std::vector<std::pair<std::string, std::string>>& units,
++    const std::vector<std::string>& keys) {
++  if (units.empty() || keys.empty()) return std::nullopt;
++  std::vector<std::string> values;
++  size_t at = 0;
++  for (const std::string& key : keys) {
++    if (key.empty() || !Util::IsValidUtf8(key)) return std::nullopt;
++    std::string reading, value;
++    while (at < units.size() && reading.size() < key.size()) {
++      const auto& [surface, yomi] = units[at++];
++      if (surface.empty() || yomi.empty() || !Util::IsValidUtf8(surface) ||
++          !Util::IsValidUtf8(yomi)) return std::nullopt;
++      reading += yomi;
++      value += surface;
++      if (!absl::StartsWith(key, reading)) return std::nullopt;
++    }
++    if (reading != key || value.empty()) return std::nullopt;
++    values.push_back(std::move(value));
++  }
++  if (at != units.size()) return std::nullopt;
++  return values;
++}
++
 +bool HasRepeatedContinuation(absl::string_view base, absl::string_view continuation) {
 +  const auto b = Chars(std::string(base)), c = Chars(std::string(continuation));
 +  if (b.empty() || c.empty()) return false;
@@ -32864,6 +32888,33 @@ index 000000000..43ed7be54
 +  }
 +  if (best.keys.empty() || (background && over())) return std::nullopt;
 +
++  // Kotori: 最良の文だけを残すと、AIが採点した別の正解が候補一覧から消える。
++  // 同じ読み・同じ文節keyへ対応する有限スコアの文を、最大8件まで残す。
++  // 補正で読みを変えた結果へ、元の読みの仮説を混ぜない。
++  if (!best.correction && best.corrected_reading.empty() && dictionary_ != nullptr) {
++    std::vector<size_t> order(values.size());
++    std::iota(order.begin(), order.end(), 0);
++    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
++      const double sa = std::isfinite(joint_scores[a]) ? joint_scores[a]
++          : -std::numeric_limits<double>::infinity();
++      const double sb = std::isfinite(joint_scores[b]) ? joint_scores[b]
++          : -std::numeric_limits<double>::infinity();
++      return sa > sb;
++    });
++    for (size_t index : order) {
++      if (best.alternatives.size() >= 8 || over()) break;
++      if (index == top || !std::isfinite(joint_scores[index])) continue;
++      std::vector<std::pair<std::string, std::string>> units;
++      if (!MatchesReading(*dictionary_, single_kanji_, values[index], reading,
++                          false, &units)) continue;
++      auto aligned = kotori_internal::AlignSentenceToSegments(units, best.keys);
++      if (!aligned || *aligned == best.values ||
++          std::find(best.alternatives.begin(), best.alternatives.end(), *aligned) !=
++              best.alternatives.end()) continue;
++      best.alternatives.push_back(std::move(*aligned));
++    }
++  }
++
 +  // 今の区切りと同じなら、切り直さずに Rewrite で先頭を入れ替える。
 +  if (!StoreMemo(MemoKey(request.config(), reading, context), best,
 +                 background, over)) return std::nullopt;
@@ -32902,7 +32953,7 @@ index 000000000..43ed7be54
 +    if (i >= best.keys.size() || seg.key() != best.keys[i]) return false;
 +    ++i;
 +  }
-+  if (i != best.keys.size()) return false;
++  if (i != best.keys.size() || best.keys.size() != best.values.size()) return false;
 +
 +  auto mark_top = [&](converter::Candidate* candidate) {
 +    candidate->kotori_ai_evaluated = true;
@@ -32915,41 +32966,62 @@ index 000000000..43ed7be54
 +  bool changed = false;
 +  i = 0;
 +  for (Segment& seg : segments->conversion_segments()) {
-+    const std::string& value = best.values[i++];
-+    if (seg.candidates_size() > 0) {
-+      auto* current = seg.mutable_candidate(0);
-+      current->kotori_ai_evaluated = true;
-+      current->kotori_corrected_reading.clear();
-+      // ユーザー辞書を保持したときや、元の候補が下へ残るときは補正の印を付けない。
-+      if (current->value == value) mark_top(current);
-+    }
-+    if (seg.candidates_size() == 0 || seg.candidate(0).value == value) {
-+      continue;
-+    }
-+    // ユーザー辞書の語は置き換えない。
-+    if (seg.candidate(0).attributes & converter::Attribute::USER_DICTIONARY) {
-+      continue;
-+    }
-+    int found = -1;
-+    for (size_t j = 1; j < seg.candidates_size(); ++j) {
-+      if (seg.candidate(j).value == value) {
-+        found = static_cast<int>(j);
-+        break;
++    const size_t segment_index = i++;
++    const std::string& value = best.values[segment_index];
++    if (seg.candidates_size() == 0) continue;
++    auto* current = seg.mutable_candidate(0);
++    current->kotori_ai_evaluated = true;
++    current->kotori_corrected_reading.clear();
++    if (current->value == value) mark_top(current);
++    // ユーザー辞書の先頭と、この文節の候補素材は保持する。
++    if (current->attributes & converter::Attribute::USER_DICTIONARY) continue;
++    if (current->value != value) {
++      int found = -1;
++      for (size_t j = 1; j < seg.candidates_size(); ++j) {
++        if (seg.candidate(j).value == value) {
++          found = static_cast<int>(j);
++          break;
++        }
 +      }
++      converter::Candidate c = seg.candidate(found >= 0 ? found : 0);
++      if (found >= 0) {
++        seg.erase_candidate(found);
++      } else {
++        // 文全体でだけ得た値は、文節の先頭素材を使って候補にする。
++        c.value = value;
++        c.content_value = value;
++        c.content_key = std::string(seg.key());
++        c.inner_segment_boundary.clear();
++      }
++      *seg.insert_candidate(0) = std::move(c);
++      mark_top(seg.mutable_candidate(0));
++      changed = true;
 +    }
-+    converter::Candidate c = seg.candidate(found >= 0 ? found : 0);
-+    if (found >= 0) {
-+      seg.erase_candidate(found);
-+    } else {
-+      // 文節の候補にない値(文全体の候補でだけ出たもの)は、先頭の候補を写して作る。
-+      c.value = value;
-+      c.content_value = value;
-+      c.content_key = std::string(seg.key());
++    if (best.correction || !best.corrected_reading.empty()) continue;
++    size_t insert_at = 1;
++    const size_t count = std::min<size_t>(8, best.alternatives.size());
++    for (size_t n = 0; n < count; ++n) {
++      const auto& alternative = best.alternatives[n];
++      if (alternative.size() != best.keys.size() ||
++          std::any_of(alternative.begin(), alternative.end(), [](const auto& v) {
++            return v.empty() || !Util::IsValidUtf8(v);
++          })) continue;
++      const std::string& surface = alternative[segment_index];
++      bool exists = false;
++      for (const auto& candidate : seg.candidates()) {
++        if (candidate->value == surface) { exists = true; break; }
++      }
++      if (exists) continue;
++      converter::Candidate c = seg.candidate(0);
++      c.key = c.content_key = std::string(seg.key());
++      c.value = c.content_value = surface;
 +      c.inner_segment_boundary.clear();
++      c.attributes = converter::Attribute::NO_LEARNING;
++      c.kotori_ai_evaluated = true;
++      c.kotori_corrected_reading.clear();
++      *seg.insert_candidate(insert_at++) = std::move(c);
++      changed = true;
 +    }
-+    *seg.insert_candidate(0) = std::move(c);
-+    mark_top(seg.mutable_candidate(0));
-+    changed = true;
 +  }
 +  *changed_out = changed;
 +  return true;
@@ -33250,6 +33322,7 @@ index 000000000..43ed7be54
 +      std::vector<double> avg(preds.size());
 +      for (size_t i = 0; i < preds.size(); ++i) {
 +        avg[i] = (*logp)[i] / std::max<size_t>(1, llm->CountTokens(texts[i]));
++        preds[i].scored = std::isfinite(avg[i]);
 +      }
 +      std::vector<size_t> order(preds.size());
 +      std::iota(order.begin(), order.end(), 0);
@@ -33286,6 +33359,12 @@ index 000000000..43ed7be54
 +        const double avg = (*scores)[j] / std::max<size_t>(1, llm->CountTokens(continuations[j]));
 +        if (avg > best) { second = best; best = avg; winner = j; }
 +        else if (avg > second) second = avg;
++        if (std::isfinite(avg)) {
++          for (auto& q : preds) {
++            if (q.base == p.base && q.covered == reading &&
++                q.text == p.base + continuations[j]) q.scored = true;
++          }
++        }
 +      }
 +      const auto chosen = std::find_if(preds.begin(), preds.end(), [&](const Prediction& q) {
 +        return q.base == p.base && q.text == p.base + continuations[winner];
@@ -33343,6 +33422,15 @@ index 000000000..43ed7be54
 +  return !p.yomi.empty() && absl::StartsWith(p.yomi, reading);
 +}
 +
++std::vector<LmRewriter::Prediction> LmRewriter::ScoredPredictions(
++    const std::vector<Prediction>& preds, const std::string& reading) const {
++  std::vector<Prediction> ready;
++  for (const auto& p : preds) {
++    if (p.scored && PredictionFits(p, reading)) ready.push_back(p);
++  }
++  return ready;
++}
++
 +void LmRewriter::InsertPredictions(Segment* seg, const std::string& reading,
 +                                   const std::vector<std::string>& texts,
 +                                   const std::vector<bool>& from_ai) const {
@@ -33393,6 +33481,7 @@ index 000000000..43ed7be54
 +  // その場の計算には時間の上限を設け、超えたら Mozc の予測だけを出す(案 03)。
 +  std::vector<Prediction> preds = CachedPredictions(reading, key, 6);
 +  const bool from_cache = !preds.empty();
++  bool completed_after_deadline = false;
 +  if (!from_cache) {
 +    const auto deadline = tab_budget_ms_ > 0
 +                              ? t0 + std::chrono::milliseconds(tab_budget_ms_)
@@ -33400,9 +33489,15 @@ index 000000000..43ed7be54
 +    preds = ComputePredictions(request.config(), reading, context, &conv, false,
 +                               false, deadline);
 +    if (tab_budget_ms_ > 0 && std::chrono::steady_clock::now() > deadline) {
-+      return false;  // 途中でやめた予測は出さず、覚えない
++      // Kotori: モデルの採点呼出しは途中停止できない。有限の採点が完了し、
++      // 今の読みへ対応する候補まで、呼出し後の時刻だけで全破棄しない。
++      // 未採点・読み未確認の途中結果は引き続き公開も保存もしない。
++      preds = ScoredPredictions(preds, reading);
++      if (preds.empty()) return false;
++      completed_after_deadline = true;
 +    }
-+    StorePredictions(reading, key, preds);
++    // 期限後の部分集合を通常の予測cacheとして別の読みへ使い回さない。
++    if (!completed_after_deadline) StorePredictions(reading, key, preds);
 +  }
 +  size_t k = 0, llm_top = 0;
 +  int beams = 0;
@@ -33410,6 +33505,9 @@ index 000000000..43ed7be54
 +  PrepareFor(request.config(), &k, &llm, &beams, &llm_top, true, sync_load_);
 +  if (llm == nullptr) return false;
 +  const auto evaluated = EvaluatedPredictionBase(request, reading, context);
++  const auto late_base = completed_after_deadline && seg.candidates_size() > 0
++      ? std::optional<std::string>(seg.candidate(0).value) : std::nullopt;
++  bool late_base_scored = false;
 +  // Mozc 自身の予測候補(上位 8 件)と読みの変換も加え、1 トークンあたりの log P で並べる。
 +  std::vector<std::string> pool;
 +  std::vector<bool> from_ai;
@@ -33449,6 +33547,9 @@ index 000000000..43ed7be54
 +        continue;
 +      }
 +      avg[i] = (*logp)[i] / std::max<size_t>(1, llm->CountTokens(pool[i]));
++      if (late_base && pool[i] == *late_base && std::isfinite(avg[i])) {
++        late_base_scored = true;
++      }
 +      order.push_back(i);
 +    }
 +    std::stable_sort(order.begin(), order.end(),
@@ -33458,16 +33559,20 @@ index 000000000..43ed7be54
 +      ranked_ai.push_back(from_ai[i]);
 +    }
 +  }
-+  if (evaluated) {
++  // Kotori: 期限後の弱い続きは選択候補へ残し、本文を別表記へ置換しない。
++  // 元の候補もこの要求のLLM採点が有限の場合だけ先頭の基準にする。
++  const auto leading_base = evaluated ? evaluated :
++      late_base_scored ? late_base : std::nullopt;
++  if (leading_base) {
 +    // Kotori: 本文を保持し、初回表示と同じ採用条件を満たす続きだけを先頭へ。
 +    // 弱い予測や別表記は、明示的に選べる候補として一覧に残す。
-+    std::string leading = *evaluated;
++    std::string leading = *leading_base;
 +    for (const std::string& value : ranked) {
 +      const auto strong =
 +          std::find_if(preds.begin(), preds.end(), [&](const Prediction& p) {
 +            return p.text == value && p.can_lead && !p.yomi.empty() &&
 +                   absl::StartsWith(p.yomi, reading) &&
-+                   absl::StartsWith(p.text, *evaluated);
++                   absl::StartsWith(p.text, *leading_base);
 +          });
 +      if (strong != preds.end()) {
 +        leading = value;
@@ -33483,7 +33588,7 @@ index 000000000..43ed7be54
 +    ranked.insert(ranked.begin(), leading);
 +    ranked_ai.insert(ranked_ai.begin(), true);
 +    // 採点中の取消・設定切替等で失効した補正文を追加しない。
-+    if (EvaluatedPredictionBase(request, reading, context) != evaluated)
++    if (evaluated && EvaluatedPredictionBase(request, reading, context) != evaluated)
 +      return false;
 +  }
 +  const size_t shown = std::min<size_t>(
@@ -34150,10 +34255,10 @@ index 000000000..43ed7be54
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..a041766f9
+index 000000000..20f72fb40
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,520 @@
+@@ -0,0 +1,532 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -34272,6 +34377,12 @@ index 000000000..a041766f9
 +    const std::vector<std::pair<std::string, std::string>>& units, size_t max,
 +    std::vector<std::string>* keys, std::vector<std::string>* values);
 +
++// Kotori: 読みと表記の対応を、既に選んだ文節keyへ割り当てる。
++// 対応単位が文節境界をまたぐ場合や読みが欠ける場合は採用しない。
++std::optional<std::vector<std::string>> AlignSentenceToSegments(
++    const std::vector<std::pair<std::string, std::string>>& units,
++    const std::vector<std::string>& keys);
++
 +}  // namespace kotori_internal
 +
 +// 2 段で変換を選ぶ。
@@ -34335,6 +34446,8 @@ index 000000000..a041766f9
 +    std::vector<std::string> values;
 +    std::optional<CorrectionOrigin> correction = std::nullopt;
 +    std::string corrected_reading;
++    // Kotori: 同じ文節keyへ対応する、採点済みの代替文。
++    std::vector<std::vector<std::string>> alternatives;
 +  };
 +
 +  // 設定に合わせてモデルを用意する。zenz を返し(使えなければ nullptr)、*llm に LLM
@@ -34437,6 +34550,8 @@ index 000000000..a041766f9
 +    std::string covered;
 +    std::string yomi;  // text 全体の読み(求まったとき)
 +    bool can_lead = false;
++    // Kotori: 時間上限直前のモデル呼出しで有限の採点が完了した候補。
++    bool scored = false;
 +  };
 +  struct Entry {
 +    std::string reading;
@@ -34493,6 +34608,8 @@ index 000000000..a041766f9
 +                                            size_t max) const;
 +  // 予測が今の読み reading でも使えるか(続きの読みが、新しく打った読みで始まるか)。
 +  bool PredictionFits(const Prediction& p, const std::string& reading) const;
++  std::vector<Prediction> ScoredPredictions(
++      const std::vector<Prediction>& preds, const std::string& reading) const;
 +  void InsertPredictions(Segment* seg, const std::string& reading,
 +                         const std::vector<std::string>& texts,
 +                         const std::vector<bool>& from_ai) const;
@@ -34676,10 +34793,10 @@ index 000000000..a041766f9
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..af4da8884
+index 000000000..90920d980
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1138 @@
+@@ -0,0 +1,1223 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -35265,6 +35382,25 @@ index 000000000..af4da8884
 +  EXPECT_EQ(keys, (std::vector<std::string>{"ほんを", "つくえにかれが"}));
 +}
 +
++TEST(LmRewriterSplitTest, AlignsScoredSentenceWithoutChangingSegmentKeys) {
++  const Units units = {{"脚", "あし"}, {"を", "を"}, {"痛めた", "いためた"}};
++  EXPECT_EQ(kotori_internal::AlignSentenceToSegments(units, {"あしを", "いためた"}),
++            (std::vector<std::string>{"脚を", "痛めた"}));
++  EXPECT_EQ(kotori_internal::AlignSentenceToSegments(units, {"あしをいためた"}),
++            (std::vector<std::string>{"脚を痛めた"}));
++}
++
++TEST(LmRewriterSplitTest, RejectsCrossingIncompleteOrMalformedAlignment) {
++  const Units units = {{"脚を", "あしを"}, {"痛めた", "いためた"}};
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments(units, {"あし", "をいためた"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments(units, {"あしを"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments(units, {"あしを", "いためる"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments({}, {"あしを"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments({{"", "あし"}}, {"あし"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments({{"脚", ""}}, {"あし"}));
++  EXPECT_FALSE(kotori_internal::AlignSentenceToSegments({{"\xe3\x83", "あし"}}, {"あし"}));
++}
++
 +TEST(LmRewriterSplitTest, EmptyUnits) {
 +  std::vector<std::string> keys, values;
 +  kotori_internal::SplitIntoSegments({}, 8, &keys, &values);
@@ -35424,6 +35560,60 @@ index 000000000..af4da8884
 +    std::lock_guard<std::mutex> lock(rewriter_->job_mu_);
 +    return rewriter_->job_.has_value();
 +  }
++  void CheckScoredAlternativePublication(bool user_word) const {
++    auto owner = std::make_shared<std::atomic<uint64_t>>(1);
++    Best best{"あしをいためた", "", {"あしを", "いためた"}, {"足を", "痛めた"}};
++    best.alternatives = {{"脚を", "痛めた"}, {"足を", "炒めた"},
++                         {"脚を", "痛めた"}};
++    Segments segments;
++    for (size_t i = 0; i < best.keys.size(); ++i) {
++      auto* segment = segments.add_segment();
++      segment->set_key(best.keys[i]);
++      auto* candidate = segment->add_candidate();
++      candidate->key = candidate->content_key = best.keys[i];
++      candidate->value = candidate->content_value = best.values[i];
++      if (user_word && i == 0) candidate->attributes |= converter::Attribute::USER_DICTIONARY;
++    }
++    // 既に正しい先頭でも、採点済みの別仮説を取りこぼさない。
++    bool changed = false;
++    ASSERT_TRUE(rewriter_->ApplyBestFrom(best, Request({owner, 1}), &segments, "", &changed));
++    EXPECT_TRUE(changed);
++    ASSERT_EQ(segments.conversion_segments_size(), 2);
++    for (size_t i = 0; i < best.keys.size(); ++i) {
++      const auto& segment = segments.conversion_segment(i);
++      EXPECT_EQ(segment.key(), best.keys[i]);
++      EXPECT_EQ(segment.candidate(0).value, best.values[i]);
++      const bool protected_segment = user_word && i == 0;
++      ASSERT_EQ(segment.candidates_size(), protected_segment ? 1 : 2);
++      if (!protected_segment) {
++        EXPECT_EQ(segment.candidate(1).value, i == 0 ? "脚を" : "炒めた");
++        EXPECT_TRUE(segment.candidate(1).kotori_corrected_reading.empty());
++        EXPECT_NE(segment.candidate(1).attributes & converter::Attribute::NO_LEARNING, 0);
++      }
++    }
++    // メモを再適用しても候補を増殖させず、変更なしを返す。
++    changed = true;
++    ASSERT_TRUE(rewriter_->ApplyBestFrom(best, Request({owner, 1}), &segments, "", &changed));
++    EXPECT_FALSE(changed);
++    EXPECT_EQ(segments.conversion_segment(0).candidates_size(), user_word ? 1 : 2);
++    EXPECT_EQ(segments.conversion_segment(1).candidates_size(), 2);
++  }
++  void CheckScoredPredictionDeadline() const {
++    using Prediction = LmRewriter::Prediction;
++    const std::vector<Prediction> preds = {
++        {"足を痛めたので", "足を痛めた", "あしをいためた", "", false, true},
++        {"脚を痛めたので", "脚を痛めた", "あしをいためた", "", false, false},
++        {"足を痛めたため", "足を", "あしを", "", false, true},
++        {"足を痛めたから", "足を", "あしを", "あしをいためたから", false, true},
++        {"足を痛めた\xe3\x83", "足を痛めた", "あしをいためた", "", false, true},
++    };
++    const auto ready = rewriter_->ScoredPredictions(preds, "あしをいためた");
++    ASSERT_EQ(ready.size(), 2);
++    EXPECT_EQ(ready[0].text, "足を痛めたので");
++    EXPECT_EQ(ready[1].text, "足を痛めたから");
++    EXPECT_FALSE(ready[0].can_lead);  // 未較正の候補を強い先頭へ格上げしない。
++    EXPECT_TRUE(rewriter_->ScoredPredictions(preds, "べつのよみ").empty());
++  }
 +  void ClearPredictionCache() { rewriter_->ClearPredictions(); }
 +  void ReloadModel() { ++rewriter_->model_epoch_; }
 +  void ReplaceModelHashes() {
@@ -35444,6 +35634,18 @@ index 000000000..af4da8884
 +  config::Config config_;
 +  std::unique_ptr<LmRewriter> rewriter_;
 +};
++
++TEST_F(LmRewriterGenerationTest, PublishesScoredAlternativesWhenWinnerIsAlreadyTop) {
++  CheckScoredAlternativePublication(false);
++}
++
++TEST_F(LmRewriterGenerationTest, ScoredAlternativesPreserveUserDictionaryTop) {
++  CheckScoredAlternativePublication(true);
++}
++
++TEST_F(LmRewriterGenerationTest, DeadlineKeepsOnlyScoredReadingMatchedPredictions) {
++  CheckScoredPredictionDeadline();
++}
 +
 +TEST_F(LmRewriterGenerationTest, OnlyAdoptedCandidateCarriesCorrectedReading) {
 +  CheckCorrectedReadingMetadata(false);
