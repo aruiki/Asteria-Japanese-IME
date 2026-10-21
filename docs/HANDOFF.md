@@ -1,10 +1,12 @@
-# 現在の引き継ぎ（2026-10-21、正式v2.0.0公開）
+# 現在の引き継ぎ（2026-10-22、短文の語彙・順位を改善）
 
-[正式v2.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)を署名なし/Latestとして公開。利用者が古い版による二重入力の可能性を指摘したため最新RC4も実Windowsで検査し、Space直後Enterで実二重表示が残ることを確認した。Outputに古いpreeditを残す原因を修正し、新MSIへ反映した。[公開記録](verification/release-v2.0.0-20261021.md)、[修正と前後証拠](verification/duplicate-commit-20261021.md)。
+利用者は製品の価値を「変換精度の高い日本語IME」とし、単語・短文・前文なしの辞書対策と紹介方針の見直しを新ゴールに指定した。カード81を継続し、[ADR0068](adr/0068-short-input-lexicon.md)へ比較前の条件を固定した。製品枝codex/short-input-quality-20261022はmain769ed9eから開始。
 
-PR180は全10CI成功後main298bee9へ統合。build head34763f4/実checkout9ea0b4fと全tree一致。MSI3.34.6442.100、SHA1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a。同じMSIで導入/再導入/入力/削除、既存8、native28、Edge14が成功。元の順序の追加Edge14も同一MSIで成功。公開4資産を再取得して全バイト・同梱・4モデル・アイコン一致を確認した。
+SudachiDict v20261015の全288万行を公式ZIP/LEGAL/ライセンスのSHAで固定し、取得・名詞抽出・Mozc品詞への対応・共通語のコスト分布による候補生成をtraining/lexiconへ実装。取得破損/品詞/読み/コストの6試験が成功。最初の候補は165万語だが製品採用前。コスト較正を同一品詞の共通語に限定したv2を生成している。変換結果を見る前に、開発120/最終報告120の短文評価をSHA固定した。最終報告用は調整へ使わない。
 
-README・INSTALL・3画像・Release本文と公式7ページを正式版へ更新済み。製品PR181/全7CI統合後、公式サイトPR10→配備3f68e6c/Pages run39620353670が成功し、公開20ファイルのHTTP/SHA、サイト14画面とGitHub4画面、総合監査が成功。カード83はdoneへ移動し、今回の公開ゴールは完了。製品全体の未検証7範囲は保持し、.goal-completeは作成しない。カード81など別の製品課題を完了扱いにしない。
+基準Mozc785bd83aのEXE/辞書をtarget/accuracy-guide/short-input-baseline-native-v1へ複製し、converter SHA14284c10...、session SHA81f85a90...を確認。ソース差分は空。これから基準の開発短文を測り、隔離した追加辞書をコンパイルして候補欠落・順位・改悪を比較する。データ量だけで採用しない。大きなコーパス由来の頻度/連語、Google同条件比較、実TSF・配布候補、コピー/画像/サイトの変更も残る。
+
+公開v2.0.0は署名なし/Latestのまま保持。[実配布と対応ソース](verification/release-v2.0.0-20261021.md)。新辞書の未検証をv2.0.0の成果へ混ぜない。AI主体の非同期候補表示、保護欄、ユーザー辞書、二重入力修正と、製品全体の未検証7範囲・過去の独立FAILは維持する。
 
 ---
 

@@ -1,0 +1,1089 @@
+[
+  {
+    "index": "short-heldout-001",
+    "input": "じゅうみんひょう",
+    "expected_output": [
+      "住民票"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-002",
+    "input": "いんかんしょうめい",
+    "expected_output": [
+      "印鑑証明"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-003",
+    "input": "こせきとうほん",
+    "expected_output": [
+      "戸籍謄本"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-004",
+    "input": "うんてんめんきょしょう",
+    "expected_output": [
+      "運転免許証"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-005",
+    "input": "ざいりゅうかーど",
+    "expected_output": [
+      "在留カード"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-006",
+    "input": "けんこうほけんしょう",
+    "expected_output": [
+      "健康保険証"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-007",
+    "input": "こくみんねんきん",
+    "expected_output": [
+      "国民年金"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-008",
+    "input": "こうせいねんきん",
+    "expected_output": [
+      "厚生年金"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-009",
+    "input": "こようほけん",
+    "expected_output": [
+      "雇用保険"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-010",
+    "input": "ろうさいほけん",
+    "expected_output": [
+      "労災保険"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-011",
+    "input": "たいしょくきん",
+    "expected_output": [
+      "退職金"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-012",
+    "input": "ふようこうじょ",
+    "expected_output": [
+      "扶養控除"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-013",
+    "input": "ねんまつちょうせい",
+    "expected_output": [
+      "年末調整"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-014",
+    "input": "いりょうひめいさい",
+    "expected_output": [
+      "医療費明細"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-015",
+    "input": "じゅうたくろーん",
+    "expected_output": [
+      "住宅ローン"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-016",
+    "input": "こていしさんぜい",
+    "expected_output": [
+      "固定資産税"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-017",
+    "input": "そうぞくぜい",
+    "expected_output": [
+      "相続税"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-018",
+    "input": "のうぜいしょうめいしょ",
+    "expected_output": [
+      "納税証明書"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-019",
+    "input": "げつじけっさん",
+    "expected_output": [
+      "月次決算"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-020",
+    "input": "れんけつけっさん",
+    "expected_output": [
+      "連結決算"
+    ],
+    "context_text": "",
+    "domain": "生活・事務"
+  },
+  {
+    "index": "short-heldout-021",
+    "input": "ぷらいばしーほご",
+    "expected_output": [
+      "プライバシー保護"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-022",
+    "input": "ぜろとらすと",
+    "expected_output": [
+      "ゼロトラスト"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-023",
+    "input": "くらうどねいてぃぶ",
+    "expected_output": [
+      "クラウドネイティブ"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-024",
+    "input": "たいぷすくりぷと",
+    "expected_output": [
+      "TypeScript"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-025",
+    "input": "じゃばすくりぷと",
+    "expected_output": [
+      "JavaScript"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-026",
+    "input": "らすとげんご",
+    "expected_output": [
+      "Rust言語"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-027",
+    "input": "ぱいそんかんきょう",
+    "expected_output": [
+      "Python環境"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-028",
+    "input": "ばーじょんかんり",
+    "expected_output": [
+      "バージョン管理"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-029",
+    "input": "こーどれびゅー",
+    "expected_output": [
+      "コードレビュー"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-030",
+    "input": "きょうかがくしゅう",
+    "expected_output": [
+      "強化学習"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-031",
+    "input": "てんいがくしゅう",
+    "expected_output": [
+      "転移学習"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-032",
+    "input": "ぶんさんがくしゅう",
+    "expected_output": [
+      "分散学習"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-033",
+    "input": "きょうしありかくしゅう",
+    "expected_output": [
+      "教師あり学習"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-034",
+    "input": "ちしきぐらふ",
+    "expected_output": [
+      "知識グラフ"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-035",
+    "input": "かそうつうか",
+    "expected_output": [
+      "仮想通貨"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-036",
+    "input": "ぶろっくちぇーん",
+    "expected_output": [
+      "ブロックチェーン"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-037",
+    "input": "でーたしゅけん",
+    "expected_output": [
+      "データ主権"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-038",
+    "input": "しんらいくかん",
+    "expected_output": [
+      "信頼区間"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-039",
+    "input": "とうけいてきけんてい",
+    "expected_output": [
+      "統計的検定"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-040",
+    "input": "さいげんかのうせい",
+    "expected_output": [
+      "再現可能性"
+    ],
+    "context_text": "",
+    "domain": "情報・新語"
+  },
+  {
+    "index": "short-heldout-041",
+    "input": "たいじょうほうしん",
+    "expected_output": [
+      "帯状疱疹"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-042",
+    "input": "きかんしぜんそく",
+    "expected_output": [
+      "気管支喘息"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-043",
+    "input": "にんちしょう",
+    "expected_output": [
+      "認知症"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-044",
+    "input": "へんとうえん",
+    "expected_output": [
+      "扁桃炎"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-045",
+    "input": "ちゅうじえん",
+    "expected_output": [
+      "中耳炎"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-046",
+    "input": "ふくびくうえん",
+    "expected_output": [
+      "副鼻腔炎"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-047",
+    "input": "こうけつあつ",
+    "expected_output": [
+      "高血圧"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-048",
+    "input": "ししついじょうしょう",
+    "expected_output": [
+      "脂質異常症"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-049",
+    "input": "まんせいじんぞうびょう",
+    "expected_output": [
+      "慢性腎臓病"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-050",
+    "input": "ちゅうおうけんさしつ",
+    "expected_output": [
+      "中央検査室"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-051",
+    "input": "ほうしゃせんちりょう",
+    "expected_output": [
+      "放射線治療"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-052",
+    "input": "やくざいしかい",
+    "expected_output": [
+      "薬剤師会"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-053",
+    "input": "ほうもんかんご",
+    "expected_output": [
+      "訪問看護"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-054",
+    "input": "かいごほけん",
+    "expected_output": [
+      "介護保険"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-055",
+    "input": "じんこうかんせつ",
+    "expected_output": [
+      "人工関節"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-056",
+    "input": "ゆうさんそうんどう",
+    "expected_output": [
+      "有酸素運動"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-057",
+    "input": "きんりょくくんれん",
+    "expected_output": [
+      "筋力訓練"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-058",
+    "input": "せっしょくえんげ",
+    "expected_output": [
+      "摂食嚥下"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-059",
+    "input": "えいようかんり",
+    "expected_output": [
+      "栄養管理"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-060",
+    "input": "かんせんよぼう",
+    "expected_output": [
+      "感染予防"
+    ],
+    "context_text": "",
+    "domain": "医療・健康"
+  },
+  {
+    "index": "short-heldout-061",
+    "input": "せいぶしんじゅく",
+    "expected_output": [
+      "西武新宿"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-062",
+    "input": "とうきょうてれぽーと",
+    "expected_output": [
+      "東京テレポート"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-063",
+    "input": "むさしこすぎ",
+    "expected_output": [
+      "武蔵小杉"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-064",
+    "input": "にしにっぽんてつどう",
+    "expected_output": [
+      "西日本鉄道"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-065",
+    "input": "ひがしにほんりょかくてつどう",
+    "expected_output": [
+      "東日本旅客鉄道"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-066",
+    "input": "かんさいこくさいくうこう",
+    "expected_output": [
+      "関西国際空港"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-067",
+    "input": "ふくおかくうこう",
+    "expected_output": [
+      "福岡空港"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-068",
+    "input": "いわてはなまきくうこう",
+    "expected_output": [
+      "いわて花巻空港"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-069",
+    "input": "しんあおもり",
+    "expected_output": [
+      "新青森"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-070",
+    "input": "かごしまちゅうおう",
+    "expected_output": [
+      "鹿児島中央"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-071",
+    "input": "みなみあそてつどう",
+    "expected_output": [
+      "南阿蘇鉄道"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-072",
+    "input": "あいちかんじょうてつどう",
+    "expected_output": [
+      "愛知環状鉄道"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-073",
+    "input": "おおさかこうりつだいがく",
+    "expected_output": [
+      "大阪公立大学"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-074",
+    "input": "とうきょうりかだいがく",
+    "expected_output": [
+      "東京理科大学"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-075",
+    "input": "こくりつじょうほうがくけんきゅうじょ",
+    "expected_output": [
+      "国立情報学研究所"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-076",
+    "input": "りかがくけんきゅうじょ",
+    "expected_output": [
+      "理化学研究所"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-077",
+    "input": "さんぎょうぎじゅつそうごうけんきゅうじょ",
+    "expected_output": [
+      "産業技術総合研究所"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-078",
+    "input": "こくどちりいん",
+    "expected_output": [
+      "国土地理院"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-079",
+    "input": "きしょうちょう",
+    "expected_output": [
+      "気象庁"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-080",
+    "input": "かいじょうほあんちょう",
+    "expected_output": [
+      "海上保安庁"
+    ],
+    "context_text": "",
+    "domain": "地名・組織"
+  },
+  {
+    "index": "short-heldout-081",
+    "input": "じゅんかんがたしゃかい",
+    "expected_output": [
+      "循環型社会"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-082",
+    "input": "せいぶつたようせい",
+    "expected_output": [
+      "生物多様性"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-083",
+    "input": "じぞくかのうせい",
+    "expected_output": [
+      "持続可能性"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-084",
+    "input": "かいようさんせいか",
+    "expected_output": [
+      "海洋酸性化"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-085",
+    "input": "おぞんそう",
+    "expected_output": [
+      "オゾン層"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-086",
+    "input": "せきがいせん",
+    "expected_output": [
+      "赤外線"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-087",
+    "input": "しがいせん",
+    "expected_output": [
+      "紫外線"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-088",
+    "input": "でんじゆうどう",
+    "expected_output": [
+      "電磁誘導"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-089",
+    "input": "ちょうでんどう",
+    "expected_output": [
+      "超伝導"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-090",
+    "input": "けっしょうこうぞう",
+    "expected_output": [
+      "結晶構造"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-091",
+    "input": "ぶんしこうぞう",
+    "expected_output": [
+      "分子構造"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-092",
+    "input": "きかくか",
+    "expected_output": [
+      "規格化"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-093",
+    "input": "ひょうじゅんへんさ",
+    "expected_output": [
+      "標準偏差"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-094",
+    "input": "にさんかたんそ",
+    "expected_output": [
+      "二酸化炭素"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-095",
+    "input": "きしょうとくべつけいほう",
+    "expected_output": [
+      "気象特別警報"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-096",
+    "input": "ひなんしじ",
+    "expected_output": [
+      "避難指示"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-097",
+    "input": "こうずいしんすいそうてい",
+    "expected_output": [
+      "洪水浸水想定"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-098",
+    "input": "どしゃさいがい",
+    "expected_output": [
+      "土砂災害"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-099",
+    "input": "きゅうめいきゅうきゅう",
+    "expected_output": [
+      "救命救急"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-100",
+    "input": "ひさいしゃしえん",
+    "expected_output": [
+      "被災者支援"
+    ],
+    "context_text": "",
+    "domain": "科学・社会"
+  },
+  {
+    "index": "short-heldout-101",
+    "input": "つくえをふく",
+    "expected_output": [
+      "机を拭く"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-102",
+    "input": "ほんをとじる",
+    "expected_output": [
+      "本を閉じる"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-103",
+    "input": "てがみをかく",
+    "expected_output": [
+      "手紙を書く"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-104",
+    "input": "しゃしんをとる",
+    "expected_output": [
+      "写真を撮る"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-105",
+    "input": "にくをやく",
+    "expected_output": [
+      "肉を焼く"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-106",
+    "input": "こめをとぐ",
+    "expected_output": [
+      "米を研ぐ",
+      "米をとぐ"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-107",
+    "input": "あしをのばす",
+    "expected_output": [
+      "足を伸ばす",
+      "脚を伸ばす"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-108",
+    "input": "つめをきる",
+    "expected_output": [
+      "爪を切る"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-109",
+    "input": "こえをかける",
+    "expected_output": [
+      "声をかける",
+      "声を掛ける"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-110",
+    "input": "みずをくむ",
+    "expected_output": [
+      "水をくむ",
+      "水を汲む"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-111",
+    "input": "ねつをはかる",
+    "expected_output": [
+      "熱を測る"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-112",
+    "input": "はなしをきく",
+    "expected_output": [
+      "話を聞く"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-113",
+    "input": "さいふをおとす",
+    "expected_output": [
+      "財布を落とす"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-114",
+    "input": "かぎをなくす",
+    "expected_output": [
+      "鍵をなくす",
+      "鍵を無くす"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-115",
+    "input": "つちをたがやす",
+    "expected_output": [
+      "土を耕す"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-116",
+    "input": "たねをまく",
+    "expected_output": [
+      "種をまく",
+      "種を蒔く"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-117",
+    "input": "さかなをつる",
+    "expected_output": [
+      "魚を釣る"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-118",
+    "input": "くるまをとめる",
+    "expected_output": [
+      "車を止める",
+      "車を停める"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-119",
+    "input": "いえをたてる",
+    "expected_output": [
+      "家を建てる"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  },
+  {
+    "index": "short-heldout-120",
+    "input": "ちからをあわせる",
+    "expected_output": [
+      "力を合わせる"
+    ],
+    "context_text": "",
+    "domain": "短い句"
+  }
+]
