@@ -1,6 +1,6 @@
 # 変換精度と入力応答（2026-10-19更新）
 
-現在の掲載値は **Asteria v1.1.4 RC**の測定です。正式版v1.1.3とは別です。[RC1を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.1)。旧Kotori時代の実入力比較は、下の過去資料へ分けています。
+現在の掲載値は **Asteria v1.1.4 RC**の固定変換器による開発評価です。[RC4を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)。RC4対応ソースでも第一候補の正解数を維持しています。測定時点・バイナリの識別は以下に残しています。旧Kotori時代の実入力比較は、下の過去資料へ分けています。
 
 ## 開発版の変換精度
 
@@ -26,7 +26,7 @@ AIの初回結果を待つ次版のソース`8af4797f92689474635dd49cf8163cef7ae
 
 固定正解数・出典と原票SHAは[図版用データ](images/evaluation-2026-10-19.json)、手順と検証範囲は[通常変換の検証](verification/accuracy-normal-conversion-20261019.md)と[評価方法](../eval/README.md)を参照してください。
 
-次の候補保持修正source039a7251fa16a77a91cb67f5158e20073a3f3762、converter SHA-256 14284c10d8ef4193eb95dc37e052ce67de4b0457ac223ecdccab0adc3f2be4d2も、同じ4セット×3条件978出力の第一候補が一致しました。AJIMEEの正解候補包含は前文なし189→193/200、前文あり193→195/200。第一候補正解数は変わりません。固定した最終評価300例も290/300で全出力一致。[条件と限界](verification/scored-alternatives-20261020.md)。次のMSIや実アプリ全般の精度を表す値ではありません。
+RC4に反映した候補保持修正source039a7251fa16a77a91cb67f5158e20073a3f3762、converter SHA-256 14284c10d8ef4193eb95dc37e052ce67de4b0457ac223ecdccab0adc3f2be4d2も、同じ4セット×3条件978出力の第一候補が一致しました。AJIMEEの正解候補包含は前文なし189→193/200、前文あり193→195/200。第一候補正解数は変わりません。固定した最終評価300例も290/300で全出力一致。[条件と限界](verification/scored-alternatives-20261020.md)、[RC4の公開記録](verification/release-v1.1.4-rc.4-20261021.md)。このオフライン評価を導入済みMSIの実アプリ全般の精度へ読み替えません。
 
 ## 日常の変換例
 

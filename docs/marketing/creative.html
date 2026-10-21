@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Asteria — 紹介画像の原稿</title>
+<style>
+@font-face{font-family:MoonMincho;src:local("Noto Serif JP")}
+*{box-sizing:border-box}
+body{margin:0;background:#101c2b;color:#fff0d7;font-family:"Yu Gothic","Yu Gothic UI",sans-serif}
+.art{position:relative;isolation:isolate;width:1200px;height:630px;padding:48px 60px;background:#111c2d;overflow:hidden}
+.art::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.035;background:repeating-linear-gradient(17deg,transparent 0px,transparent 6px,#536779 7px,transparent 8px)}
+.brand{font-family:MoonMincho,"Yu Mincho",serif;letter-spacing:.12em;font-size:38px;font-weight:400;margin:0;display:flex;align-items:baseline;gap:20px}
+.brand span{font:16px "Yu Gothic",sans-serif;letter-spacing:.16em;color:#cbd3dc}
+.eyebrow{position:absolute;top:62px;right:60px;color:#cbd3dc;letter-spacing:.12em;font-size:16px}
+h1{font-family:MoonMincho,"Yu Mincho",serif;font-size:74px;font-weight:400;line-height:1.52;letter-spacing:.025em;margin:62px 0 20px;position:relative;z-index:1}
+h1 span{display:block}
+.lead{font-size:24px;line-height:1.8;color:#e8dfd1;margin:0;position:relative;z-index:1}
+.moon{position:absolute;width:410px;height:410px;object-fit:contain;right:24px;top:127px;z-index:0}
+.bottom{display:flex;align-items:center;justify-content:space-between;position:absolute;bottom:38px;left:60px;right:60px;border-top:1px solid #637080;padding-top:22px;font-size:17px;letter-spacing:.025em;color:#cbd3dc}
+.bottom strong{font-weight:400;color:#fff0d7}
+.url{display:none}
+.features{display:none}
+.art.hero{width:1600px;height:720px;padding:56px 80px}
+.hero .brand{font-size:44px}
+.hero .brand span{font-size:20px}
+.hero .eyebrow{top:76px;right:80px;font-size:20px}
+.hero h1{font-size:90px;line-height:1.5;margin:65px 0 20px}
+.hero .lead{font-size:30px}
+.hero .moon{width:510px;height:510px;right:44px;top:142px}
+.hero .bottom{left:80px;right:80px;font-size:21px;bottom:36px}
+.art.portrait{width:1080px;height:1350px;padding:68px 76px}
+.portrait .brand{font-size:49px}
+.portrait .brand span{font-size:22px}
+.portrait .eyebrow{top:162px;left:76px;right:auto;font-size:23px}
+.portrait h1{font-size:88px;margin-top:96px;line-height:1.5}
+.portrait .lead{font-size:31px}
+.portrait .moon{width:540px;height:540px;top:508px;right:0}
+.portrait .features{display:flex;position:absolute;left:76px;top:643px;flex-direction:column;gap:38px;font-size:31px}
+.features span{display:block;font-size:18px;color:#9bafc0;letter-spacing:.13em;margin-bottom:8px}
+.portrait .bottom{left:76px;right:76px;bottom:110px;font-size:23px;display:block;line-height:2}
+.portrait .bottom strong{display:block}
+.portrait .url{display:block;position:absolute;bottom:55px;left:76px;color:#9bafc0;font-size:18px}
+</style>
+</head>
+<body>
+<main class="art" aria-label="Asteriaの紹介画像">
+  <p class="brand">Asteria <span>アステリア</span></p>
+  <div class="eyebrow">LOCAL AI · JAPANESE INPUT</div>
+  <img class="moon" src="../design/2026-10-asteria/asteria-icon.png" alt="">
+  <h1><span>GPUで考える、</span><span>日本語入力。</span></h1>
+  <p class="lead">文脈を読むAIも、あなたのPCの中に。</p>
+  <div class="features">
+    <div><span>01 / CONTEXT</span>文脈で選ぶ</div>
+    <div><span>02 / PREDICTION</span>続きはTabで</div>
+    <div><span>03 / OFFLINE</span>通信せずに</div>
+  </div>
+  <div class="bottom"><strong>Windows 10 / 11 x64 · 無料・オープンソース</strong><span>v1.1.4-rc.4 · リリース候補</span></div>
+  <div class="url">github.com/aruiki/Asteria-Japanese-IME</div>
+</main>
+<script>
+const format = new URLSearchParams(location.search).get("format") || "social";
+if (!["hero", "social", "portrait"].includes(format)) throw new Error("Unknown format");
+document.querySelector(".art").classList.add(format);
+</script>
+</body>
+</html>

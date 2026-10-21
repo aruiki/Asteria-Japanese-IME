@@ -40,6 +40,7 @@
 
 | 番号 | 目的 | 状態 |
 | --- | --- | --- |
+| 82 | 本体を変えずに紹介・告知を刷新 | [作業カード](82-marketing-refresh.md)、README・画像・導入案内を更新中 |
 | 81 | 精度改善指南書を測定・製品改善へ接続する | [作業カード](81-accuracy-guide.md)、専用枝で基準測定と診断を実装中 |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
 
