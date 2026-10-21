@@ -62,17 +62,19 @@ sealed class ImeObservation : NativeWindow {
   }
 }
 
-sealed class Acceptance : Form {
+sealed partial class Acceptance : Form {
   readonly TextBox first = new TextBox(), second = new TextBox(), password = new TextBox();
   readonly RichTextBox rich = new RichTextBox();
   readonly Dictionary<string, object> report = new Dictionary<string, object>();
   readonly List<Dictionary<string, object>> checks = new List<Dictionary<string, object>>();
   readonly string destination, installed;
+  readonly bool duplicateStress;
   ImeObservation a, b, r, p;
   int exit = 1;
 
   Acceptance(string[] args) {
     installed = Path.GetFullPath(args[0]); destination = args[1];
+    duplicateStress = args.Length == 3 && args[2] == "--duplicate-stress";
     Text = "Asteria installed TIP acceptance"; Width = 900; Height = 420; TopMost = true;
     first.SetBounds(20, 20, 820, 45); second.SetBounds(20, 85, 820, 45);
     rich.SetBounds(20, 150, 820, 120); password.SetBounds(20, 290, 820, 45);
@@ -255,12 +257,14 @@ sealed class Acceptance : Form {
         Convert(a, "nihonngo", "日本語");
       });
       Require(checks.Count == 8, "Incomplete acceptance suite");
+      if (duplicateStress) RunDuplicateStress();
       report["complete"] = true; exit = 0;
     } catch (Exception error) { report["error"] = error.ToString(); }
     finally { Save(); Ui(Close); }
   }
   [STAThread] static int Main(string[] args) {
-    if (args.Length != 2 || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
+    if ((args.Length != 2 && (args.Length != 3 || args[2] != "--duplicate-stress")) ||
+        Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
         Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") != "github-hosted") return 2;
     Application.EnableVisualStyles(); var form = new Acceptance(args); Application.Run(form); return form.exit;
   }

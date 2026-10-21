@@ -115,17 +115,38 @@ def validate_acceptance(report, install):
         raise RuntimeError("保護欄の内部AI/学習を、この表示試験で検証済みにしてはいけません")
 
 
-def run_acceptance(compiler, source, install, out):
+def validate_duplicate_stress(report):
+    stress = report.get("duplicate_stress", {})
+    trials = stress.get("trials", [])
+    expected = {(host, mode, delay) for host in ("EDIT", "RichEdit")
+                for mode in ("space_enter", "enter", "down_enter", "focus")
+                for delay in (0, 30, 250)}
+    expected.update((host, mode, 0) for host in ("EDIT", "RichEdit")
+                    for mode in ("click", "intentional_repeat"))
+    actual = {(row.get("host"), row.get("mode"), row.get("space_to_action_ms", 0))
+              for row in trials}
+    if (stress.get("complete") is not True or len(trials) != len(expected) or
+            actual != expected or any(row.get("passed") is not True for row in trials)):
+        raise RuntimeError("二重入力の実TSF検査が未完了: " + json.dumps(stress, ensure_ascii=False))
+
+
+def run_acceptance(compiler, source, install, out, duplicate_stress=False):
     exe, output = out / "ImeAcceptance.exe", out / "acceptance.json"
     run([str(compiler), "/nologo", "/target:winexe", "/platform:x64", "/main:Acceptance",
          "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll",
          "/reference:System.Web.Extensions.dll", "/out:" + str(exe),
-         str(source), str(source.with_name("ImeAcceptance.cs"))])
-    process = subprocess.run([str(exe), str(install), str(output)], capture_output=True, timeout=180)
+         str(source), str(source.with_name("ImeAcceptance.cs")),
+         str(source.with_name("ImeDuplicateStress.cs"))])
+    arguments = [str(exe), str(install), str(output)]
+    if duplicate_stress:
+        arguments.append("--duplicate-stress")
+    process = subprocess.run(arguments, capture_output=True, timeout=360 if duplicate_stress else 180)
     if not output.is_file():
         raise RuntimeError(f"実入力レポートがありません: exit {process.returncode}")
     report = json.loads(output.read_text(encoding="utf-8"))
     validate_acceptance(report, install)
+    if duplicate_stress:
+        validate_duplicate_stress(report)
     if process.returncode != 0:
         raise RuntimeError(f"実入力検証の終了コード: {process.returncode}")
     return report
@@ -136,6 +157,7 @@ def main():
     ap.add_argument("--msi", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--acceptance", action="store_true", help="EDIT/RichEditの候補・取消・フォーカスを追加確認する")
+    ap.add_argument("--duplicate-stress", action="store_true", help="確定/候補クリック/フォーカスの二重挿入を実TSFで検査する")
     ap.add_argument("--reinstall", action="store_true", help="削除後、同じMSIを再導入して入力する（再起動はしない）")
     args = ap.parse_args()
     if (sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true" or
@@ -195,8 +217,8 @@ def main():
         result["committed_text"] = verify_input(exe, cases, output)
         result["input"] = True
         checkpoint("input_verified")
-        if args.acceptance:
-            result["acceptance"] = run_acceptance(compiler, source, install, out)
+        if args.acceptance or args.duplicate_stress:
+            result["acceptance"] = run_acceptance(compiler, source, install, out, args.duplicate_stress)
             checkpoint("acceptance_verified")
         if args.reinstall:
             stop_installed_processes(install)
