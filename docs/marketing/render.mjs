@@ -1,4 +1,4 @@
-// 原稿HTMLを画像化する。製品のビルドや画像・MSIの書き換えは行わない。
+// 原稿HTMLを紹介用PNGへ描画する。製品のビルドやMSIは変更しない。
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
