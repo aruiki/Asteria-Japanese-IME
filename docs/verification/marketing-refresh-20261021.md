@@ -36,6 +36,25 @@ READMEとRelease原稿をGitHub Markdown APIのGFMでHTML化し、レスポン�
 
 ## 公開反映
 
-この記録時点ではローカル確認が完了。PRの全適用CI成功後にmainへ統合し、公開README・画像・RC4本文と配布物不変を確認する。マーケティング刷新の完了はこの確認後に判断する。
+[PR178](https://github.com/aruiki/Asteria-Japanese-IME/pull/178)を全7CI（run39533952262）成功後にmain 9054d35860008c63e180e63917de4c9554b783f3へ統合。公開README、導入ガイド、3画像をHTTP200で再取得し、コミットの生バイトと一致。GitHub紹介文とRC4本文も更新し、原稿と一致した。公開GitHub画面のREADME・RC4本文を1440/390pxの4条件で確認し、全画像が読み込まれた。目視でも確認した。
 
-[素材一覧](../marketing/README.md)、[主張と出典](../marketing/claims.md)、[作業カード82](../tasks/82-marketing-refresh.md)。実アプリGPU寄与などの製品検証残件は[RC4公開記録](release-v1.1.4-rc.4-20261021.md)から引き継ぎ、今回の画面確認で代用しない。
+RC4の4配布資産のID・作成/更新時刻・size・digest・stateがすべて変更前と一致。tag feaeddc3も不変。RC4のprerelease=true、既存RC2のLatest/prerelease=falseを維持。main内の100 build入力blobが固定表と一致した。実MSIの再ビルド・再梱包・再アップロード・新たな版タグは作成していない。
+
+## 公式紹介サイト
+
+既存の[公式サイト](https://aruiki.github.io/kanai/)も刷新。日本語6ページ・英語1ページ、導入/FAQ/設計/公開状況、OG画像を統一した。旧比較・CSVと出典は日付付きの過去資料へ保持。紹介先をRC4の明示URLへ固定し、Latestから版表示だけが自動で変わる処理を停止した。本文・構造化データ・SHA・配布区分を揃えた。
+
+[aruiki/kanaiのPR8](https://github.com/aruiki/kanai/pull/8)をmain 05befd9a4900cc1680b48333e114125e5f4eefa5へ統合。変更はsite-assets/pages、サイト用検査のreleaseVersion、運用記録のみ。このリポジトリにPR用CIはなく、既存の静的検査で14 HTML、264ローカル参照、16アンカーが成功。外部178リンクは構文確認であり、全外部リンクの実取得検査ではない。
+
+gh-pagesの既存履歴を保ち、20配備ファイルをmainの生バイトから配置。削除0、配備commit 6afbd5a2487a8c660e6c26a280d1aa7bdca55d97。[Pages run39535159315](https://github.com/aruiki/kanai/actions/runs/39535159315)成功、Pages buildも同commitでbuilt。公開URLから全20ファイルを実取得し、HTTP200・SHA-256が配備元と全一致した。
+
+公開サイト全7ページ×1440/390pxの14条件で、画像欠落・横はみ出し・ページ例外0、h1各1、RC4表示、スキップリンクへのキーボード到達を確認。FAQ/過去評価を開いた表示も撮影し、公開トップをPC・スマートフォンで目視した。アプリの受入れ検証ではない。
+
+| 公開確認の原票（target/accuracy-guide/） | SHA-256 |
+| --- | --- |
+| marketing-public-v1.json | 2ab7239f4a1950f8f4238a23d44e0502c868bc46e280d0d1740d622994f4ac86 |
+| marketing-public-browser-v1/summary.json | c424905360faac394d6d34bd69f4b810b6a1e3770d13ab67c694874bd9dd1f25 |
+| marketing-site-public-v1.json | 0a934512a8c200a5730cf86c879bb4d776df2b488ef1632eb44c79baeeca1e90 |
+| marketing-site-public-browser-v1/summary.json | 71134496f0af8a6aabd3fd200ca5a46b59e252feaefdf502ca5ebdf366df8946 |
+
+[素材一覧](../marketing/README.md)、[主張と出典](../marketing/claims.md)、[作業カード82](../tasks/done/82-marketing-refresh.md)。実アプリGPU寄与などの製品検証残件は[RC4公開記録](release-v1.1.4-rc.4-20261021.md)から引き継ぎ、今回の画面確認で代用しない。
