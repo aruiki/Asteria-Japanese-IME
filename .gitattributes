@@ -13,3 +13,5 @@
 /training/lexicon/*.py text eol=lf
 /training/lexicon/sources.json text eol=lf
 /training/lexicon/corpus_sources.json text eol=lf
+/training/lexicon/tokenizer_sources.json text eol=lf
+/training/lexicon/frequency_policy.json text eol=lf

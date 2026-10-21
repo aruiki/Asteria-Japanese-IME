@@ -21,3 +21,21 @@ python -X utf8 -m unittest discover -s training/lexicon -p test_lexicon.py -v
 候補の`short_lexicon.tsv`をMozcの`src/data/kotori/`へ配置し、比較用ビルドだけで`--define=asteria_short_lexicon=true`を指定する。データは既存システム辞書のコンパイルへ入り、実行時にCSVや外部解析エンジンを起動しない。フラグを指定しない既定ビルドは従来の辞書のまま。比較結果を確認するまで製品採用へ切り替えない。
 
 評価は`eval/short-input-20261022.json`で開発120件と最終報告120件を分離しSHA固定した。最終報告用は調整に使わない。前文なしのAI無効/Standardを分け、既存4セットの回帰も確認する。先に基準EXEとrunfiles内の辞書を別ディレクトリへ実コピーし、ビルドによる差し替えを防ぐ。
+
+## コーパス頻度と連語
+
+初案は既存変換に改悪があり[不採用](../../docs/verification/short-input-lexicon-20261022.md)。`corpus_sources.json`のWikipedia全量4.13GBをSHA固定して使う。Common Crawl部分は含めない。取得と集計は別で、件数だけで品質改善を扱わない。
+
+```text
+python -X utf8 training/lexicon/fetch_sources.py --config training/lexicon/corpus_sources.json --out target/short-frequency/source
+python -X utf8 training/lexicon/collect_frequency.py --source target/short-frequency/source --runtime target/short-frequency/runtime --out target/short-frequency/counts --exclude <評価JSON> --exclude <別の評価JSON> --shards 8
+python -X utf8 -m unittest discover -s training/lexicon -p "test_*.py" -v
+```
+
+`--exclude`には全評価JSONと固定AJIMEEを指定する。参照表記は集計へ渡さず、読みと三文字集合Jaccard0.8以上を除外する。旧dev00は`frequency_policy.json`の固定区間SHAから完全行の入力を読み、その近重複を他の区間からも除外する。未使用評価の正解を開発へ渡さない。
+
+学習用のSudachiPy0.7.0とfull辞書は`tokenizer_sources.json`で固定し、`stage_tokenizer.py`で私有のruntimeディレクトリへ展開する。グローバルインストールとIMEの実行時依存は増やさない。既存の不一致ファイルや途中の集計を上書きしない。
+
+NFKC本文hashで分割し、重複本文を同じworkerで除去してから形態素を数える。Counterと重複集合には上限があり、SQLiteへ分割保存した結果をソートmergeする。語頻度、2〜3形態素の連語、表記頻度を出力。列は語頻度が「読み/表記/Mozc品詞/出現数/異なる本文数/hash区分bitmask」、連語と表記頻度が「表記/出現数/異なる本文数/bitmask」。読みは解析器の優先読みであり、発音照合済みの頻度ではない。hashの16区分は独立サイト/記事ではない。
+
+`--limit-bytes`は処理量の試走用。採用候補には使わない。全量処理では開始前と読み出し中の両方で本文SHAを照合し、出典/規則/評価/解析器/出力のSHAとCC-BY-SA4.0帰属を保存する。集計結果を使う選択・コスト規則と実変換の採否は、次の段階で別に固定する。

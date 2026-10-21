@@ -1,11 +1,14 @@
 """既存語の保護、読み/品詞の境界、固定原票の破損拒否を検査する。"""
 import hashlib
+import csv
+import io
+import json
 import tempfile
 from pathlib import Path
 import unittest
 import zipfile
 
-from build_lexicon import candidate, common_quantile
+from build_lexicon import POS_MAPPING, build, candidate, common_quantile
 from fetch_sources import fetch, verify
 
 
@@ -64,6 +67,42 @@ class LexiconTest(unittest.TestCase):
                         members=[dict(name='lex.csv', bytes=4)])
             with self.assertRaises(ValueError):
                 verify(path, spec)
+
+    def test_generated_dictionary_does_not_replace_known_words_and_protects_reading_cost(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name);source = root / 'source';source.mkdir()
+            directory = root / 'mozc/src/data/dictionary_oss';directory.mkdir(parents=True)
+            positions = list(dict.fromkeys(POS_MAPPING.values()))
+            ids = {pos: i + 1 for i, pos in enumerate(positions)}
+            (directory / 'id.def').write_text(''.join(f'{value} {pos}\n' for pos, value in ids.items()), encoding='utf-8')
+            pos_id = ids['名詞,一般,*,*,*,*,*']
+            rows, baseline = [], []
+            for n in range(100):
+                reading = 'きょうつう' + 'あいうえおかきくけこ'[n // 10] + 'あいうえおかきくけこ'[n % 10]
+                rows.append(word(IndexForm='共通' + str(n), ReadingForm=reading, Cost=str(1000 + n * 20)))
+                baseline.append(f'{reading}\t{pos_id}\t{pos_id}\t{5000+n*10}\t共通{n}\n')
+            # 同じ表記でも品詞が違う基準語は較正の共通語へ混ぜない。
+            rows.append(word(IndexForm='動詞', ReadingForm='どうし'))
+            baseline.append('どうし\t999\t999\t100\t動詞\n')
+            protected = rows[1]['ReadingForm']
+            rows += [word(), word(IndexForm='新表記', ReadingForm=protected, Cost='0')]
+            for n in range(10):
+                (directory / f'dictionary{n:02}.txt').write_text(''.join(baseline) if n == 0 else '', encoding='utf-8')
+            before = (directory / 'dictionary00.txt').read_bytes()
+            for group in ('small', 'core', 'notcore'):
+                text = io.StringIO();writer = csv.DictWriter(text, fieldnames=list(word()));writer.writeheader()
+                if group == 'small':writer.writerows(rows)
+                with zipfile.ZipFile(source / (group + '_lex.zip'), 'w') as archive:
+                    archive.writestr(group + '_lex.csv', text.getvalue())
+            for filename in ('LEGAL', 'LICENSE-2.0.txt'):(source / filename).write_text('fixture', encoding='utf-8')
+            report = build(source, root / 'mozc', root / 'out', dict(repository='fixture', version='test', commit='fixed'))
+            output = (root / 'out/short_lexicon.tsv').read_text('utf-8').splitlines()
+            self.assertEqual(len(output), 2)
+            self.assertFalse(any('\t共通' in line or line.endswith('\t動詞') for line in output))
+            line = next(line for line in output if line.endswith('\t新表記'))
+            self.assertGreaterEqual(int(line.split('\t')[3]), 6010)
+            self.assertEqual(report['calibration_common']['名詞,一般,*,*,*,*,*'], 100)
+            self.assertEqual((directory / 'dictionary00.txt').read_bytes(), before)
 
 
 if __name__ == '__main__':
