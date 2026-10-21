@@ -10,9 +10,26 @@ import zipfile
 from collect_frequency import Exclusions, flush, merge_counts, reserved, shard_corpus
 from stage_tokenizer import extract_verified
 from build_frequency_lexicon import select
+from build_frequency_collocations import association, endpoints
 
 
 class FrequencyTest(unittest.TestCase):
+    def test_collocations_need_association_not_only_high_marginal_frequency(self):
+        policy = json.loads(Path(__file__).with_name('collocation_policy.json').read_text('utf-8'))
+        self.assertIsNotNone(association(30, 100, 200, 100000, policy))
+        self.assertIsNone(association(30, 1000, 3000, 100000, policy))
+        self.assertIsNone(association(10, 100, 200, 100000, policy))
+        self.assertIsNone(association(300, 100, 200, 100000, policy))
+
+    def test_collocations_keep_supported_boundaries_and_do_not_make_generic_no_pairs(self):
+        policy = json.loads(Path(__file__).with_name('collocation_policy.json').read_text('utf-8'))
+        noun = ('名詞', '普通名詞', '一般')
+        verb = ('動詞', '一般', '*')
+        particle = ('助詞', '格助詞', '*')
+        self.assertEqual(endpoints([('本', noun), ('を', particle), ('読む', verb)], policy), ('本', '読む'))
+        self.assertIsNone(endpoints([('本', noun), ('の', particle), ('値段', noun)], policy))
+        self.assertIsNone(endpoints([('人名', ('名詞', '固有名詞', '人名')), ('作品', noun)], policy))
+
     def test_rare_words_and_names_do_not_get_unearned_cost_advantage(self):
         policy = json.loads(Path(__file__).with_name('frequency_lexicon_policy.json').read_text('utf-8'))
         noun = '名詞,一般,*,*,*,*,*'

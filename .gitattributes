@@ -16,3 +16,4 @@
 /training/lexicon/tokenizer_sources.json text eol=lf
 /training/lexicon/frequency_policy.json text eol=lf
 /training/lexicon/frequency_lexicon_policy.json text eol=lf
+/training/lexicon/collocation_policy.json text eol=lf
