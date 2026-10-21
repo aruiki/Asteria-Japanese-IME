@@ -70,9 +70,7 @@ window.snapshot=id=>({value:document.getElementById(id).value??document.getEleme
                         row["before"] = page.evaluate("snapshot", host)
                         if mode in ("click", "down_enter"):
                             drive("space")
-                            page.wait_for_function("id=>{let a=events.filter(e=>e.id===id&&e.event==='compositionupdate');"
-                                                   "return a.length&&a[a.length-1].data&&a[a.length-1].data!=='ごーるにせっていして'}", arg=host)
-                            time.sleep(0.5)
+                            drive("open_candidates")
                             drive(mode, delay)
                             if mode == "click":
                                 time.sleep(0.18)

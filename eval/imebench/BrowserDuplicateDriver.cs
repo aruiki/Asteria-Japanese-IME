@@ -24,7 +24,7 @@ static class BrowserDuplicateDriver {
         Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") != "github-hosted") return 2;
     try {
       string marker = args[0], mode = args[1], installed = Path.GetFullPath(args[3]);
-      int delay = int.Parse(args[2]);
+      int delay = int.Parse(args[2]), candidateMoves = 0;
       Require(marker.StartsWith("AsteriaDuplicateProbe-") && marker.Length > 30, "Invalid test window marker");
       IntPtr edge = IntPtr.Zero;
       EnumWindows((window, unused) => {
@@ -62,6 +62,19 @@ static class BrowserDuplicateDriver {
           }
         } else if (mode == "space_enter") { Press(0x20); Thread.Sleep(delay); Press(0x0D); }
         else if (mode == "down_enter") { Press(0x28); Thread.Sleep(delay); Press(0x0D); }
+        else if (mode == "open_candidates") {
+          // 候補がひらがなのままでも正常。文字列の変化を完了条件にしない。
+          while (DuplicateNative.VisibleCandidate() == IntPtr.Zero && candidateMoves < 60) {
+            Require(AcceptanceNative.GetForegroundWindow() == edge, "Browser lost foreground while opening candidates");
+            Press(0x28); candidateMoves++; Thread.Sleep(250);
+          }
+          IntPtr candidate = DuplicateNative.VisibleCandidate();
+          Require(candidate != IntPtr.Zero, "Candidate list did not open");
+          uint rendererPid; DuplicateNative.GetWindowThreadProcessId(candidate, out rendererPid);
+          Require(String.Equals(Process.GetProcessById((int)rendererPid).MainModule.FileName,
+                                Path.Combine(installed, "mozc_renderer.exe"), StringComparison.OrdinalIgnoreCase),
+                  "Candidate list belongs to another renderer");
+        }
         else if (mode == "space") Press(0x20);
         else if (mode == "enter") Press(0x0D);
         else if (mode == "escape") { Press(0x1B); Thread.Sleep(100); Press(0x1B); }
@@ -85,7 +98,7 @@ static class BrowserDuplicateDriver {
       var tips = new List<string>();
       foreach (ProcessModule module in process.Modules)
         if (String.Equals(module.ModuleName, "mozc_tip64.dll", StringComparison.OrdinalIgnoreCase)) tips.Add(module.FileName);
-      Console.WriteLine(new JavaScriptSerializer().Serialize(new {mode = mode, process_id = pid, loaded_tips = tips}));
+      Console.WriteLine(new JavaScriptSerializer().Serialize(new {mode = mode, process_id = pid, loaded_tips = tips, candidate_moves = candidateMoves}));
       return 0;
     } catch (Exception error) { Console.Error.WriteLine(error.ToString()); return 1; }
   }
