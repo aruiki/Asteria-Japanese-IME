@@ -24,6 +24,8 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=15)
     ap.add_argument("--pause", type=float, default=0.0, help="打ち終わってから Space までの秒")
     ap.add_argument("--data", default="eval/sets/kotori-daily.json")
+    ap.add_argument("--out", help="中央値・p95・項目ごとの時間をJSONで保存する")
+    ap.add_argument("--warm", type=int, default=0, help="最初のN文を慣らしとして集計から外す(モデル読込後の測定)")
     ap.add_argument("env", nargs="*")
     args = ap.parse_args()
     exe = os.environ.get("KOTORI_CONVERTER_MAIN",
@@ -31,6 +33,7 @@ def main() -> None:
     inst = os.environ.get("KOTORI_INSTALL_DIR", r"C:\Program Files (x86)\Kotori")
     env = dict(os.environ, KOTORI_RUNTIME_DIR=inst, KOTORI_MODEL_DIR=inst)
     env.update(dict(a.split("=", 1) for a in args.env))
+    warmup = json.load(open("eval/sets/kotori-daily.json", encoding="utf-8"))[: args.warm]
     items = json.load(open(args.data, encoding="utf-8"))[: args.n]
     p = subprocess.Popen([exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.DEVNULL, cwd=exe + ".runfiles/_main", env=env)
@@ -50,13 +53,18 @@ def main() -> None:
 
     t_start = time.time()
     space, keys, ok = [], [], 0
-    for it in items:
+    for index, it in enumerate(warmup + items):
         r = kata_to_hira(it["input"])
         for n in range(1, len(r) + 1):
-            keys.append(send(f"suggest {r[:n]}")[0])
+            key_ms = send(f"suggest {r[:n]}")[0]
+            if index >= len(warmup):
+                keys.append(key_ms)
             time.sleep(args.interval)
         time.sleep(args.pause)
         ms, lines = send(f"start {r}")
+        if index < len(warmup):
+            print(f"{time.time() - t_start:5.1f}s  慣らし {ms:5.0f} ms  {r[:14]}")
+            continue
         space.append(ms)
         top = ""
         for line in lines:
@@ -66,10 +74,19 @@ def main() -> None:
         ok += top in it["expected_output"]
         print(f"{time.time() - t_start:5.1f}s  Space {ms:5.0f} ms  {r[:14]:<14} {top[:24]}")
     p.stdin.close()
+    rows = list(zip([kata_to_hira(it["input"]) for it in items], space))
     space.sort()
     keys.sort()
-    print(f"Space: 中央値 {space[len(space) // 2]:.0f} ms、最大 {space[-1]:.0f} ms / "
+    # p95は「遅い側から5%」の位置(最も近い順位)。GOALの速度条件と同じ定義。
+    p95 = space[max(0, -(-len(space) * 95 // 100) - 1)]
+    print(f"Space: 中央値 {space[len(space) // 2]:.0f} ms、p95 {p95:.0f} ms、最大 {space[-1]:.0f} ms / "
           f"入力中の候補: 最大 {keys[-1]:.0f} ms / 正解 {ok}/{len(items)}")
+    if args.out:
+        json.dump(dict(data=args.data, interval=args.interval, pause=args.pause, env=args.env,
+                       converter=exe, median_ms=space[len(space) // 2], p95_ms=p95, max_ms=space[-1],
+                       key_max_ms=keys[-1], correct=ok, n=len(items),
+                       items=[dict(reading=r, space_ms=round(ms, 1)) for r, ms in rows]),
+                  open(args.out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
 
 if __name__ == "__main__":

@@ -4,8 +4,9 @@ ImeBench.exe(ImeBench.cs を csc で作る)に読みのローマ字を渡し、I
 評価セットの正解と比べる。前の文は渡さない(どの IME にも同じ条件)。全角と半角の違い(数字・記号)は
 NFKC で揃えてから比べる(IME の設定の違いで差が出ないように)。
 
-使い方: python eval/imebench/imebench.py <IME の名前> [--data セット.json ...] [--n 問の数] [--wait ms]
-  IME の名前: google / msime / kotori(下の IMES)。結果は eval/imebench/out/<名前>_<セット>.tsv。
+使い方: python eval/imebench/imebench.py <IME の名前> [--data セット.json ...] [--n 問の数] [--wait ms] [--label 版]
+  IME の名前: google / msime / asteria(下の IMES)。結果は eval/imebench/out/<名前>[-<版>]_<セット>.tsv。
+  同じ IME の版を比べるときは --label で出力を分ける(例: --label 6443)。
 計測の間、この PC のキーボード入力を使う(ほかの操作をしない)。
 """
 import argparse
@@ -23,6 +24,7 @@ IMES = {
     "msime": ("{03B5835F-F03C-411B-9CE2-AA23E1171E36}", "{A76C93D9-5523-4E90-AAFA-4DB112F9AC76}"),
     "kotori": ("{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}", "{455A87E7-275F-4582-92CB-6600917A436D}"),
 }
+IMES["asteria"] = IMES["kotori"]  # Asteria は Kotori の TIP の登録をそのまま引き継いでいる
 
 BASE = {
     "あ": "a", "い": "i", "う": "u", "え": "e", "お": "o",
@@ -81,6 +83,7 @@ def main():
     ap.add_argument("--data", nargs="+", default=["eval/data/ajimee-bench.json", "eval/sets/kotori-daily.json"])
     ap.add_argument("--n", type=int, default=0)
     ap.add_argument("--wait", type=int, default=1200, help="Space を押してから Enter までの待ち(ms)")
+    ap.add_argument("--label", default="", help="出力名に付ける版などの印")
     args = ap.parse_args()
     exe = HERE / "ImeBench.exe"
     (HERE / "out").mkdir(exist_ok=True)
@@ -90,8 +93,9 @@ def main():
         if args.n:
             items = items[: args.n]
         name = Path(data).stem
-        tsv = HERE / "out" / f"{args.ime}_{name}.in.tsv"
-        res = HERE / "out" / f"{args.ime}_{name}.tsv"
+        who = f"{args.ime}-{args.label}" if args.label else args.ime
+        tsv = HERE / "out" / f"{who}_{name}.in.tsv"
+        res = HERE / "out" / f"{who}_{name}.tsv"
         rows, skipped = [], 0
         with open(tsv, "w", encoding="utf-8", newline="\n") as f:
             # 最初の 2 問は慣らし(採点しない)。IME を有効にした直後の変換は、読み込みなどで結果が揺れるため。

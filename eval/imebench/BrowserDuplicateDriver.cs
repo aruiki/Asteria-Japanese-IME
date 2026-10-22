@@ -20,8 +20,11 @@ static class BrowserDuplicateDriver {
   }
   static void Press(ushort key) { Key(key, false); Key(key, true); }
   [STAThread] static int Main(string[] args) {
-    if (args.Length != 4 || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
-        Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") != "github-hosted") return 2;
+    // 使い捨てCI、または利用者本人が実PCでの検証を許可したlocal_install_check.pyからだけ実行する。
+    bool runner = Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
+        Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") == "github-hosted";
+    bool ownerApproved = Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved";
+    if (args.Length != 4 || !(runner || ownerApproved)) return 2;
     try {
       string marker = args[0], mode = args[1], installed = Path.GetFullPath(args[3]);
       int delay = int.Parse(args[2]), candidateMoves = 0;
