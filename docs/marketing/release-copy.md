@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/ab1fad2aad39325e481488ea2ccf7aadb844d3f5/docs/marketing/assets/social.png" alt="Asteria — 変換精度の高い日本語IME。v2.0.0正式版。" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/db070f42662b63a000c0b3168cfb74c466d78c6f/docs/marketing/assets/social.png" alt="Asteria — 変換精度の高い日本語IME。v2.0.0正式版。" width="100%"></p>
 
 <h2 align="center"><a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Asteria v2.0.0をダウンロード</a></h2>
 
