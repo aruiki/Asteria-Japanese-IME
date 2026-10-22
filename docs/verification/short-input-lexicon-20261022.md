@@ -134,3 +134,20 @@ Standard同期converterの時間は中央値67→67ms、p95 86→87ms、最大73
 紹介は製品PR183（全7CI成功、main05d70ed）と公式kanai PR12/13で公開済み。公開README/Release4配置、サイト14配置/20ファイルSHA、Release4資産不変を確認。GitHub Aboutも旧コピーを除去した。記録PR184は作成済みだが、GitHub APIがアカウント停止HTTP403を返したためCI状態確認/統合と新しいデータ資産公開が停止した。
 
 ローカルのパッチ生成・同梱準備を続ける。新MSI/active TIP・実アプリGPU AI ON/OFF寄与、Googleの現行版との同条件比較、低性能/保護欄内部/旧版更新/再起動/独立verifierは未完了。過去の独立FAILと公開v2.0.0資産を維持する。
+
+## 固定語彙を含むローカルMSIと製品パッチ
+
+語彙だけのsource `c80d4ebc47e44d8391c2c2df6282a37848a54f6b`から既定辞書とMSI同梱を接続した。コンパイル/モデルは元のAI経路を維持し、連語のC++実験は含めない。ソースのコミット固定はビルド開始直後となったが、その間にソース内容は変更せず、完了後の再構成140ファイルを対応させた。build1034.486秒はローカル全体時間で、性能向上の根拠ではない。
+
+- 実MSI: ProductVersion **3.34.6443.100**、**1,665,200,128bytes**、SHA `2b42bc58b32a21910c277701430d9e8a4206e6b517bd9ab1b6530fdd9ba0d446`、Authenticode **NotSigned**。公開6442より先頭3項目で上昇。候補版は2.0.1とし、公開v2.0.0の資産を差し替えない。
+- 管理展開で4モデル/既存連語/追加TSV・原生成記録・全帰属/版/不要物なしをすべて確認。辞書20,686,895bytes/SHA `b01aed329cf7c1da1e8a770b718358d0ce39a890fb8c7ff7f5cea0775741403a`は評価済みv4と全バイト一致。**実MSI内のmozc_server.exeへ同じ全辞書バイト列が埋め込まれている**ことも確認（offset4,339,264）。生TSVの同梱だけの証拠ではない。
+- 既存の最終300件は同じ公開モデルで290→290、包含299→299、改善/改悪0。出力1件だけＡＰＩ→APIが変わるが両方とも事前許容であり、全出力一致とは扱わない。この結果で調整しない。
+- C++4対象は299件（lm75/session198/immutable18/collocation8）すべて成功。元の通常隔離Session28条件と、追加4語のSpace/Enterを含む別の13条件が成功。AIなし・非TSFの隔離試験であり、導入済みWindowsでの受入れを代替しない。
+- 語彙Python23、既存MSI検査20、新同梱検査3、パッチ環境ガード1メソッド/2環境が成功。原生成と同じ固定入力/保存済み全量頻度からTSVとNOTICEを再生成して全バイト一致。JSON差は実行secondsだけ。全量集計そのものの再実行ではない。
+- Bazel停止後に生成パッチ0001〜0003を独立scratchへ順に適用し、**140ソース全一致**。生成データ/モデルをパッチへ含めない。0001不変、0002 `223cf345c370bb758da93c314d9e6bd767110a5c49c4220418d2c12c2beb2ecf`、0003 `44abcae8963444a882fdec4be8918baf9eec23ec0b73ac0750445f9a7a85db71`。
+
+原票を[小さな機械可読記録](artifacts/short-input-quality-20261022.json)へ保存。詳細は`short-word-package-check-v7/`、`short-word-package-extra-v1/`、`legacy-heldout-final-v1/`、`short-word-local-final-v1/`、`short-word-patch-final-v3/`。MSIは`target/accuracy-guide/short-word-package-check-v7/Asteria64.msi`。
+
+パッチ初回2回は、Bazel用MSYS_NO_PATHCONVを継承した実行設定により/c/...が別の場所へcloneされ、空scratchから親repoが探索されたことが原因で停止。最初の外部object参照という仮説は原因ではなかった。初回失敗原票を残し、設定を解除し、処理前の環境ガードとclone直後の.git存在ガードを追加して成功した。誤配置した自分のclone2件だけを絶対パス/親/HEAD/originで確認して削除し、元ソース・正しいscratch・他worktreeは保持。独立基点は--dissociateで外部object参照も解消した。
+
+ローカルMSI・固定データ資産と公開前原稿は準備できたが、新データタグ/新PR/Windows CI/新製品公開はまだ行えていない。GitHubの停止403と公開先404の状態を記録し、過去の公開直後成功と現在の閲覧不能を区別する。新MSIの実導入/実入力/削除、Google現行版比較と製品全体の残検証は未完了。

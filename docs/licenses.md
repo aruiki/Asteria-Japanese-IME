@@ -12,6 +12,8 @@
 
 ## Windows 版の MSI(Mozc 版、現在の配布物)に同梱するもの
 
+次の配布準備候補には短文語彙115,318語を追加する。公開v2.0.0の同梱物は変更していない。
+
 `Kotori64.msi`(`.github/workflows/mozc-windows.yml`、docs/adr/0012、0016)。インストーラの使用許諾
 (`mozc/tools/gen_assets.py` が作る `license.rtf`)と、インストール先の `NOTICE-*.txt`・`LICENSE-*.txt`・`documents`
 (Mozc の `credits_en.html`。Abseil・Protocol Buffers・Qt などの全文)に同じ内容を載せる。`check_release.py` がそろっているかを確かめる。
@@ -19,6 +21,7 @@
 | 構成要素 | ライセンス | 取得元・固定 | 備考 |
 | --- | --- | --- | --- |
 | Mozc | BSD-3-Clause(Copyright Google Inc.) | google/mozc(`MOZC_COMMIT` で固定)+ `mozc/patches/` | Google の名前を推奨の表示に使わない(第 3 項) |
+| 短文の追加語彙（配布準備候補） | SudachiDict Apache-2.0、UniDic/NEologd等の全帰属。頻度由来の選択・加工TSVはCC BY-SA 4.0 | SudachiDict 20261015/commit830bf9e、zenz-v2.5-dataset Wikipedia全量/7d9c9ea。training/lexicon/package.jsonで固定 | 名詞の読み/品詞/コストをMozcへ対応し、全量頻度で選択。既存語は上書きしない。short_lexicon.tsv/jsonとNOTICE-short-lexicon.txtを同梱。原生成時のproduct_adopted=falseは生成記録として保持 |
 | Qt 6.9.1 | LGPL-3.0 | Mozc のビルド手順(`build_qt.py`) | 動的リンク(Qt6*.dll)。差し替えられる。差し替え方とソースの入手先は `NOTICE-third-party.txt`、LGPL-3.0 が取り込む GPL-3.0 の全文は `LICENSE-GPL-3.0.txt`(Qt のソースの `LICENSES/GPL-3.0-only.txt`) |
 | llama.cpp / ggml | MIT | Windowsビルドb11259(Vulkan、固定SHA)。ggml-base.dllだけ同じ固定ソースにメモリ確保失敗の修正を加えてBazelで再構築 | 実行時に読み込むDLL。変更はMozcパッチ内`src/bazel/llama_oom.patch`。`ggml-rpc.dll`は入れない(REQ-15-1、作業カード41) |
 | LLVM OpenMP ランタイム(`libomp.dll`) | Apache-2.0 WITH LLVM-exception | llama.cpp の公式 Windows ビルドに含まれる | 全文は `LICENSE-llvm-openmp.txt`(llvm-project llvmorg-20.1.0 の `openmp/LICENSE.TXT`) |

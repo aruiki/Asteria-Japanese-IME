@@ -1,6 +1,6 @@
 # 短文向け語彙候補
 
-2026-10-22の利用者指定により、単語・短文・前文なしの変換精度を改善する。現在は製品採用前。[生成と採否の条件](../../docs/adr/0068-short-input-lexicon.md)。
+2026-10-22の利用者指定により、単語・短文・前文なしの変換精度を改善する。頻度/POS下限を修正したv4を配布準備候補に固定。[生成と採否の条件](../../docs/adr/0068-short-input-lexicon.md)、[最終比較](../../docs/verification/short-input-lexicon-20261022.md)。公開v2.0.0には追加していない。
 
 SudachiDict v20261015の公式small/core/notcore CSVから、Mozc辞書と重複しない読み/表記を持つ名詞の候補を生成する。公式ZIPとLEGAL/ライセンスのSHAを`sources.json`へ固定し、辞書本文をGitへ含めない。小規模Wikipedia抽出の増量だけで終えず、更新される語彙資源の取得と辞書への接続を検証する。
 
@@ -18,9 +18,22 @@ python -X utf8 -m unittest discover -s training/lexicon -p test_lexicon.py -v
 
 `--cache`で既存の取得原票を検証して再利用できる。取得サイズ/ZIP内容/全SHAが合わない場合は停止し、異なる既存ファイルを上書きしない。途中失敗の.partialも保持するため、失敗後は原票を確認し新しい出力先を使う。
 
-候補の`short_lexicon.tsv`をMozcの`src/data/kotori/`へ配置し、比較用ビルドだけで`--define=asteria_short_lexicon=true`を指定する。データは既存システム辞書のコンパイルへ入り、実行時にCSVや外部解析エンジンを起動しない。フラグを指定しない既定ビルドは従来の辞書のまま。比較結果を確認するまで製品採用へ切り替えない。
+初期の比較では`--define=asteria_short_lexicon=true`だけで有効にした。現在の配布準備パッチはv4を既定辞書へ加える。`false`は辞書を外した回帰比較専用であり、配布MSIには使わない。既存システム辞書のコンパイルへ入り、実行時にCSVや外部解析エンジンを起動しない。元のユーザー辞書や履歴の形式を変更しない。
 
-評価は`eval/short-input-20261022.json`で開発120件と最終報告120件を分離しSHA固定した。最終報告用は調整に使わない。前文なしのAI無効/Standardを分け、既存4セットの回帰も確認する。先に基準EXEとrunfiles内の辞書を別ディレクトリへ実コピーし、ビルドによる差し替えを防ぐ。
+評価は`eval/short-input-20261022.json`で開発120件と最終報告120件を分離しSHA固定した。最終報告用はv4を固定後に一度だけ実行済みで、その結果による調整は行わない。前文なしのAI無効/Standardを分け、既存4セットの回帰も確認した。基準EXEとrunfiles内の辞書を別ディレクトリへ実コピーし、ビルドによる差し替えを防いだ。
+
+## 比較済みデータの配置と更新
+
+`package.json`はTSV・原生成記録・全帰属のサイズ/SHA/配布URLを固定する。`stage_package.py`は取得元、上限、全SHA、TSV形式と件数、原生成記録の出典・評価参照未使用を確認する。既存の不一致ファイルや失敗の.partialは上書きしない。原生成記録の`product_adopted=false`は生成時の事実として保持し、現在の公開状態は検証記録で区別する。
+
+```text
+python -X utf8 training/lexicon/stage_package.py --source <比較済みv4の3ファイル> --out <Mozc>/src/data/kotori
+python -X utf8 mozc/tools/check_release.py --local <候補MSI> --previous-local <公開MSI> --require-generator --require-collocations --require-short-lexicon --work <新規出力先>
+```
+
+将来の固定データタグは`data-short-lexicon-20261022`。GitHubアカウント停止HTTP403のため、現時点ではこのデータタグ/資産は未公開。既定のネットワーク取得とWindows CIはデータ資産公開まで成功しない。ローカル配置は`--source`を使用し、検査を省略しない。データタグを公開しても製品Latestにはしない。
+
+更新時は出典/解析器/規則を新しい固定版に変更し、取得→全量集計→`build_lexicon.py`→`build_frequency_lexicon.py`を新規出力先で再実行する。集計には全評価の読み/近重複除外を渡す。生成TSVのSHAで再現を照合し、実行秒数等を含む新生成記録を保存する。旧JSONの時間や旧評価の結果を書き換えない。比較前に採否条件を固定し、既存/新未使用評価、配布manifest、ネイティブのビルド前SHAと同梱検査を一緒に更新する。今回開いた未使用120件を次の版の未使用評価へ再利用しない。
 
 ## コーパス頻度と連語
 
@@ -44,7 +57,7 @@ NFKC本文hashで分割し、重複本文を同じworkerで除去してから形
 
 `build_diagnostic.py`は追加辞書と頻度から、8〜24文字の読みを持つ語を品詞ごと最大50件、固定hash順で選ぶ。既存評価の読み/近重複を除外し、同じ読みの既存Mozc名詞も許容表記へ加える。参照は辞書由来であり、NFKC/文字幅の許容も最初の出力を見る前に決める。元の開発120件の参照や判定は変えない。
 
-これは追加語の候補欠落を調べる探索用の機能診断であり、独立評価でも一般精度の推定でもない。辞書にある表記が、その読みで利用者が常に意図する表記とは扱わない。読みの正確さも独立した人手検証ではない。本文はGitへ入れず、[規則と304件のSHA](../../eval/lexical-diagnostic-20261022.json)を保存した。最終報告用120件は引き続き調整に使わない。
+これは追加語の候補欠落を調べる探索用の機能診断であり、独立評価でも一般精度の推定でもない。辞書にある表記が、その読みで利用者が常に意図する表記とは扱わない。読みの正確さも独立した人手検証ではない。本文はGitへ入れず、[規則と304件のSHA](../../eval/lexical-diagnostic-20261022.json)を保存した。元の開発120件の厳密参照や最終120件の判定は変更していない。
 
 ```text
 python -X utf8 training/lexicon/build_diagnostic.py --candidate <固定候補> --frequency <固定全量頻度> --mozc <Mozcツリー> --exclude <既存評価JSON> --out <新規診断出力先>

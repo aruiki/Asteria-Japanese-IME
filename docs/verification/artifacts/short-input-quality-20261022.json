@@ -1,0 +1,207 @@
+{
+  "scope": "local unsigned MSI integration candidate; not installed TSF acceptance or a public release",
+  "source": "c80d4ebc47e44d8391c2c2df6282a37848a54f6b",
+  "product_version": "3.34.6443.100",
+  "planned_product_version": "2.0.1",
+  "msi": {
+    "source_commit": "c80d4ebc47e44d8391c2c2df6282a37848a54f6b",
+    "bytes": 1665200128,
+    "sha256": "2b42bc58b32a21910c277701430d9e8a4206e6b517bd9ab1b6530fdd9ba0d446"
+  },
+  "authenticode": "NotSigned",
+  "native": {
+    "source_commit": "c80d4ebc47e44d8391c2c2df6282a37848a54f6b",
+    "files": {
+      "converter_main.exe": "fb57ac490eeb8679abf8099d33afe952a8e29da517e85d0f316dec5eb28efaa2",
+      "session_handler_main.exe": "09b37c3b59d3e20d2e413832406c1591308e425bc9119638c1e40a8e6d198e8d",
+      "mozc.data": "b01aed329cf7c1da1e8a770b718358d0ce39a890fb8c7ff7f5cea0775741403a"
+    },
+    "dictionary_equals_final_evaluation": true,
+    "scope": "local binary snapshot, not installed TIP"
+  },
+  "embedded_dictionary": {
+    "compiled_dictionary_bytes": 20686895,
+    "compiled_dictionary_sha256": "b01aed329cf7c1da1e8a770b718358d0ce39a890fb8c7ff7f5cea0775741403a",
+    "server_embedded_offset": 4339264,
+    "msi_sha256": "2b42bc58b32a21910c277701430d9e8a4206e6b517bd9ab1b6530fdd9ba0d446"
+  },
+  "patches": {
+    "0001-kotori-branding.patch": "7fc85afbdcd397a00d0fa52738415142b8ac483a00e6d457d1107173e852969b",
+    "0002-kotori-lm-rerank.patch": "223cf345c370bb758da93c314d9e6bd767110a5c49c4220418d2c12c2beb2ecf",
+    "0003-kotori-bundle-model.patch": "44abcae8963444a882fdec4be8918baf9eec23ec0b73ac0750445f9a7a85db71"
+  },
+  "reconstructed_source_files": 140,
+  "lexical_payload": {
+    "schema": 1,
+    "tag": "data-short-lexicon-20261022",
+    "entries": 115318,
+    "sudachi_commit": "830bf9e1313f6f75235ba87ee041e144dbcad8c1",
+    "frequency_data_sha256": "8c0be0cf3ec4e3f5474b3c96395faf49d74a92c6ba264319b119014c571e40f4",
+    "license": "CC-BY-SA-4.0 frequency-derived selection; SudachiDict Apache-2.0 and upstream notices retained",
+    "candidate": "v4, frozen before final heldout reporting",
+    "generation_record": "short_lexicon.json describes the original experiment; product_adopted=false is retained as generation-time provenance",
+    "files": [
+      {
+        "name": "short_lexicon.tsv",
+        "bytes": 6015979,
+        "sha256": "2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b",
+        "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/short_lexicon.tsv"
+      },
+      {
+        "name": "short_lexicon.json",
+        "bytes": 4037,
+        "sha256": "28a097c09e960939aec029c65872e4aa8624233c6f72d274567ea731d3b8a3ce",
+        "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/short_lexicon.json"
+      },
+      {
+        "name": "NOTICE-short-lexicon.txt",
+        "bytes": 18574,
+        "sha256": "9b4133cdf29bee4136140da9bd2b890f7f5736dce36b7ec6f941e45f26b33678",
+        "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/NOTICE-short-lexicon.txt"
+      }
+    ]
+  },
+  "reproduction": {
+    "reproduced_files": [
+      {
+        "name": "short_lexicon.tsv",
+        "bytes": 6015979,
+        "sha256": "2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b",
+        "all_bytes_equal": true
+      },
+      {
+        "name": "NOTICE-short-lexicon.txt",
+        "bytes": 18574,
+        "sha256": "9b4133cdf29bee4136140da9bd2b890f7f5736dce36b7ec6f941e45f26b33678",
+        "all_bytes_equal": true
+      }
+    ],
+    "manifest_differences": [
+      "seconds"
+    ],
+    "original_generation_seconds": 3.8424952999921516,
+    "new_generation_seconds": 9.181578400006401,
+    "fixed_source_and_saved_full_frequency": true,
+    "full_frequency_count_rerun": false,
+    "reference_or_cost_changes": false
+  },
+  "short_final": [
+    {
+      "side": "baseline",
+      "mode": "off",
+      "items": 120,
+      "correct": 106,
+      "coverage": 116
+    },
+    {
+      "side": "candidate",
+      "mode": "off",
+      "items": 120,
+      "correct": 109,
+      "coverage": 118,
+      "improved": 3,
+      "regressed": 0
+    },
+    {
+      "side": "baseline",
+      "mode": "standard",
+      "items": 120,
+      "correct": 113,
+      "coverage": 116
+    },
+    {
+      "side": "candidate",
+      "mode": "standard",
+      "items": 120,
+      "correct": 115,
+      "coverage": 118,
+      "improved": 2,
+      "regressed": 0
+    }
+  ],
+  "short_final_status": "previously unused 120 opened once after freezing v4; no subsequent cost/reference tuning",
+  "legacy_final": [
+    {
+      "side": "baseline",
+      "mode": "standard",
+      "items": 300,
+      "correct": 290,
+      "coverage": 299
+    },
+    {
+      "side": "candidate",
+      "mode": "standard",
+      "items": 300,
+      "correct": 290,
+      "coverage": 299,
+      "improved": 0,
+      "regressed": 0
+    }
+  ],
+  "legacy_output_changes": [
+    {
+      "index": "h-tech-32",
+      "input": "えーぴーあいのしようがかわりました",
+      "before": "ＡＰＩの仕様が変わりました",
+      "after": "APIの仕様が変わりました",
+      "before_ok": true,
+      "after_ok": true
+    }
+  ],
+  "diagnostic_scope": "dictionary-derived 304 is exploratory; not general accuracy or independent acceptance",
+  "cpp": {
+    "rewriter/lm_rewriter_test": 75,
+    "session/session_test": 198,
+    "converter/immutable_converter_test": 18,
+    "rewriter/collocation_rewriter_test": 8
+  },
+  "normal_session": {
+    "scenarios": 28,
+    "passed": true,
+    "native_tsf": false,
+    "ai_enabled": false
+  },
+  "new_lexical_session": {
+    "scenarios": 13,
+    "passed": true,
+    "native_tsf": false,
+    "ai_enabled": false
+  },
+  "python_tests": {
+    "lexicon": 23,
+    "release_checks": 20,
+    "short_lexicon_payload": 3,
+    "patch_environment_methods": 1,
+    "patch_environment_subcases": 2
+  },
+  "publication": {
+    "data_assets_published": false,
+    "new_product_published": false,
+    "new_pr_created": false,
+    "copy_record_pr": 184,
+    "account_status": "HTTP403 account suspended",
+    "public_availability": {
+      "utc": "2026-10-22T00:49:55.820380+00:00",
+      "results": [
+        {
+          "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0",
+          "status": 404
+        },
+        {
+          "url": "https://aruiki.github.io/kanai/",
+          "status": 404
+        }
+      ]
+    }
+  },
+  "remaining": [
+    "new Windows CI and installed MSI/active TIP input/uninstall",
+    "current Google Japanese Input comparison under the same conditions",
+    "installed GPU AI on/off contribution",
+    "low-end hardware",
+    "protected-field internals",
+    "previous public version upgrade",
+    "reboot",
+    "independent product verifier"
+  ]
+}

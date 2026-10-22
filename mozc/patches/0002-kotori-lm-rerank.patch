@@ -24760,7 +24760,7 @@ index fbff8075b..f26b9240a 100644
  # Convert without history
  
 diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
-index 5d8232f36..9391a06fd 100644
+index 5d8232f36..467272cb8 100644
 --- a/src/data_manager/oss/BUILD.bazel
 +++ b/src/data_manager/oss/BUILD.bazel
 @@ -64,7 +64,7 @@ mozc_dataset(
@@ -24772,6 +24772,14 @@ index 5d8232f36..9391a06fd 100644
      ),
      collocation_suppression_src = (
          "//data/dictionary_oss:collocation_suppression.txt"
+@@ -74,6 +74,7 @@ mozc_dataset(
+         "//data/dictionary_oss:dictionary_data",
+         "//data/dictionary_oss:reading_correction.tsv",
+         "//data/dictionary_manual:domain.txt",
++        "//data/kotori:short_lexicon_data",
+     ],
+     emoji_src = "//data/emoji:emoji_data.tsv",
+     emoticon_categorized_src = (
 diff --git a/src/engine/BUILD.bazel b/src/engine/BUILD.bazel
 index 40a10582d..b8e671c01 100644
 --- a/src/engine/BUILD.bazel
@@ -38873,7 +38881,7 @@ index 012d822a5..0b5590a4f 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..0d1ad4f8e 100644
+index ada11a64a..9a72f351d 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -38886,7 +38894,7 @@ index ada11a64a..0d1ad4f8e 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6432
++BUILD = 6443
  # Represent the platform and release channel.
  REVISION = 100
  

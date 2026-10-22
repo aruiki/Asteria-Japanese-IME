@@ -7,6 +7,12 @@
 # モデル(*.gguf)、生成連語辞書、third_party、bazel の出力は含めない。インストーラと同梱物(src/win32/installer、
 # src/data/kotori)は 0003、それ以外は 0002 に入れる。最後に素のコミットに 0001〜0003 が順に当たるか確かめる。
 set -euo pipefail
+# Bazelの//target用の設定を継承すると、/c/...をWindows Gitへ変換できず別の場所へcloneしてしまう。
+# ファイル操作を始める前に止め、空のscratchから親リポジトリを操作する事故を防ぐ。
+if [ -n "${MSYS_NO_PATHCONV:-}" ] || [ "${MSYS2_ARG_CONV_EXCL:-}" = '*' ]; then
+  echo "パッチ生成ではMSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCLを解除する（Bazelではない）" >&2
+  exit 1
+fi
 R="$(cd "$(dirname "$0")/../.." && pwd)"
 MZ="$1"
 BASE_REPO="$2"
@@ -30,7 +36,7 @@ echo "$(echo "$FILES" | wc -l) files"
 git clone -q "$BASE_REPO" "$WORK"
 cd "$WORK"
 WORK_REAL="$(pwd -P)"
-if [ "$WORK_REAL" = "$SOURCE_REAL" ] || [ "$WORK_REAL" = "$BASE_REAL" ] || [ "$WORK_REAL" = "$R" ] || [ "$WORK_REAL" = / ]; then
+if [ "$WORK_REAL" = "$SOURCE_REAL" ] || [ "$WORK_REAL" = "$BASE_REAL" ] || [ "$WORK_REAL" = "$R" ] || [ "$WORK_REAL" = / ] || [ ! -d .git ]; then
   echo "作業用の clone に移れていない" >&2
   exit 1
 fi

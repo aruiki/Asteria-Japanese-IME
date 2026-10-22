@@ -1,0 +1,9 @@
+{
+  "scope": "v4の固定後の開発用回帰例。追加語彙のSpace表示とEnter確定を隔離Sessionで確認する。独立精度評価ではなく、既存評価の参照やコストは変更しない。",
+  "cases": [
+    {"id":"lexicon-insurance","area":"追加固有名詞","reading":"とうきょうかいじょうにちどう","expected":["東京海上日動"]},
+    {"id":"lexicon-carbon","area":"追加一般語","reading":"たんそじゅんかん","expected":["炭素循環"]},
+    {"id":"lexicon-swallowing","area":"追加専門語","reading":"せっしょくえんげ","expected":["摂食嚥下"]},
+    {"id":"lexicon-railway","area":"追加組織名","reading":"あいちかんじょうてつどう","expected":["愛知環状鉄道"]}
+  ]
+}

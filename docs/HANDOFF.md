@@ -6,7 +6,7 @@
 
 連語v5は意味の改悪があり不採用、AI専用素材v6も追加の正解数改善0なので今回の配布へ含めない。元のR66f4d665枝/原票は保持し、語彙だけのsource7702a998cからパッチ/同梱/CIへ接続する。AI主体の非同期候補表示・既存34,661連語・モデル・二重入力修正を維持する。
 
-紹介は製品PR183/全7CI→main05d70edとkanai PR12/13で公開済み。README/Release4配置、サイト14配置/20ファイルSHA、Release資産不変を確認。Aboutも更新。記録PR184作成後、GitHub APIがアカウント停止HTTP403を返したため公開/CIは停止中。ローカルの未使用評価は終了し、次はデータ取得・同梱検査・製品パッチ・ローカル候補を準備する。公開v2.0.0にはまだ新辞書を含めていない。
+紹介は製品PR183/全7CI→main05d70edとkanai PR12/13で公開済み。README/Release4配置、サイト14配置/20ファイルSHA、Release資産不変を確認。Aboutも更新。記録PR184作成後、GitHub APIがアカウント停止HTTP403を返したため公開/CIは停止中。同時刻の非認証閲覧でもRelease/公式サイト各404を確認し、公開済みという履歴と現在の閲覧不能を区別する。ローカルはsourcec80d4ebc/実MSI3.34.6443.100のbuild・同梱・評価済み辞書のサーバー埋込み・通常Session28/追加13・C++299・再構成140ソースが成功。MSI SHA2b42bc58b32a21910c277701430d9e8a4206e6b517bd9ab1b6530fdd9ba0d446、NotSigned。[固定原票](verification/artifacts/short-input-quality-20261022.json)。次はGitHub回復後に公開先の旧4資産を再確認し、用意したデータ資産を公開→新PR/全Windows CI→同じMSIの実導入/入力/削除とGoogle比較へ進む。公開v2.0.0にはまだ新辞書を含めていない。
 
 Google現行版同条件比較、新MSI/active TIP・実アプリAI寄与、低性能実機、保護欄内部、旧版更新、再起動、独立verifierは未完了。製品完成ではなく、独立FAILと.goal-complete不作成を維持。
 
