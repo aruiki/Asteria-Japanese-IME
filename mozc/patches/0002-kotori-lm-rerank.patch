@@ -834,6 +834,75 @@ index d46b15cea..5d9025ee3 100644
    // ping first
    if (client->PingServer()) {
      return true;
+diff --git a/src/composer/composer.cc b/src/composer/composer.cc
+index 56e4a18d4..88ed2782e 100644
+--- a/src/composer/composer.cc
++++ b/src/composer/composer.cc
+@@ -1333,13 +1333,16 @@ bool Composer::TransformCharactersForNumbers(std::string* query) {
+       }
+ 
+       case JA_COMMA: {
+-        // "、" should be "，" if the previous character is alphanumerics.
++        // "、" should be "，" if the previous character and the next
+         // character are both alphanumerics.
+-        // Previous char should exist and be a number.
++        // Kotori: 前後の両方を確かめる(上のコメントの規則どおり)。前だけでは
++        // 「賛成96、反対」「電話番号は0752…、最寄り駅」の読点まで「，」になる。
+         const bool lhs_check =
+             (i > 0 && IsAlphabetOrNumber(char_scripts[i - 1]));
++        const bool rhs_check =
++            (i + 1 < chars_len && IsAlphabetOrNumber(char_scripts[i + 1]));
+         // JA_COMMA should be transformed to COMMA.
+-        if (lhs_check) {
++        if (lhs_check && rhs_check) {
+           CharacterFormManager::GetCharacterFormManager()->ConvertPreeditString(
+               "，", &append_char);
+           DCHECK(!append_char.empty());
+@@ -1353,8 +1356,11 @@ bool Composer::TransformCharactersForNumbers(std::string* query) {
+         // Previous char should exist and be a number.
+         const bool lhs_check =
+             (i > 0 && IsAlphabetOrNumber(char_scripts[i - 1]));
++        // Kotori: 文末の「96。」まで「．」にしない(読点と同じ)。
++        const bool rhs_check =
++            (i + 1 < chars_len && IsAlphabetOrNumber(char_scripts[i + 1]));
+         // JA_PERIOD should be transformed to PERIOD.
+-        if (lhs_check) {
++        if (lhs_check && rhs_check) {
+           CharacterFormManager::GetCharacterFormManager()->ConvertPreeditString(
+               "．", &append_char);
+           DCHECK(!append_char.empty());
+diff --git a/src/composer/composer_test.cc b/src/composer/composer_test.cc
+index 7893248f4..8959625e4 100644
+--- a/src/composer/composer_test.cc
++++ b/src/composer/composer_test.cc
+@@ -1752,17 +1752,22 @@ TEST_F(ComposerTest, TransformCharactersForNumbers) {
+   EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+   EXPECT_EQ(query, "えー２，９８０円！月々たった、２，９８０円？");
+ 
++  // Kotori: 数字の後でも、次が数字でない句読点は日本語のまま(「３．１４１５９。」)。
+   query = "およそ、３。１４１５９。";
+   EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "およそ、３．１４１５９．");
++  EXPECT_EQ(query, "およそ、３．１４１５９。");
+ 
+   query = "１００、";
+-  EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "１００，");
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "１００、");
+ 
+   query = "１００。";
+-  EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "１００．");
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "１００。");
++
++  query = "さんせい９６、はんたい３";
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "さんせい９６、はんたい３");
+ }
+ 
+ TEST_F(ComposerTest, PreeditFormAfterCharacterTransform) {
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -26273,7 +26342,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..0b9ce7a76 100644
+index abbf55d68..05b6fd65c 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,51 @@
@@ -26794,7 +26863,7 @@ index abbf55d68..0b9ce7a76 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +627,490 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +627,492 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -26861,15 +26930,17 @@ index abbf55d68..0b9ce7a76 100644
 +      quality_note->setObjectName("kotoriNote");
 +      quality_note->setWordWrap(true);
 +      l->addWidget(quality_note);
-+      // 選んだ品質の説明(数値は eval/README.md、RTX 3060)。
++      // 選んだ品質の説明。
++      // Kotori: 以前の正確さの数値は製品と構成の異なる評価専用モード(LLM補正なし)と
++      // AJIMEE-Benchだけで測ったものだったため、画面には出さない(2026-10-23)。
 +      auto describe = [quality_note](int q) {
 +        static const char *const kText[] = {
 +            "ノート PC など GPU のない PC 向け。CPU で動き、打っている間に先に変換しておくので "
-+            "Space ですぐ出ます。正確さ 88.0%(AJIMEE-Bench)、日常の文 97.5%。",
-+            "GPU で 1 回 0.08 秒ほど。GPU のある PC におすすめです。正確さ 91.5%。",
-+            "候補を多く調べます。速い GPU 向け。1 回 0.12 秒ほど、正確さ 92.5%。",
++            "Space ですぐ出ます。",
++            "GPU のある PC におすすめ。変換の待ちを短く保ちながら、AI が候補を選び直します。",
++            "候補を多く調べます。速い GPU 向けで、待ちが少し増えます。",
 +            "High に、大きな変換用 AI(zenz-v2.5-medium)による候補を加えた最高設定。"
-+            "速い GPU 向け。1 回 0.26 秒ほど、正確さ 93.0%。",
++            "速い GPU 向けで、待ちがさらに増えます。",
 +        };
 +        if (q < 0) return;
 +        quality_note->setText(QString::fromUtf8(kText[std::min(q, 3)]));
@@ -27285,7 +27356,7 @@ index abbf55d68..0b9ce7a76 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1176,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1178,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27300,7 +27371,7 @@ index abbf55d68..0b9ce7a76 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1217,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1219,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -27315,7 +27386,7 @@ index abbf55d68..0b9ce7a76 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -324,6 +1295,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1297,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -27326,7 +27397,7 @@ index abbf55d68..0b9ce7a76 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1358,22 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1360,22 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -27349,7 +27420,7 @@ index abbf55d68..0b9ce7a76 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1396,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1398,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -27374,7 +27445,7 @@ index abbf55d68..0b9ce7a76 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1421,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1423,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -27384,7 +27455,7 @@ index abbf55d68..0b9ce7a76 100644
    return true;
  }
  
-@@ -524,6 +1518,21 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1520,21 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -27406,7 +27477,7 @@ index abbf55d68..0b9ce7a76 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1621,17 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1623,17 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -27424,7 +27495,7 @@ index abbf55d68..0b9ce7a76 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1866,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1868,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -30670,10 +30741,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..110b2b3bc
+index 000000000..2f25a13b2
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3587 @@
+@@ -0,0 +1,3622 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -31588,6 +31659,38 @@ index 000000000..110b2b3bc
 +    if (score > best_score) { best = i; best_score = score; }
 +  }
 +  return best;
++}
++
++size_t PreferPercentSymbol(const std::vector<std::string>& values,
++                           const std::vector<double>& scores, size_t top) {
++  if (top >= values.size() || scores.size() != values.size()) return top;
++  const auto is_digit = [](const std::string& c) {
++    return (c.size() == 1 && c[0] >= '0' && c[0] <= '9') || (c >= "０" && c <= "９" && c.size() == 3);
++  };
++  static constexpr char kWord[] = "パーセント";
++  const std::vector<std::string> chars = Chars(values[top]);
++  std::string half, full, rest;
++  bool replaced = false;
++  for (size_t i = 0; i < chars.size(); ++i) {
++    rest.clear();
++    for (size_t j = i; j < chars.size() && j < i + 5; ++j) rest += chars[j];
++    if (i > 0 && is_digit(chars[i - 1]) && rest == kWord) {
++      half += "%";
++      full += "％";
++      i += 4;  // 「パーセント」の残り4文字
++      replaced = true;
++      continue;
++    }
++    half += chars[i];
++    full += chars[i];
++  }
++  if (!replaced) return top;
++  for (size_t i = 0; i < values.size(); ++i) {
++    if (i != top && std::isfinite(scores[i]) && (values[i] == half || values[i] == full)) {
++      return i;
++    }
++  }
++  return top;
 +}
 +
 +void AddNearbyLatticeCandidates(const std::vector<float>& scores,
@@ -32844,6 +32947,9 @@ index 000000000..110b2b3bc
 +      if (debug) std::fprintf(stderr, "[prefix_boundary] before=%zu after=%zu\n", before, top);
 +    }
 +  }
++
++  // Kotori: 「90ぱーせんと」は「90%」と書くのが普通。同じ文で記号の候補が採点済みならそちらを選ぶ。
++  if (!over()) top = kotori_internal::PreferPercentSymbol(values, joint_scores, top);
 +
 +  Best best{reading, context, {}, {}};
 +  // Kotori: 打ち間違いを補った文の方がずっと自然なら、それを 1 つの文節として出す(docs/adr/0036)。
@@ -34263,10 +34369,10 @@ index 000000000..110b2b3bc
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..20f72fb40
+index 000000000..3e3b7902f
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,532 @@
+@@ -0,0 +1,537 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -34307,6 +34413,11 @@ index 000000000..20f72fb40
 +size_t PrefixNormalizedTop(const std::vector<std::string>& values,
 +                           const std::vector<double>& scores,
 +                           const std::vector<size_t>& token_counts, size_t top);
++
++// 数字の直後の「パーセント」だけが「%」「％」と違う採点済み候補があれば、記号の方を選ぶ
++// (新聞・公用文の表記。zenzは読みどおりのカタカナを強く好む)。なければtopのまま。
++size_t PreferPercentSymbol(const std::vector<std::string>& values,
++                           const std::vector<double>& scores, size_t top);
 +
 +// 読み条件付きの候補確率が過半なら、汎用LLMの重みを従来尺度へ抑える実験。
 +double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
@@ -34801,10 +34912,10 @@ index 000000000..20f72fb40
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..90920d980
+index 000000000..c3833d3da
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1223 @@
+@@ -0,0 +1,1241 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34929,6 +35040,24 @@ index 000000000..90920d980
 +      {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
 +       -std::numeric_limits<float>::infinity()}, 1.2, true), 1.2);
 +  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 0.4, true), 0.4);
++}
++
++TEST(LmRewriterPercentTest, PrefersSymbolAfterDigits) {
++  // zenzが読みどおりのカタカナを好んでも、数字の後は記号の候補を選ぶ。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"90パーセント", "90%", "九〇パーセント"}, {-22.5, -23.7, -30.}, 0), 1);
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"消費税は１０パーセントです", "消費税は１０％です"}, {-10., -11.}, 0), 1);
++}
++
++TEST(LmRewriterPercentTest, KeepsTopWithoutDigitOrScoredSymbolCandidate) {
++  // 数字の後でない「パーセント」(例: パーセント記号の話)は変えない。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"パーセントの意味", "%の意味"}, {-5., -6.}, 0), 0);
++  // 記号の候補がない、または採点されていないなら変えない。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol({"90パーセント", "九十パーセント"}, {-1., -2.}, 0), 0);
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"90パーセント", "90%"}, {-1., -std::numeric_limits<double>::infinity()}, 0), 0);
 +}
 +
 +TEST(LmRewriterBoundaryTest, NormalizesOnlyExtensionsOfChosenCandidate) {
@@ -38105,7 +38234,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..0b5590a4f 100644
+index 012d822a5..b76cc35f9 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -38172,7 +38301,27 @@ index 012d822a5..0b5590a4f 100644
    EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
        .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
  
-@@ -7878,6 +7893,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -7165,7 +7180,8 @@ TEST_F(SessionTest, AutoConversion) {
+     // The last "." is a triggering key for auto conversion
+     InsertCharacterChars("123.", &session, &command);
+ 
+-    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３．", "１２３．", command);
++    // Kotori: 数字の後でも次が数字でない句点は「。」(自動変換は起こらない)。
++    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３。", "１２３。", command);
+   }
+ 
+   // Don't trigger auto conversion for the ".."
+@@ -7190,7 +7206,8 @@ TEST_F(SessionTest, AutoConversion) {
+     // The last "." is a triggering key for auto conversion
+     InsertCharacterString("１２３。", "123.", &session, &command);
+ 
+-    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３．", "１２３．", command);
++    // Kotori: 上と同じく、文末の句点は「。」のまま。
++    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３。", "１２３。", command);
+   }
+ 
+   // Don't trigger auto conversion for "." only.
+@@ -7878,6 +7895,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -38182,7 +38331,7 @@ index 012d822a5..0b5590a4f 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9162,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9164,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -38220,7 +38369,7 @@ index 012d822a5..0b5590a4f 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9854,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9856,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
@@ -38231,7 +38380,7 @@ index 012d822a5..0b5590a4f 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10547,648 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10549,648 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -38881,7 +39030,7 @@ index 012d822a5..0b5590a4f 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..9a72f351d 100644
+index ada11a64a..fdc14ceab 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -38894,7 +39043,7 @@ index ada11a64a..9a72f351d 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6443
++BUILD = 6444
  # Represent the platform and release channel.
  REVISION = 100
  
