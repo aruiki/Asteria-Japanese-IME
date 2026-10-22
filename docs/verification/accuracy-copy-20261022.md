@@ -21,6 +21,12 @@ main769ed9eからcodex/quality-copy-20261022で作業。README、紹介原稿、
 
 ## 公開確認
 
-PRの適用CI・統合後にRelease本文を更新し、公開README/ReleaseのPC/390pxと公開画像、資産不変を確認して追記する。公式サイトはkanai PR12/13、gh-pages33a823f、Pages39693693438で新コピーを公開し、20ファイルSHA一致/14配置を確認済み。
+[PR183](https://github.com/aruiki/Asteria-Japanese-IME/pull/183)は全7チェック成功後、main `05d70ed443baa1b761221c44520a956f6a5f5689`へmerge commitで統合。CI run39697621925。コミット済み原稿からv2.0.0のRelease本文を更新し、改行表現を除く本文一致を確認した。
+
+公開前後のRelease ID・tag・公開日時・Latest/正式区分と、4資産のID/名前/サイズ/digestはすべて不変。公開README/Release×1440px/390pxの4配置でHTTP200、新見出し、v2.0.0、MSIリンク、全画像の読込、横はみ出しなし、例外なしを確認した。Release画像とREADME本文を目視した。原票は`ci-before-merge.json`、`published.json`、`public-browser.json`。
+
+公開画面の目視で、GitHub Aboutの概要欄だけに旧コピーが残っていた。本文検査の対象外だったため、概要欄を「変換精度の高い日本語IME。」へ更新し、APIの全文一致とhomepage不変を確認。原票`repository-description.json`。見出しの更新を本体の精度向上やGoogleとの最新比較として扱わない。
+
+公式サイトはkanai PR12/13、gh-pages33a823f、Pages39693693438で新コピーを公開し、20ファイルSHA一致/14配置を確認済み。
 
 短文の変換精度改善、未使用評価、Google同条件比較、導入済みGPU AIの寄与などの製品ゴールは継続中。過去の独立FAILと製品全体の未検証7範囲を保持し、製品完成とは扱わない。
