@@ -1,0 +1,13 @@
+{
+  "scope": "dictionary-derived exploratory lexical diagnostic; not independent or representative general accuracy",
+  "generator": "training/lexicon/build_diagnostic.py",
+  "policy": "training/lexicon/diagnostic_policy.json",
+  "items": 304,
+  "data_sha256": "540a4e8b1c975383f62141b98bc69b6c8ee7a5bcca1157b30ae39adbe626d99e",
+  "source_lexicon_sha256": "2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b",
+  "preceding_context": false,
+  "reference_policy": "dictionary aliases and existing same-reading nouns; NFKC and width variants fixed before converter output",
+  "original_short_dev_references_changed": false,
+  "original_short_heldout_used_for_tuning": false,
+  "use_for_advertised_general_accuracy": false
+}

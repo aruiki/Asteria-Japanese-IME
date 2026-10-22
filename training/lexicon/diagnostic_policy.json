@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "scope": "dictionary-derived lexical diagnostic, not an independent or representative accuracy benchmark",
+  "seed": "20261022",
+  "per_pos_limit": 50,
+  "min_reading_length": 8,
+  "max_reading_length": 24,
+  "min_surface_length": 3,
+  "min_documents": 20,
+  "max_target_aliases": 3,
+  "max_expected_canonical_forms": 8,
+  "references": "new dictionary aliases plus existing Mozc nouns with the same reading; width variants admitted before outputs",
+  "preceding_context": false,
+  "heldout_role": "existing final-report sets remain unused"
+}
