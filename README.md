@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/marketing/assets/hero.png?v=2.0.0" alt="Asteria — GPUで考える、日本語入力。文脈を読むAIも、あなたのPCの中に。" width="100%">
+  <img src="docs/marketing/assets/hero.png?v=quality-20261022" alt="Asteria — 変換精度の高い日本語IME。無料・オープンソース。オフラインで使えます。" width="100%">
 </p>
 
 <h1 align="center">Asteria — アステリア</h1>
 
 <p align="center">
-  <strong>文脈を読むAIも、あなたのPCの中に。</strong><br>
-  GPUで動くAIが候補を生成・採点する、Windows向けの日本語入力です。<br>
+  <strong>変換精度の高い日本語IME。</strong><br>
+  意図した言葉への変換を、辞書とローカルAIで支えるWindows向けの日本語入力です。<br>
   入力した文章を外部サーバーへ送らず、オフラインで使えます。
 </p>
 
@@ -27,9 +27,9 @@
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0">更新内容・SHA-256</a>
 </p>
 
-## 言葉を選ぶ。その手がかりは、文脈。
+## 意図した言葉へ変換する
 
-文章のつながりから、同じ読みの候補を選び分ける。Asteriaは、Mozcの辞書・文節処理・学習を基盤に、ローカルAIによる候補の生成と評価を組み合わせています。
+Asteriaは、Mozcの辞書・文節処理・学習を基盤に、ローカルAIによる候補の生成と評価を組み合わせています。単語や短い入力から文章まで、意図した表記を選びやすい変換を目指して改善を続けています。
 
 | 毎日の入力で | Asteriaがすること |
 | --- | --- |

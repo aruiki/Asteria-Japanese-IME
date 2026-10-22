@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/0dae1d19c047c18e3af9767f6a1421459903b61c/docs/marketing/assets/social.png" alt="Asteria — GPUで考える、日本語入力。v2.0.0正式版。" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/ab1fad2aad39325e481488ea2ccf7aadb844d3f5/docs/marketing/assets/social.png" alt="Asteria — 変換精度の高い日本語IME。v2.0.0正式版。" width="100%"></p>
 
 <h2 align="center"><a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Asteria v2.0.0をダウンロード</a></h2>
 
@@ -6,7 +6,7 @@
 
 ## Asteria v2.0.0 — 正式版
 
-**GPUで考える、日本語入力。** 文脈を読むAIも、あなたのPCの中に。
+**変換精度の高い日本語IME。** 無料・オープンソース。オフラインで使えます。
 
 AsteriaはMozcの辞書・文節処理・学習と、ローカルAIの候補生成・採点を組み合わせたWindows日本語入力です。文章を外部サーバーへ送らず、モデル・実行環境を同梱してオフラインで動作します。
 
