@@ -157,7 +157,7 @@ Asteriaは前文で160問が正解に変わり、誤りに変わったのは1問
 `0FA9F6C15034EE5236B6DB45C22F1AD4AD010246E7F01FA0BC783CDC1D726503`、未署名。ag16 commit 3b315d8d8、パッチ0002/0003を再生成
 （素のMozcへ0001〜0003が当たる）。lm_rewriter/composer/session/diagnostics試験合格。check_release(--previous-local v2.0.0、
 --require-generator --require-collocations --require-short-lexicon)すべてOK。NOTICE-third-party.txtに使用比率の出典を追記し、
-MSI内の同梱を確認。下の実機確認は6444で行ったもの（6445は未導入）。
+MSI内の同梱を確認。作り直し後の確認: MSI内のmozc_server.exeの版は3.34.6445.100、ag16は3b315d8d8で追跡ファイルの未コミット変更なし。同じcommitから作ったconverter_mainを、6445のMSIを管理展開したモデル・データで動かし、このくらいがちょうどいいです→ちょうどいい、ふゆもやすいといいです→冬も安いといい(6444では良い)、さいごにいいます→最後に言います(語の内部は変えない)を確認。下の実機確認は6444で行ったもの（6445は未導入）。
 
 ## 実機（利用者のPC、RTX 3060、2026-10-23）
 
