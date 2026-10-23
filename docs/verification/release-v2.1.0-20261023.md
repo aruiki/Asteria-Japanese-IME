@@ -84,6 +84,28 @@ GitHubが停止中(2026-10-22から403)のため、CI・Release・公開はし�
 - 同梱VCランタイムはビルドしたPCのVisual Studio 14.44。CIのMSI(14.51)より古いが、本体も同じ14.44でビルドしており
   新規導入で正しく動く。旧版からの更新では新しい方が残る（MSIの版規則）。
 
+## Google日本語入力との比較（日常の短文、判定用500問、2026-10-23）
+
+利用者が導入したGoogle日本語入力 3.34.6260.0 と、導入済みのAsteria 6444を、同じPCで `eval/imebench`（実際のIMEへ
+SendInputでローマ字を打ち、前文なし、Space→1.2秒→Enter、各問の前に入力欄を空にする）で比べた。採点は imebench の
+NFKC完全一致と、表記ゆれ一致（lenient_score.py）。原票 `target/accuracy-guide/google-compare-v1/`。
+
+| | Google 3.34.6260 | Asteria 6444 |
+| --- | --- | --- |
+| 完全一致 | 355/500 (71.0%) | 380/500 (76.0%) |
+| 表記ゆれ一致 | 434/500 (86.8%) | 457/500 (91.4%) |
+
+表記ゆれ一致で Asteriaだけ正解45、Googleだけ正解22（符号検定 p=0.007）。日常の短文ではAsteriaが上回る。
+
+条件の注記: 利用者のAsteria設定は「句読点で自動変換」(use_auto_conversion)が有効で、。？！を打つと変換済みになる。
+imebench の固定操作(必ずSpace)では変換済みの状態で次候補へ移り、Asteriaだけ不利になっていた（初回 446/500。
+クライアント側の通信記録で確認）。利用者の実際の操作に合わせ、Asteria側は。？！で終わる問だけSpaceを押さずに確定した
+（`google-compare-v1/ImeBenchAutoConv.cs`）。Googleは既定設定で自動変換しないため従来どおり。各計測の前にAsteriaの
+学習を比較前の状態へ戻し、比較後も戻した。
+
+Googleだけ正解の問は、かなが自然な語の漢字化（ちょうどいい→良い、身体、付ける）や意味の同音語（暑い/熱い）が中心で、
+次の改善対象と一致する。文書・技術・固有名詞の分野の比較は未実施。
+
 ## 実機（利用者のPC、RTX 3060、2026-10-23）
 
 利用者がUACを承認し、`mozc/tools/local_install_check.py` で 6443 → 6444 へ更新した。原票 `target/accuracy-guide/local-install-6444-v1/`。

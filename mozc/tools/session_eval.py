@@ -36,6 +36,8 @@ def main():
     ap.add_argument("--models", default=str(P / "target/accuracy-guide/short-word-package-check-v7/payload/ext/PFiles/Kotori"))
     ap.add_argument("--warm", type=float, default=15)
     ap.add_argument("--n", type=int, default=0)
+    ap.add_argument("--immediate-space", action="store_true",
+                    help="打ち終わってすぐSpaceを押す(取り直しの予約を待たない。速く打つ人やimebenchと同じ)")
     args, extra = ap.parse_known_args()
     items = json.load(open(args.data, encoding="utf-8"))
     if args.n:
@@ -95,7 +97,7 @@ def main():
                     text = send("SEND_KEY_WITH_OPTION\t" + ch + "\t" + option)
             else:
                 text = send("SEND_KEYS\t" + romaji)
-            for _ in range(6):
+            for _ in range(0 if args.immediate_space else 6):
                 delay = callback_ms(text)
                 if delay is None:
                     break
