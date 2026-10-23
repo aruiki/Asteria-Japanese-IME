@@ -4,6 +4,8 @@ GitHubの使い捨てランナーが使えない間の手順（GOAL.md 2026-10-2
 普段使いのIMEを置き換えるので、各段階の前に元の版・プロファイル・言語設定を保存し、
 rollbackで同じ版へ戻す。導入中のTIPは各アプリが読み込んでいるため、更新/復帰には
 再起動が必要になり得る（終了コード3010）。その場合は再起動後に次の段階を実行する。
+実入力する段階（verify/clickprobe/browser）は、直前に利用者の学習履歴を保存し、終わったら自動で
+戻して全ファイルのSHA一致を記録する（検査の入力を利用者の学習に残さない）。
 
   python -X utf8 mozc/tools/local_install_check.py precheck --candidate C.msi --rollback R.msi --expected-dir D --out O
   python -X utf8 mozc/tools/local_install_check.py install  --out O
@@ -12,12 +14,14 @@ rollbackで同じ版へ戻す。導入中のTIPは各アプリが読み込んで
   python -X utf8 mozc/tools/local_install_check.py restored --out O   # 復帰後の版/ファイル/プロファイル確認
 """
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -83,6 +87,44 @@ def tree_hashes(root):
 def copy_profile(source, destination):
     shutil.copytree(source, destination,
                     ignore=lambda folder, names: [n for n in names if is_runtime(n)])
+
+
+def restore_profile(snapshot):
+    """保存した内容へ戻す。サーバーが開いていると書き戻されるので、先に止めてから入れ替える。"""
+    smoke.stop_installed_processes(INSTALL)
+    if PROFILE.is_dir():
+        for path in PROFILE.rglob("*"):
+            if path.is_file() and not is_runtime(path):
+                os.chmod(path, stat.S_IWRITE)  # 隠し・読み取り専用の履歴ファイルも消せるように
+                path.unlink()
+    shutil.copytree(snapshot, PROFILE, dirs_exist_ok=True)
+
+
+@contextlib.contextmanager
+def profile_restored_after(r, stage):
+    """検査の入力（日本語・東京など）が利用者の学習履歴に残らないようにする。
+
+    入力の直前にサーバーを止めて（ディスクへ書き終えた状態で）プロファイルを保存し、終わったら成否に
+    かかわらず戻して全ファイルのSHAが一致することを確かめる。止めた時点でまだ書き出されていない学習は
+    保存に入らない（Mozcは一定間隔で書き出す）。
+    """
+    smoke.stop_installed_processes(INSTALL)
+    snapshot = r.out / f"profile-before-{stage}"
+    if snapshot.exists():
+        shutil.rmtree(snapshot)
+    if PROFILE.is_dir():
+        copy_profile(PROFILE, snapshot)
+    else:
+        snapshot.mkdir(parents=True)
+    expected = tree_hashes(snapshot)
+    try:
+        yield
+    finally:
+        restore_profile(snapshot)
+        same = tree_hashes(PROFILE) == expected
+        r.save(f"{stage}_profile", profile_restored=same, profile_files=len(expected))
+        if not same:
+            raise RuntimeError(f"{stage}の後に学習履歴を元へ戻せませんでした（保存先 {snapshot}）")
 
 
 def core_hashes():
@@ -170,6 +212,11 @@ def verify(args):
     if errors:
         r.save("verify_failed", verify_errors=errors)
         raise RuntimeError("\n".join(errors))
+    with profile_restored_after(r, "verify"):
+        verify_input(r, args)
+
+
+def verify_input(r, args):
     compiler = Path(os.environ["WINDIR"]) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
     source = Path(__file__).resolve().parents[2] / "eval" / "imebench" / "ImeBench.cs"
     exe = r.out / "ImeBench.exe"
@@ -224,7 +271,8 @@ def clickprobe(args):
                *(str(source / name) for name in ("ImeBench.cs", "ImeAcceptance.cs",
                                                  "ImeDuplicateStress.cs", "ImeClickProbe.cs"))])
     os.environ["KOTORI_LOCAL_ACCEPTANCE"] = "owner-approved"
-    process = subprocess.run([str(exe), str(INSTALL), str(output), "--click-probe"], timeout=300)
+    with profile_restored_after(r, "clickprobe"):
+        process = subprocess.run([str(exe), str(INSTALL), str(output), "--click-probe"], timeout=300)
     report = json.loads(output.read_text(encoding="utf-8")) if output.is_file() else {}
     r.save("clickprobe", clickprobe_exit=process.returncode,
            clickprobe_committed=[t.get("committed_by_click") for t in report.get("click_probe", [])])
@@ -248,8 +296,11 @@ def browser(args):
     if args.skip_click:
         os.environ["KOTORI_SKIP_CLICK"] = "environment"
     destination = r.out / "browser-duplicate"
-    process = subprocess.run([args.python, "-X", "utf8", str(Path(__file__).with_name("browser_duplicate_probe.py")),
-                              "--driver", str(exe), "--install", str(INSTALL), "--out", str(destination)], timeout=600)
+    with profile_restored_after(r, "browser"):
+        process = subprocess.run([args.python, "-X", "utf8",
+                                  str(Path(__file__).with_name("browser_duplicate_probe.py")),
+                                  "--driver", str(exe), "--install", str(INSTALL), "--out", str(destination)],
+                                 timeout=600)
     report = json.loads((destination / "summary.json").read_text(encoding="utf-8"))
     trials = report.get("trials", [])
     passed = [t for t in trials if t.get("passed") is True]
@@ -285,16 +336,12 @@ def rollback(args):
             r.save("rollback_failed", rollback_install_exit=code)
             raise RuntimeError(f"元の版の導入に失敗: {code}")
         r.save("rollback_install", rollback_install_exit=code, rollback_reboot_required=code == 3010)
-    # 既定ではプロファイルを戻さない。検証の入力（日本語/東京等）と一緒に、検証中に利用者が
-    # 打った履歴まで消えるため。--restore-profile のときだけ導入直前の保存内容へ戻す。
+    # 検査の入力は各段階の後に戻してあるので、既定ではプロファイルに触れない（導入後に利用者が
+    # 打った履歴を残す）。--restore-profile のときだけ導入直前の保存内容へ戻す。
     restored_profile = False
     backup = r.out / "profile-backup"
     if args.restore_profile and backup.exists():
-        smoke.stop_installed_processes(INSTALL)
-        for path in PROFILE.rglob("*"):
-            if path.is_file() and not is_runtime(path):
-                path.unlink()
-        shutil.copytree(backup, PROFILE, dirs_exist_ok=True)
+        restore_profile(backup)
         restored_profile = tree_hashes(PROFILE) == r.state["backup_profile"]
     r.save("rollback", profile_restored=restored_profile)
 

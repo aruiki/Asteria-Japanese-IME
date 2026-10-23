@@ -50,17 +50,26 @@ def main():
     for y, m in months(args.start, args.end):
         # 月の中ほどから古い方へたどる(月初に偏らない)。
         start = datetime.datetime(y, m, 15, tzinfo=datetime.timezone.utc)
-        data = get(dict(action="query", list="logevents", letype="create", lenamespace=0,
-                        lestart=start.isoformat().replace("+00:00", "Z"), ledir="older",
-                        lelimit=min(500, args.per_month * 3)))
+        params = dict(action="query", list="logevents", letype="create", lenamespace=0,
+                      lestart=start.isoformat().replace("+00:00", "Z"), ledir="older",
+                      lelimit=min(500, args.per_month * 3))
         picked = 0
-        for event in data["query"]["logevents"]:
-            if picked >= args.per_month:
+        while picked < args.per_month:
+            data = get(params)
+            for event in data["query"]["logevents"]:
+                if picked >= args.per_month:
+                    break
+                # 続きをたどって前の月に入ったら、その月の分は終わり。
+                if not event["timestamp"].startswith(f"{y}-{m:02d}"):
+                    picked = args.per_month
+                    break
+                if "title" in event and event.get("pageid"):
+                    titles.append(dict(title=event["title"], created=event["timestamp"], month=f"{y}-{m:02d}"))
+                    picked += 1
+            time.sleep(1)
+            if "continue" not in data:
                 break
-            if "title" in event and event.get("pageid"):
-                titles.append(dict(title=event["title"], created=event["timestamp"], month=f"{y}-{m:02d}"))
-                picked += 1
-        time.sleep(1)
+            params.update(data["continue"])
     rows = []
     for i in range(0, len(titles), 20):
         chunk = titles[i:i + 20]
