@@ -157,7 +157,7 @@ Asteriaは前文で160問が正解に変わり、誤りに変わったのは1問
 `0FA9F6C15034EE5236B6DB45C22F1AD4AD010246E7F01FA0BC783CDC1D726503`、未署名。ag16 commit 3b315d8d8、パッチ0002/0003を再生成
 （素のMozcへ0001〜0003が当たる）。lm_rewriter/composer/session/diagnostics試験合格。check_release(--previous-local v2.0.0、
 --require-generator --require-collocations --require-short-lexicon)すべてOK。NOTICE-third-party.txtに使用比率の出典を追記し、
-MSI内の同梱を確認。作り直し後の確認: MSI内のmozc_server.exeの版は3.34.6445.100、ag16は3b315d8d8で追跡ファイルの未コミット変更なし。同じcommitから作ったconverter_mainを、6445のMSIを管理展開したモデル・データで動かし、このくらいがちょうどいいです→ちょうどいい、ふゆもやすいといいです→冬も安いといい(6444では良い)、さいごにいいます→最後に言います(語の内部は変えない)を確認。下の実機確認は6444で行ったもの（6445は未導入）。
+MSI内の同梱を確認。作り直し後の確認: MSI内のmozc_server.exeの版は3.34.6445.100、ag16は3b315d8d8で追跡ファイルの未コミット変更なし。同じcommitから作ったconverter_mainを、6445のMSIを管理展開したモデル・データで動かし、このくらいがちょうどいいです→ちょうどいい、ふゆもやすいといいです→冬も安いといい(6444では良い)、さいごにいいます→最後に言います(語の内部は変えない)を確認。6445の実機確認: 利用者がUACを承認し6444→6445へ更新（exit3010）。verify --skip-click 受入れ8/8・二重入力26/26、Edge 12/12（クリック2件は環境要因で未検証）。実IMEで このくらいがちょうどいいです、冬も安いといいです、９０％、賛成９６、反対３、最後に言います、教えてください を確認。検査の学習は導入直前のプロファイルへ戻し全SHA一致（原票 target/accuracy-guide/local-install-6445-v1/）。下の節は6444での実機確認。
 
 ## 実機（利用者のPC、RTX 3060、2026-10-23）
 
