@@ -10,6 +10,7 @@ import argparse
 import datetime
 import json
 from pathlib import Path
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -70,8 +71,11 @@ def main():
             if "continue" not in data:
                 break
             params.update(data["continue"])
+    print(f"titles {len(titles)}", file=sys.stderr, flush=True)
     rows = []
     for i in range(0, len(titles), 20):
+        if i % 2000 == 0:
+            print(f"extracts {i}/{len(titles)} rows {len(rows)}", file=sys.stderr, flush=True)
         chunk = titles[i:i + 20]
         data = get(dict(action="query", prop="extracts|info|pageprops|categories", exintro=1, explaintext=1,
                         cllimit="max", clshow="!hidden", redirects=0, titles="|".join(t["title"] for t in chunk)))

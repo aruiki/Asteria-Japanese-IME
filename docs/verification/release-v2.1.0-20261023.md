@@ -243,3 +243,25 @@ ag16 401688515）。`KOTORI_LM_IDLE_UNLOAD`（秒）を指定したときだけ�
 一致しなければ段階を失敗にする。試験 `mozc/tools/test_local_install_check.py`（書き換え・追加・削除・読み取り専用の
 履歴を戻す、失敗した検査でも戻す、不一致を失敗にする）3件合格。サーバーを止めた時点でまだ書き出されていない学習は
 保存に入らない。このPCでの実行はしていない（導入は今回の範囲外）。
+
+## 速度の改善（2026-10-24〜、ゴール「爆速で精度の高いIME」）
+
+### 時間の内訳を測る道具
+
+- サーバー: `KOTORI_LM_TIMELINE=1` で、AIの変換1回ごとに、仕事を積んだ時刻・計算開始（ロック）・生成・zenz採点・LLM採点・
+  終了（補正・文節分け・保存）の時刻を steady_clock のマイクロ秒で stderr に出す（入力文は出さない）。
+- 評価: `mozc/tools/session_eval.py --timeline` が Space を送った時刻（perf_counter、同じQPC）と突き合わせ、問ごとに
+  before_space（Spaceの前に済んだ計算）/ queue（積んでから計算開始まで）/ gen / zenz / llm / finish / pickup（計算の終わり
+  から表示まで）を出す。
+
+### 6446の内訳（開発用、RTX 3060、Vulkan、原票 `eval-sets-v2/results/timeline-6446/`）
+
+| 打ち方 | セット | 正解 | 中央値 | p95 | 中央値の内訳(ms) | 遅い5%の平均(ms) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 少し待ってSpace | short | 231/300 | 5ms | 419ms | 計算はSpaceの約0.5秒前に終了、pickup 4 | finish 475（補正がSpaceの時点で走っている）、pickup 52 |
+| 同上 | doc | 252/300 | 104ms | 618ms | before_space 519、pickup 9 | finish 607、llm 36、pickup 67 |
+| すぐSpace | short | 231/300 | 616ms | 956ms | queue 119 / gen 93 / zenz 8 / llm 46 / finish 265 / pickup 52 | queue 176 / gen 137 / llm 90 / finish 640 |
+| 同上 | doc | 252/300 | 715ms | 1163ms | queue 129 / gen 132 / zenz 8 / llm 87 / finish 269 / pickup 51 | queue 203 / gen 141 / llm 113 / finish 779 |
+
+待ちの原因は大きい順に、(a) LLMによる補正の生成（finish、中央値約265ms）、(b) 入力中の予測の計算が終わるまで変換が
+始まらない（queue、約120ms）、(c) AIの結果を待つ間の取り直しが100ms間隔（pickup、平均約50ms）、(d) 生成と採点。
