@@ -40,6 +40,8 @@ def main():
                     help="セッション開始時に設定する項目 名前=値(例: kotori_lm_quality=KOTORI_LM_UNREAL)")
     ap.add_argument("--immediate-space", action="store_true",
                     help="打ち終わってすぐSpaceを押す(取り直しの予約を待たない。速く打つ人やimebenchと同じ)")
+    ap.add_argument("--space-gap", type=float,
+                    help="最後の打鍵からSpaceまでの時間(ms)。人が打つ速さの再現(例: 150)")
     ap.add_argument("--timeline", action="store_true",
                     help="KOTORI_LM_TIMELINEでサーバーの各段の時刻を取り、Space→候補の内訳を出す")
     args, extra = ap.parse_known_args()
@@ -110,12 +112,18 @@ def main():
                     text = send("SEND_KEY_WITH_OPTION\t" + ch + "\t" + option)
             else:
                 text = send("SEND_KEYS\t" + romaji)
-            for _ in range(0 if args.immediate_space else 6):
+            # 手を止める時間は回数ではなく時間で決める(取り直しの間隔を変えても同じ間だけ止まる)。
+            # 0.7秒は6446までの「最初の取り直し200ms + 100ms×5回」と同じ。製品のTIPと同じく、
+            # 取り直しのタイマーがSpaceより前に来るときだけ取り直す。
+            gap = 0 if args.immediate_space else (args.space_gap / 1000 if args.space_gap is not None else 0.7)
+            typed = time.monotonic()
+            while True:
                 delay = callback_ms(text)
-                if delay is None:
+                if delay is None or time.monotonic() - typed + delay / 1000 > gap:
                     break
                 time.sleep(delay / 1000)
                 text = send("KOTORI_REFRESH")
+            time.sleep(max(0, gap - (time.monotonic() - typed)) if args.space_gap is not None else 0)
             # Spaceから候補が表示されるまで。製品のTIPと同じく、サーバーが返す間隔で取り直しを送る
             # ので、AIの結果を待つ時間も含めて実際のIMEと同じ粒度で測れる。
             space_sent = time.monotonic()
@@ -142,7 +150,9 @@ def main():
         p.wait(timeout=60)
         if args.timeline:
             stderr.close()
-            attach_timeline(rows, stderr_path.read_text(encoding="utf-8", errors="replace"))
+            timeline = stderr_path.read_text(encoding="utf-8", errors="replace")
+            Path(args.out + ".timeline.txt").write_text(timeline, encoding="utf-8")
+            attach_timeline(rows, timeline)
     Path(args.out).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     scored = [r for r in rows if not r.get("skipped")]
     times = sorted(r["space_to_candidate_ms"] for r in scored)
@@ -153,7 +163,7 @@ def main():
         print_breakdown(scored)
 
 
-PHASES = ("before_space", "queue", "lock", "gen", "zenz", "llm", "finish", "pickup")
+PHASES = ("before_space", "queue", "lock", "gen", "zenz", "llm", "corr", "finish", "pickup")
 
 
 def attach_timeline(rows, text):
@@ -161,7 +171,7 @@ def attach_timeline(rows, text):
 
     before_space: Spaceの前に済んだ計算の時間(Spaceの時点で結果があれば待ちは pickup だけ)
     queue: 仕事を積んでから計算を始める(ロックを取る)まで  gen: 変換用AIの生成
-    zenz: 変換用AIの採点  llm: LLMの採点  finish: 補正・文節分け・保存
+    zenz: 変換用AIの採点  llm: LLMの採点  corr: 補正の生成(Spaceの後は省く)  finish: 文節分け・保存
     pickup: 計算が終わってから候補が表示されるまで(取り直しの間隔とプロセス間の通信)
     """
     entries = []
@@ -186,7 +196,9 @@ def attach_timeline(rows, text):
             gen=round((clip(e["gen"]) - clip(e["load"])) / 1000, 1),
             zenz=round((clip(e["zenz"]) - clip(e["gen"])) / 1000, 1),
             llm=round((clip(e["llm"]) - clip(e["zenz"])) / 1000, 1),
-            finish=round((clip(e["end"]) - clip(e["llm"])) / 1000, 1),
+            corr=round((clip(e.get("corr_end", e["llm"])) - clip(e.get("corr", e["llm"]))) / 1000, 1),
+            finish=round((clip(e["end"]) - clip(e["llm"]) - (clip(e.get("corr_end", e["llm"])) -
+                          clip(e.get("corr", e["llm"])))) / 1000, 1),
             pickup=round((r["shown_us"] - clip(e["end"])) / 1000, 1),
             chars=e["chars"], cands=e["cands"])
 
