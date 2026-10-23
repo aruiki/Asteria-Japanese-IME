@@ -1098,10 +1098,10 @@ index 000000000..990756638
 +==============================================================================
 diff --git a/src/data/kotori/NOTICE-third-party.txt b/src/data/kotori/NOTICE-third-party.txt
 new file mode 100644
-index 000000000..c9890613b
+index 000000000..04f30631a
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-third-party.txt
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,63 @@
 +Asteria日本語入力に同梱している第三者のソフトウェア
 +
 +この PC のインストール先(C:\Program Files (x86)\Kotori)にあるファイルと、そのライセンスの一覧です。
@@ -1158,6 +1158,13 @@ index 000000000..c9890613b
 +
 +■ Microsoft Visual C++ ランタイム(vcruntime140*.dll、msvcp140*.dll)
 +  Microsoft Visual Studio のライセンスで再配布が認められたもの。
++
++■ 日常表記の使用比率(rewriter/kotori_notation_table.inc)
++  変換候補の表記(良い/いい 等)を、日常の文章でよく使われる方へ寄せるための語の組と使用比率。
++  次の対話コーパスの評価用開発分割だけから、SudachiPyで数えた統計値を含む。
++  - RealPersonaChat 1.0.0 (nu-dialogue) — CC BY-SA 4.0 — https://github.com/nu-dialogue/real-persona-chat
++  - JMultiWOZ 1.0 (nu-dialogue) — CC BY-SA 4.0 — https://github.com/nu-dialogue/jmultiwoz
++  生成手順: Asteriaの mozc/tools/build_kana_preference.py と gen_notation_table.py。
 diff --git a/src/data/kotori/NOTICE-tinyswallow.txt b/src/data/kotori/NOTICE-tinyswallow.txt
 new file mode 100644
 index 000000000..2ed822c00
