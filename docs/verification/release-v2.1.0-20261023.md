@@ -206,5 +206,40 @@ AIの生成・採点の時間（中央値約0.6秒）がそのまま待ちにな
   **取得せず不採用**。現在のTinySwallow-1.5Bでもp95が150msを超えており、より大きいモデルは処理時間が増えるため
   基準を満たす見込みがない。加えて、MSIの上限（check_releaseの1.8 GiB、GitHubの1ファイル2 GiB）に収まらず、
   単一のインストーラーで配布できない。
+- High（`KOTORI_LM_HIGH`）: short-dev 231/300、doc-dev 252/300（Standardと同じ）、p95 419ms / 530ms（Standardとほぼ同じ）。
+  原票 `results/latency-high/`。設定画面の説明はこの比較に合わせた（下の(4)）。
 - 結論: 品質の既定値と選択肢は6445のまま。速度の150ms基準は、AIの結果を待って候補を出す現在の方式と
   両立しておらず、先読みの開始を早める・生成の手順を減らすなどの速度改善を別課題とする。
+
+### (3) ログイン時の常駐
+
+ログイン時の読み込みは既にあった（MSIがHKLMのRunへ `Kotori Prelauncher` を登録し、`mozc_broker --mode=prelaunch_processes`
+がサーバーを起動、サーバーは起動時に裏でモデルを読み込む）。一方、10分入力がないとモデルを外す既定（ADR0034）が残っており、
+AIの結果を待つ方式（ADR0067）では、外れた後の最初の変換が読み込み直しを待っていた。既定を「外さない」に変えた（ADR0069、
+ag16 401688515）。`KOTORI_LM_IDLE_UNLOAD`（秒）を指定したときだけ外す。
+
+`mozc/tools/first_conversion.py`（session_handler_main、「きょうはいいてんきですね」を打ってSpace、各3回、RTX 3060）。
+変更前は6445相当（notation-native-v1）。放置の場面は、変更前の既定（10分で外す）を `KOTORI_LM_IDLE_UNLOAD=5` と45秒の放置で再現した。
+原票 `target/accuracy-guide/first-conversion-v1/`。
+
+| 場面 | 変更前 Space→候補 | 変更後 |
+| --- | --- | --- |
+| 起動直後（読み込みの途中） | 1940〜1941ms | 1940〜2044ms |
+| 読み込み後 | 512〜513ms | 511〜512ms |
+| 放置後（変更前はモデルを外した後） | 1739〜1840ms（状態 sleep → 読み込み直し） | 511〜512ms（状態 llm のまま） |
+| モデルのないフォルダ（AIが起動できない） | 206ms、Mozcの変換「今日はいい天気ですね」 | 205〜206ms、同じ |
+| llama.dll のないフォルダ | 307〜308ms、同じ | 206ms、同じ |
+
+- AIが使えないときも、待ち続けずにMozcの候補で変換が続く（全試行で漢字に変換、状態は error）。
+- 起動直後の約2秒は、ログイン直後にサーバーが読み込みを終える前に変換した場合の待ち。通常はログイン時に読み込みが進む。
+- 試験: lm_rewriter_test、session_test、kotori_dashboard_test（Qtの bin を PATH に入れて直接実行、5件）合格。
+  bazel test 経由の kotori_dashboard_test はこのPCで Qt の DLL が見つからず起動できない（0xC0000135、変更と無関係）。
+- 常駐の代わりにVRAMを使い続ける（ADR0034の測定で約1.5 GB）。
+
+### (5) 導入検査の後に学習履歴を戻す
+
+`mozc/tools/local_install_check.py` の実入力の段階（verify/clickprobe/browser）は、入力の直前にサーバーを止めて利用者の
+プロファイルを保存し、終わったら成否にかかわらず戻して、全ファイルのSHA一致を `<段階>_profile` として記録する。
+一致しなければ段階を失敗にする。試験 `mozc/tools/test_local_install_check.py`（書き換え・追加・削除・読み取り専用の
+履歴を戻す、失敗した検査でも戻す、不一致を失敗にする）3件合格。サーバーを止めた時点でまだ書き出されていない学習は
+保存に入らない。このPCでの実行はしていない（導入は今回の範囲外）。
