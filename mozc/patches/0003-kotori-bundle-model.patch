@@ -1,9 +1,9 @@
 diff --git a/src/data/kotori/BUILD.bazel b/src/data/kotori/BUILD.bazel
 new file mode 100644
-index 000000000..da2390f10
+index 000000000..9ad496ce6
 --- /dev/null
 +++ b/src/data/kotori/BUILD.bazel
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,66 @@
 +# Kotori: MSI に同梱する物(docs/adr/0016、0017)。モデル(*.gguf)はコミットしないので、ビルドの前に
 +# ここに置く(mozc/README.md)。
 +package(default_visibility = ["//visibility:public"])
@@ -47,6 +47,27 @@ index 000000000..da2390f10
 +    srcs = select({
 +        ":without_short_lexicon": [":empty_short_lexicon"],
 +        "//conditions:default": ["short_lexicon.tsv"],
++    }),
++)
++
++# Kotori: 2024年以降のWikipediaの記事題名から作る固有名詞・新語の辞書(mozc/tools/build_name_lexicon.py)。
++# 開発用の評価で確かめるまでは既定で入れない。trueのときだけ name_lexicon.tsv を辞書へ加える。
++config_setting(
++    name = "with_name_lexicon",
++    define_values = {"asteria_name_lexicon": "true"},
++)
++
++genrule(
++    name = "empty_name_lexicon",
++    outs = ["empty_name_lexicon.tsv"],
++    cmd = "printf '' > $@",
++)
++
++filegroup(
++    name = "name_lexicon_data",
++    srcs = select({
++        ":with_name_lexicon": ["name_lexicon.tsv"],
++        "//conditions:default": [":empty_name_lexicon"],
 +    }),
 +)
 diff --git a/src/data/kotori/LICENSE-GPL-3.0.txt b/src/data/kotori/LICENSE-GPL-3.0.txt
