@@ -25,7 +25,7 @@
 | 技術・専門用語 | 91.0% |
 | 固有名詞・新語 | 80.2% |
 
-目標（短文・文書95%、専門語・固有名詞90%）にはまだ届いていません。Google日本語入力との同条件の比較は未実施です。詳しくは[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/release-v2.1.0-20261023.md)をご覧ください。
+目標（短文・文書95%、専門語・固有名詞90%）にはまだ届いていません。同じPC・同じ打ち方でのGoogle日本語入力（3.34.6260）との比較では、日常の短文500問で457問対434問、前の文で正解が決まる対300問で274問対133問でした。詳しくは[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/release-v2.1.0-20261023.md)をご覧ください。
 
 ### 既知の問題
 
