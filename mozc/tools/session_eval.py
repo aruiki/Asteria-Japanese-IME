@@ -36,6 +36,8 @@ def main():
     ap.add_argument("--models", default=str(P / "target/accuracy-guide/short-word-package-check-v7/payload/ext/PFiles/Kotori"))
     ap.add_argument("--warm", type=float, default=15)
     ap.add_argument("--n", type=int, default=0)
+    ap.add_argument("--config", action="append", default=[],
+                    help="セッション開始時に設定する項目 名前=値(例: kotori_lm_quality=KOTORI_LM_UNREAL)")
     ap.add_argument("--immediate-space", action="store_true",
                     help="打ち終わってすぐSpaceを押す(取り直しの予約を待たない。速く打つ人やimebenchと同じ)")
     args, extra = ap.parse_known_args()
@@ -78,6 +80,10 @@ def main():
             body = re.split(r"\n\w+ \{", text.split("preedit {", 1)[1], maxsplit=1)[0]
             return "".join(re.findall(r'^\s+value: "([^"\n]*)"', body, re.M))
 
+        for item in args.config:
+            # 設定画面の項目をこのセッションだけ変える(品質の比較など)。モデルの読み込みより前に送る。
+            name, value = item.split("=", 1)
+            send("SET_CONFIG\t" + name + "\t" + value)
         send("SEND_KEY\tON\nSEND_KEYS\tai")
         time.sleep(args.warm)
         send("SEND_KEY\tESC")
@@ -103,6 +109,9 @@ def main():
                     break
                 time.sleep(delay / 1000)
                 text = send("KOTORI_REFRESH")
+            # Spaceから候補が表示されるまで。製品のTIPと同じく、サーバーが返す間隔で取り直しを送る
+            # ので、AIの結果を待つ時間も含めて実際のIMEと同じ粒度で測れる。
+            space_sent = time.monotonic()
             text = send("SEND_KEY_WITH_OPTION\tSpace\t" + option if context else "SEND_KEY\tSpace")
             space_ms = (time.monotonic() - started) * 1000
             waited = 0
@@ -110,17 +119,22 @@ def main():
                 time.sleep(callback_ms(text) / 1000)
                 text = send("KOTORI_REFRESH")
                 waited += 1
+            space_to_candidate_ms = (time.monotonic() - space_sent) * 1000
             top1 = preedit(text)
             rows.append(dict(index=it["index"], input=it["input"], context_text=it.get("context_text", ""),
                              top1=top1, expected=it["expected_output"], ok=top1 in it["expected_output"],
-                             refreshes_after_space=waited, ms=round((time.monotonic() - started) * 1000, 1)))
+                             refreshes_after_space=waited, space_to_candidate_ms=round(space_to_candidate_ms, 1),
+                             ms=round((time.monotonic() - started) * 1000, 1)))
             send("SEND_KEY\tESC")
             send("SEND_KEY\tESC")
         p.stdin.close()
         p.wait(timeout=60)
     Path(args.out).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     scored = [r for r in rows if not r.get("skipped")]
-    print(f"{args.data}: {sum(r['ok'] for r in scored)}/{len(scored)} (skipped {len(rows) - len(scored)})")
+    times = sorted(r["space_to_candidate_ms"] for r in scored)
+    p95 = times[max(0, -(-len(times) * 95 // 100) - 1)] if times else 0
+    print(f"{args.data}: {sum(r['ok'] for r in scored)}/{len(scored)} (skipped {len(rows) - len(scored)}) "
+          f"Space→候補 中央値 {times[len(times) // 2] if times else 0:.0f}ms p95 {p95:.0f}ms 最大 {times[-1] if times else 0:.0f}ms")
 
 
 if __name__ == "__main__":

@@ -177,3 +177,34 @@ MSI内の同梱を確認。作り直し後の確認: MSI内のmozc_server.exeの
 
 未検証: 候補のクリック選択（環境要因）、Officeなど他のアプリ、低性能PC、保護欄内部、再起動後の状態、
 Google日本語入力との同条件比較、GitHub CIと公開後の資産照合（GitHub停止中）。
+
+## 次の改善の検証（2026-10-23、開発用セット）
+
+### (0) Spaceから候補表示までの時間の基準
+
+`mozc/tools/session_eval.py` に、Spaceを送ってからAIの結果が届いて候補が表示されるまで（サーバーが返す間隔で
+KOTORI_REFRESHを送る、製品のTIPと同じ取り方）の時間を記録する機能を足した。6445相当のsession_handler_main
+（notation-native-v1）、6445のモデル、RTX 3060。原票 `target/accuracy-guide/eval-sets-v2/results/latency-6445/`。
+
+| 打ち方 | セット | 正解 | 中央値 | p95 | 最大 |
+| --- | --- | --- | --- | --- | --- |
+| 打ち終わって取り直しを待ってからSpace | short-dev | 231/300 | 4ms | 425ms | 946ms |
+| 同上 | doc-dev（前文あり） | 252/300 | 104ms | 543ms | 1074ms |
+| 打ち終わってすぐSpace（--immediate-space） | short-dev | 231/300 | 617ms | 1024ms | 1257ms |
+| 同上 | doc-dev（前文あり） | 252/300 | 664ms | 1163ms | 1712ms |
+
+**6445自体がp95 150msの基準を満たしていない。** 入力中に先に計算が終われば待ちはほぼないが、すぐSpaceを押すと
+AIの生成・採点の時間（中央値約0.6秒）がそのまま待ちになる。
+
+### (1) 大きいモデルの比較
+
+- Unreal（zenz-v2.5-medium、同梱済み、`--config kotori_lm_quality=KOTORI_LM_UNREAL`）: short-dev 231/300
+  （6445と第一候補の違い0件）、doc-dev 254/300（違い5件、改善2・悪化0）。Space→候補 p95 は short 524ms、
+  doc 731ms（6445の 425ms / 543ms より遅い）。原票 `results/latency-unreal/`。**不採用**: p95が150msを超え、
+  6445より遅い。精度の差は+2問（doc）で判定用セットへ進める根拠にならない。
+- 公開の日本語LLM（候補: sarashina2.2-3b-instruct MIT 1.92〜2.24 GiB、Qwen2.5-7B-Instruct Apache-2.0 4.36 GiB）:
+  **取得せず不採用**。現在のTinySwallow-1.5Bでもp95が150msを超えており、より大きいモデルは処理時間が増えるため
+  基準を満たす見込みがない。加えて、MSIの上限（check_releaseの1.8 GiB、GitHubの1ファイル2 GiB）に収まらず、
+  単一のインストーラーで配布できない。
+- 結論: 品質の既定値と選択肢は6445のまま。速度の150ms基準は、AIの結果を待って候補を出す現在の方式と
+  両立しておらず、先読みの開始を早める・生成の手順を減らすなどの速度改善を別課題とする。
