@@ -28,26 +28,31 @@ def run(command, timeout=180):
 def msi_property(msi, name):
     # MSI のファイルパスを /x に渡すと、Windows Installer が再び媒体を
     # 開こうとして時間がかかることがある。ProductCodeで削除する。
-    script = ("$wi=New-Object -ComObject WindowsInstaller.Installer;"
+    # 製品名などの日本語を壊さないよう、UTF-8 で受け取る。
+    script = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+              "$wi=New-Object -ComObject WindowsInstaller.Installer;"
               "$db=$wi.GetType().InvokeMember('OpenDatabase','InvokeMethod',$null,$wi,@('"
               + str(msi).replace("'", "''") + "',0));"
               "$v=$db.OpenView(\"SELECT Value FROM Property WHERE Property='"
               + name + "'\");$v.Execute();$r=$v.Fetch();$r.StringData(1)")
     p = subprocess.run(["powershell", "-NoProfile", "-Command", script],
-                       capture_output=True, text=True, check=True, timeout=30)
+                       capture_output=True, text=True, encoding="utf-8", check=True, timeout=30)
     value = p.stdout.strip()
     if not value:
         raise RuntimeError(f"MSIの{name}が空です")
     return value
 
 
-def run_msi(arguments, log):
-    """ランナーが停止しても原因の手掛かりが残るようMSIの段階を逐次記録する。"""
+def run_msi(arguments, log, ui=False):
+    """ランナーが停止しても原因の手掛かりが残るようMSIの段階を逐次記録する。
+
+    ui=True では利用者と同じ画面で動かす(画面の数を数える。docs/adr/0072)。オプションを
+    付けないので、Restart Manager の扱いや再起動の確認は MSI 自身の設定に従う。
+    """
     # CIのホストもTIPを読み込み得るため、Restart Managerにホスト終了を依頼しない。
     # 使用中ファイルの削除失敗・再起動要求は通常どおり結果に記録する。
-    process = subprocess.Popen(["msiexec", *arguments, "/qn", "/norestart",
-                                "MSIRESTARTMANAGERCONTROL=Disable",
-                                "/L*vx!", str(log)])
+    options = [] if ui else ["/qn", "/norestart", "MSIRESTARTMANAGERCONTROL=Disable"]
+    process = subprocess.Popen(["msiexec", *arguments, *options, "/L*vx!", str(log)])
     start = time.monotonic()
     offset = 0
     try:
@@ -64,13 +69,25 @@ def run_msi(arguments, log):
             code = process.poll()
             if code is not None:
                 return code
-            if time.monotonic() - start > 300:
-                raise subprocess.TimeoutExpired("msiexec", 300)
+            limit = 1800 if ui else 300  # 画面では利用者の操作を待つ
+            if time.monotonic() - start > limit:
+                raise subprocess.TimeoutExpired("msiexec", limit)
             time.sleep(1)
     finally:
         if process.poll() is None:
             process.terminate()
             process.wait(timeout=15)
+
+
+def msi_dialogs(log):
+    """画面つきの MSI のログから、表示された画面の名前を順に返す。"""
+    names = []
+    text = log.read_text(encoding="utf-16", errors="replace") if log.exists() else ""
+    for line in text.splitlines():
+        # 例: "Action 13:20:01: AsteriaInstallDlg. Dialog created"
+        if line.rstrip().endswith("Dialog created"):
+            names.append(line.rsplit(":", 1)[-1].strip().split(".")[0])
+    return names
 
 
 def stop_installed_processes(install):

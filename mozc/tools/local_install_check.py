@@ -208,12 +208,15 @@ def install(args):
     msi = Path(r.state["msi"]["candidate"]["path"])
     if sha256(msi) != r.state["msi"]["candidate"]["sha256"]:
         raise RuntimeError("候補MSIがprecheck後に変わりました")
-    code = smoke.run_msi(["/i", str(msi)], r.out / "install.log")
+    log = r.out / "install.log"
+    code = smoke.run_msi(["/i", str(msi)], log, ui=args.ui)
+    # 画面つきでは、表示された画面と使用中ファイル・再起動の確認を数える(docs/adr/0072)。
+    screens = dict(ui=args.ui, dialogs=smoke.msi_dialogs(log)) if args.ui else dict(ui=False)
     if code not in (0, 3010):
-        r.save("install_failed", install_exit=code)
+        r.save("install_failed", install_exit=code, **screens)
         raise RuntimeError(f"導入の終了コード: {code}")
     r.save("install", install_exit=code, install_reboot_required=code == 3010,
-           products_after_install=installed_products())
+           products_after_install=installed_products(), **screens)
 
 
 def verify(args):
@@ -391,6 +394,8 @@ def main():
     ap.add_argument("--restore-profile", action="store_true", help="rollbackで導入直前のプロファイルへ戻す")
     ap.add_argument("--skip-click", action="store_true", help="verify/browserで候補クリック試験を未検証として残す")
     ap.add_argument("--python", help="browser段階でplaywrightを入れたPython")
+    ap.add_argument("--ui", action="store_true",
+                    help="installを利用者と同じ画面で行い、表示された画面を数える")
     args = ap.parse_args()
     if sys.platform != "win32":
         raise RuntimeError("Windows専用です")
