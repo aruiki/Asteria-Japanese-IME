@@ -96,7 +96,8 @@ def restore_profile(snapshot):
     if PROFILE.is_dir():
         for path in PROFILE.rglob("*"):
             if path.is_file() and not is_runtime(path):
-                os.chmod(path, stat.S_IWRITE)  # 隠し・読み取り専用の履歴ファイルも消せるように
+                # 読み取り専用の履歴ファイルも消せるように(POSIX では読み取りの許可も残す)
+                os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
                 path.unlink()
     shutil.copytree(snapshot, PROFILE, dirs_exist_ok=True)
 

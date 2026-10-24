@@ -31,12 +31,12 @@ class ProfileRestoreTest(unittest.TestCase):
     def tearDown(self):
         for path in Path(self.tmp.name).rglob("*"):
             if path.is_file():
-                os.chmod(path, stat.S_IWRITE)
+                os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
         self.tmp.cleanup()
 
     def learn(self):
         # 検査中の入力: 履歴の書き換え、新しいファイル、ファイルの削除。
-        os.chmod(self.profile / "history.db", stat.S_IWRITE)
+        os.chmod(self.profile / "history.db", stat.S_IREAD | stat.S_IWRITE)
         (self.profile / "history.db").write_bytes(b"user history + nihongo + toukyou")
         (self.profile / "new_learning.db").write_bytes(b"learned")
         (self.profile / "sub" / "segment.db").unlink()
