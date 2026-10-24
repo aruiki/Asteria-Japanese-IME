@@ -146,13 +146,23 @@ sealed partial class Acceptance {
       {"trials", rows}
     };
     report["duplicate_stress"] = summary;
+    // 利用者の実PCでは、合成クリックで前面窓が外れる環境がある（無関係な対照窓でも再現）。
+    // そのPCに限り、クリック試験を合格扱いにせず「未検証」として残し、他の試験を続ける。
+    bool skipClick = Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved" &&
+        Environment.GetEnvironmentVariable("KOTORI_SKIP_CLICK") == "environment";
+    summary["click_skipped"] = skipClick;
     var edits = new ImeObservation[] {a, r};
     for (int i = 0; i < edits.Length; i++) {
       string host = i == 0 ? "EDIT" : "RichEdit";
       foreach (int delay in new int[] {0, 30, 250})
         foreach (string mode in new string[] {"space_enter", "enter", "down_enter", "focus"})
           DuplicateTrial(edits[i], host, mode, delay, rows);
-      DuplicateTrial(edits[i], host, "click", 0, rows);
+      if (skipClick)
+        rows.Add(new Dictionary<string, object> {
+          {"host", host}, {"mode", "click"}, {"space_to_action_ms", 0}, {"passed", false},
+          {"skipped", "synthetic clicks drop the foreground window on this PC, including an unrelated control window"}
+        });
+      else DuplicateTrial(edits[i], host, "click", 0, rows);
       IntentionalRepeat(edits[i], host, rows);
     }
     Require(rows.Count == 28, "Incomplete duplicate stress suite");

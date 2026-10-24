@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "tag": "data-short-lexicon-20261022",
+  "entries": 115318,
+  "sudachi_commit": "830bf9e1313f6f75235ba87ee041e144dbcad8c1",
+  "frequency_data_sha256": "8c0be0cf3ec4e3f5474b3c96395faf49d74a92c6ba264319b119014c571e40f4",
+  "license": "CC-BY-SA-4.0 frequency-derived selection; SudachiDict Apache-2.0 and upstream notices retained",
+  "candidate": "v4, frozen before final heldout reporting",
+  "generation_record": "short_lexicon.json describes the original experiment; product_adopted=false is retained as generation-time provenance",
+  "files": [
+    {
+      "name": "short_lexicon.tsv",
+      "bytes": 6015979,
+      "sha256": "2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b",
+      "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/short_lexicon.tsv"
+    },
+    {
+      "name": "short_lexicon.json",
+      "bytes": 4037,
+      "sha256": "28a097c09e960939aec029c65872e4aa8624233c6f72d274567ea731d3b8a3ce",
+      "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/short_lexicon.json"
+    },
+    {
+      "name": "NOTICE-short-lexicon.txt",
+      "bytes": 18574,
+      "sha256": "9b4133cdf29bee4136140da9bd2b890f7f5736dce36b7ec6f941e45f26b33678",
+      "url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/data-short-lexicon-20261022/NOTICE-short-lexicon.txt"
+    }
+  ]
+}

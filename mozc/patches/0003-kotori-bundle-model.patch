@@ -1,14 +1,17 @@
 diff --git a/src/data/kotori/BUILD.bazel b/src/data/kotori/BUILD.bazel
 new file mode 100644
-index 000000000..5442c7fb2
+index 000000000..9ad496ce6
 --- /dev/null
 +++ b/src/data/kotori/BUILD.bazel
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,66 @@
 +# Kotori: MSI に同梱する物(docs/adr/0016、0017)。モデル(*.gguf)はコミットしないので、ビルドの前に
 +# ここに置く(mozc/README.md)。
 +package(default_visibility = ["//visibility:public"])
 +
 +exports_files([
++    "short_lexicon.tsv",
++    "short_lexicon.json",
++    "NOTICE-short-lexicon.txt",
 +    "fast_collocations.txt",
 +    "fast_collocations.json",
 +    "NOTICE-fast-collocations.txt",
@@ -26,6 +29,47 @@ index 000000000..5442c7fb2
 +    "banner.bmp",
 +    "dialog.bmp",
 +])
++
++# Kotori: 最終比較した公開語彙を既定の辞書へ加える。falseは回帰比較専用。
++config_setting(
++    name = "without_short_lexicon",
++    define_values = {"asteria_short_lexicon": "false"},
++)
++
++genrule(
++    name = "empty_short_lexicon",
++    outs = ["empty_short_lexicon.tsv"],
++    cmd = "printf '' > $@",
++)
++
++filegroup(
++    name = "short_lexicon_data",
++    srcs = select({
++        ":without_short_lexicon": [":empty_short_lexicon"],
++        "//conditions:default": ["short_lexicon.tsv"],
++    }),
++)
++
++# Kotori: 2024年以降のWikipediaの記事題名から作る固有名詞・新語の辞書(mozc/tools/build_name_lexicon.py)。
++# 開発用の評価で確かめるまでは既定で入れない。trueのときだけ name_lexicon.tsv を辞書へ加える。
++config_setting(
++    name = "with_name_lexicon",
++    define_values = {"asteria_name_lexicon": "true"},
++)
++
++genrule(
++    name = "empty_name_lexicon",
++    outs = ["empty_name_lexicon.tsv"],
++    cmd = "printf '' > $@",
++)
++
++filegroup(
++    name = "name_lexicon_data",
++    srcs = select({
++        ":with_name_lexicon": ["name_lexicon.tsv"],
++        "//conditions:default": [":empty_name_lexicon"],
++    }),
++)
 diff --git a/src/data/kotori/LICENSE-GPL-3.0.txt b/src/data/kotori/LICENSE-GPL-3.0.txt
 new file mode 100644
 index 000000000..94a9ed024
@@ -1075,10 +1119,10 @@ index 000000000..990756638
 +==============================================================================
 diff --git a/src/data/kotori/NOTICE-third-party.txt b/src/data/kotori/NOTICE-third-party.txt
 new file mode 100644
-index 000000000..ad4e1c961
+index 000000000..04f30631a
 --- /dev/null
 +++ b/src/data/kotori/NOTICE-third-party.txt
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,63 @@
 +Asteria日本語入力に同梱している第三者のソフトウェア
 +
 +この PC のインストール先(C:\Program Files (x86)\Kotori)にあるファイルと、そのライセンスの一覧です。
@@ -1109,6 +1153,14 @@ index 000000000..ad4e1c961
 +  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。
 +  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。
 +
++■ 短文の追加語彙(short_lexicon.tsv)
++  SudachiDict 20261015、Works Applications Co., Ltd.、Apache-2.0。
++  UniDic・NEologd等の全帰属・ライセンス全文はNOTICE-short-lexicon.txt。
++  名詞をMozcの品詞・共通語彙コストへ対応し、既存の読み/表記を上書きしない。
++  全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0。
++  Wikipedia日本語版の執筆者、Keita Miwa / zenz-v2.5-dataset。
++  加工済みTSVと固定生成記録short_lexicon.jsonを同梱する。
++
 +■ 初期変換の追加連語(fast_collocations.txt)
 +  CC BY-SA 4.0、Wikipedia日本語版の執筆者、Keita Miwa。
 +  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。
@@ -1127,6 +1179,13 @@ index 000000000..ad4e1c961
 +
 +■ Microsoft Visual C++ ランタイム(vcruntime140*.dll、msvcp140*.dll)
 +  Microsoft Visual Studio のライセンスで再配布が認められたもの。
++
++■ 日常表記の使用比率(rewriter/kotori_notation_table.inc)
++  変換候補の表記(良い/いい 等)を、日常の文章でよく使われる方へ寄せるための語の組と使用比率。
++  次の対話コーパスの評価用開発分割だけから、SudachiPyで数えた統計値を含む。
++  - RealPersonaChat 1.0.0 (nu-dialogue) — CC BY-SA 4.0 — https://github.com/nu-dialogue/real-persona-chat
++  - JMultiWOZ 1.0 (nu-dialogue) — CC BY-SA 4.0 — https://github.com/nu-dialogue/jmultiwoz
++  生成手順: Asteriaの mozc/tools/build_kana_preference.py と gen_notation_table.py。
 diff --git a/src/data/kotori/NOTICE-tinyswallow.txt b/src/data/kotori/NOTICE-tinyswallow.txt
 new file mode 100644
 index 000000000..2ed822c00
@@ -1917,10 +1976,10 @@ HcmV?d00001
 
 diff --git a/src/data/kotori/license.rtf b/src/data/kotori/license.rtf
 new file mode 100644
-index 000000000..768d76123
+index 000000000..f13e62a41
 --- /dev/null
 +++ b/src/data/kotori/license.rtf
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +{\rtf1\ansi\ansicpg932\deff0{\fonttbl{\f0\fnil\fcharset128 Yu Gothic UI;}}\viewkind4\uc1\pard\f0\fs18 Asteria\u26085?\u26412?\u-30050?\u20837?\u21147? \u20351?\u29992?\u-30159?\u-29954?\u12392?\u31532?\u19977?\u-32763?\u12477?\u12501?\u12488?\u12454?\u12455?\u12450?\u12398?\u-30616?\u31034?\par
 +\par
 +Asteria\u26085?\u26412?\u-30050?\u20837?\u21147?(\u20197?\u19979? Asteria)\u12399? Mozc(Copyright 2010-2026 Google Inc.\u12289?BSD-3-Clause)\u12434?\u25913?\u22793?\u12375?\u12383?\u26085?\u26412?\u-30050?\u20837?\u21147?\u12391?\u12377?\u12290?Asteria \u12399? Google \u12364?\u25552?\u20379?\u12539?\u25512?\u22888?\u12377?\u12427?\u12418?\u12398?\u12391?\u12399?\u12354?\u12426?\u12414?\u12379?\u12435?\u12290?Asteria \u29420?\u-32278?\u12398?\u25913?\u22793?\u-28440?\u20998?\u12418? BSD-3-Clause \u12391?\u25552?\u20379?\u12375?\u12414?\u12377?\u12290?\par
@@ -1939,6 +1998,7 @@ index 000000000..768d76123
 +\u12539?\u12459?\u12479?\u12459?\u12490?\u-32015?\u-30050?\u-28770?\u26360?: CC BY-SA 3.0(\u12459?\u12479?\u12459?\u12490?\u-30050?\u-32015?\u23383?\u-28770?\u20856?\u12467?\u12511?\u12517?\u12491?\u12486?\u12451?\u12289?KEINOS\u12289?EDICT/EDRDG)\u12290?\u21152?\u24037?\u28168?\u12415?\u12487?\u12540?\u12479?\u12392?\u20986?\u25152?\u12399? KotoriEnglish.tsv\u12289?KotoriEnglish-source.json\u12289?NOTICE-katakana-english.txt\par
 +\u12539?\u21021?\u26399?\u22793?\u25563?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: CC BY-SA 4.0(Wikipedia\u26085?\u26412?\u-30050?\u29256?\u12398?\u22519?\u31558?\u-32763?\u12289?Keita Miwa)\u12290?\u30701?\u12356?\u-28637?\u-30050?\u12408?\u21152?\u24037?\u12290?\u20803?\u12398?Mozc40\u20214?\u12399?BSD-3-Clause\u12290?\u20986?\u20856?\u12392?\u22793?\u26356?\u20869?\u23481?\u12399? NOTICE-fast-collocations.txt\par
 +\u12539?\u29992?\u20363?\u30001?\u26469?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: Japanese Usage Dictionary\u12289?BSD-2-Clause(Hiroyuki Komatsu\u12289?Shoji Ogura\u12289?Tsuyoshi Horo)\u12290?\u24341?\u29992?\u20363?\u12398?\u25277?\u20986?\u12539?\u26411?\u23614?\u12398?\u27963?\u29992?\u23637?\u-27253?\u12290?\u24112?\u23646?\u12392?\u20840?\u25991?\u12399? NOTICE-fast-collocations.txt\par
++\u12539?\u30701?\u25991?\u12398?\u-28675?\u21152?\u-30050?\u24409?: SudachiDict 20261015\u12289?Apache-2.0\u12290?UniDic\u12539?NEologd\u31561?\u12398?\u20840?\u24112?\u23646?\u12392?\u20840?\u25991?\u12399?NOTICE-short-lexicon.txt\u12290?\u20840?\u-28209?Wikipedia\u-26565?\u24230?\u12395?\u12424?\u12427?\u-28552?\u25246?\u12539?\u12467?\u12473?\u12488?\u21152?\u24037?\u12399?CC BY-SA 4.0(Wikipedia\u26085?\u26412?\u-30050?\u29256?\u12398?\u22519?\u31558?\u-32763?\u12289?Keita Miwa)\u12290?\u21152?\u24037?TSV\u12392?\u29983?\u25104?\u-30184?\u-27854?\u12434?\u21516?\u26801?\par
 +\u12539?Microsoft Visual C++ \u12521?\u12531?\u12479?\u12452?\u12512?: Microsoft \u12398?\u12521?\u12452?\u12475?\u12531?\u12473?\par
 +\par
 +\u21508?\u12521?\u12452?\u12475?\u12531?\u12473?\u12398?\u20869?\u23481?\u12539?\u21442?\u29031?\u20808?\u12392?\u24112?\u23646?\u-30616?\u31034?\u12399?\u12289?\u12452?\u12531?\u12473?\u12488?\u12540?\u12523?\u20808?(C:\\Program Files (x86)\\Kotori)\u12398? NOTICE-*.txt \u12392? documents \u12501?\u12457?\u12523?\u12480?\u12395?\u12354?\u12426?\u12414?\u12377?\u12290?\par
@@ -1970,7 +2030,7 @@ index 000000000..a88d2c1a9
 +  "source_model": "Miwa-Keita/zenz-v2.5-small"
 +}
 diff --git a/src/win32/installer/BUILD.bazel b/src/win32/installer/BUILD.bazel
-index 1c31b5159..e80f1d5b6 100644
+index 1c31b5159..3e81a3691 100644
 --- a/src/win32/installer/BUILD.bazel
 +++ b/src/win32/installer/BUILD.bazel
 @@ -56,6 +56,7 @@ mozc_py_binary(
@@ -1989,7 +2049,7 @@ index 1c31b5159..e80f1d5b6 100644
          "//gui/tool:mozc_tool_win",
          "//renderer/win32:win32_renderer_main",
          "//server:mozc_server_win",
-@@ -93,6 +95,33 @@ genrule(
+@@ -93,6 +95,36 @@ genrule(
          "//base:mozc_version_txt",
          "//data/images/win:product_icon.ico",
          "//data/installer:credits_en.html",
@@ -2000,6 +2060,9 @@ index 1c31b5159..e80f1d5b6 100644
 +        "//data/kotori:zenz-v2.5-small-q8_0.gguf",
 +        "//data/kotori:zenz-v2.5-native-generator-20261017-q8_0.gguf",
 +        "//data/kotori:native_generator.json",
++        "//data/kotori:short_lexicon.tsv",
++        "//data/kotori:short_lexicon.json",
++        "//data/kotori:NOTICE-short-lexicon.txt",
 +        "//data/kotori:fast_collocations.txt",
 +        "//data/kotori:fast_collocations.json",
 +        "//data/kotori:NOTICE-fast-collocations.txt",
@@ -2023,13 +2086,16 @@ index 1c31b5159..e80f1d5b6 100644
          "@qt_win//:bin/Qt6Core.dll",
          "@wix//:wix.exe",
      ] + select({
-@@ -117,6 +146,26 @@ genrule(
+@@ -117,6 +149,29 @@ genrule(
          "--custom_action=$(location //win32/custom_action)",
          "--icon_path=$(location //data/images/win:product_icon.ico)",
          "--credit_file=$(location //data/installer:credits_en.html)",
 +        "--zenz_model=$(location //data/kotori:zenz-v2.5-small-q8_0.gguf)",
 +        "--zenz_generator=$(location //data/kotori:zenz-v2.5-native-generator-20261017-q8_0.gguf)",
 +        "--generator_manifest=$(location //data/kotori:native_generator.json)",
++        "--short_lexicon=$(location //data/kotori:short_lexicon.tsv)",
++        "--short_lexicon_manifest=$(location //data/kotori:short_lexicon.json)",
++        "--short_lexicon_notice=$(location //data/kotori:NOTICE-short-lexicon.txt)",
 +        "--collocations=$(location //data/kotori:fast_collocations.txt)",
 +        "--collocations_manifest=$(location //data/kotori:fast_collocations.json)",
 +        "--collocations_notice=$(location //data/kotori:NOTICE-fast-collocations.txt)",
@@ -2063,16 +2129,19 @@ index 000000000..cb12e3fc0
 +  <String Id="ProgressDlgTextUpdating" Value="Asteriaを更新しています。完了までそのままお待ちください。" />
 +</WixLocalization>
 diff --git a/src/win32/installer/build_installer.py b/src/win32/installer/build_installer.py
-index c2e71a077..2a8ca9226 100644
+index c2e71a077..8e5199b57 100644
 --- a/src/win32/installer/build_installer.py
 +++ b/src/win32/installer/build_installer.py
-@@ -154,6 +154,30 @@ def run_wix4(args) -> None:
+@@ -154,6 +154,33 @@ def run_wix4(args) -> None:
        '-define', f'MozcTIP64Path={mozc_tip64}',
        '-define', f'MozcBroker64Path={mozc_broker}',
        '-define', f'MozcServer64Path={mozc_server}',
 +      '-define', f'KotoriZenzModelPath={pathlib.Path(args.zenz_model).resolve()}',
 +      '-define', f'KotoriZenzGeneratorPath={pathlib.Path(args.zenz_generator).resolve()}',
 +      '-define', f'KotoriGeneratorManifestPath={pathlib.Path(args.generator_manifest).resolve()}',
++      '-define', f'KotoriShortLexiconPath={pathlib.Path(args.short_lexicon).resolve()}',
++      '-define', f'KotoriShortLexiconManifestPath={pathlib.Path(args.short_lexicon_manifest).resolve()}',
++      '-define', f'KotoriShortLexiconNoticePath={pathlib.Path(args.short_lexicon_notice).resolve()}',
 +      '-define', f'KotoriCollocationsPath={pathlib.Path(args.collocations).resolve()}',
 +      '-define', f'KotoriCollocationsManifestPath={pathlib.Path(args.collocations_manifest).resolve()}',
 +      '-define', f'KotoriCollocationsNoticePath={pathlib.Path(args.collocations_notice).resolve()}',
@@ -2097,7 +2166,7 @@ index c2e71a077..2a8ca9226 100644
        '-define', f'MozcCacheService64Path={mozc_cache_service}',
        '-define', f'MozcRenderer64Path={mozc_renderer}',
        '-define', f'MozcToolPath={mozc_tool}',
-@@ -176,6 +200,49 @@ def run_wix4(args) -> None:
+@@ -176,6 +203,66 @@ def run_wix4(args) -> None:
    exec_command(commands, cwd=os.getcwd())
  
  
@@ -2110,6 +2179,23 @@ index c2e71a077..2a8ca9226 100644
 +    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
 +  if pathlib.Path(model).name != identity['filename'] or digest != identity['sha256']:
 +    raise ValueError('追加生成モデルの名前またはSHA-256が評価対象と一致しません')
++
++
++def verify_short_lexicon(data_path, manifest, notice_path):
++  # Kotori: 辞書・manifest・帰属を同時に差し替えても固定候補とは認めない。
++  import hashlib
++  import json
++  expected = (('short_lexicon.tsv', '2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b'), ('short_lexicon.json', '28a097c09e960939aec029c65872e4aa8624233c6f72d274567ea731d3b8a3ce'), ('NOTICE-short-lexicon.txt', '9b4133cdf29bee4136140da9bd2b890f7f5736dce36b7ec6f941e45f26b33678'))
++  for path, (name, digest) in zip((data_path, manifest, notice_path), expected):
++    path = pathlib.Path(path)
++    if path.name != name or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
++      raise ValueError('短文語彙の名前または固定SHAが一致しません: ' + name)
++  metadata = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
++  if (metadata['output_entries'] != 115318 or
++      metadata['evaluation_labels_used'] is not False or
++      metadata['sha256'] != expected[0][1] or
++      len(pathlib.Path(data_path).read_bytes().splitlines()) != 115318):
++    raise ValueError('短文語彙の件数・評価参照未使用・SHAが不一致です')
 +
 +
 +def verify_collocations(data_path, manifest, notice_path):
@@ -2147,13 +2233,16 @@ index c2e71a077..2a8ca9226 100644
  def main():
    parser = argparse.ArgumentParser()
    parser.add_argument('--output', type=str)
-@@ -192,6 +259,20 @@ def main():
+@@ -192,6 +279,23 @@ def main():
    parser.add_argument('--custom_action', type=str)
    parser.add_argument('--icon_path', type=str)
    parser.add_argument('--credit_file', type=str)
 +  parser.add_argument('--zenz_model', type=str)
 +  parser.add_argument('--zenz_generator', type=str, required=True)
 +  parser.add_argument('--generator_manifest', type=str, required=True)
++  parser.add_argument('--short_lexicon', type=str, required=True)
++  parser.add_argument('--short_lexicon_manifest', type=str, required=True)
++  parser.add_argument('--short_lexicon_notice', type=str, required=True)
 +  parser.add_argument('--collocations', type=str, required=True)
 +  parser.add_argument('--collocations_manifest', type=str, required=True)
 +  parser.add_argument('--collocations_notice', type=str, required=True)
@@ -2168,17 +2257,18 @@ index c2e71a077..2a8ca9226 100644
    parser.add_argument('--qt_core_dll', type=str)
    parser.add_argument('--wxs_path', type=str)
    parser.add_argument('--wix_path', type=str)
-@@ -220,6 +301,8 @@ def main():
+@@ -220,6 +324,9 @@ def main():
  
    args = parser.parse_args()
  
 +  verify_generator(args.zenz_generator, args.generator_manifest)
++  verify_short_lexicon(args.short_lexicon, args.short_lexicon_manifest, args.short_lexicon_notice)
 +  verify_collocations(args.collocations, args.collocations_manifest, args.collocations_notice)
    run_wix4(args)
  
  
 diff --git a/src/win32/installer/installer_oss_64bit.wxs b/src/win32/installer/installer_oss_64bit.wxs
-index e30c37ad4..6b5d52130 100644
+index e30c37ad4..9522af9c7 100644
 --- a/src/win32/installer/installer_oss_64bit.wxs
 +++ b/src/win32/installer/installer_oss_64bit.wxs
 @@ -48,7 +48,7 @@
@@ -2256,13 +2346,16 @@ index e30c37ad4..6b5d52130 100644
        <ComponentRef Id="MozcTIP32" />
        <ComponentRef Id="MozcTIP64" />
        <?if $(var.MozcTIP64ArmPath) != "" and $(var.MozcTIP64XPath) != "" ?>
-@@ -148,6 +167,26 @@
+@@ -148,6 +167,29 @@
        <?endif?>
        <ComponentRef Id="MozcBroker" />
        <ComponentRef Id="MozcConverter" />
 +      <ComponentRef Id="KotoriZenzModel" />
 +      <ComponentRef Id="KotoriZenzGenerator" />
 +      <ComponentRef Id="KotoriGeneratorManifest" />
++      <ComponentRef Id="KotoriShortLexicon" />
++      <ComponentRef Id="KotoriShortLexiconManifest" />
++      <ComponentRef Id="KotoriShortLexiconNotice" />
 +      <ComponentRef Id="KotoriCollocations" />
 +      <ComponentRef Id="KotoriCollocationsManifest" />
 +      <ComponentRef Id="KotoriCollocationsNotice" />
@@ -2283,7 +2376,7 @@ index e30c37ad4..6b5d52130 100644
        <ComponentRef Id="MozcCacheService" />
        <ComponentRef Id="MozcRenderer" />
        <ComponentRef Id="MozcTool" />
-@@ -242,6 +281,61 @@
+@@ -242,6 +284,71 @@
  
      <StandardDirectory Id="ProgramFilesFolder">
        <Directory Id="MozcDir" Name="Kotori">
@@ -2297,6 +2390,16 @@ index e30c37ad4..6b5d52130 100644
 +        <!-- Kotori: 追加生成だけに使う学習済みモデルと固定情報。 -->
 +        <Component Id="KotoriZenzGenerator">
 +          <File Id="zenz_generator.gguf" Name="zenz-v2.5-native-generator-20261017-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.KotoriZenzGeneratorPath)" Vital="yes" />
++        </Component>
++        <!-- Kotori: コンパイルした追加語彙と同じTSV・出典・全帰属を提供する。 -->
++        <Component Id="KotoriShortLexicon">
++          <File Id="short_lexicon.tsv" Name="short_lexicon.tsv" DiskId="1" Source="$(var.KotoriShortLexiconPath)" Vital="yes" />
++        </Component>
++        <Component Id="KotoriShortLexiconManifest">
++          <File Id="short_lexicon.json" Name="short_lexicon.json" DiskId="1" Source="$(var.KotoriShortLexiconManifestPath)" Vital="yes" />
++        </Component>
++        <Component Id="KotoriShortLexiconNotice">
++          <File Id="NOTICE_short_lexicon.txt" Name="NOTICE-short-lexicon.txt" DiskId="1" Source="$(var.KotoriShortLexiconNoticePath)" Vital="yes" />
 +        </Component>
 +        <Component Id="KotoriCollocations">
 +          <File Id="fast_collocations.txt" Name="fast_collocations.txt" DiskId="1" Source="$(var.KotoriCollocationsPath)" Vital="yes" />
@@ -2345,7 +2448,7 @@ index e30c37ad4..6b5d52130 100644
          <Component Id="MozcConverter">
            <File Id="mozc_server.exe" Name="mozc_server.exe" DiskId="1" Checksum="yes" Source="$(var.MozcServer64Path)" Vital="yes" />
          </Component>
-@@ -381,5 +475,45 @@
+@@ -381,5 +488,45 @@
      <Component Id="PrelaunchProcesses" Directory="TARGETDIR">
        <RegistryValue Id="RunBroker" Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Kotori Prelauncher" Action="write" Type="string" Value="&quot;[MozcDir]mozc_broker.exe&quot; --mode=prelaunch_processes" />
      </Component>

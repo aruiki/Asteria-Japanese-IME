@@ -1,20 +1,14 @@
-# 現在の引き継ぎ（2026-10-22、変換精度を中心にした紹介）
+# 現在の引き継ぎ（2026-10-22、短文語彙v4を配布準備へ）
 
-利用者は「変換精度の高い日本語IME」を価値の中心にし、単語・短文の辞書/頻度/連語強化と紹介方針の見直しをゴールに指定した。今回の専用枝codex/quality-copy-20261022はREADME/Release原稿/3画像の紹介変更だけを扱う。[対象と公開前確認](verification/accuracy-copy-20261022.md)。本体・モデル・MSI・版と評価条件は維持し、開発中の辞書を公開v2.0.0へ採用済みとは案内しない。
+利用者指定は「変換精度の高い日本語IME」。単語/短文/前文なしの辞書・頻度・連語と紹介の改善は[カード81](tasks/81-accuracy-guide.md)、[ADR0068](adr/0068-short-input-lexicon.md)、[全比較](verification/short-input-lexicon-20261022.md)へ記録した。
 
-公式サイトはkanai PR12/13で新コピーを公開し、全20ファイルのSHA/全14配置を確認済み。この製品PRは適用CIと統合、Release本文の更新・公開4配置の確認へ進む。辞書/順位の改善はカード81の別枝で継続中。GPU AI主体の設計、製品未検証7範囲と独立FAILは維持する。
+全量Wikipedia4.13GB/重複等除外15,896,922本文で選んだ115,318語のv4を配布準備候補に固定。開発短文はAIなし111→113、Standard118→118。未使用短文120件を規則固定後に一度だけ開き、AIなし106→109・Standard113→115、各改悪0、候補包含116→118。辞書由来304件の探索診断はStandard286→293だが、一般精度へ読み替えない。この最終結果を使ったコスト/参照の追加調整は行わない。
 
----
+連語v5は意味の改悪があり不採用、AI専用素材v6も追加の正解数改善0なので今回の配布へ含めない。元のR66f4d665枝/原票は保持し、語彙だけのsource7702a998cからパッチ/同梱/CIへ接続する。AI主体の非同期候補表示・既存34,661連語・モデル・二重入力修正を維持する。
 
-以下はv2.0.0公開時点の履歴。
+紹介は製品PR183/全7CI→main05d70edとkanai PR12/13で公開済み。README/Release4配置、サイト14配置/20ファイルSHA、Release資産不変を確認。Aboutも更新。記録PR184作成後、GitHub APIがアカウント停止HTTP403を返したため公開/CIは停止中。同時刻の非認証閲覧でもRelease/公式サイト各404を確認し、公開済みという履歴と現在の閲覧不能を区別する。ローカルはsourcec80d4ebc/実MSI3.34.6443.100のbuild・同梱・評価済み辞書のサーバー埋込み・通常Session28/追加13・C++299・再構成140ソースが成功。MSI SHA2b42bc58b32a21910c277701430d9e8a4206e6b517bd9ab1b6530fdd9ba0d446、NotSigned。[固定原票](verification/artifacts/short-input-quality-20261022.json)。次はGitHub回復後に公開先の旧4資産を再確認し、用意したデータ資産を公開→新PR/全Windows CI→同じMSIの実導入/入力/削除とGoogle比較へ進む。公開v2.0.0にはまだ新辞書を含めていない。
 
-# 履歴（2026-10-21、正式v2.0.0公開）
-
-[正式v2.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)を署名なし/Latestとして公開。利用者が古い版による二重入力の可能性を指摘したため最新RC4も実Windowsで検査し、Space直後Enterで実二重表示が残ることを確認した。Outputに古いpreeditを残す原因を修正し、新MSIへ反映した。[公開記録](verification/release-v2.0.0-20261021.md)、[修正と前後証拠](verification/duplicate-commit-20261021.md)。
-
-PR180は全10CI成功後main298bee9へ統合。build head34763f4/実checkout9ea0b4fと全tree一致。MSI3.34.6442.100、SHA1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a。同じMSIで導入/再導入/入力/削除、既存8、native28、Edge14が成功。元の順序の追加Edge14も同一MSIで成功。公開4資産を再取得して全バイト・同梱・4モデル・アイコン一致を確認した。
-
-README・INSTALL・3画像・Release本文と公式7ページを正式版へ更新済み。製品PR181/全7CI統合後、公式サイトPR10→配備3f68e6c/Pages run39620353670が成功し、公開20ファイルのHTTP/SHA、サイト14画面とGitHub4画面、総合監査が成功。カード83はdoneへ移動し、今回の公開ゴールは完了。製品全体の未検証7範囲は保持し、.goal-completeは作成しない。カード81など別の製品課題を完了扱いにしない。
+Google現行版同条件比較、新MSI/active TIP・実アプリAI寄与、低性能実機、保護欄内部、旧版更新、再起動、独立verifierは未完了。製品完成ではなく、独立FAILと.goal-complete不作成を維持。
 
 ---
 

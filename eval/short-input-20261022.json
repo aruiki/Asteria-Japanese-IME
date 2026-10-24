@@ -1,0 +1,36 @@
+{
+  "scope": "offline short inputs; not installed TSF",
+  "authorship": "manually authored and frozen before first candidate conversion output",
+  "preceding_context": false,
+  "sets": {
+    "dev": {
+      "file": "eval/sets/asteria-short-dev-20261022.json",
+      "items": 120,
+      "sha256": "a2a9937851e9bd5521f010c4eaa6a1a6000d4bc4da2760b8be98af025eac7d2b",
+      "role": "development",
+      "domains": [
+        "生活・事務",
+        "情報・新語",
+        "医療・健康",
+        "地名・組織",
+        "科学・社会",
+        "短い句"
+      ]
+    },
+    "heldout": {
+      "file": "eval/sets/asteria-short-heldout-20261022.json",
+      "items": 120,
+      "sha256": "1fa7b61c07f78c72016987a590aac75a1e8cdf04fca8773ce6442a6ca0433c0a",
+      "role": "final_report_not_tuning",
+      "domains": [
+        "生活・事務",
+        "情報・新語",
+        "医療・健康",
+        "地名・組織",
+        "科学・社会",
+        "短い句"
+      ]
+    }
+  },
+  "adoption_protocol": "docs/adr/0068-short-input-lexicon.md"
+}

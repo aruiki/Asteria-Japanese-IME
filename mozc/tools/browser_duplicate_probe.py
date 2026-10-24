@@ -15,9 +15,14 @@ def main():
     parser.add_argument("--install", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
-    if (sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true" or
-            os.environ.get("KOTORI_DISPOSABLE_RUNNER") != "github-hosted"):
+    runner = (os.environ.get("GITHUB_ACTIONS") == "true" and
+              os.environ.get("KOTORI_DISPOSABLE_RUNNER") == "github-hosted")
+    # 利用者本人が実PCでの検証を許可した場合（local_install_check.py browser）。Edgeは一時プロファイルで起動する。
+    owner_approved = os.environ.get("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved"
+    if sys.platform != "win32" or not (runner or owner_approved):
         raise RuntimeError("使い捨てWindows CI以外では実行できません")
+    # 合成クリックで前面窓が外れる実PCに限り、クリック試験を合格扱いにせず未検証として残す。
+    skip_click = owner_approved and os.environ.get("KOTORI_SKIP_CLICK") == "environment"
     from playwright.sync_api import sync_playwright
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -60,6 +65,9 @@ window.snapshot=id=>({value:document.getElementById(id).value??document.getEleme
                                     ("down_enter", 100), ("click", 0), ("focus", 0), ("intentional_repeat", 0)):
                     row = dict(host=host, mode=mode, delay_ms=delay, passed=False)
                     report["trials"].append(row)
+                    if mode == "click" and skip_click:
+                        row["skipped"] = "synthetic clicks drop the foreground window on this PC"
+                        continue
                     try:
                         page.locator("#" + host).focus()
                         drive("escape")

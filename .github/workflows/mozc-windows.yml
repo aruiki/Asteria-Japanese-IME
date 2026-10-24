@@ -26,6 +26,7 @@ on:
       - '!mozc/eval_*.py'
       - '!mozc/patches/README.md'
       - training/collocations/**
+      - training/lexicon/**
 
 permissions:
   contents: write
@@ -158,7 +159,13 @@ jobs:
           foreach ($name in @('fast_collocations.txt', 'fast_collocations.json', 'NOTICE-fast-collocations.txt')) {
             Copy-Item "target/kotori/fast-collocations-v1/$name" ../mozc-src/src/data/kotori/
           }
-      - name: 連語の生成と同梱検査の回帰を確かめる
+      - name: 最終比較した短文語彙と全帰属を配置する
+        shell: pwsh
+        working-directory: kotori
+        run: |
+          python -X utf8 training/lexicon/stage_package.py --out ../mozc-src/src/data/kotori
+          if ($LASTEXITCODE -ne 0) { throw '固定語彙を取得・検証できない' }
+      - name: 連語と語彙の生成・同梱検査の回帰を確かめる
         shell: pwsh
         working-directory: kotori
         run: |
@@ -167,6 +174,12 @@ jobs:
           python -X utf8 -m unittest discover -s mozc/tools -p test_fast_collocations.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -X utf8 -m unittest discover -s mozc/tools -p test_check_release.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 -m unittest discover -s mozc/tools -p test_short_lexicon_package.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 -m unittest discover -s mozc/tools -p test_make_patches.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 -m unittest discover -s training/lexicon -p 'test_*.py' -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/cache@v4
         with:
@@ -209,7 +222,7 @@ jobs:
         run: bazelisk build package --config release_build --disk_cache=D:\bazel-disk-cache
       - name: 同梱した追加モデルとMSIの版を確かめる
         shell: pwsh
-        run: python -X utf8 kotori/mozc/tools/check_release.py --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-generator --require-collocations --work generator-package-check
+        run: python -X utf8 kotori/mozc/tools/check_release.py --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-generator --require-collocations --require-short-lexicon --work generator-package-check
       # Kotori の変更の単体テスト(モデルなしで動くもの。docs/IMPROVEMENT_PROPOSALS.md の案 02)。
       - name: テストする
         shell: cmd

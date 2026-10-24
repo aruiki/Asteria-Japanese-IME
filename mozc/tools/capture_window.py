@@ -2,8 +2,9 @@
 設定画面の見た目を確かめるのに使う。MSI を `msiexec /a <msi> /qn TARGETDIR=<フォルダ>` で展開すると、
 インストールせずに mozc_tool.exe を取り出せる。
 
-使い方: python mozc/tools/capture_window.py <exe> <引数> <出力.png> [待つ秒]
+使い方: python mozc/tools/capture_window.py <exe> <引数> <出力.png> [待つ秒] [タブの数]
   例: python mozc/tools/capture_window.py <展開先>/PFiles/Kotori/mozc_tool.exe --mode=config_dialog cfg.png
+タブの数を渡すと、Ctrl+Tab で次のタブへ移りながら <出力>-tab1.png … も撮る（その窓を前面にしてキーを送る）。
 """
 import ctypes, subprocess, sys, time
 from ctypes import wintypes
@@ -13,6 +14,7 @@ user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
 user32.SetProcessDPIAware()
 exe, arg, out = sys.argv[1], sys.argv[2], sys.argv[3]
 wait = float(sys.argv[4]) if len(sys.argv) > 4 else 5
+tabs = int(sys.argv[5]) if len(sys.argv) > 5 else 0
 p = subprocess.Popen([exe] + ([arg] if arg else []))
 time.sleep(wait)
 
@@ -34,13 +36,6 @@ def cb(h, _):
 user32.EnumWindows(EnumProc(cb), 0)
 if not found:
     print("no window"); p.kill(); sys.exit(1)
-h, r = found[0]
-w, hh = r.right - r.left, r.bottom - r.top
-hdc = user32.GetWindowDC(h)
-mdc = gdi32.CreateCompatibleDC(hdc)
-bmp = gdi32.CreateCompatibleBitmap(hdc, w, hh)
-gdi32.SelectObject(mdc, bmp)
-user32.PrintWindow(h, mdc, 2)
 
 
 class BMI(ctypes.Structure):
@@ -50,10 +45,35 @@ class BMI(ctypes.Structure):
                 ("biYPelsPerMeter", wintypes.LONG), ("biClrUsed", wintypes.DWORD), ("biClrImportant", wintypes.DWORD)]
 
 
-bi = BMI(ctypes.sizeof(BMI), w, -hh, 1, 32, 0, 0, 0, 0, 0, 0)
-buf = ctypes.create_string_buffer(w * hh * 4)
-gdi32.GetDIBits(mdc, bmp, 0, hh, buf, ctypes.byref(bi), 0)
-Image.frombuffer("RGBA", (w, hh), buf, "raw", "BGRA", 0, 1).convert("RGB").save(out)
-gdi32.DeleteObject(bmp); gdi32.DeleteDC(mdc); user32.ReleaseDC(h, hdc)
-print("saved", w, hh)
+h, r = found[0]
+
+
+def capture(path):
+    r = wintypes.RECT()
+    user32.GetWindowRect(h, ctypes.byref(r))
+    w, hh = r.right - r.left, r.bottom - r.top
+    hdc = user32.GetWindowDC(h)
+    mdc = gdi32.CreateCompatibleDC(hdc)
+    bmp = gdi32.CreateCompatibleBitmap(hdc, w, hh)
+    gdi32.SelectObject(mdc, bmp)
+    user32.PrintWindow(h, mdc, 2)
+    bi = BMI(ctypes.sizeof(BMI), w, -hh, 1, 32, 0, 0, 0, 0, 0, 0)
+    buf = ctypes.create_string_buffer(w * hh * 4)
+    gdi32.GetDIBits(mdc, bmp, 0, hh, buf, ctypes.byref(bi), 0)
+    Image.frombuffer("RGBA", (w, hh), buf, "raw", "BGRA", 0, 1).convert("RGB").save(path)
+    gdi32.DeleteObject(bmp); gdi32.DeleteDC(mdc); user32.ReleaseDC(h, hdc)
+    print("saved", path, w, hh)
+
+
+capture(out)
+VK_CONTROL, VK_TAB, KEYUP = 0x11, 0x09, 0x2
+for i in range(1, tabs + 1):
+    user32.SetForegroundWindow(h)
+    time.sleep(.5)
+    user32.keybd_event(VK_CONTROL, 0, 0, 0)
+    user32.keybd_event(VK_TAB, 0, 0, 0)
+    user32.keybd_event(VK_TAB, 0, KEYUP, 0)
+    user32.keybd_event(VK_CONTROL, 0, KEYUP, 0)
+    time.sleep(1.5)
+    capture(out.rsplit(".", 1)[0] + f"-tab{i}.png")
 p.kill()

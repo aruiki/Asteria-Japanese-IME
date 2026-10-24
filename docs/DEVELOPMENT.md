@@ -59,11 +59,12 @@ Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付け
 ### 1.4 パッチを作り直して PR にする
 
 ```sh
-git clone --bare --no-hardlinks <google/mozcの作業ツリー> <独立した基点clone.git>
+git clone --bare --no-hardlinks --dissociate <google/mozcの作業ツリー> <独立した基点clone.git>
+unset MSYS_NO_PATHCONV MSYS2_ARG_CONV_EXCL
 bash mozc/tools/make_patches.sh <Mozcの作業ツリー> <独立した基点clone.git>
 ```
 
-0002・0003 を作業ツリーから作り直し、素の Mozc に 0001〜0003 が順に当たるかまで確かめる。同じツリーをソースと基点へ指定せず、実行中のBazelを止め、TMPDIRは専用scratch領域へ指定する。reset/cleanはその中のcloneだけで行う。パッチは手で直さない。
+0002・0003 を作業ツリーから作り直し、素の Mozc に 0001〜0003 が順に当たるかまで確かめる。同じツリーをソースと基点へ指定せず、実行中のBazelを止め、TMPDIRは専用scratch領域へ指定する。reset/cleanはその中のcloneだけで行う。パッチは手で直さない。基点の`objects/info/alternates`が残るcloneは外部objectへの参照を継承するため、`--dissociate`で実体を揃え、元コミットのtreeを読めることを確認する。
 どのファイルが何のためかは `mozc/patches/README.md`。
 
 ### 1.5 リリース

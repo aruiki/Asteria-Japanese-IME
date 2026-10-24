@@ -95,6 +95,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
 ・初期変換の追加連語: CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。短い連語へ加工。元のMozc40件はBSD-3-Clause。出典と変更内容は NOTICE-fast-collocations.txt
 ・用例由来の追加連語: Japanese Usage Dictionary、BSD-2-Clause(Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo)。引用例の抽出・末尾の活用展開。帰属と全文は NOTICE-fast-collocations.txt
+・短文の追加語彙: SudachiDict 20261015、Apache-2.0。UniDic・NEologd等の全帰属と全文はNOTICE-short-lexicon.txt。全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。加工TSVと生成記録を同梱
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
 各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
@@ -145,6 +146,13 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  ggml-base.dllだけは同じb11259のソースから再構築しています。\n"
     "  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。\n"
     "  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。\n\n"
+    "■ 短文の追加語彙(short_lexicon.tsv)\n"
+    "  SudachiDict 20261015、Works Applications Co., Ltd.、Apache-2.0。\n"
+    "  UniDic・NEologd等の全帰属・ライセンス全文はNOTICE-short-lexicon.txt。\n"
+    "  名詞をMozcの品詞・共通語彙コストへ対応し、既存の読み/表記を上書きしない。\n"
+    "  全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0。\n"
+    "  Wikipedia日本語版の執筆者、Keita Miwa / zenz-v2.5-dataset。\n"
+    "  加工済みTSVと固定生成記録short_lexicon.jsonを同梱する。\n\n"
     "■ 初期変換の追加連語(fast_collocations.txt)\n"
     "  CC BY-SA 4.0、Wikipedia日本語版の執筆者、Keita Miwa。\n"
     "  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。\n"

@@ -169,8 +169,25 @@ def check_collocations(root, check, required=False, identity=None):
     check(attribution, '連語の帰属・ライセンス・変更対象の表示')
 
 
+def check_short_lexicon(root, check, required=False, identity=None):
+    """配布候補のTSV・原生成記録・全帰属をソース固定のSHAへ照合する。"""
+    if identity is None:
+        path = pathlib.Path(__file__).resolve().parents[2] / 'training/lexicon/package.json'
+        identity = json.loads(path.read_text(encoding='utf-8'))
+    files = identity['files']
+    if not required and not any((root / f['name']).exists() for f in files):
+        return  # 追加辞書を持たない過去の公開版も検証できる。
+    for f in files:
+        path = root / f['name']
+        check(path.is_file(), '短文語彙の同梱: ' + f['name'])
+        if path.is_file():
+            check(path.stat().st_size == f['bytes'] and
+                  hashlib.sha256(path.read_bytes()).hexdigest() == f['sha256'],
+                  '短文語彙の固定サイズ/SHA: ' + f['name'])
+
+
 def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require_generator=False,
-                   require_collocations=False):
+                   require_collocations=False, require_short_lexicon=False):
     """MSI の大きさと、展開した同梱物・入れない物・実行ファイルの版を確かめる。"""
     size = msi.stat().st_size
     check(size <= MAX_MSI_BYTES, f"大きさ {size / 2**30:.2f} GiB ≦ {MAX_MSI_BYTES / 2**30:.1f} GiB(上限 2 GiB)")
@@ -183,6 +200,7 @@ def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require
         check((root / name).exists(), f"同梱: {name}")
     check_generator(root, check, require_generator)
     check_collocations(root, check, require_collocations)
+    check_short_lexicon(root, check, require_short_lexicon)
     for name in ABSENT:
         check(not (root / name).exists(), f"入れない: {name}")
     fv = ps(f"(Get-Item '{root / 'mozc_server.exe'}').VersionInfo.FileVersion")
@@ -197,6 +215,7 @@ def main() -> int:
     ap.add_argument("--previous-local", default="", help="比較する公開済みMSI。--localと併用し、ProductVersionの先頭3項目で更新可能か確認する")
     ap.add_argument("--require-generator", action="store_true", help="新リリースの学習済み追加モデルを必須とする")
     ap.add_argument("--require-collocations", action="store_true", help="固定した初期連語と出典の同梱を必須とする")
+    ap.add_argument("--require-short-lexicon", action="store_true", help="最終比較済み短文語彙と全帰属の同梱を必須とする")
     args = ap.parse_args()
     if args.previous_local and not args.local:
         ap.error("--previous-local requires --local")
@@ -211,7 +230,7 @@ def main() -> int:
                   f"ProductVersion {ver} > 公開済みMSI({previous})(先頭 3 つで比べる)")
         if check.ok:
             check_contents(msi, work, check, args.require_generator,
-                           args.require_collocations)
+                           args.require_collocations, args.require_short_lexicon)
     else:
         releases = json.loads(run(["gh", "release", "list", "--repo", REPO,
                                    "--limit", str(RELEASE_LIST_LIMIT),
@@ -230,7 +249,8 @@ def main() -> int:
                   f"ProductVersion {ver} > {prev}({prev_ver})(先頭 3 つで比べる)")
         else:
             print(f"--  ProductVersion {ver}(比べる前の版がない)")
-        check_contents(msi, work, check, args.require_generator, args.require_collocations)
+        check_contents(msi, work, check, args.require_generator, args.require_collocations,
+                       args.require_short_lexicon)
     print("すべて OK" if check.ok else "確かめに失敗した項目がある")
     return 0 if check.ok else 1
 

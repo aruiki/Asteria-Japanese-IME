@@ -555,10 +555,10 @@ index 000000000..3bcfec328
 +}  // namespace mozc
 diff --git a/src/base/kotori_live.h b/src/base/kotori_live.h
 new file mode 100644
-index 000000000..f0ba3e164
+index 000000000..13cae7120
 --- /dev/null
 +++ b/src/base/kotori_live.h
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,28 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +// Kotori: 入力中の候補を、手が止まった後に取り直すまでの時間(docs/adr/0039)。
@@ -579,6 +579,9 @@ index 000000000..f0ba3e164
 +inline std::atomic<int> g_live_next_ms{0};
 +// 1 回の打鍵の後に取り直す回数の上限。
 +inline constexpr int kMaxLiveRefreshes = 5;
++// AI の結果を待つ間に取り直す間隔(ms)。結果ができてから表示までの遅れを、この間隔以内にする。
++// Windows のタイマーの細かさ(約 15.6 ms)より短くしても速くならない。KOTORI_AI_WAIT_POLL で変えられる。
++inline std::atomic<int> g_ai_wait_poll_ms{15};
 +
 +}  // namespace kotori
 +}  // namespace mozc
@@ -834,6 +837,75 @@ index d46b15cea..5d9025ee3 100644
    // ping first
    if (client->PingServer()) {
      return true;
+diff --git a/src/composer/composer.cc b/src/composer/composer.cc
+index 56e4a18d4..88ed2782e 100644
+--- a/src/composer/composer.cc
++++ b/src/composer/composer.cc
+@@ -1333,13 +1333,16 @@ bool Composer::TransformCharactersForNumbers(std::string* query) {
+       }
+ 
+       case JA_COMMA: {
+-        // "、" should be "，" if the previous character is alphanumerics.
++        // "、" should be "，" if the previous character and the next
+         // character are both alphanumerics.
+-        // Previous char should exist and be a number.
++        // Kotori: 前後の両方を確かめる(上のコメントの規則どおり)。前だけでは
++        // 「賛成96、反対」「電話番号は0752…、最寄り駅」の読点まで「，」になる。
+         const bool lhs_check =
+             (i > 0 && IsAlphabetOrNumber(char_scripts[i - 1]));
++        const bool rhs_check =
++            (i + 1 < chars_len && IsAlphabetOrNumber(char_scripts[i + 1]));
+         // JA_COMMA should be transformed to COMMA.
+-        if (lhs_check) {
++        if (lhs_check && rhs_check) {
+           CharacterFormManager::GetCharacterFormManager()->ConvertPreeditString(
+               "，", &append_char);
+           DCHECK(!append_char.empty());
+@@ -1353,8 +1356,11 @@ bool Composer::TransformCharactersForNumbers(std::string* query) {
+         // Previous char should exist and be a number.
+         const bool lhs_check =
+             (i > 0 && IsAlphabetOrNumber(char_scripts[i - 1]));
++        // Kotori: 文末の「96。」まで「．」にしない(読点と同じ)。
++        const bool rhs_check =
++            (i + 1 < chars_len && IsAlphabetOrNumber(char_scripts[i + 1]));
+         // JA_PERIOD should be transformed to PERIOD.
+-        if (lhs_check) {
++        if (lhs_check && rhs_check) {
+           CharacterFormManager::GetCharacterFormManager()->ConvertPreeditString(
+               "．", &append_char);
+           DCHECK(!append_char.empty());
+diff --git a/src/composer/composer_test.cc b/src/composer/composer_test.cc
+index 7893248f4..8959625e4 100644
+--- a/src/composer/composer_test.cc
++++ b/src/composer/composer_test.cc
+@@ -1752,17 +1752,22 @@ TEST_F(ComposerTest, TransformCharactersForNumbers) {
+   EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+   EXPECT_EQ(query, "えー２，９８０円！月々たった、２，９８０円？");
+ 
++  // Kotori: 数字の後でも、次が数字でない句読点は日本語のまま(「３．１４１５９。」)。
+   query = "およそ、３。１４１５９。";
+   EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "およそ、３．１４１５９．");
++  EXPECT_EQ(query, "およそ、３．１４１５９。");
+ 
+   query = "１００、";
+-  EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "１００，");
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "１００、");
+ 
+   query = "１００。";
+-  EXPECT_TRUE(Composer::TransformCharactersForNumbers(&query));
+-  EXPECT_EQ(query, "１００．");
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "１００。");
++
++  query = "さんせい９６、はんたい３";
++  EXPECT_FALSE(Composer::TransformCharactersForNumbers(&query));
++  EXPECT_EQ(query, "さんせい９６、はんたい３");
+ }
+ 
+ TEST_F(ComposerTest, PreeditFormAfterCharacterTransform) {
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -24760,7 +24832,7 @@ index fbff8075b..f26b9240a 100644
  # Convert without history
  
 diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
-index 5d8232f36..9391a06fd 100644
+index 5d8232f36..d9b8935b0 100644
 --- a/src/data_manager/oss/BUILD.bazel
 +++ b/src/data_manager/oss/BUILD.bazel
 @@ -64,7 +64,7 @@ mozc_dataset(
@@ -24772,6 +24844,15 @@ index 5d8232f36..9391a06fd 100644
      ),
      collocation_suppression_src = (
          "//data/dictionary_oss:collocation_suppression.txt"
+@@ -74,6 +74,8 @@ mozc_dataset(
+         "//data/dictionary_oss:dictionary_data",
+         "//data/dictionary_oss:reading_correction.tsv",
+         "//data/dictionary_manual:domain.txt",
++        "//data/kotori:short_lexicon_data",
++        "//data/kotori:name_lexicon_data",
+     ],
+     emoji_src = "//data/emoji:emoji_data.tsv",
+     emoticon_categorized_src = (
 diff --git a/src/engine/BUILD.bazel b/src/engine/BUILD.bazel
 index 40a10582d..b8e671c01 100644
 --- a/src/engine/BUILD.bazel
@@ -24785,7 +24866,7 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..dca1be69c 100644
+index fd03a6c0c..4cf4d0fe2 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -46,6 +46,7 @@
@@ -24983,7 +25064,7 @@ index fd03a6c0c..dca1be69c 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +731,123 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +731,127 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25014,8 +25095,9 @@ index fd03a6c0c..dca1be69c 100644
 +      segments_.conversion_segment(0).candidate(0).kotori_confident_prediction) {
 +    return true;
 +  }
-+  const KotoriAiStatus status = KotoriPrepareConversion(
-+      composer, context, conversion_preferences());
++  // 入力中の取り直し(利用者はまだ待っていない)。
++  const KotoriAiStatus status = KotoriPrepareConversionImpl(
++      composer, context, conversion_preferences(), false, false);
 +  kotori_awaiting_ai_ = status == KotoriAiStatus::kPending;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
 +  if (status != KotoriAiStatus::kReady || !kotori_prepared_conversion_) return false;
@@ -25070,18 +25152,21 @@ index fd03a6c0c..dca1be69c 100644
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversion(
 +    const composer::Composer& composer, const commands::Context& context,
 +    const ConversionPreferences& preferences) {
-+  return KotoriPrepareConversionImpl(composer, context, preferences, false);
++  // Space(変換)とその待ちの間の取り直し。利用者は結果を待っている。
++  return KotoriPrepareConversionImpl(composer, context, preferences, false, true);
 +}
 +
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversionImpl(
 +    const composer::Composer& composer, const commands::Context& context,
-+    const ConversionPreferences& preferences, bool cached_only) {
++    const ConversionPreferences& preferences, bool cached_only,
++    bool user_waiting) {
 +  const auto generation = KotoriObserveInput(composer);
 +  if (!generation.IsCurrent() || composer.Empty()) return KotoriAiStatus::kUnavailable;
 +  ConversionRequest::Options options;
 +  options.request_type = ConversionRequest::CONVERSION;
 +  options.kotori_preview = true;
 +  options.kotori_preview_cached_only = cached_only;
++  options.kotori_user_waiting = user_waiting;
 +  options.enable_user_history_for_conversion = preferences.use_history;
 +  const ConversionRequest request = ConversionRequestBuilder()
 +      .SetKotoriInputGeneration(generation).SetComposer(composer)
@@ -25108,7 +25193,7 @@ index fd03a6c0c..dca1be69c 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +856,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +860,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25119,11 +25204,11 @@ index fd03a6c0c..dca1be69c 100644
    ResetResult();
 +  // Kotori: 既にAIが評価した本文だけを参照する。途中の単語を通常変換へ
 +  // 先に固定せず、初回Tabは予測用の生成・採点そのものを非同期に待つ。
-+  KotoriPrepareConversionImpl(composer, context, preferences, true);
++  KotoriPrepareConversionImpl(composer, context, preferences, true, false);
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +872,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +876,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25135,7 +25220,7 @@ index fd03a6c0c..dca1be69c 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +892,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +896,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25150,7 +25235,7 @@ index fd03a6c0c..dca1be69c 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +907,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +911,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25168,7 +25253,7 @@ index fd03a6c0c..dca1be69c 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +925,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +929,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25216,7 +25301,7 @@ index fd03a6c0c..dca1be69c 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +990,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +994,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25244,7 +25329,7 @@ index fd03a6c0c..dca1be69c 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1020,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1024,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25252,7 +25337,7 @@ index fd03a6c0c..dca1be69c 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1038,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1042,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25260,7 +25345,7 @@ index fd03a6c0c..dca1be69c 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1070,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1074,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25268,7 +25353,7 @@ index fd03a6c0c..dca1be69c 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1083,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1087,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25276,7 +25361,7 @@ index fd03a6c0c..dca1be69c 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1184,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1188,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25284,7 +25369,7 @@ index fd03a6c0c..dca1be69c 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,6 +1244,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,6 +1248,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25292,7 +25377,7 @@ index fd03a6c0c..dca1be69c 100644
    const std::string key = composer.GetQueryForConversion();
    const std::string preedit = composer.GetStringForSubmission();
    std::string normalized_preedit = TextNormalizer::NormalizeText(preedit);
-@@ -956,6 +1282,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+@@ -956,6 +1286,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25300,7 +25385,7 @@ index fd03a6c0c..dca1be69c 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1112,14 +1439,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1443,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25422,7 +25507,7 @@ index fd03a6c0c..dca1be69c 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1562,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1566,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25434,7 +25519,7 @@ index fd03a6c0c..dca1be69c 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1577,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1581,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25446,7 +25531,7 @@ index fd03a6c0c..dca1be69c 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1592,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1596,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25458,7 +25543,7 @@ index fd03a6c0c..dca1be69c 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1293,10 +1742,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1293,10 +1746,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
      // Conversion on Prediction or Conversion
      FillConversion(output->mutable_preedit());
    }
@@ -25472,7 +25557,7 @@ index fd03a6c0c..dca1be69c 100644
    }
  
    // All candidate words
-@@ -1319,6 +1771,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1775,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25483,7 +25568,7 @@ index fd03a6c0c..dca1be69c 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1789,8 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1793,8 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
@@ -25492,7 +25577,7 @@ index fd03a6c0c..dca1be69c 100644
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2170,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2174,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -25519,7 +25604,7 @@ index fd03a6c0c..dca1be69c 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2301,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2305,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -25538,7 +25623,7 @@ index fd03a6c0c..dca1be69c 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2320,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2324,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -25547,7 +25632,7 @@ index fd03a6c0c..dca1be69c 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..5845a6eb6 100644
+index 6d061cfca..d909e4d5a 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -25592,7 +25677,7 @@ index 6d061cfca..5845a6eb6 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -274,6 +288,24 @@ class EngineConverter : public EngineConverterInterface {
+@@ -274,6 +288,25 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -25604,7 +25689,8 @@ index 6d061cfca..5845a6eb6 100644
 +  void KotoriPreservePredictionBody(Segments* predicted) const;
 +  KotoriAiStatus KotoriPrepareConversionImpl(
 +      const composer::Composer& composer, const commands::Context& context,
-+      const ConversionPreferences& preferences, bool cached_only);
++      const ConversionPreferences& preferences, bool cached_only,
++      bool user_waiting);
 +  std::shared_ptr<std::atomic<uint64_t>> kotori_input_generation_ =
 +      std::make_shared<std::atomic<uint64_t>>(1);
 +  std::string kotori_last_input_;
@@ -25617,7 +25703,7 @@ index 6d061cfca..5845a6eb6 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +376,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +377,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -25626,7 +25712,7 @@ index 6d061cfca..5845a6eb6 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +458,10 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +459,10 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
@@ -26265,7 +26351,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..0b9ce7a76 100644
+index abbf55d68..a9e7182d8 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,51 @@
@@ -26466,14 +26552,14 @@ index abbf55d68..0b9ce7a76 100644
 +    return "AI の状態: 動いています(変換用の AI " + kv["zenz"] + "、" + where +
 +           ")。";
 +  } else if (state == "loading") {
-+    return "AI の状態: モデルを読み込んでいます。";
++    return "AI の状態: モデルを読み込んでいます。終わるまで、変換は AI の結果を待ちます"
++           "(文字の入力と編集はそのまま続けられます)。";
 +  } else if (state == "sleep") {
-+    return "AI の状態: 休んでいます(しばらく入力がないので、GPU "
-+           "のメモリを空けています。"
++    return "AI の状態: 休んでいます(GPU のメモリを空けています。"
 +           "次に入力すると読み込みます)。";
 +  } else if (state == "error") {
 +    return "AI の状態: 動いていません(" + kv["message"] +
-+           " を読み込めません)。入れ直すと直ることがあります。";
++           " を読み込めません)。AI なしの変換で入力を続けます。入れ直すと直ることがあります。";
 +  } else if (state == "off") {
 +    return "AI の状態: AI 変換は切れています。";
 +  }
@@ -26844,8 +26930,8 @@ index abbf55d68..0b9ce7a76 100644
 +      kotoriLmQualityComboBox_ = new QComboBox(page);
 +      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("Low(GPU のない PC 向け)"));
 +      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("Standard(おすすめ)"));
-+      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("High(高精度)"));
-+      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("Unreal(最高)"));
++      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("High(候補を多く調べる)"));
++      kotoriLmQualityComboBox_->addItem(QString::fromUtf8("Unreal(大きい AI)"));
 +      kotoriLmQualityComboBox_->setMinimumWidth(180);
 +      row->addWidget(kotoriLmQualityComboBox_);
 +      l->addLayout(row);
@@ -26853,15 +26939,19 @@ index abbf55d68..0b9ce7a76 100644
 +      quality_note->setObjectName("kotoriNote");
 +      quality_note->setWordWrap(true);
 +      l->addWidget(quality_note);
-+      // 選んだ品質の説明(数値は eval/README.md、RTX 3060)。
++      // 選んだ品質の説明。
++      // Kotori: 以前の正確さの数値は製品と構成の異なる評価専用モード(LLM補正なし)と
++      // AJIMEE-Benchだけで測ったものだったため、画面には出さない(2026-10-23)。
++      // High・Unreal の説明は、実際のIMEと同じ経路の開発用評価(短文・文書)の比較に基づく
++      // (docs/verification/release-v2.1.0-20261023.md)。
 +      auto describe = [quality_note](int q) {
 +        static const char *const kText[] = {
-+            "ノート PC など GPU のない PC 向け。CPU で動き、打っている間に先に変換しておくので "
-+            "Space ですぐ出ます。正確さ 88.0%(AJIMEE-Bench)、日常の文 97.5%。",
-+            "GPU で 1 回 0.08 秒ほど。GPU のある PC におすすめです。正確さ 91.5%。",
-+            "候補を多く調べます。速い GPU 向け。1 回 0.12 秒ほど、正確さ 92.5%。",
-+            "High に、大きな変換用 AI(zenz-v2.5-medium)による候補を加えた最高設定。"
-+            "速い GPU 向け。1 回 0.26 秒ほど、正確さ 93.0%。",
++            "ノート PC など GPU のない PC 向け。CPU で動きます。",
++            "GPU のある PC におすすめ。AI が候補を作り、文脈に合う候補を選び直します。",
++            "Standard より多くの候補を調べます。開発用の評価では、Standard との差はほとんど"
++            "ありませんでした。",
++            "High に、大きな変換用 AI(zenz-v2.5-medium)を加えます。開発用の評価では、"
++            "正解がわずかに増えた一方、変換の待ちが長くなりました。",
 +        };
 +        if (q < 0) return;
 +        quality_note->setText(QString::fromUtf8(kText[std::min(q, 3)]));
@@ -26887,23 +26977,19 @@ index abbf55d68..0b9ce7a76 100644
 +    // 2. 予測
 +    {
 +      auto *l = card();
++      // Kotori: 入力中の AI の続きの生成は廃止した(docs/adr/0070)。設定の値は保存の互換のために
++      // 持つが、画面には出さない。
 +      kotoriLmPredictCheckBox_ =
 +          new QCheckBox(QString::fromUtf8("入力中に AI の予測を出す"), page);
-+      kotoriLmPredictCheckBox_->setStyleSheet("font-weight: 600;");
-+      l->addWidget(kotoriLmPredictCheckBox_);
++      kotoriLmPredictCheckBox_->setVisible(false);
 +      kotoriLmCorrectionCheckBox_ = new QCheckBox(QString::fromUtf8("入力中に文章の誤変換を補正する"), page);
 +      kotoriLmCorrectionCheckBox_->setObjectName("kotoriLmCorrection");
++      kotoriLmCorrectionCheckBox_->setStyleSheet("font-weight: 600;");
 +      l->addWidget(kotoriLmCorrectionCheckBox_);
-+      auto *correction_note = new QLabel(QString::fromUtf8("日本語LLMが使えるとき、手が止まった後に補正します。数字・名前・登録語を保ち、確かな改善だけを候補に反映します。"), page);
++      auto *correction_note = new QLabel(QString::fromUtf8("日本語LLMが使えるとき、手が止まった間に補正します。数字・名前・登録語を保ち、確かな改善だけを候補に反映します。Space を押して待っている間は補正を省き、すぐに候補を出します。"), page);
 +      correction_note->setWordWrap(true);
 +      correction_note->setProperty("kotoriNote", true);
 +      l->addWidget(correction_note);
-+      auto *d = new QLabel(QString::fromUtf8(
-+          "打っている間に文の続きを考えて、候補の先頭に「AI」と付けて出します。"
-+          "Tab で選べます(例: 「よろし」→「よろしくお願いします」)。"), page);
-+      d->setObjectName("kotoriNote");
-+      d->setWordWrap(true);
-+      l->addWidget(d);
 +    }
 +
 +    // 3. 詳細設定
@@ -26917,7 +27003,7 @@ index abbf55d68..0b9ce7a76 100644
 +      kotoriLmModelComboBox_ = new QComboBox(page);
 +      kotoriLmModelComboBox_->addItem(QString::fromUtf8("自動(おすすめ)"));
 +      kotoriLmModelComboBox_->addItem(QString::fromUtf8("zenz のみ(軽い)"));
-+      kotoriLmModelComboBox_->addItem(QString::fromUtf8("zenz + LLM(高精度)"));
++      kotoriLmModelComboBox_->addItem(QString::fromUtf8("zenz + LLM(GPU 向け)"));
 +      kotoriLmModelComboBox_->setMinimumWidth(180);
 +      row->addWidget(kotoriLmModelComboBox_, 0, Qt::AlignTop);
 +      l->addLayout(row);
@@ -27307,7 +27393,38 @@ index abbf55d68..0b9ce7a76 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -324,6 +1295,10 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1270,30 @@ ConfigDialog::ConfigDialog()
+   dictionaryPreloadingAndUACLabel->setVisible(false);
+ #endif  // _WIN32
+ 
++  // Kotori: 「句読点変換を有効にする」だけでは何が起きるか分からないので、言い換えて説明を添える(2026-10-23)。
++  useAutoConversion->setText(QString::fromUtf8("句読点を打ったら変換する"));
++  {
++    auto *note = new QLabel(
++        QString::fromUtf8("右でチェックした記号を打つと、Space を押さなくてもそこまでの読みを"
++                          "変換します(確定は Enter)。数字の直後では変換しません。"),
++        inputAssistanceGroup);
++    note->setObjectName("kotoriAutoConversionNote");
++    note->setWordWrap(true);
++    note->setProperty("kotoriNote", true);
++    // 説明をチェックの直下に置くため、下の行を 1 つずつ下げる(下の行から順に)。
++    for (QWidget *w : {static_cast<QWidget *>(useModeIndicator),
++                       static_cast<QWidget *>(useJapaneseLayout),
++                       static_cast<QWidget *>(shiftKeyModeSwitchComboBox),
++                       static_cast<QWidget *>(autoCorrectionLable_3)}) {
++      int row = 0, column = 0, rows = 0, columns = 0;
++      gridLayout_9->getItemPosition(gridLayout_9->indexOf(w), &row, &column,
++                                    &rows, &columns);
++      gridLayout_9->removeWidget(w);
++      gridLayout_9->addWidget(w, row + 1, column, rows, columns);
++    }
++    gridLayout_9->addWidget(note, 2, 0, 1, 7);
++  }
++
+ #ifdef __linux__
+   // On Linux, disable all fields for UsageStats
+   usageStatsLabel->setEnabled(false);
+@@ -324,6 +1319,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -27318,7 +27435,7 @@ index abbf55d68..0b9ce7a76 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1358,22 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1382,22 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -27341,7 +27458,7 @@ index abbf55d68..0b9ce7a76 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1396,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1420,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -27366,7 +27483,7 @@ index abbf55d68..0b9ce7a76 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1421,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1445,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -27376,7 +27493,7 @@ index abbf55d68..0b9ce7a76 100644
    return true;
  }
  
-@@ -524,6 +1518,21 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1542,21 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -27398,7 +27515,7 @@ index abbf55d68..0b9ce7a76 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1621,17 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1645,17 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -27416,7 +27533,7 @@ index abbf55d68..0b9ce7a76 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1866,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1890,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -27470,10 +27587,10 @@ index 85e1c0075..b8bb25147 100644
    // Set/GetSendStatsChechBox read/write registry or file directly
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
-index 000000000..12f01f47b
+index 000000000..7c1d0f98e
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_dashboard_test.cc
-@@ -0,0 +1,293 @@
+@@ -0,0 +1,323 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include <QApplication>
 +#include <QDir>
@@ -27481,6 +27598,7 @@ index 000000000..12f01f47b
 +#include <QCheckBox>
 +#include <QEventLoop>
 +#include <QFontInfo>
++#include <QGridLayout>
 +#include <QLabel>
 +#include <QMessageBox>
 +#include <QProgressBar>
@@ -27735,6 +27853,35 @@ index 000000000..12f01f47b
 +  }
 +}
 +#ifdef _WIN32
++// Kotori: 「句読点を打ったら変換する」の説明がチェックの直下にあり、下の行と重ならない。
++TEST_F(KotoriDashboardTest, AutoConversionNoteSitsBelowItsCheckbox) {
++  ConfigDialog dialog;
++  auto* check = dialog.findChild<QCheckBox*>("useAutoConversion");
++  auto* note = dialog.findChild<QLabel*>("kotoriAutoConversionNote");
++  ASSERT_NE(check, nullptr);
++  ASSERT_NE(note, nullptr);
++  EXPECT_EQ(check->text(), QString::fromUtf8("句読点を打ったら変換する"));
++  EXPECT_TRUE(note->text().contains(QString::fromUtf8("確定は Enter")));
++  auto* grid = qobject_cast<QGridLayout*>(note->parentWidget()->layout());
++  ASSERT_NE(grid, nullptr);
++  auto row_of = [grid](QWidget* w) {
++    int row = -1, column = 0, rows = 0, columns = 0;
++    grid->getItemPosition(grid->indexOf(w), &row, &column, &rows, &columns);
++    return row;
++  };
++  EXPECT_EQ(row_of(note), row_of(check) + 1);
++  // 1 つのセルに 2 つの部品が重ならない。
++  for (int i = 0; i < grid->count(); ++i) {
++    for (int j = i + 1; j < grid->count(); ++j) {
++      int r1, c1, rs1, cs1, r2, c2, rs2, cs2;
++      grid->getItemPosition(i, &r1, &c1, &rs1, &cs1);
++      grid->getItemPosition(j, &r2, &c2, &rs2, &cs2);
++      const bool overlap = r1 < r2 + rs2 && r2 < r1 + rs1 && c1 < c2 + cs2 && c2 < c1 + cs1;
++      EXPECT_FALSE(overlap) << i << " " << j;
++    }
++  }
++}
++
 +TEST_F(KotoriDashboardTest, RejectsOtherProcessEvenWhenPidAndStartMatch) {
 +  FILETIME created, exited, kernel, user;
 +  ASSERT_TRUE(::GetProcessTimes(::GetCurrentProcess(), &created, &exited,
@@ -28628,10 +28775,10 @@ index 728f7f963..1e21bf5fd 100644
 +
  }  // namespace mozc
 diff --git a/src/request/options.h b/src/request/options.h
-index 0d2eb3455..195e2e128 100644
+index 0d2eb3455..ce3cdfd4f 100644
 --- a/src/request/options.h
 +++ b/src/request/options.h
-@@ -94,6 +94,13 @@ struct ConversionOptions {
+@@ -94,6 +94,16 @@ struct ConversionOptions {
    // TODO(noriyukit): Fix such a hacky handling for realtime conversion.
    bool skip_slow_rewriters = false;
  
@@ -28641,12 +28788,15 @@ index 0d2eb3455..195e2e128 100644
 +  // 表示済み本文の表記/学習属性を参照するときは、新たな変換を始めない。
 +  // Tabの途中語を、通常変換の短い語へ固定してしまうのを避ける。
 +  bool kotori_preview_cached_only = false;
++  // Kotori: 利用者がSpace(変換)を押して、AIの結果を待っている。入力中の取り直しでは false。
++  // 待っている間は、結果を遅らせる補正の生成を省き、採点の結果をすぐ出す。
++  bool kotori_user_waiting = false;
 +
    // If true, partial candidates are created on prediction/suggestion.
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..9f1330688 100644
+index 4bbcddeca..c3f1d529d 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -28699,7 +28849,7 @@ index 4bbcddeca..9f1330688 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1767,151 @@ mozc_cc_test(
+@@ -1743,3 +1767,152 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -28809,6 +28959,7 @@ index 4bbcddeca..9f1330688 100644
 +    name = "lm_rewriter",
 +    srcs = ["lm_rewriter.cc"],
 +    hdrs = ["lm_rewriter.h"],
++    textual_hdrs = ["kotori_notation_table.inc"],
 +    visibility = ["//converter:__pkg__"],
 +    deps = [
 +        ":llama_runtime",
@@ -29650,6 +29801,620 @@ index 000000000..13b1ec304
 +  EXPECT_EQ(KotoriModelIdentity::Open(std::string("\xff", 1)), nullptr);
 +}
 +}  // namespace mozc
+diff --git a/src/rewriter/kotori_notation_table.inc b/src/rewriter/kotori_notation_table.inc
+new file mode 100644
+index 000000000..00e40c95e
+--- /dev/null
++++ b/src/rewriter/kotori_notation_table.inc
+@@ -0,0 +1,608 @@
++// 生成ファイル(mozc/tools/gen_notation_table.py)。手で編集しない。
++// 出典: RealPersonaChat 1.0.0 (CC BY-SA 4.0), JMultiWOZ 1.0 (CC BY-SA 4.0); evaluation dev split only (build_eval_sets.split_of == 'dev'); SudachiPy SplitMode C, sudachidict_core
++// 元のTSV SHA-256: 92d9368d043ea1eba45bc3e1ea9bae37b9cabc61c6d0e76aecf9008bc0cfd1eb; 多数派の割合 >= 0.7; 605件
++{"皿（おすし）", "皿", 0.9868f},  // 76
++{"ひとり暮らし", "一人暮らし", 0.9609f},  // 179
++{"小っちゃい", "小さい", 0.9960f},  // 495
++{"懐かしーー", "懐かしい", 0.9948f},  // 191
++{"一人ぐらし", "一人暮らし", 0.9942f},  // 173
++{"独り暮らし", "一人暮らし", 0.9942f},  // 173
++{"取り敢えず", "とりあえず", 0.9901f},  // 203
++{"召しあがり", "召し上がり", 0.9886f},  // 88
++{"当たりまえ", "当たり前", 0.9881f},  // 84
++{"１人暮らし", "一人暮らし", 0.9663f},  // 178
++{"小っちゃく", "小さく", 0.9623f},  // 53
++{"ひとりっ子", "一人っ子", 0.9583f},  // 24
++{"どしゃ降り", "土砂降り", 0.9565f},  // 23
++{"1人暮らし", "一人暮らし", 0.9503f},  // 181
++{"仕方なくっ", "仕方なく", 0.9355f},  // 31
++{"面倒くさく", "めんどくさく", 0.8684f},  // 38
++{"出来るだけ", "できるだけ", 0.8265f},  // 98
++{"たんぱく質", "タンパク質", 0.7895f},  // 38
++{"面倒くさい", "めんどくさい", 0.7708f},  // 48
++{"お疲れさま", "お疲れ様", 0.7707f},  // 266
++{"可愛いい", "かわいい", 0.9979f},  // 483
++{"夏やすみ", "夏休み", 0.9979f},  // 482
++{"買いもの", "買い物", 0.9966f},  // 1167
++{"大っきい", "大きい", 0.9964f},  // 281
++{"食べもの", "食べ物", 0.9955f},  // 666
++{"お出掛け", "お出かけ", 0.9953f},  // 214
++{"入れれる", "入れる", 0.9952f},  // 210
++{"懐かしー", "懐かしい", 0.9948f},  // 191
++{"落ちつい", "落ち着い", 0.9946f},  // 185
++{"飲みもの", "飲み物", 0.9927f},  // 137
++{"揚げもの", "揚げ物", 0.9907f},  // 107
++{"思いだし", "思い出し", 0.9904f},  // 208
++{"値あがり", "値上がり", 0.9902f},  // 102
++{"乗っかっ", "乗っ", 0.9883f},  // 343
++{"可愛いく", "可愛く", 0.9815f},  // 54
++{"切っ掛け", "きっかけ", 0.9796f},  // 196
++{"お子さま", "お子様", 0.9760f},  // 125
++{"もの凄く", "ものすごく", 0.9759f},  // 83
++{"有り難い", "ありがたい", 0.9741f},  // 232
++{"墓まいり", "墓参り", 0.9730f},  // 37
++{"思い付き", "思いつき", 0.9714f},  // 35
++{"面倒臭く", "めんどくさく", 0.9706f},  // 34
++{"滅茶苦茶", "めちゃくちゃ", 0.9693f},  // 456
++{"目茶目茶", "めちゃめちゃ", 0.9691f},  // 97
++{"思いきっ", "思い切っ", 0.9688f},  // 32
++{"出掛ける", "出かける", 0.9636f},  // 110
++{"タコ焼き", "たこ焼き", 0.9608f},  // 102
++{"仕方無い", "仕方ない", 0.9583f},  // 24
++{"宜しかっ", "よろしかっ", 0.9583f},  // 24
++{"中・高生", "中高生", 0.9565f},  // 23
++{"くり返し", "繰り返し", 0.9524f},  // 21
++{"見付かる", "見つかる", 0.9512f},  // 41
++{"マンガ家", "漫画家", 0.9500f},  // 20
++{"昼ごはん", "昼ご飯", 0.9497f},  // 159
++{"面倒臭い", "めんどくさい", 0.9487f},  // 39
++{"可笑しい", "おかしい", 0.9474f},  // 38
++{"ざる蕎麦", "ざるそば", 0.9444f},  // 36
++{"晩ごはん", "晩御飯", 0.9422f},  // 173
++{"さつま芋", "さつまいも", 0.9333f},  // 45
++{"炒めもの", "炒め物", 0.9250f},  // 40
++{"残りもの", "残り物", 0.8824f},  // 34
++{"夜ふかし", "夜更かし", 0.8816f},  // 76
++{"無理矢理", "無理やり", 0.8636f},  // 22
++{"夜ごはん", "夜ご飯", 0.8571f},  // 98
++{"から揚げ", "唐揚げ", 0.8514f},  // 175
++{"１００万", "100万", 0.8485f},  // 33
++{"可哀そう", "かわいそう", 0.8482f},  // 112
++{"飲み過ぎ", "食べ過ぎ", 0.8333f},  // 30
++{"子ども達", "子供たち", 0.8189f},  // 127
++{"玉子焼き", "卵焼き", 0.7941f},  // 34
++{"追っかけ", "追いかけ", 0.7619f},  // 21
++{"汗っかき", "汗かき", 0.7143f},  // 49
++{"御座い", "ござい", 0.9997f},  // 15879
++{"本っ当", "本当", 0.9996f},  // 2382
++{"無くっ", "なく", 0.9996f},  // 2250
++{"全っ然", "全然", 0.9992f},  // 1178
++{"気もち", "気持ち", 0.9987f},  // 793
++{"始めて", "初めて", 0.9986f},  // 710
++{"皆んな", "みんな", 0.9983f},  // 579
++{"お奨め", "おすすめ", 0.9982f},  // 1094
++{"時どき", "時々", 0.9977f},  // 433
++{"行こっ", "行こう", 0.9977f},  // 439
++{"想い出", "思い出", 0.9970f},  // 331
++{"日付け", "日付", 0.9966f},  // 295
++{"仕舞っ", "しまっ", 0.9964f},  // 844
++{"名まえ", "名前", 0.9963f},  // 536
++{"今日は", "こんにちは", 0.9956f},  // 5236
++{"御世話", "お世話", 0.9946f},  // 184
++{"今晩は", "こんばんは", 0.9942f},  // 2759
++{"挙がっ", "上がっ", 0.9938f},  // 161
++{"有難う", "ありがとう", 0.9936f},  // 9836
++{"昼御飯", "昼ご飯", 0.9934f},  // 152
++{"兎に角", "とにかく", 0.9932f},  // 146
++{"話だい", "話題", 0.9932f},  // 148
++{"見掛け", "見かけ", 0.9924f},  // 131
++{"焼そば", "焼きそば", 0.9921f},  // 126
++{"夏ばて", "夏バテ", 0.9918f},  // 122
++{"めん類", "麺類", 0.9915f},  // 118
++{"挙がり", "上がり", 0.9914f},  // 116
++{"揚がり", "上がり", 0.9914f},  // 116
++{"掛かる", "かかる", 0.9901f},  // 101
++{"雷鳴り", "雷", 0.9900f},  // 100
++{"観よう", "みよう", 0.9892f},  // 650
++{"引越し", "引っ越し", 0.9884f},  // 86
++{"キン肉", "筋肉", 0.9882f},  // 85
++{"掛から", "かから", 0.9881f},  // 84
++{"活どう", "活動", 0.9875f},  // 80
++{"掛かり", "かかり", 0.9873f},  // 471
++{"組合せ", "組み合わせ", 0.9861f},  // 72
++{"挙がる", "上がる", 0.9859f},  // 71
++{"掛かっ", "かかっ", 0.9853f},  // 272
++{"淋しい", "寂しい", 0.9833f},  // 120
++{"作ろっ", "作ろう", 0.9821f},  // 56
++{"造ろう", "作ろう", 0.9821f},  // 56
++{"泊れる", "泊まれる", 0.9815f},  // 54
++{"愉しむ", "楽しむ", 0.9804f},  // 51
++{"肩凝り", "肩こり", 0.9804f},  // 51
++{"宜しい", "よろしい", 0.9801f},  // 251
++{"たこ焼", "たこ焼き", 0.9800f},  // 100
++{"可哀相", "かわいそう", 0.9794f},  // 97
++{"缶詰め", "缶詰", 0.9792f},  // 48
++{"味つけ", "味付け", 0.9780f},  // 91
++{"人ゴミ", "人混み", 0.9778f},  // 45
++{"憂うつ", "憂鬱", 0.9767f},  // 43
++{"淹れる", "入れる", 0.9766f},  // 214
++{"無くっ", "なくっ", 0.9750f},  // 40
++{"金もち", "金持ち", 0.9744f},  // 39
++{"墓詣り", "墓参り", 0.9730f},  // 37
++{"刺し身", "刺身", 0.9724f},  // 145
++{"煮もの", "煮物", 0.9722f},  // 36
++{"洗たく", "洗濯", 0.9720f},  // 107
++{"完ぺき", "完璧", 0.9714f},  // 35
++{"挙げる", "あげる", 0.9714f},  // 35
++{"産まれ", "生まれ", 0.9709f},  // 103
++{"獲れる", "取れる", 0.9706f},  // 34
++{"っ放し", "っぱなし", 0.9701f},  // 167
++{"ゴマ油", "ごま油", 0.9688f},  // 32
++{"胡麻油", "ごま油", 0.9688f},  // 32
++{"友だち", "友達", 0.9684f},  // 664
++{"仲よく", "仲良く", 0.9683f},  // 63
++{"入れれ", "入れ", 0.9675f},  // 123
++{"無けれ", "なけれ", 0.9667f},  // 120
++{"感違い", "勘違い", 0.9655f},  // 29
++{"海ぞい", "海沿い", 0.9655f},  // 29
++{"無かっ", "なかっ", 0.9632f},  // 952
++{"カキ氷", "かき氷", 0.9631f},  // 217
++{"美味い", "うまい", 0.9619f},  // 105
++{"貰える", "もらえる", 0.9600f},  // 75
++{"正しく", "まさしく", 0.9583f},  // 24
++{"近付い", "近づい", 0.9583f},  // 48
++{"慣れれ", "慣れ", 0.9556f},  // 45
++{"敢えて", "あえて", 0.9556f},  // 45
++{"何ごと", "何事", 0.9545f},  // 44
++{"御迎え", "お迎え", 0.9545f},  // 22
++{"捕れる", "取れる", 0.9524f},  // 21
++{"採れる", "取れる", 0.9524f},  // 21
++{"豚カツ", "とんかつ", 0.9524f},  // 21
++{"ひと目", "一目", 0.9500f},  // 20
++{"出合い", "出会い", 0.9500f},  // 40
++{"揚がる", "上がる", 0.9474f},  // 38
++{"見よう", "みよう", 0.9470f},  // 679
++{"停まっ", "止まっ", 0.9423f},  // 52
++{"出来る", "できる", 0.9382f},  // 3756
++{"纏まっ", "まとまっ", 0.9375f},  // 32
++{"人込み", "人混み", 0.9362f},  // 47
++{"癒やさ", "癒さ", 0.9359f},  // 234
++{"ひと時", "一時", 0.9355f},  // 31
++{"別もの", "別物", 0.9355f},  // 31
++{"癒やし", "癒し", 0.9344f},  // 61
++{"宜しく", "よろしく", 0.9343f},  // 4185
++{"頑張ろ", "頑張ろう", 0.9333f},  // 30
++{"出掛け", "出かけ", 0.9292f},  // 212
++{"観れる", "見れる", 0.9268f},  // 41
++{"不味い", "まずい", 0.9231f},  // 39
++{"分かれ", "わかれ", 0.9231f},  // 26
++{"お洒落", "おしゃれ", 0.9224f},  // 232
++{"有難い", "ありがたい", 0.9224f},  // 245
++{"手ごろ", "手頃", 0.9211f},  // 38
++{"物凄く", "ものすごく", 0.9205f},  // 88
++{"聴こえ", "聞こえ", 0.9167f},  // 48
++{"晩ご飯", "晩御飯", 0.9157f},  // 178
++{"お陰様", "おかげさま", 0.9091f},  // 22
++{"似あう", "似合う", 0.9091f},  // 22
++{"凄かっ", "すごかっ", 0.9074f},  // 162
++{"物凄い", "ものすごい", 0.9062f},  // 32
++{"可愛い", "可愛", 0.9032f},  // 62
++{"下さい", "ください", 0.9011f},  // 4256
++{"面倒臭", "めんどくさ", 0.9000f},  // 20
++{"可哀想", "かわいそう", 0.8962f},  // 106
++{"街なか", "街中", 0.8929f},  // 28
++{"お喋り", "おしゃべり", 0.8913f},  // 46
++{"哀しい", "悲しい", 0.8889f},  // 36
++{"控え目", "控えめ", 0.8889f},  // 36
++{"麺つゆ", "めんつゆ", 0.8864f},  // 44
++{"物好き", "もの好き", 0.8857f},  // 35
++{"貯まっ", "溜まっ", 0.8837f},  // 43
++{"焼き肉", "焼肉", 0.8810f},  // 336
++{"夕立ち", "夕立", 0.8800f},  // 25
++{"お勧め", "おすすめ", 0.8764f},  // 1246
++{"片づけ", "片付け", 0.8718f},  // 39
++{"上手い", "うまい", 0.8707f},  // 116
++{"わが家", "我が家", 0.8704f},  // 216
++{"寝付き", "寝つき", 0.8649f},  // 37
++{"大き目", "大きめ", 0.8571f},  // 35
++{"小まめ", "こまめ", 0.8571f},  // 42
++{"越える", "超える", 0.8571f},  // 21
++{"気付き", "気づき", 0.8511f},  // 47
++{"１０万", "10万", 0.8485f},  // 33
++{"すし屋", "寿司屋", 0.8333f},  // 36
++{"分かん", "わかん", 0.8226f},  // 62
++{"分かる", "わかる", 0.8182f},  // 143
++{"日ごろ", "日頃", 0.8182f},  // 33
++{"人ごみ", "人混み", 0.8148f},  // 54
++{"生もの", "生物", 0.8125f},  // 32
++{"みそ汁", "味噌汁", 0.8046f},  // 174
++{"過ぎる", "すぎる", 0.8013f},  // 151
++{"差支え", "差し支え", 0.8000f},  // 30
++{"揚げる", "あげる", 0.7907f},  // 43
++{"頂ける", "いただける", 0.7755f},  // 49
++{"恐らく", "おそらく", 0.7722f},  // 79
++{"心掛け", "心がけ", 0.7667f},  // 30
++{"分かり", "わかり", 0.7600f},  // 4742
++{"上手く", "うまく", 0.7572f},  // 313
++{"気付か", "気づか", 0.7556f},  // 45
++{"子供達", "子供たち", 0.7429f},  // 140
++{"町並み", "街並み", 0.7429f},  // 35
++{"上げる", "あげる", 0.7391f},  // 46
++{"当たり", "あたり", 0.7317f},  // 41
++{"気付い", "気づい", 0.7143f},  // 126
++{"分から", "わから", 0.7083f},  // 953
++{"在り", "あり", 0.9999f},  // 16040
++{"成り", "なり", 0.9999f},  // 7895
++{"私ゃ", "私", 0.9999f},  // 14184
++{"見い", "見", 0.9998f},  // 5225
++{"分り", "わかり", 0.9997f},  // 3605
++{"演っ", "やっ", 0.9997f},  // 3560
++{"想い", "思い", 0.9996f},  // 5501
++{"在る", "ある", 0.9995f},  // 1924
++{"想っ", "思っ", 0.9994f},  // 3114
++{"申訳", "申し訳", 0.9994f},  // 1818
++{"訊い", "聞い", 0.9993f},  // 1427
++{"創っ", "作っ", 0.9991f},  // 1159
++{"居る", "いる", 0.9991f},  // 5426
++{"訊き", "聞き", 0.9991f},  // 1173
++{"貴方", "あなた", 0.9991f},  // 2169
++{"診る", "見る", 0.9987f},  // 757
++{"分ら", "わから", 0.9985f},  // 676
++{"判ら", "わから", 0.9985f},  // 676
++{"有っ", "あっ", 0.9985f},  // 2722
++{"有る", "ある", 0.9985f},  // 5194
++{"解ら", "わから", 0.9985f},  // 676
++{"想う", "思う", 0.9984f},  // 617
++{"有り", "あり", 0.9984f},  // 16065
++{"詠ん", "読ん", 0.9984f},  // 610
++{"解り", "わかり", 0.9983f},  // 3610
++{"夏休", "夏休み", 0.9979f},  // 482
++{"掛り", "かかり", 0.9979f},  // 466
++{"造り", "作り", 0.9978f},  // 461
++{"御腹", "お腹", 0.9977f},  // 434
++{"行こ", "行こう", 0.9977f},  // 439
++{"過し", "過ごし", 0.9977f},  // 440
++{"恐い", "怖い", 0.9975f},  // 810
++{"何に", "何", 0.9970f},  // 7969
++{"饂飩", "うどん", 0.9970f},  // 329
++{"１番", "一番", 0.9970f},  // 1640
++{"活い", "つい", 0.9968f},  // 309
++{"成程", "なるほど", 0.9965f},  // 3154
++{"公苑", "公園", 0.9964f},  // 276
++{"今迄", "今まで", 0.9962f},  // 260
++{"呑み", "飲み", 0.9961f},  // 766
++{"呑む", "飲む", 0.9961f},  // 255
++{"当に", "まさに", 0.9960f},  // 248
++{"決っ", "決まっ", 0.9960f},  // 251
++{"盗っ", "とっ", 0.9960f},  // 250
++{"旨く", "うまく", 0.9958f},  // 238
++{"余り", "あまり", 0.9955f},  // 2224
++{"録り", "取り", 0.9955f},  // 221
++{"空っ", "減っ", 0.9951f},  // 206
++{"話し", "話", 0.9948f},  // 1528
++{"豆富", "豆腐", 0.9944f},  // 177
++{"活き", "生き", 0.9940f},  // 168
++{"冷え", "冷たい", 0.9935f},  // 154
++{"終っ", "終わっ", 0.9935f},  // 309
++{"憬れ", "憧れ", 0.9923f},  // 259
++{"最寄", "最寄り", 0.9923f},  // 1423
++{"憶え", "覚え", 0.9922f},  // 387
++{"素麵", "そうめん", 0.9922f},  // 258
++{"振り", "ぶり", 0.9920f},  // 125
++{"寧ろ", "むしろ", 0.9919f},  // 124
++{"１度", "1度", 0.9917f},  // 121
++{"易い", "やすい", 0.9915f},  // 469
++{"解る", "わかる", 0.9915f},  // 118
++{"麵類", "麺類", 0.9915f},  // 118
++{"創る", "作る", 0.9914f},  // 116
++{"詩っ", "歌っ", 0.9914f},  // 116
++{"直ぐ", "すぐ", 0.9908f},  // 1089
++{"遭い", "会い", 0.9908f},  // 109
++{"遣っ", "使っ", 0.9905f},  // 946
++{"代り", "代わり", 0.9898f},  // 98
++{"無さ", "なさ", 0.9897f},  // 387
++{"真逆", "まさか", 0.9896f},  // 96
++{"我家", "我が家", 0.9895f},  // 190
++{"変り", "変わり", 0.9894f},  // 188
++{"当っ", "当たっ", 0.9892f},  // 93
++{"大學", "大学", 0.9889f},  // 271
++{"恐く", "怖く", 0.9889f},  // 180
++{"遣う", "使う", 0.9889f},  // 90
++{"奇麗", "綺麗", 0.9881f},  // 335
++{"正に", "まさに", 0.9880f},  // 250
++{"活き", "つき", 0.9878f},  // 82
++{"敗け", "負け", 0.9877f},  // 81
++{"載り", "乗り", 0.9877f},  // 81
++{"1番", "一番", 0.9873f},  // 1656
++{"点け", "付け", 0.9870f},  // 386
++{"唐揚", "唐揚げ", 0.9868f},  // 151
++{"獲る", "とる", 0.9868f},  // 76
++{"纏め", "まとめ", 0.9863f},  // 73
++{"服め", "飲め", 0.9861f},  // 72
++{"拘り", "こだわり", 0.9855f},  // 69
++{"気持", "気持ち", 0.9851f},  // 804
++{"遣え", "使え", 0.9851f},  // 67
++{"如何", "いかが", 0.9850f},  // 2991
++{"幾ら", "いくら", 0.9846f},  // 260
++{"捕れ", "取れ", 0.9841f},  // 63
++{"採れ", "取れ", 0.9841f},  // 63
++{"っ歯", "歯", 0.9839f},  // 62
++{"淹れ", "入れ", 0.9835f},  // 121
++{"未だ", "まだ", 0.9834f},  // 1868
++{"薦め", "勧め", 0.9833f},  // 180
++{"蜜柑", "みかん", 0.9828f},  // 58
++{"廻っ", "回っ", 0.9825f},  // 57
++{"快復", "回復", 0.9811f},  // 53
++{"御飯", "ご飯", 0.9805f},  // 665
++{"遣い", "使い", 0.9805f},  // 461
++{"増々", "ますます", 0.9804f},  // 51
++{"拘っ", "こだわっ", 0.9804f},  // 51
++{"採っ", "とっ", 0.9803f},  // 254
++{"遭う", "会う", 0.9800f},  // 50
++{"折角", "せっかく", 0.9793f},  // 145
++{"昇っ", "登っ", 0.9787f},  // 47
++{"易く", "やすく", 0.9787f},  // 188
++{"飲物", "飲み物", 0.9784f},  // 139
++{"何才", "何歳", 0.9778f},  // 45
++{"寿し", "寿司", 0.9777f},  // 403
++{"熟れ", "慣れ", 0.9773f},  // 44
++{"篭っ", "こもっ", 0.9773f},  // 44
++{"無い", "ない", 0.9769f},  // 6981
++{"餡子", "あんこ", 0.9767f},  // 43
++{"未來", "未来", 0.9765f},  // 85
++{"幾つ", "いくつ", 0.9763f},  // 253
++{"麺汁", "めんつゆ", 0.9750f},  // 40
++{"買物", "買い物", 0.9749f},  // 1193
++{"引越", "引っ越し", 0.9747f},  // 79
++{"溜っ", "溜まっ", 0.9744f},  // 39
++{"且つ", "かつ", 0.9737f},  // 38
++{"拘ら", "こだわら", 0.9737f},  // 38
++{"載ら", "乗ら", 0.9722f},  // 36
++{"見込", "見込み", 0.9706f},  // 34
++{"闘う", "戦う", 0.9706f},  // 34
++{"因み", "ちなみ", 0.9705f},  // 678
++{"炬燵", "こたつ", 0.9697f},  // 33
++{"玉葱", "玉ねぎ", 0.9694f},  // 98
++{"良く", "よく", 0.9690f},  // 3388
++{"当り", "当たり", 0.9688f},  // 32
++{"獲れ", "取れ", 0.9688f},  // 64
++{"玉子", "卵", 0.9688f},  // 256
++{"醬油", "醤油", 0.9672f},  // 183
++{"真中", "真ん中", 0.9667f},  // 30
++{"勿論", "もちろん", 0.9664f},  // 238
++{"知れ", "しれ", 0.9662f},  // 651
++{"恰好", "かっこ", 0.9661f},  // 118
++{"遣わ", "使わ", 0.9659f},  // 264
++{"仔猫", "子猫", 0.9655f},  // 29
++{"十万", "10万", 0.9655f},  // 29
++{"載る", "乗る", 0.9651f},  // 86
++{"殆ど", "ほとんど", 0.9647f},  // 397
++{"最早", "もはや", 0.9643f},  // 56
++{"挙げ", "あげ", 0.9641f},  // 195
++{"暫く", "しばらく", 0.9635f},  // 219
++{"無く", "なく", 0.9632f},  // 2335
++{"跳び", "飛び", 0.9630f},  // 27
++{"闘っ", "戦っ", 0.9630f},  // 27
++{"冷麵", "冷麺", 0.9615f},  // 52
++{"分っ", "わかっ", 0.9615f},  // 182
++{"堅く", "硬く", 0.9615f},  // 26
++{"今晩", "こんばん", 0.9614f},  // 700
++{"採る", "とる", 0.9600f},  // 25
++{"焼芋", "焼き芋", 0.9600f},  // 25
++{"辣油", "ラー油", 0.9600f},  // 25
++{"瘦せ", "痩せ", 0.9595f},  // 74
++{"難い", "にくい", 0.9589f},  // 146
++{"上っ", "登っ", 0.9583f},  // 48
++{"昇り", "登り", 0.9565f},  // 23
++{"利き", "効き", 0.9556f},  // 45
++{"喰わ", "食わ", 0.9545f},  // 22
++{"煩い", "うるさい", 0.9545f},  // 44
++{"誉め", "褒め", 0.9545f},  // 22
++{"蒐集", "収集", 0.9524f},  // 21
++{"摂り", "取り", 0.9483f},  // 232
++{"魅か", "惹か", 0.9483f},  // 58
++{"笑い", "笑", 0.9465f},  // 935
++{"泊っ", "泊まっ", 0.9455f},  // 55
++{"専ら", "もっぱら", 0.9452f},  // 73
++{"様様", "様々", 0.9444f},  // 36
++{"益々", "ますます", 0.9434f},  // 53
++{"言う", "いう", 0.9433f},  // 6423
++{"貰い", "もらい", 0.9426f},  // 244
++{"貰え", "もらえ", 0.9425f},  // 852
++{"辛い", "づらい", 0.9425f},  // 87
++{"泊る", "泊まる", 0.9404f},  // 151
++{"住い", "住まい", 0.9394f},  // 165
++{"蜂蜜", "はちみつ", 0.9394f},  // 33
++{"貰う", "もらう", 0.9365f},  // 63
++{"摂っ", "とっ", 0.9361f},  // 266
++{"下り", "降り", 0.9355f},  // 62
++{"１人", "一人", 0.9346f},  // 673
++{"割り", "割", 0.9333f},  // 120
++{"百万", "100万", 0.9333f},  // 30
++{"御覧", "ご覧", 0.9315f},  // 73
++{"仕組", "仕組み", 0.9310f},  // 29
++{"魚貝", "魚介", 0.9310f},  // 29
++{"摂ら", "取ら", 0.9306f},  // 72
++{"頂き", "いただき", 0.9284f},  // 531
++{"段々", "だんだん", 0.9278f},  // 97
++{"兄妹", "兄弟", 0.9266f},  // 109
++{"観る", "見る", 0.9266f},  // 327
++{"個所", "か所", 0.9259f},  // 27
++{"摂る", "とる", 0.9259f},  // 81
++{"貰っ", "もらっ", 0.9250f},  // 440
++{"恰好", "格好", 0.9231f},  // 52
++{"昇る", "登る", 0.9231f},  // 26
++{"１万", "1万", 0.9231f},  // 26
++{"遭っ", "会っ", 0.9200f},  // 75
++{"併せ", "合わせ", 0.9194f},  // 124
++{"周っ", "回っ", 0.9180f},  // 61
++{"浅漬", "浅漬け", 0.9167f},  // 24
++{"羽根", "羽", 0.9167f},  // 36
++{"凄く", "すごく", 0.9146f},  // 1428
++{"今一", "いまいち", 0.9143f},  // 35
++{"凄い", "すごい", 0.9124f},  // 2683
++{"難い", "がたい", 0.9104f},  // 67
++{"余程", "よほど", 0.9091f},  // 22
++{"停め", "止め", 0.9091f},  // 44
++{"牛筋", "牛すじ", 0.9091f},  // 22
++{"載っ", "乗っ", 0.9088f},  // 373
++{"支払", "支払い", 0.9048f},  // 42
++{"辛く", "づらく", 0.9048f},  // 42
++{"梅干", "梅干し", 0.9038f},  // 52
++{"堅い", "硬い", 0.9032f},  // 31
++{"南瓜", "かぼちゃ", 0.9000f},  // 50
++{"丁度", "ちょうど", 0.8976f},  // 420
++{"戸建", "戸建て", 0.8966f},  // 29
++{"出来", "でき", 0.8961f},  // 924
++{"ヵ月", "か月", 0.8957f},  // 115
++{"利い", "効い", 0.8955f},  // 67
++{"焼鳥", "焼き鳥", 0.8947f},  // 38
++{"勿体", "もったい", 0.8944f},  // 142
++{"町中", "街中", 0.8929f},  // 28
++{"茗荷", "みょうが", 0.8889f},  // 36
++{"頂け", "いただけ", 0.8883f},  // 967
++{"大分", "だいぶ", 0.8843f},  // 337
++{"中々", "なかなか", 0.8834f},  // 1449
++{"聴き", "聞き", 0.8825f},  // 1328
++{"山葵", "わさび", 0.8810f},  // 42
++{"上り", "登り", 0.8800f},  // 25
++{"利か", "効か", 0.8788f},  // 33
++{"良い", "いい", 0.8781f},  // 13372
++{"観れ", "見れ", 0.8777f},  // 229
++{"籠っ", "こもっ", 0.8776f},  // 49
++{"き用", "器用", 0.8750f},  // 32
++{"応え", "答え", 0.8750f},  // 24
++{"一杯", "いっぱい", 0.8745f},  // 239
++{"下さ", "くださ", 0.8710f},  // 31
++{"利く", "効く", 0.8710f},  // 31
++{"所謂", "いわゆる", 0.8710f},  // 31
++{"挽肉", "ひき肉", 0.8710f},  // 31
++{"程々", "ほどほど", 0.8704f},  // 54
++{"沢山", "たくさん", 0.8686f},  // 1081
++{"跳ぶ", "飛ぶ", 0.8621f},  // 29
++{"聴い", "聞い", 0.8585f},  // 1661
++{"何故", "なぜ", 0.8557f},  // 305
++{"付か", "つか", 0.8554f},  // 83
++{"葡萄", "ぶどう", 0.8553f},  // 76
++{"駄目", "だめ", 0.8520f},  // 331
++{"素麺", "そうめん", 0.8505f},  // 301
++{"お陰", "おかげ", 0.8496f},  // 113
++{"周る", "回る", 0.8485f},  // 33
++{"闘い", "戦い", 0.8462f},  // 39
++{"充分", "十分", 0.8451f},  // 71
++{"辺り", "あたり", 0.8441f},  // 417
++{"是非", "ぜひ", 0.8429f},  // 1751
++{"酷い", "ひどい", 0.8387f},  // 62
++{"酷く", "ひどく", 0.8312f},  // 77
++{"頂く", "いただく", 0.8276f},  // 29
++{"過ぎ", "すぎ", 0.8267f},  // 1177
++{"1人", "一人", 0.8255f},  // 762
++{"上げ", "あげ", 0.8246f},  // 228
++{"周り", "回り", 0.8235f},  // 34
++{"揚げ", "あげ", 0.8210f},  // 229
++{"聴け", "聞け", 0.8154f},  // 65
++{"来い", "こい", 0.8148f},  // 27
++{"旨い", "うまい", 0.8145f},  // 124
++{"言え", "いえ", 0.8101f},  // 927
++{"引か", "惹か", 0.8088f},  // 68
++{"遭わ", "会わ", 0.8077f},  // 26
++{"３万", "3万", 0.8077f},  // 26
++{"聴か", "聞か", 0.8057f},  // 314
++{"仰る", "おっしゃる", 0.8056f},  // 36
++{"カ月", "か月", 0.8047f},  // 128
++{"越え", "超え", 0.8022f},  // 91
++{"２人", "2人", 0.7975f},  // 326
++{"流石", "さすが", 0.7967f},  // 369
++{"紫蘇", "しそ", 0.7941f},  // 34
++{"更に", "さらに", 0.7917f},  // 24
++{"柚子", "ゆず", 0.7917f},  // 24
++{"付く", "つく", 0.7857f},  // 42
++{"味っ", "味わっ", 0.7826f},  // 23
++{"ヶ所", "か所", 0.7812f},  // 32
++{"来る", "くる", 0.7786f},  // 533
++{"三万", "3万", 0.7778f},  // 27
++{"小豆", "あずき", 0.7708f},  // 48
++{"美味", "うま", 0.7692f},  // 26
++{"晴れ", "晴", 0.7684f},  // 354
++{"溜め", "貯め", 0.7593f},  // 54
++{"被っ", "かぶっ", 0.7586f},  // 29
++{"カ所", "か所", 0.7576f},  // 33
++{"聴く", "聞く", 0.7509f},  // 265
++{"一万", "1万", 0.7500f},  // 32
++{"私達", "私たち", 0.7458f},  // 59
++{"付い", "つい", 0.7422f},  // 415
++{"曇り", "曇", 0.7362f},  // 436
++{"総菜", "惣菜", 0.7304f},  // 115
++{"見れ", "みれ", 0.7260f},  // 73
++{"致し", "いたし", 0.7161f},  // 2659
++{"入口", "入り口", 0.7143f},  // 21
++{"上る", "登る", 0.7059f},  // 34
++{"仕様", "しよう", 0.7059f},  // 68
++{"格好", "かっこ", 0.7037f},  // 162
++{"痒く", "かゆく", 0.7037f},  // 27
++{"頂い", "いただい", 0.7007f},  // 137
++{"乃", "の", 1.0000f},  // 92478
++{"御", "お", 0.9999f},  // 19773
++{"氣", "気", 0.9995f},  // 4281
++{"診", "見", 0.9992f},  // 5228
++{"居", "い", 0.9963f},  // 11488
++{"過", "すぎ", 0.9945f},  // 181
++{"又", "また", 0.9943f},  // 877
++{"唄", "歌", 0.9940f},  // 166
++{"眼", "目", 0.9938f},  // 487
++{"終", "終わり", 0.9927f},  // 137
++{"御", "ご", 0.9917f},  // 4554
++{"爲", "ため", 0.9877f},  // 567
++{"涼", "涼し", 0.9867f},  // 75
++{"共", "とも", 0.9828f},  // 116
++{"忘", "忘れ", 0.9825f},  // 57
++{"縣", "県", 0.9825f},  // 114
++{"楽", "楽し", 0.9804f},  // 612
++{"豊", "豊か", 0.9796f},  // 49
++{"思", "思え", 0.9787f},  // 47
++{"買", "買い", 0.9787f},  // 47
++{"形", "なり", 0.9780f},  // 91
++{"奴", "やつ", 0.9722f},  // 1760
++{"猶", "なお", 0.9688f},  // 32
++{"当", "あたり", 0.9677f},  // 31
++{"一", "ひと", 0.9674f},  // 92
++{"瀧", "滝", 0.9667f},  // 30
++{"甕", "瓶", 0.9667f},  // 30
++{"香", "香り", 0.9641f},  // 167
++{"鮨", "寿司", 0.9633f},  // 409
++{"兎", "うさぎ", 0.9630f},  // 27
++{"酔", "酔い", 0.9600f},  // 50
++{"極", "ごく", 0.9583f},  // 24
++{"才", "歳", 0.9582f},  // 311
++{"程", "ほど", 0.9580f},  // 1001
++{"幸", "幸い", 0.9565f},  // 46
++{"為", "ため", 0.9459f},  // 592
++{"通", "通り", 0.9403f},  // 335
++{"漬", "漬け", 0.9355f},  // 31
++{"婆", "ばあ", 0.9333f},  // 60
++{"祭", "祭り", 0.9231f},  // 26
++{"読", "読み", 0.9231f},  // 26
++{"訳", "わけ", 0.9125f},  // 377
++{"脚", "足", 0.9108f},  // 213
++{"入", "入り", 0.9091f},  // 55
++{"旨", "うま", 0.9091f},  // 22
++{"所", "ところ", 0.9083f},  // 5694
++{"柚", "ゆず", 0.9048f},  // 21
++{"物", "もの", 0.9040f},  // 5729
++{"毎", "ごと", 0.9028f},  // 72
++{"爺", "じい", 0.8980f},  // 49
++{"麵", "麺", 0.8942f},  // 274
++{"壱", "ひと", 0.8900f},  // 100
++{"並", "並み", 0.8800f},  // 25
++{"観", "見", 0.8708f},  // 5999
++{"後", "あと", 0.8691f},  // 4018
++{"来", "き", 0.8603f},  // 3836
++{"達", "たち", 0.8453f},  // 362
++{"竜", "龍", 0.8182f},  // 22
++{"凄", "すご", 0.8087f},  // 183
++{"皆", "みんな", 0.8028f},  // 720
++{"尚", "なお", 0.7949f},  // 39
++{"球", "玉", 0.7895f},  // 38
++{"鰻", "うなぎ", 0.7763f},  // 76
++{"瑕", "傷", 0.7500f},  // 24
++{"苺", "いちご", 0.7500f},  // 40
 diff --git a/src/rewriter/kotori_nuance_rewriter.cc b/src/rewriter/kotori_nuance_rewriter.cc
 new file mode 100644
 index 000000000..315af4f83
@@ -30662,10 +31427,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..110b2b3bc
+index 000000000..375a1880b
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,3587 @@
+@@ -0,0 +1,3823 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -30681,6 +31446,7 @@ index 000000000..110b2b3bc
 +#include <fstream>
 +#include <limits>
 +#include <map>
++#include <future>
 +#include <thread>
 +#include <atomic>
 +#include <condition_variable>
@@ -30839,6 +31605,18 @@ index 000000000..110b2b3bc
 +             std::chrono::steady_clock::now().time_since_epoch())
 +      .count();
 +}
++
++// Kotori: 変換の待ちの内訳(KOTORI_LM_TIMELINE)。各段の時刻を steady_clock のマイクロ秒で出し、
++// 評価の道具(mozc/tools/session_eval.py)が Space を送った時刻と突き合わせる。入力文は出さない。
++bool TimelineOn() {
++  static const bool on = std::getenv("KOTORI_LM_TIMELINE") != nullptr;
++  return on;
++}
++int64_t Us(std::chrono::steady_clock::time_point t) {
++  return std::chrono::duration_cast<std::chrono::microseconds>(t.time_since_epoch()).count();
++}
++// 裏の仕事が積まれた時刻(ワーカーのスレッドだけが読み書きする)。
++thread_local int64_t g_timeline_queued_us = 0;
 +
 +// 変換を待たせないための目印。変換の要求が来ている間、裏の予測は途中でやめる。
 +class Urgent {
@@ -31499,6 +32277,8 @@ index 000000000..110b2b3bc
 +  std::vector<std::optional<std::string>> best(t.size() + 1);
 +  best[0] = std::string();
 +  for (size_t i = 0; i < t.size(); ++i) {
++    // Kotori: 逆引きは位置ごとに数 ms かかる。やめる関数が真なら読みなし(失敗)として返す。
++    if (ZenzScorer::ThreadCancelled()) return std::string();
 +    if (!best[i]) continue;
 +    auto set = [&](size_t j, const std::string& y) {
 +      if (j <= t.size() && !best[j]) best[j] = *best[i] + y;
@@ -31580,6 +32360,93 @@ index 000000000..110b2b3bc
 +    if (score > best_score) { best = i; best_score = score; }
 +  }
 +  return best;
++}
++
++namespace {
++struct NotationEntry {
++  const char* minor;
++  const char* major;
++  float share;
++};
++constexpr NotationEntry kNotationTable[] = {
++#include "rewriter/kotori_notation_table.inc"
++};
++
++bool IsKanjiChar(absl::string_view ch) {
++  if (ch.size() != 3) return false;
++  const unsigned char a = ch[0], b = ch[1], c = ch[2];
++  const char32_t cp = ((a & 0x0F) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
++  return (cp >= 0x4E00 && cp <= 0x9FFF) || cp == 0x3005;  // 々
++}
++}  // namespace
++
++double NaturalNotation(absl::string_view value, std::string* out) {
++  if (out == nullptr) return 0;
++  out->clear();
++  const std::vector<std::string> chars = Chars(value);
++  std::vector<size_t> offset(chars.size() + 1, 0);
++  for (size_t i = 0; i < chars.size(); ++i) offset[i + 1] = offset[i] + chars[i].size();
++  double odds = 0;
++  std::string result;
++  for (size_t i = 0; i < chars.size();) {
++    const NotationEntry* hit = nullptr;
++    size_t hit_len = 0;
++    const absl::string_view rest = value.substr(offset[i]);
++    for (const NotationEntry& e : kNotationTable) {  // 長い表層から並んでいる
++      if (!absl::StartsWith(rest, e.minor)) continue;
++      const size_t len = Chars(e.minor).size();
++      const std::vector<std::string> minor = Chars(e.minor);
++      if (IsKanjiChar(minor.front()) && i > 0 && IsKanjiChar(chars[i - 1])) continue;
++      if (IsKanjiChar(minor.back()) && i + len < chars.size() && IsKanjiChar(chars[i + len])) continue;
++      hit = &e;
++      hit_len = len;
++      break;
++    }
++    if (hit == nullptr) {
++      result += chars[i];
++      ++i;
++      continue;
++    }
++    const double s = std::clamp(static_cast<double>(hit->share), 0.7, 0.99);
++    odds += std::log(s / (1 - s));
++    result += hit->major;
++    i += hit_len;
++  }
++  if (odds <= 0) return 0;
++  *out = std::move(result);
++  return odds;
++}
++
++size_t PreferPercentSymbol(const std::vector<std::string>& values,
++                           const std::vector<double>& scores, size_t top) {
++  if (top >= values.size() || scores.size() != values.size()) return top;
++  const auto is_digit = [](const std::string& c) {
++    return (c.size() == 1 && c[0] >= '0' && c[0] <= '9') || (c >= "０" && c <= "９" && c.size() == 3);
++  };
++  static constexpr char kWord[] = "パーセント";
++  const std::vector<std::string> chars = Chars(values[top]);
++  std::string half, full, rest;
++  bool replaced = false;
++  for (size_t i = 0; i < chars.size(); ++i) {
++    rest.clear();
++    for (size_t j = i; j < chars.size() && j < i + 5; ++j) rest += chars[j];
++    if (i > 0 && is_digit(chars[i - 1]) && rest == kWord) {
++      half += "%";
++      full += "％";
++      i += 4;  // 「パーセント」の残り4文字
++      replaced = true;
++      continue;
++    }
++    half += chars[i];
++    full += chars[i];
++  }
++  if (!replaced) return top;
++  for (size_t i = 0; i < values.size(); ++i) {
++    if (i != top && std::isfinite(scores[i]) && (values[i] == half || values[i] == full)) {
++      return i;
++    }
++  }
++  return top;
 +}
 +
 +void AddNearbyLatticeCandidates(const std::vector<float>& scores,
@@ -31768,6 +32635,7 @@ index 000000000..110b2b3bc
 +    const dictionary::DictionaryInterface& dictionary, absl::string_view reading,
 +    absl::string_view corrected) {
 +  auto test = [&](const std::vector<std::string>& chars) {
++    if (ZenzScorer::ThreadCancelled()) return std::string();
 +    const std::string yomi = absl::StrJoin(chars, "");
 +    return IsMechanicalReadingTypo(reading, yomi) &&
 +           MatchesReading(dictionary, nullptr, corrected, yomi, false) ? yomi : std::string();
@@ -31777,6 +32645,9 @@ index 000000000..110b2b3bc
 +  const auto reverse = ReadingOf(dictionary, nullptr, corrected);
 +  if (IsMechanicalReadingTypo(reading, reverse)) return reverse;
 +  for (size_t i = 0; i <= input.size(); ++i) {
++    // Kotori: 位置ごとに約 55 通りの読みを辞書と照らすので、長い文では数百 ms かかる。
++    // 利用者が Space を押して待っているときなどは途中でやめる(補正しない側に倒す)。
++    if (ZenzScorer::ThreadCancelled()) return {};
 +    for (const char* insert : {"っ", "ー", "う", "い"}) {
 +      auto candidate = input;
 +      candidate.insert(candidate.begin() + i, insert);
@@ -31845,6 +32716,7 @@ index 000000000..110b2b3bc
 +  size_t at = 0;
 +  while (at < input.size() && at < fixed.size() && input[at] == fixed[at]) ++at;
 +  for (size_t i = 0; i <= text.size(); ++i) {
++    if (ZenzScorer::ThreadCancelled()) return std::nullopt;
 +    auto candidate = text;
 +    if (fixed.size() == input.size() + 1) {
 +      candidate.insert(candidate.begin() + i, fixed[at]);
@@ -31901,6 +32773,15 @@ index 000000000..110b2b3bc
 +  return absl::StrContains(base, c[0] + c[1] + c[2]);
 +}
 +
++// Kotori: 補正の各段の時刻(KOTORI_LM_TIMELINE)。待ちの原因を調べるため。
++void CorrectionMark(const char* phase) {
++  static const bool on = std::getenv("KOTORI_LM_TIMELINE") != nullptr;
++  if (!on) return;
++  const long long us = std::chrono::duration_cast<std::chrono::microseconds>(
++      std::chrono::steady_clock::now().time_since_epoch()).count();
++  std::fprintf(stderr, "[corr] %s cancel=%d at=%lld\n", phase, ZenzScorer::ThreadCancelled() ? 1 : 0, us);
++}
++
 +std::optional<std::string> GenerateSafeCorrection(
 +    const dictionary::DictionaryInterface& dictionary,
 +    dictionary::PosMatcher pos_matcher, ZenzScorer* scorer, ZenzScorer* llm,
@@ -31917,8 +32798,10 @@ index 000000000..110b2b3bc
 +    return std::nullopt;
 +  }
 +  CancelScope cancel(cancelled);
++  CorrectionMark("checked");
 +  const auto generated = llm->Correct(reading, original, options.prompt,
 +                                      options.beams);
++  CorrectionMark("generated");
 +  if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +    std::fprintf(stderr, "[kotori] correction generated=%zu cancelled=%d\n",
 +                 generated.size(), cancelled() ? 1 : 0);
@@ -31927,8 +32810,10 @@ index 000000000..110b2b3bc
 +  double best_score = original_score;
 +  for (const auto& generated_value : generated) {
 +    if (cancelled()) return std::nullopt;
++    CorrectionMark("value");
 +    const auto projected = ProjectMechanicalTypoCorrection(
 +        dictionary, pos_matcher, reading, original, generated_value);
++    CorrectionMark("projected");
 +    if (cancelled()) return std::nullopt;
 +    const std::string& value = projected ? *projected : generated_value;
 +    std::string candidate_reading(reading);
@@ -31939,8 +32824,10 @@ index 000000000..110b2b3bc
 +      }
 +      continue;
 +    }
++    CorrectionMark("safe");
 +    if (cancelled()) return std::nullopt;
 +    const auto z = scorer->Score(context, candidate_reading, {value});
++    CorrectionMark("zenz");
 +    if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +      std::fprintf(stderr, "[kotori] correction zenz_valid=%d cancelled=%d\n",
 +                   z && z->size() == 1 && std::isfinite((*z)[0]) ? 1 : 0,
@@ -31950,6 +32837,7 @@ index 000000000..110b2b3bc
 +      return std::nullopt;
 +    }
 +    const auto l = llm->Score(context, reading, {value});
++    CorrectionMark("llm");
 +    if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +      std::fprintf(stderr, "[kotori] correction llm_valid=%d cancelled=%d\n",
 +                   l && l->size() == 1 && std::isfinite((*l)[0]) ? 1 : 0,
@@ -32030,6 +32918,9 @@ index 000000000..110b2b3bc
 +  if (const char* v = Env("KOTORI_LM_TYPO_GATE")) typo_gate_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_STRONG")) typo_strong_gain_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_ZENZ_LONG_MODEL")) env_long_path_ = v;
++  if (const char* v = Env("KOTORI_AI_WAIT_POLL")) {
++    kotori::g_ai_wait_poll_ms = std::max(1, std::atoi(v));
++  }
 +  if (const char* v = Env("KOTORI_LM_IDLE_UNLOAD")) {
 +    idle_unload_ms_ = std::max(0, std::atoi(v)) * 1000;
 +  }
@@ -32040,6 +32931,7 @@ index 000000000..110b2b3bc
 +  if (const char* v = Env("KOTORI_LM_LLM_WEIGHT")) lambda_llm_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_CONFIDENCE_GUARD")) confidence_guard_ = *v == '1';
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY")) gen_penalty_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_NOTATION_WEIGHT")) notation_weight_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY_LLM")) {
 +    gen_penalty_llm_ = std::atof(v);
 +  }
@@ -32137,13 +33029,14 @@ index 000000000..110b2b3bc
 +  if (config.kotori_lm_enabled() && sleeping_.exchange(false)) {
 +    RequestLoad(config);
 +  }
-+  // Kotori: 入力中の候補を取り直すまでの時間(docs/adr/0039)。GPU があれば生成と採点が速いので
-+  // 早めに、ないときは先回りの変換(手が止まって 0.12 秒後に始める生成)が終わる頃にする。
++  // Kotori: 入力中の候補を取り直すまでの時間(docs/adr/0039)。GPU があれば、手が止まって 20 ms で
++  // Space と同じ変換を裏で始める(人が最後の打鍵から Space を押すまでの約 0.1〜0.2 秒の間に結果を
++  // 作っておく。docs/adr/0071)。ないときは先回りの変換(手が止まって 0.12 秒後に始める生成)が終わる頃にする。
 +  // 2 回目以降は、裏で作る予測(手が止まって 0.6 秒後に作り直す)を待って出す。
 +  int first = 0, next = 0;
 +  if (live_ && config.kotori_lm_enabled()) {
 +    const bool gpu = HasGpu();
-+    first = live_first_ms_ >= 0 ? live_first_ms_ : (gpu ? 200 : 450);
++    first = live_first_ms_ >= 0 ? live_first_ms_ : (gpu ? 20 : 450);
 +    if (predict_ && config.kotori_lm_predict() && UsesLlm(config)) {
 +      next = live_next_ms_ >= 0 ? live_next_ms_ : 800;
 +    }
@@ -32362,9 +33255,19 @@ index 000000000..110b2b3bc
 +    const std::string& reading, int beams,
 +    const std::function<bool()>& cancelled) const {
 +  CancelScope cancel(cancelled);
-+  std::vector<std::string> values = scorer->Generate(context, reading, beams);
++  // Kotori: 2 つの生成器(zenz と学習済みの生成器)は別のモデル・別の計算の場所を持つので、
++  // 同時に動かす。1 回の計算は GPU を使い切らないため、順に動かすより待ちが短い。
++  // 並べる順(zenz の後に学習済みの生成器)は変えない。
++  std::future<std::vector<std::string>> extra;
 +  if (UsesExtraGenerator(llm) && !cancelled()) {
-+    for (std::string& value : extra_->Generate(context, reading, beams)) {
++    extra = std::async(std::launch::async, [&] {
++      CancelScope extra_cancel(cancelled);
++      return extra_->Generate(context, reading, beams);
++    });
++  }
++  std::vector<std::string> values = scorer->Generate(context, reading, beams);
++  if (extra.valid()) {
++    for (std::string& value : extra.get()) {
 +      if (std::find(values.begin(), values.end(), value) == values.end()) {
 +        values.push_back(std::move(value));
 +      }
@@ -32546,6 +33449,18 @@ index 000000000..110b2b3bc
 +    if (!*memo) return std::nullopt;
 +    return ResizeFor(**memo, segments);
 +  }
++  if (preview) {
++    // 待っている読みを覚える。別の読みの取り直しが来たら(打ち直した)忘れる。
++    std::lock_guard<std::mutex> jl(job_mu_);
++    if (request.options().kotori_user_waiting) {
++      if (TimelineOn() && user_waiting_key_ != memo_key) {
++        std::fprintf(stderr, "[waiting] at=%lld\n", static_cast<long long>(SteadyNowUs()));
++      }
++      user_waiting_key_ = memo_key;
++    } else if (user_waiting_key_ != memo_key) {
++      user_waiting_key_.clear();
++    }
++  }
 +  if (preview && request.options().kotori_preview_cached_only) return std::nullopt;
 +  if (preview && PreviewUnavailable(memo_key, request.kotori_input_generation())) {
 +    return std::nullopt;
@@ -32560,6 +33475,8 @@ index 000000000..110b2b3bc
 +          MemoKey(job_->config, job_->reading, job_->context) == memo_key)) {
 +      job_ = Job{reading, context, request.config(), false,
 +                 std::make_shared<Segments>(segments), input};
++      job_->queued_us = SteadyNowUs();
++      conversion_waiting_ = true;
 +      new_job_ = true;
 +      job_cv_.notify_one();
 +    }
@@ -32570,6 +33487,11 @@ index 000000000..110b2b3bc
 +  // Kotori: モデルの準備中・ロック待ち・時間切れは結果ではない。
 +  // 失敗を保存すると、同じ読みの取り直しでも永久に再評価できなくなる。
 +  return resize;
++}
++
++bool LmRewriter::UserWaitingFor(const std::string& key) const {
++  std::lock_guard<std::mutex> lock(job_mu_);
++  return user_waiting_key_ == key;
 +}
 +
 +bool LmRewriter::PreviewUnavailable(
@@ -32735,6 +33657,28 @@ index 000000000..110b2b3bc
 +      values.push_back(g);
 +    }
 +  }
++  // Kotori: 日常の文章で多い表記(良い→いい等、GOAL.md 指針2026-10-23)。少数派の表記を含む候補は、
++  // 多数派へ置き換えた文が読みに合えばそれも採点し、元の候補を使用比率の対数オッズに比例して減点する。
++  // 読みに合わない置き換え(今日は→こんにちは、よい→いい)は使わない。
++  std::vector<double> notation_penalty(values.size(), 0.0);
++  std::vector<bool> notation_variant(values.size(), false);
++  if (notation_weight_ > 0 && dictionary_ != nullptr && !gen_over()) {
++    constexpr size_t kMaxNotationVariants = 4;
++    const size_t original = values.size();
++    size_t added = 0;
++    for (size_t i = 0; i < original && added < kMaxNotationVariants; ++i) {
++      std::string natural;
++      const double odds = kotori_internal::NaturalNotation(values[i], &natural);
++      if (odds <= 0 || !MatchesReading(*dictionary_, single_kanji_, natural, reading)) continue;
++      notation_penalty[i] = odds;
++      if (std::find(values.begin(), values.end(), natural) != values.end()) continue;
++      cands.push_back(nullptr);
++      values.push_back(std::move(natural));
++      notation_penalty.push_back(0.0);
++      notation_variant.push_back(true);
++      ++added;
++    }
++  }
 +  const auto t_gen = std::chrono::steady_clock::now();
 +  // 生成で時間を使い切ったら、採点もせずに Mozc の結果を出す(待たせないため)。
 +  // Kotori: 生成補正は非同期の初回評価のみ。採用前に読み・保護語・入力世代・モデルを検査。
@@ -32775,6 +33719,12 @@ index 000000000..110b2b3bc
 +    for (size_t i = 0; i < cands.size(); ++i) if (cands[i] != nullptr) lattice.push_back(i);
 +    kotori_internal::AddNearbyLatticeCandidates(
 +        *zlogp, lattice, std::min<size_t>(2, llm_top), &order);
++    // Kotori: 多数派の表記へ置き換えた文は、元の文と比べられるようLLMでも採点する。
++    for (size_t i = 0; i < notation_variant.size(); ++i) {
++      if (notation_variant[i] && std::find(order.begin(), order.end(), i) == order.end()) {
++        order.push_back(i);
++      }
++    }
 +    std::vector<std::string> subset;
 +    for (size_t i : order) subset.push_back(values[i]);
 +    if (auto sub = llm->Score(context, reading, subset)) {
@@ -32803,7 +33753,9 @@ index 000000000..110b2b3bc
 +    double s = lambda_lm_ * (*zlogp)[i];
 +    if (llogp) s += ranking_llm_weight * (*llogp)[i];
 +    // 生成した文は辞書の表記を通らないので、同じくらいの点ならラティスの文を選ぶ。
-+    if (cands[i] == nullptr) s -= llogp ? gen_penalty_llm_ : gen_penalty_;
++    // 表記を置き換えただけの文は生成ではないので減点しない。
++    if (cands[i] == nullptr && !notation_variant[i]) s -= llogp ? gen_penalty_llm_ : gen_penalty_;
++    s -= notation_weight_ * notation_penalty[i];
 +    if (debug) {
 +      std::fprintf(stderr, "[kotori] %s zenz=%.2f llm=%.2f %s score=%.2f\n",
 +                   values[i].c_str(), (*zlogp)[i], llogp ? (*llogp)[i] : 0.f,
@@ -32837,14 +33789,36 @@ index 000000000..110b2b3bc
 +    }
 +  }
 +
++  // Kotori: 「90ぱーせんと」は「90%」と書くのが普通。同じ文で記号の候補が採点済みならそちらを選ぶ。
++  if (!over()) top = kotori_internal::PreferPercentSymbol(values, joint_scores, top);
++
 +  Best best{reading, context, {}, {}};
 +  // Kotori: 打ち間違いを補った文の方がずっと自然なら、それを 1 つの文節として出す(docs/adr/0036)。
 +  std::string fixed;
-+  if (llm_correction && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
++  // Kotori: 利用者がSpaceを押して待っている読みでは、補正の生成(数百 ms)を省いて採点の結果を
++  // すぐ出す。手が止まった間に計算したときは補正する(開発用の評価で、補正は待ちを約 250 ms
++  // 延ばし、正解数は変わらなかった。docs/verification)。
++  const std::string waiting_key = MemoKey(request.config(), reading, context);
++  const auto t_corr = std::chrono::steady_clock::now();
++  const std::function<bool()> correction_over = [&] {
++    return over() || UserWaitingFor(waiting_key);
++  };
++  const bool llm_fixed =
++      llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
++      !correction_over() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindLlmCorrection(scorer, llm, context, reading, values[top],
 +                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
-+                        over, &fixed)) {
++                        correction_over, &fixed);
++  const bool typo_fixed =
++      !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
++      !correction_over() &&
++      Util::CharsLen(reading) <= kMaxTypoChars &&
++      FindTypoCorrection(scorer, llm, context, reading, values[top],
++                         lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
++                         correction_over, &fixed);
++  const auto t_corr_end = std::chrono::steady_clock::now();
++  if (llm_fixed) {
 +    best.keys = {reading};
 +    best.values = {fixed};
 +    best.correction = CorrectionOrigin{request.kotori_input_generation(),
@@ -32853,11 +33827,7 @@ index 000000000..110b2b3bc
 +      best.corrected_reading = kotori_internal::MechanicalCorrectionReading(
 +          *dictionary_, reading, fixed);
 +    }
-+  } else if (typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr && !over() &&
-+      Util::CharsLen(reading) <= kMaxTypoChars &&
-+      FindTypoCorrection(scorer, llm, context, reading, values[top],
-+                         lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
-+                         over, &fixed)) {
++  } else if (typo_fixed) {
 +    best.keys = {reading};
 +    best.values = {fixed};
 +  } else if (cands[top] == nullptr) {
@@ -32915,6 +33885,20 @@ index 000000000..110b2b3bc
 +    }
 +  }
 +
++  if (TimelineOn()) {
++    std::fprintf(stderr,
++                 "[timeline] queued=%lld request=%lld lock=%lld load=%lld gen=%lld "
++                 "zenz=%lld llm=%lld corr=%lld corr_end=%lld end=%lld bg=%d chars=%zu "
++                 "cands=%zu llm_on=%d corrected=%d\n",
++                 static_cast<long long>(background ? g_timeline_queued_us : 0),
++                 static_cast<long long>(Us(t_request)), static_cast<long long>(Us(t0)),
++                 static_cast<long long>(Us(t_load)), static_cast<long long>(Us(t_gen)),
++                 static_cast<long long>(Us(t_zenz)), static_cast<long long>(Us(t_llm)),
++                 static_cast<long long>(Us(t_corr)), static_cast<long long>(Us(t_corr_end)),
++                 static_cast<long long>(SteadyNowUs()), background ? 1 : 0,
++                 Util::CharsLen(reading), values.size(), llm != nullptr ? 1 : 0,
++                 fixed.empty() ? 0 : 1);
++  }
 +  // 今の区切りと同じなら、切り直さずに Rewrite で先頭を入れ替える。
 +  if (!StoreMemo(MemoKey(request.config(), reading, context), best,
 +                 background, over)) return std::nullopt;
@@ -33160,6 +34144,7 @@ index 000000000..110b2b3bc
 +  auto yield = [&] {
 +    if (timed && std::chrono::steady_clock::now() > deadline) return true;
 +    return background && (urgent_.load() > 0 || stop_.load() ||
++                          conversion_waiting_.load() ||
 +                          (!light && new_job_.load()));
 +  };
 +  // 生成の途中(1 トークンごと)でもやめられるようにする。
@@ -33907,6 +34892,7 @@ index 000000000..110b2b3bc
 +      job = std::move(*job_);
 +      job_.reset();
 +      new_job_ = false;
++      conversion_waiting_ = false;
 +      if (job.preview) {
 +        running_preview_ = job.prediction_key.empty()
 +            ? MemoKey(job.config, job.reading, job.context) : job.prediction_key;
@@ -33962,8 +34948,10 @@ index 000000000..110b2b3bc
 +          .SetKotoriInputGeneration(job.input_generation)
 +          .SetOptions(options).Build();
 +      bool retry = false;
++      g_timeline_queued_us = job.queued_us;
 +      SelectSentence(request, *job.preview, job.reading, job.context,
 +                     job.reading + "\t" + job.context, true, &retry);
++      g_timeline_queued_us = 0;
 +      const std::string key = MemoKey(job.config, job.reading, job.context);
 +      const auto result = FindMemo(key, request);
 +      std::lock_guard<std::mutex> lock(job_mu_);
@@ -33976,6 +34964,12 @@ index 000000000..110b2b3bc
 +      }
 +      running_preview_.clear();
 +      running_preview_input_ = {};
++      // 変換のためにやめた予測を、ほかの仕事が来ていなければやり直す(同じ読みのときだけ)。
++      if (resume_job_ && !job_ && resume_job_->reading == job.reading &&
++          resume_job_->context == job.context) {
++        job_ = std::move(resume_job_);
++      }
++      resume_job_.reset();
 +      continue;
 +    }
 +    if (job.convert) {
@@ -33984,7 +34978,8 @@ index 000000000..110b2b3bc
 +    }
 +    // 途中でやめたか(変換の要求・停止、重い計算は次の打鍵も)。やめたときは結果を残さない。
 +    auto interrupted = [&](bool light) {
-+      return urgent_.load() > 0 || stop_.load() || (!light && new_job_.load());
++      return urgent_.load() > 0 || stop_.load() || conversion_waiting_.load() ||
++             (!light && new_job_.load());
 +    };
 +    // 1. 軽い計算(次の打鍵に間に合わせる)。2. 手が止まっていれば、Tab と同じ重さで
 +    //    作り直す(Tab を押したときに、待たずに良い予測を出せる)。
@@ -34019,6 +35014,12 @@ index 000000000..110b2b3bc
 +                     preds.empty() ? "" : " first=",
 +                     preds.empty() ? "" : preds[0].text.c_str(),
 +                     interrupted(light) ? " (interrupted)" : "");
++      }
++      if (interrupted(light) && conversion_waiting_.load() && !stop_.load()) {
++        // Kotori: 変換の AI の仕事を先にする。変換が終わってから、この予測をやり直す。
++        std::lock_guard<std::mutex> lock(job_mu_);
++        resume_job_ = job;
++        break;
 +      }
 +      if (interrupted(light)) {
 +        // Kotori: 入力中の候補の取り直し(変換の要求)で止められただけなら、それが終わってから
@@ -34255,10 +35256,10 @@ index 000000000..110b2b3bc
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..20f72fb40
+index 000000000..551a8cedc
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,532 @@
+@@ -0,0 +1,558 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -34299,6 +35300,16 @@ index 000000000..20f72fb40
 +size_t PrefixNormalizedTop(const std::vector<std::string>& values,
 +                           const std::vector<double>& scores,
 +                           const std::vector<size_t>& token_counts, size_t top);
++
++// 数字の直後の「パーセント」だけが「%」「％」と違う採点済み候補があれば、記号の方を選ぶ
++// (新聞・公用文の表記。zenzは読みどおりのカタカナを強く好む)。なければtopのまま。
++size_t PreferPercentSymbol(const std::vector<std::string>& values,
++                           const std::vector<double>& scores, size_t top);
++
++// 日常の文章で少数派の漢字表記(良い→いい、下さい→ください)を多数派の表記へ置き換えた文を out に入れ、
++// 置き換えた語の使用比率の対数オッズの合計を返す。置き換えがなければ0。表層の前後が漢字なら語の一部と
++// みなして置き換えない(最後の「後」)。表は kotori_notation_table.inc(GOAL.md 指針2026-10-23)。
++double NaturalNotation(absl::string_view value, std::string* out);
 +
 +// 読み条件付きの候補確率が過半なら、汎用LLMの重みを従来尺度へ抑える実験。
 +double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
@@ -34570,6 +35581,7 @@ index 000000000..20f72fb40
 +    commands::Context prediction_context;
 +    commands::Request prediction_request;
 +    ConversionRequest::Options prediction_options;
++    int64_t queued_us = 0;  // 仕事を積んだ時刻(KOTORI_LM_TIMELINE の内訳用)
 +  };
 +  // 先回りの変換で生成した文(読みと前の文ごと)。
 +  struct Generated {
@@ -34680,7 +35692,10 @@ index 000000000..20f72fb40
 +  std::optional<int> beams_override_;
 +  std::optional<size_t> llm_top_override_;
 +  // Tab の予測(KOTORI_LM_PREDICT=0 で切る)。続きのトークン数と作る数。
-+  bool predict_ = true;
++  // Kotori: 入力中に LLM が文の続きを生成する機能(Tab で選ぶ「AI」の候補)。2026-10-24 に廃止した
++  // (docs/adr/0070)。変換の精度には使われず、GPU と裏の作業を変換と取り合って Space を遅くしていた。
++  // 入力中の候補は Mozc の予測(短文の語彙を含む)が出す。実験では KOTORI_LM_PREDICT=1 で戻せる。
++  bool predict_ = false;
 +  int predict_tokens_ = 8;
 +  int predict_beams_ = 3;
 +  // 予測の作り方(評価用): 1 = 変換+続き、2 = 打ちかけを除いた変換+続き、4 = 打ちかけ+辞書の語。
@@ -34716,8 +35731,9 @@ index 000000000..20f72fb40
 +  // Tab で AI が先頭に並べる候補の数(KOTORI_LM_TAB_SHOW。0 なら生成する続きの数 + 1。docs/adr/0030)。
 +  int tab_show_ = 2;
 +  // Kotori: しばらく入力がなければモデルを外し、VRAM とメモリを空ける(ms。KOTORI_LM_IDLE_UNLOAD は秒、
-+  // 0 なら外さない)。次の入力で裏で読み込み直す(docs/adr/0034)。
-+  int idle_unload_ms_ = 10 * 60 * 1000;
++  // 0 なら外さない)。次の入力で裏で読み込み直す(docs/adr/0034)。既定はログイン時に読み込んだまま
++  // 常駐し、外さない(GOAL 2026-10-22。外すと次の変換が読み込み直しを待つため。docs/adr/0069)。
++  int idle_unload_ms_ = 0;
 +  // 最後に要求(打鍵・変換・Tab)が来た時刻(steady_clock、マイクロ秒)。
 +  mutable std::atomic<int64_t> last_activity_us_{0};
 +  // 入力がないのでモデルを外している間 true。
@@ -34736,6 +35752,10 @@ index 000000000..20f72fb40
 +  // 最後に要求(変換・Tab)が終わった時刻(steady_clock、マイクロ秒)。
 +  mutable std::atomic<int64_t> last_request_us_{0};
 +  mutable std::string urgent_key_;
++  // Kotori: 利用者がSpaceを押して結果を待っている読み(MemoKey、job_mu_)。この読みの計算では
++  // 補正の生成を省く(採点の結果をすぐ出す。入力中に手が止まって計算したときは補正する)。
++  mutable std::string user_waiting_key_;
++  bool UserWaitingFor(const std::string& key) const;
 +  mutable std::deque<Entry> cache_;
 +  // 文全体で選んだ結果(MemoKey と結果)。job_mu_ で守る。
 +  mutable std::deque<std::pair<std::string, std::optional<Best>>> memo_;
@@ -34755,6 +35775,11 @@ index 000000000..20f72fb40
 +  // 裏の予測を始めるまでに、次の打鍵を待つ時間(ms)。軽い計算と作り直し。負なら計算しない。
 +  // KOTORI_LM_LIGHT_DELAY / KOTORI_LM_FULL_DELAY。
 +  int light_delay_ms_ = 0;
++  // Kotori: 変換(Space)の AI の仕事が積まれて待っている間 true。裏の予測は軽い計算でもすぐやめ、
++  // 変換を先にする(予測の計算の終わりを待つと、Space の待ちが 100 ms 以上延びた)。
++  mutable std::atomic<bool> conversion_waiting_{false};
++  // 変換を先にするためにやめた予測の仕事。変換が終わり、ほかに仕事がなければやり直す(job_mu_)。
++  mutable std::optional<Job> resume_job_;
 +  int full_delay_ms_ = 600;
 +  // 軽い計算(打鍵ごと)の続きの数(読み全体の変換、打ちかけを除いた変換)とトークン数。
 +  // KOTORI_LM_LIGHT_BEAMS="全体,打ちかけ,トークン"。
@@ -34778,6 +35803,8 @@ index 000000000..20f72fb40
 +  static constexpr double kCorrectionLlmWeight = 0.7;
 +  // 生成した文(ラティスにない文)の点数から引く値。LLM なし / あり。
 +  double gen_penalty_ = 0.5;
++  // Kotori: 少数派の表記を含む候補の減点の重み(対数オッズに掛ける)。KOTORI_LM_NOTATION_WEIGHT、0で無効。
++  double notation_weight_ = 0.5;
 +  double gen_penalty_llm_ = 0.5;
 +  double lambda_lattice_ = 1.0;
 +  double temperature_ = 1000.0;
@@ -34793,10 +35820,10 @@ index 000000000..20f72fb40
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..90920d980
+index 000000000..be78ed3cb
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1223 @@
+@@ -0,0 +1,1265 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34921,6 +35948,42 @@ index 000000000..90920d980
 +      {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
 +       -std::numeric_limits<float>::infinity()}, 1.2, true), 1.2);
 +  EXPECT_DOUBLE_EQ(kotori_internal::ConfidenceAwareLlmWeight({-0.1f}, 0.4, true), 0.4);
++}
++
++TEST(LmRewriterNotationTest, ReplacesMinorityKanjiWithEverydayNotation) {
++  std::string out;
++  EXPECT_GT(kotori_internal::NaturalNotation("このくらいがちょうど良いです", &out), 0);
++  EXPECT_EQ(out, "このくらいがちょうどいいです");
++  EXPECT_GT(kotori_internal::NaturalNotation("教えて下さい", &out), 0);
++  EXPECT_EQ(out, "教えてください");
++}
++
++TEST(LmRewriterNotationTest, KeepsKanjiInsideLongerWords) {
++  std::string out;
++  // 「最後」の「後」は語の一部なので置き換えない。置き換えがなければ0で out は空。
++  EXPECT_EQ(kotori_internal::NaturalNotation("最後に", &out), 0);
++  EXPECT_TRUE(out.empty());
++  EXPECT_EQ(kotori_internal::NaturalNotation("ひらがなだけ", &out), 0);
++  // 前が漢字の語(ご確認下さい)も、語の境界が分からないので控えめに置き換えない。
++  EXPECT_EQ(kotori_internal::NaturalNotation("ご確認下さい", &out), 0);
++}
++
++TEST(LmRewriterPercentTest, PrefersSymbolAfterDigits) {
++  // zenzが読みどおりのカタカナを好んでも、数字の後は記号の候補を選ぶ。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"90パーセント", "90%", "九〇パーセント"}, {-22.5, -23.7, -30.}, 0), 1);
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"消費税は１０パーセントです", "消費税は１０％です"}, {-10., -11.}, 0), 1);
++}
++
++TEST(LmRewriterPercentTest, KeepsTopWithoutDigitOrScoredSymbolCandidate) {
++  // 数字の後でない「パーセント」(例: パーセント記号の話)は変えない。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"パーセントの意味", "%の意味"}, {-5., -6.}, 0), 0);
++  // 記号の候補がない、または採点されていないなら変えない。
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol({"90パーセント", "九十パーセント"}, {-1., -2.}, 0), 0);
++  EXPECT_EQ(kotori_internal::PreferPercentSymbol(
++      {"90パーセント", "90%"}, {-1., -std::numeric_limits<double>::infinity()}, 0), 0);
 +}
 +
 +TEST(LmRewriterBoundaryTest, NormalizesOnlyExtensionsOfChosenCandidate) {
@@ -35545,6 +36608,8 @@ index 000000000..90920d980
 +  bool PreviewPrediction(const ConversionRequest& request, Segments* material) const {
 +    return rewriter_->RewritePredictionPreview(request, material);
 +  }
++  // 続きの生成(既定では止めた。docs/adr/0070)を、その経路の試験でだけ動かす。
++  void EnableContinuationGeneration() { rewriter_->predict_ = true; }
 +  void StopWorkerForMemoTest() {
 +    // メモ照合は単体で検査する。ワーカーの配送は実モデル試験で確認する。
 +    {
@@ -35944,6 +37009,8 @@ index 000000000..90920d980
 +
 +TEST_F(LmRewriterGenerationTest, PredictionPreviewPublishesOnlyMatchingAiResult) {
 +  StopWorkerForMemoTest();
++  // 続きの生成は既定で止めた(docs/adr/0070)。実験用の経路として残る間は、その動作を検査する。
++  EnableContinuationGeneration();
 +  auto owner = std::make_shared<std::atomic<uint64_t>>(1);
 +  const auto request = PredictionRequest(Snapshot{owner, 1});
 +  Segments material;
@@ -35975,6 +37042,8 @@ index 000000000..90920d980
 +
 +TEST_F(LmRewriterGenerationTest, PredictionFailureIsLimitedToInputAndModelEpoch) {
 +  StopWorkerForMemoTest();
++  // 続きの生成は既定で止めた(docs/adr/0070)。実験用の経路として残る間は、その動作を検査する。
++  EnableContinuationGeneration();
 +  auto owner = std::make_shared<std::atomic<uint64_t>>(1);
 +  const auto request = PredictionRequest(Snapshot{owner, 1});
 +  Segments material;
@@ -36122,10 +37191,10 @@ index d322feaee..89296272a 100644
        CreateUserSegmentHistoryRewriter());
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..db3ed0280
+index 000000000..dca2b3506
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,874 @@
+@@ -0,0 +1,876 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -36575,6 +37644,8 @@ index 000000000..db3ed0280
 +  tl_cancel = std::move(cancel);
 +}
 +
++bool ZenzScorer::ThreadCancelled() { return tl_cancel && tl_cancel(); }
++
 +std::vector<std::vector<std::vector<llama_token>>> ZenzScorer::BeamSearch(
 +    const std::vector<Root>& roots,
 +    const std::function<bool(llama_token)>& is_end, bool finish_at_max,
@@ -37002,10 +38073,10 @@ index 000000000..db3ed0280
 +}  // namespace mozc
 diff --git a/src/rewriter/zenz_scorer.h b/src/rewriter/zenz_scorer.h
 new file mode 100644
-index 000000000..608d25545
+index 000000000..fdae5f341
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.h
-@@ -0,0 +1,142 @@
+@@ -0,0 +1,144 @@
 +// Copyright 2026, Kotori IME contributors
 +// All rights reserved.
 +//
@@ -37056,6 +38127,8 @@ index 000000000..608d25545
 +  // このスレッドの生成(Generate・Continue)を、1 トークンごとに途中でやめるかを返す関数。
 +  // 裏の予測で使い、変換の要求が来たらすぐ GPU を譲る。空の関数なら止めない。
 +  static void SetThreadCancel(std::function<bool()> cancel);
++  // このスレッドでやめる関数が真を返すか(辞書を引く長い CPU の計算の途中で見る)。
++  static bool ThreadCancelled();
 +
 +  // 候補ごとの log P(候補 </s> | 読みと左文脈)。失敗したら nullopt。
 +  std::optional<std::vector<float>> Score(
@@ -37432,7 +38505,7 @@ index 000000000..12f0332ed
 +  return 0;
 +}
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..748d5cfed 100644
+index 8186b0a8d..00c1d9cb5 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -37482,7 +38555,7 @@ index 8186b0a8d..748d5cfed 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +564,150 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +564,151 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -37509,7 +38582,8 @@ index 8186b0a8d..748d5cfed 100644
 +  }
 +  int delay =
 +      count == 0 ? kotori::g_live_first_ms.load() : kotori::g_live_next_ms.load();
-+  if (waiting) delay = 100;  // AI待機は回数制限で打ち切らない。
++  // AI待機は回数制限で打ち切らない。結果ができたらすぐ出せるよう短い間隔で取り直す。
++  if (waiting) delay = kotori::g_ai_wait_poll_ms.load();
 +  if (delay <= 0) return;
 +  commands::Output::Callback* callback =
 +      command->mutable_output()->mutable_callback();
@@ -37633,7 +38707,7 @@ index 8186b0a8d..748d5cfed 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -717,6 +883,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +884,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -37663,7 +38737,7 @@ index 8186b0a8d..748d5cfed 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -2371,13 +2560,29 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,13 +2561,29 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -37697,7 +38771,7 @@ index 8186b0a8d..748d5cfed 100644
    SetSessionState(ImeContext::CONVERSION, context_.get());
    Output(command);
    return true;
-@@ -2389,16 +2594,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2595,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -37715,7 +38789,7 @@ index 8186b0a8d..748d5cfed 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2872,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2873,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -37724,7 +38798,7 @@ index 8186b0a8d..748d5cfed 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2887,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2888,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -37747,7 +38821,7 @@ index 8186b0a8d..748d5cfed 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +2946,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +2947,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -37761,7 +38835,7 @@ index 8186b0a8d..748d5cfed 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3082,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3083,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -38097,7 +39171,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..0b5590a4f 100644
+index 012d822a5..ef3d6b30f 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -43,6 +43,7 @@
@@ -38164,7 +39238,27 @@ index 012d822a5..0b5590a4f 100644
    EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
        .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
  
-@@ -7878,6 +7893,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -7165,7 +7180,8 @@ TEST_F(SessionTest, AutoConversion) {
+     // The last "." is a triggering key for auto conversion
+     InsertCharacterChars("123.", &session, &command);
+ 
+-    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３．", "１２３．", command);
++    // Kotori: 数字の後でも次が数字でない句点は「。」(自動変換は起こらない)。
++    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３。", "１２３。", command);
+   }
+ 
+   // Don't trigger auto conversion for the ".."
+@@ -7190,7 +7206,8 @@ TEST_F(SessionTest, AutoConversion) {
+     // The last "." is a triggering key for auto conversion
+     InsertCharacterString("１２３。", "123.", &session, &command);
+ 
+-    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３．", "１２３．", command);
++    // Kotori: 上と同じく、文末の句点は「。」のまま。
++    EXPECT_SINGLE_SEGMENT_AND_KEY("１２３。", "１２３。", command);
+   }
+ 
+   // Don't trigger auto conversion for "." only.
+@@ -7878,6 +7895,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -38174,7 +39268,7 @@ index 012d822a5..0b5590a4f 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9162,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9164,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -38212,7 +39306,7 @@ index 012d822a5..0b5590a4f 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9854,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9856,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
@@ -38223,7 +39317,7 @@ index 012d822a5..0b5590a4f 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10547,648 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10549,651 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -38462,6 +39556,9 @@ index 012d822a5..0b5590a4f 100644
 +  EXPECT_EQ(GetComposition(command), "あいうえお");
 +  EXPECT_FALSE(command.output().has_candidate_window());
 +  ASSERT_TRUE(command.output().has_callback());
++  // AIの結果ができたらすぐ出せるよう、待つ間は短い間隔で取り直す(打鍵後の取り直しの200msではない)。
++  EXPECT_EQ(command.output().callback().delay_millisec(), kotori::g_ai_wait_poll_ms.load());
++  EXPECT_LT(command.output().callback().delay_millisec(), 20);
 +  ASSERT_TRUE(SendSpecialKey(commands::KeyEvent::ENTER, &session, &command));
 +  EXPECT_FALSE(command.output().has_result());
 +  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
@@ -38873,7 +39970,7 @@ index 012d822a5..0b5590a4f 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..0d1ad4f8e 100644
+index ada11a64a..c410a52e0 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -38886,7 +39983,7 @@ index ada11a64a..0d1ad4f8e 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6432
++BUILD = 6447
  # Represent the platform and release channel.
  REVISION = 100
  

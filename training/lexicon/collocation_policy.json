@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "status": "fixed before full-corpus collocation conversion",
+  "min_documents": 20,
+  "min_content_buckets": 6,
+  "min_length": 3,
+  "max_length": 14,
+  "max_new_phrases": 50000,
+  "max_combined_phrases": 100000,
+  "min_pmi_bits": 2.0,
+  "min_npmi": 0.08,
+  "allowed_middle_particles": ["が", "を", "に", "へ", "と", "から", "より", "で"],
+  "content_pos": ["名詞", "動詞", "形容詞", "副詞"],
+  "selection_score": "NPMI times log1p distinct-text count; deterministic order",
+  "evaluation_word_exceptions": false
+}

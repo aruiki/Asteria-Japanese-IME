@@ -104,7 +104,7 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `KOTORI_LM_LIGHT_BEAMS`、`KOTORI_LM_LIGHT_RANK`、`KOTORI_LM_LIGHT_DELAY`、`KOTORI_LM_FULL_DELAY` | 打鍵ごとの軽い予測の中身と、始めるまでの待ち(既定 作り直しは 600 ms、docs/adr/0024) |
 | `KOTORI_LM_LIVE`、`KOTORI_LM_LIVE_FIRST`、`KOTORI_LM_LIVE_NEXT` | 手が止まった後に入力中の候補を取り直すか(`0` で取り直さない)と、取り直すまでの時間(既定 GPU あり 200 ms・なし 450 ms、2 回目以降 800 ms。docs/adr/0039) |
 | `KOTORI_LM_PRECONVERT=0` | 先回りの変換を切る(docs/adr/0024) |
-| `KOTORI_LM_IDLE_UNLOAD` | 入力がなくなってからモデルを外すまでの秒数(既定 600、0 で外さない、docs/adr/0034) |
+| `KOTORI_LM_IDLE_UNLOAD` | 入力がなくなってからモデルを外すまでの秒数(既定 0 = 外さずに常駐、docs/adr/0034・0069) |
 | `KOTORI_LM_CPU_LONG`、`KOTORI_ZENZ_LONG_MODEL` | GPU のない PC で、この文字数より長い読みに使う zenz(既定 12 文字、同梱の small。0 で使い分けない、docs/adr/0035) |
 | `KOTORI_LM_CORRECTION=0` / `1` | 非同期の日本語LLM生成補正を無効/有効にする（既定有効）。AI設定の「入力中に文章の誤変換を補正する」でも切替可能。40文字以下の局所修正、辞書・意味の保護と採点差5.0を満たす場合だけ採用する。 |
 | `KOTORI_LM_CORRECTION_PROMPT=typing` / `examples` / `chat` | 開発比較用の生成方式。既定は一字の誤入力も扱うtyping。examplesは同音語の従来の3例、chatはモデルのchat templateを使う。採用ガードは共通。 |

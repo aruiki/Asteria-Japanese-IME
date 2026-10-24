@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "scope": "candidate corpus statistics, not product adoption",
+  "reserved_byte_ranges": [
+    {
+      "offset": 71617857,
+      "bytes": 1048576,
+      "sha256": "7ba45be5952df8dd1441ffee475c554f6b98d7efdc97f7ac4cbd415a04927578",
+      "reason": "legacy train_wikipedia.jsonl:00 development interval; overlapping records excluded"
+    }
+  ],
+  "normalization": "NFKC for deduplication and lexical surfaces; hiragana for readings",
+  "reading_scope": "Sudachi preferred token reading; not pronunciation-aligned corpus frequency",
+  "near_duplicate_jaccard": 0.8,
+  "min_text_length": 2,
+  "max_text_length": 512,
+  "phrase_tokens": [2, 3],
+  "min_phrase_length": 3,
+  "max_phrase_length": 20,
+  "content_pos": ["名詞", "動詞", "形容詞", "副詞"],
+  "min_output_phrase_documents": 5,
+  "counter_flush_keys": 250000,
+  "max_unique_records_per_shard": 4000000,
+  "bucket_count": 16,
+  "bucket_scope": "hash buckets of distinct text, not independent websites or articles"
+}

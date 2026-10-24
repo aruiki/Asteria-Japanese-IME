@@ -1,0 +1,20 @@
+{
+  "repository": "WorksApplications/sudachi.rs and WorksApplications/SudachiDict",
+  "commit": "SudachiPy-0.7.0+SudachiDict-v20261015",
+  "version": "0.7.0-v20261015",
+  "scope": "training only, not installed IME runtime",
+  "files": [
+    {
+      "name": "sudachipy-0.7.0-cp310-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/e9/a1/03e40b0eadbdd48ed47aef7aaf27d4703f5cc225750872af1a26de08ec2b/sudachipy-0.7.0-cp310-abi3-win_amd64.whl",
+      "bytes": 1515929,
+      "sha256": "8d0429db2d02d408daa7dccd062a6d8c2984a07f8e448b49a3ea694377617658"
+    },
+    {
+      "name": "sudachi-dictionary-20261015-full.zip",
+      "url": "https://github.com/WorksApplications/SudachiDict/releases/download/v20261015/sudachi-dictionary-20261015-full.zip",
+      "bytes": 137444817,
+      "sha256": "b38318ca26a444cd713a5a377a353308ef38c733c64cc0be905122527516c793"
+    }
+  ]
+}

@@ -7,3 +7,15 @@
 *.sha256 text eol=lf
 # Mozc へのパッチは改行を変えずにそのまま当てる。
 *.patch -text
+# 短文評価と語彙生成は、Windowsでも固定した原票SHAを再現する。
+/eval/sets/asteria-short-*-20261022.json text eol=lf
+/eval/short-input-20261022.json text eol=lf
+/eval/lexical-diagnostic-20261022.json text eol=lf
+/training/lexicon/*.py text eol=lf
+/training/lexicon/sources.json text eol=lf
+/training/lexicon/corpus_sources.json text eol=lf
+/training/lexicon/tokenizer_sources.json text eol=lf
+/training/lexicon/frequency_policy.json text eol=lf
+/training/lexicon/frequency_lexicon_policy.json text eol=lf
+/training/lexicon/collocation_policy.json text eol=lf
+/training/lexicon/diagnostic_policy.json text eol=lf
