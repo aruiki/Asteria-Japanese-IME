@@ -29,7 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import installer_smoke as smoke  # noqa: E402  導入ログ・実入力・受入れ検査を共有する
 
 INSTALL = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Kotori"
-PROFILE = Path(os.environ["USERPROFILE"]) / "AppData" / "LocalLow" / "Kotori"
+# Windows専用の道具だが、試験(CIのLinux)でも読み込めるよう環境変数がなくても止めない。
+PROFILE = Path(os.environ.get("USERPROFILE", "~")).expanduser() / "AppData" / "LocalLow" / "Kotori"
 CORE_FILES = ("mozc_server.exe", "mozc_renderer.exe", "mozc_tip64.dll", "mozc_tip32.dll")
 TIP = "{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}"
 
