@@ -394,3 +394,21 @@ kotori_diagnostics_test 合格、kotori_dashboard_test（Qt の bin を PATH に
 撮り（AI変換・入力補助ほか全タブ）、崩れがないことを確認。パッチ 0002/0003 を再生成（素の Mozc へ 0001〜0003 が当たる）。
 このPCへの導入はしていない（ゴールの範囲外）。前の 6447 候補（release-6447-package-v1、SHA 36B25930…）は取り消した変更を
 含むので使わない。
+
+### 6447 の実機確認（利用者のPC、2026-10-24）
+
+利用者が UAC を承認し 6445 → 6447 へ更新した（`local_install_check.py`、原票 `target/accuracy-guide/local-install-6447-v1/`）。
+最初の install は msiexec を管理者権限なしの /qn で起動したため LaunchConditions（管理者権限が必要）で 1603 になった。
+install の段を管理者として起動し直して exit 3010（再起動要求）、登録は 3.34.6447.100 の1件。
+
+- verify --skip-click: 基本入力（日本語/東京）、受入れ 8/8、二重入力（EDIT/RichEdit）26/26。browser --skip-click: Edge 12/12。
+  候補クリックの2件は従来どおり環境要因で未検証。
+- 各段の後に学習履歴を自動で戻し、全8ファイルの SHA 一致を記録（verify_profile、browser_profile ほか。今回入れた仕組みが実機で動作）。
+- 実入力の精度: 利用者の設定（句読点で自動変換が有効）に合わせ、。？！で終わる問は Space を押さない ImeBenchAutoConv で
+  判定用短文500問（Space後1500ms）。6444 の同条件 457/500 → 6447 **461/500**（改善5・悪化1、表記ゆれ一致）。
+- 注意: 通常の ImeBench（必ず Space を押す）では、自動変換の後の Space が「次の候補」になり誤りが多く出た（例: レトリバー→retriever、
+  でも→デモ）。`mozc/tools/commit_replay.py`（実機の打ち方をセッションの経路で再現）で、利用者の設定の写しでだけ再現し、
+  句読点の自動変換（use_auto_conversion）の設定だけで再現することを確かめた。6444 では Space の時点で AI の結果がまだ出ておらず
+  Space が実質無視されていたが、6447 では自動変換の結果が Space より前に出るため、通常の IME と同じく次の候補へ移る。
+  製品の不具合ではなく、測り方（Space を押す操作）の違い。
+- Edge での Space→表示（同じ文を3回）: 770 / 37 / 35 ms。1回目は検査の直前にサーバーを止めたため AI の読み込みを待った。
