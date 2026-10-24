@@ -205,6 +205,7 @@ def main():
     program_files = Path(os.environ["ProgramFiles(x86)"])
     if (program_files / "Kotori").exists() or (program_files / "Asteria").exists():
         raise RuntimeError("既存のAsteria(またはKotori)があるので停止します")
+    # 導入先は導入した後に決める。v3.0.0 以降は Asteria、それより前の版(固定の旧 MSI の検査)は Kotori。
     install = program_files / "Asteria"
     msi, out = args.msi.resolve(), args.out.resolve()
     if not msi.is_file():
@@ -237,6 +238,7 @@ def main():
         result["install_exit"] = code
         if code != 0:
             raise RuntimeError(f"導入の終了コード: {code}（3010は再起動が必要）")
+        install = asteria_paths.install_dir()
         installed = {"mozc_server.exe": install / "mozc_server.exe",
                      "mozc_renderer.exe": install / "mozc_renderer.exe",
                      "mozc_tip64.dll": asteria_paths.tip_path(install)}
