@@ -35,7 +35,7 @@ Japanese has many words that sound the same. Asteria uses the sentence you wrote
 
 | Preceding text | Reading | Asteria | Google Japanese Input |
 | --- | --- | --- | --- |
-| …2被告にはいづれも懲役3年（ (…both defendants, three years in prison () | きゅうけいは | **求刑は** (the sentence sought) | 休憩は (the break) |
+| …2被告にはいづれも懲役3年（ (…a three-year prison term for both defendants) | きゅうけいは | **求刑は** (the sentence sought) | 休憩は (the break) |
 | …芝生に寝そべりながら草競馬の (…lying on the grass, the local horse race) | かんせんに | **観戦に** (to watch) | 感染に (to infection) |
 | …同町が10月26日に内示していた担当課長らの (…the section chiefs the town had notified on Oct. 26) | いどうに | **異動に** (to the reassignment) | 移動に (to the move) |
 | …東金市内の資材置き場の (…at a materials yard in Tōgane) | そっこうに | **側溝に** (into the gutter) | 速攻に (to a quick attack) |
