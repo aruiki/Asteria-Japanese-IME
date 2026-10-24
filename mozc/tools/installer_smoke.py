@@ -69,9 +69,10 @@ def run_msi(arguments, log, ui=False):
             code = process.poll()
             if code is not None:
                 return code
-            limit = 1800 if ui else 300  # 画面では利用者の操作を待つ
-            if time.monotonic() - start > limit:
-                raise subprocess.TimeoutExpired("msiexec", limit)
+            # 画面つきでは利用者の操作(管理者の確認)を待つので打ち切らない。途中で止めると
+            # 導入が中途半端に終わる(2026-10-24、30 分で止めて終了コードを取り損ねた)。
+            if not ui and time.monotonic() - start > 300:
+                raise subprocess.TimeoutExpired("msiexec", 300)
             time.sleep(1)
     finally:
         if process.poll() is None:

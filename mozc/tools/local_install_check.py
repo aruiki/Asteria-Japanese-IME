@@ -132,7 +132,11 @@ def profile_restored_after(r, stage):
     smoke.stop_installed_processes(install_root())
     snapshot = r.out / f"profile-before-{stage}"
     if snapshot.exists():
-        shutil.rmtree(snapshot)
+        # 前回の写しに読み取り専用のファイル(encrypt_key.db)があると消せないので、書けるようにしてから消す。
+        def writable(function, path, _error):
+            os.chmod(path, stat.S_IWRITE)
+            function(path)
+        shutil.rmtree(snapshot, onexc=writable)
     if profile().is_dir():
         copy_profile(profile(), snapshot)
     else:
