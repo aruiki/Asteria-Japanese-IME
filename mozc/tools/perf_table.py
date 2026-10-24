@@ -82,7 +82,7 @@ def main() -> None:
     args = ap.parse_args()
     exe = os.environ.get("KOTORI_CONVERTER_MAIN",
                          r"C:\Users\aruik\mz\src\bazel-bin\converter\converter_main.exe")
-    inst = os.environ.get("KOTORI_INSTALL_DIR", r"C:\Program Files (x86)\Kotori")
+    inst = os.environ.get("KOTORI_INSTALL_DIR", (r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori"))
     low_zenz = os.environ.get("KOTORI_LOW_ZENZ", os.path.join(inst, "zenz-v2.5-medium-q8_0.gguf"))
     readings = [kata_to_hira(it["input"]) for it in
                 json.load(open(args.data, encoding="utf-8"))[: args.n]]

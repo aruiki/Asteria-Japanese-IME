@@ -98,7 +98,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・短文の追加語彙: SudachiDict 20261015、Apache-2.0。UniDic・NEologd等の全帰属と全文はNOTICE-short-lexicon.txt。全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。加工TSVと生成記録を同梱
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
-各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
+各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Asteria)の NOTICE-*.txt と documents フォルダにあります。
 
 Asteria はインターネットに接続しません。変換と AI の処理は、すべてこの PC の中で行います。
 """
@@ -122,7 +122,7 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
 # Qt 6.9.1 のソースの LICENSES/GPL-3.0-only.txt をそのまま写したもの。
 (out / "NOTICE-third-party.txt").write_text(
     "Asteria日本語入力に同梱している第三者のソフトウェア\n\n"
-    "この PC のインストール先(C:\\Program Files (x86)\\Kotori)にあるファイルと、そのライセンスの一覧です。\n"
+    "この PC のインストール先(C:\\Program Files (x86)\\Asteria)にあるファイルと、そのライセンスの一覧です。\n"
     "AI のモデルは NOTICE-zenz.txt と NOTICE-tinyswallow.txt にあります。\n"
     "カタカナ英語辞書は NOTICE-katakana-english.txt、加工済みデータは KotoriEnglish.tsv にあります。\n\n"
     "■ Mozc(mozc_*.exe、mozc_tip*.dll、辞書)\n"

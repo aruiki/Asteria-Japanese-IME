@@ -227,7 +227,7 @@ def main():
     ap.add_argument("exe", type=Path)
     ap.add_argument("--data", type=Path, required=True)
     ap.add_argument("--romanji-table", type=Path, required=True)
-    ap.add_argument("--install", type=Path, default=Path(r"C:\Program Files (x86)\Kotori"))
+    ap.add_argument("--install", type=Path, default=Path((r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori")))
     ap.add_argument("--warm", type=float, default=12)
     ap.add_argument("--settle", type=float, default=2.4)
     ap.add_argument("--key-interval", type=float, default=.01)

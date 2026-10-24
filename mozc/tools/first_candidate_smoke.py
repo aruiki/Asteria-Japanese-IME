@@ -19,7 +19,7 @@ import time
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("exe", type=Path)
-    ap.add_argument("--install", default=r"C:\Program Files (x86)\Kotori")
+    ap.add_argument("--install", default=(r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori"))
     ap.add_argument("--romaji", default="ashiwoitametanode")
     ap.add_argument("--warm", type=float, default=12)
     ap.add_argument("--key-interval", type=float, default=0, help="1文字ずつ送る間隔（秒）")

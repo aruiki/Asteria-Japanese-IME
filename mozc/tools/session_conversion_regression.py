@@ -15,7 +15,7 @@ def main():
     ap.add_argument("exe", type=Path)
     ap.add_argument("--cases", type=Path, required=True)
     ap.add_argument("--romanji-table", type=Path, required=True)
-    ap.add_argument("--install", type=Path, default=Path(r"C:\Program Files (x86)\Kotori"))
+    ap.add_argument("--install", type=Path, default=Path((r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori")))
     ap.add_argument("--warm", type=float, default=12)
     ap.add_argument("--immediate-space", action="store_true")
     ap.add_argument("--only", help="ケースIDをカンマで指定")

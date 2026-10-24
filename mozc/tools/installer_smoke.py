@@ -1,7 +1,7 @@
 """GitHubの使い捨てWindowsランナーで、MSIの導入・実入力・削除を確認する。
 
 開発者の普段のIMEを変更しないため、GitHub Actions外では実行を拒否する。
-既存のKotoriがあるランナーでも実行しない。結果とMSIログを出力先へ保存する。
+既存のAsteria(旧名Kotori)があるランナーでも実行しない。結果とMSIログを出力先へ保存する。
 """
 import argparse
 import hashlib
@@ -11,6 +11,9 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import asteria_paths  # noqa: E402
 
 
 def run(command, timeout=180):
@@ -108,8 +111,8 @@ def validate_acceptance(report, install):
             {c.get("name") for c in checks} != ACCEPTANCE_CHECKS or
             any(c.get("passed") is not True for c in checks)):
         raise RuntimeError("実入力の追加検証が未完了: " + json.dumps(report, ensure_ascii=False))
-    expected = (install / "mozc_tip64.dll").resolve()
-    if Path(report.get("loaded_tip", "")).resolve() != expected:
+    # IME の DLL は版ごとの名前(mozc_tip64-<版>.dll)のことがある(docs/adr/0072)。
+    if not asteria_paths.is_tip_module(report.get("loaded_tip", "") or "-", install):
         raise RuntimeError("入力ホストが導入したTIPを読み込んでいません")
     if report.get("secure_field_internal_ai_or_learning_verified") is not False:
         raise RuntimeError("保護欄の内部AI/学習を、この表示試験で検証済みにしてはいけません")
@@ -181,9 +184,10 @@ def main():
     if (sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true" or
             os.environ.get("KOTORI_DISPOSABLE_RUNNER") != "github-hosted"):
         raise RuntimeError("使い捨てのGitHub Actions Windowsランナーでのみ実行できます")
-    install = Path(os.environ["ProgramFiles(x86)"]) / "Kotori"
-    if install.exists():
-        raise RuntimeError("既存のKotoriがあるので停止します")
+    program_files = Path(os.environ["ProgramFiles(x86)"])
+    if (program_files / "Kotori").exists() or (program_files / "Asteria").exists():
+        raise RuntimeError("既存のAsteria(またはKotori)があるので停止します")
+    install = program_files / "Asteria"
     msi, out = args.msi.resolve(), args.out.resolve()
     if not msi.is_file():
         raise FileNotFoundError(msi)
@@ -215,13 +219,15 @@ def main():
         result["install_exit"] = code
         if code != 0:
             raise RuntimeError(f"導入の終了コード: {code}（3010は再起動が必要）")
-        for name in ("mozc_server.exe", "mozc_renderer.exe", "mozc_tip64.dll"):
-            if not (install / name).is_file():
+        installed = {"mozc_server.exe": install / "mozc_server.exe",
+                     "mozc_renderer.exe": install / "mozc_renderer.exe",
+                     "mozc_tip64.dll": asteria_paths.tip_path(install)}
+        for name, path in installed.items():
+            if not path.is_file():
                 raise RuntimeError(f"導入後のファイルがありません: {name}")
         result["install"] = True
         result["installed_sha256"] = {
-            name: hashlib.sha256((install / name).read_bytes()).hexdigest()
-            for name in ("mozc_server.exe", "mozc_renderer.exe", "mozc_tip64.dll")
+            name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in installed.items()
         }
         checkpoint("installed")
         exe = out / "ImeBench.exe"
@@ -246,7 +252,7 @@ def main():
             code = run_msi(["/x", result["product_code"]], out / "before-reinstall-uninstall.log")
             result["before_reinstall_uninstall_exit"] = code
             result["before_reinstall_reboot_required"] = code == 3010
-            if code not in (0, 3010) or (install / "mozc_tip64.dll").exists():
+            if code not in (0, 3010) or asteria_paths.tip_path(install).exists():
                 raise RuntimeError(f"再導入前の削除に失敗: {code}")
             checkpoint("reinstalling")
             code = run_msi(["/i", str(msi)], out / "reinstall.log")
@@ -254,7 +260,8 @@ def main():
             if code != 0:
                 raise RuntimeError(f"再導入の終了コード: {code}")
             for name, expected in result["installed_sha256"].items():
-                if hashlib.sha256((install / name).read_bytes()).hexdigest() != expected:
+                path = asteria_paths.tip_path(install) if name == "mozc_tip64.dll" else install / name
+                if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                     raise RuntimeError(f"再導入後のファイルが違います: {name}")
             result["reinstalled_committed_text"] = verify_input(exe, cases, out / "reinstalled-output.tsv")
             result["reinstall"] = True
@@ -271,7 +278,7 @@ def main():
                 code = run_msi(["/x", result["product_code"]], out / "uninstall.log")
                 result["uninstall_exit"] = code
                 result["reboot_required"] = code == 3010
-                result["uninstall"] = code in (0, 3010) and not (install / "mozc_tip64.dll").exists()
+                result["uninstall"] = code in (0, 3010) and not asteria_paths.tip_path(install).exists()
                 if not result["uninstall"]:
                     errors.append("アンインストールの完了を確認できません")
             except Exception as exc:

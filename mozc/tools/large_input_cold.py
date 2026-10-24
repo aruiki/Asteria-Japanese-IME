@@ -118,7 +118,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     for name in ('exe', 'cases', 'proto', 'out'):
         ap.add_argument('--' + name, type=Path, required=True)
-    ap.add_argument('--install', type=Path, default=Path('C:/Program Files (x86)/Kotori'))
+    ap.add_argument('--install', type=Path, default=Path(('C:/Program Files (x86)/Asteria' if os.path.isdir('C:/Program Files (x86)/Asteria') else 'C:/Program Files (x86)/Kotori')))
     ap.add_argument('--source-commit', default='unverified')
     ap.add_argument('--cpu', action='store_true')
     ap.add_argument('--threads', type=int)
