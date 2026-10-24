@@ -1,138 +1,116 @@
 <p align="center">
-  <img src="docs/marketing/assets/hero.png?v=quality-20261022" alt="Asteria — 変換精度の高い日本語IME。無料・オープンソース。オフラインで使えます。" width="100%">
+  <img src="docs/marketing/assets/hero.png?v=2.1" alt="Asteria — 変換精度の高い日本語IME。無料・オープンソース。オフラインで使えます。" width="100%">
 </p>
 
 <h1 align="center">Asteria — アステリア</h1>
 
 <p align="center">
   <strong>変換精度の高い日本語IME。</strong><br>
-  意図した言葉への変換を、辞書とローカルAIで支えるWindows向けの日本語入力です。<br>
-  入力した文章を外部サーバーへ送らず、オフラインで使えます。
+  前の文まで読んで、意図した言葉に変換します。<br>
+  AIはあなたのPCの中で動き、入力した文章を外へ送りません。
 </p>
 
 <p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0"><img alt="正式版 v2.0.0" src="https://img.shields.io/badge/Release-v2.0.0-111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D"></a>
   <img alt="Windows 10 / 11・64bit" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-111C2D">
   <img alt="無料・オープンソース" src="https://img.shields.io/badge/無料-オープンソース-536779">
-  <img alt="AIもオフライン" src="https://img.shields.io/badge/AI-オフライン-536779">
+  <img alt="オフライン" src="https://img.shields.io/badge/AI-オフライン-536779">
 </p>
 
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Windows版をダウンロード</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">↓ Windows版をダウンロード</a>
 </h2>
 
 <p align="center">
-  v2.0.0 · 正式版 · 2026-10-21公開 · 約1.66 GB · 未署名<br>
-  <a href="docs/INSTALL.md">導入ガイド・SmartScreenの説明</a> ／
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0">更新内容・SHA-256</a>
+  無料 · 約1.7 GB · <a href="docs/INSTALL.md">導入ガイド</a> · <a href="README.en.md">English</a>
 </p>
-
-## 意図した言葉へ変換する
-
-Asteriaは、Mozcの辞書・文節処理・学習を基盤に、ローカルAIによる候補の生成と評価を組み合わせています。単語や短い入力から文章まで、意図した表記を選びやすい変換を目指して改善を続けています。
-
-| 毎日の入力で | Asteriaがすること |
-| --- | --- |
-| 文章を書く | 確定した文章などの短い文脈を手がかりに、候補を生成・採点します |
-| 続きを入力する | AIの予測候補をTabで選べます |
-| いつもの言葉を使う | Mozcの候補操作、学習、ユーザー辞書を利用できます |
-| 通信せずに使う | 辞書・AIモデル・実行環境を同梱。変換のためのアカウントや外部APIは不要です |
-
-## 実際の入力を見る
 
 <p align="center">
-  <img src="docs/images/typing-demo.gif?v=one-space" alt="音声認識の精度が上がった — Space 1回で変換したAsteriaの実入力録画" width="100%">
+  <img src="docs/images/typing-demo.gif?v=one-space" alt="「おんせいにんしきのせいどがあがった」をSpace 1回で「音声認識の精度が上がった」に変換した実際の入力の録画" width="100%">
 </p>
 
-実際に入力・変換した録画です。v2.0.0の全機能・全アプリの動作を保証する動画ではありません。
+## 前の文を読んで、言葉を選ぶ
 
-## AIが考えている間も、書き進める
+日本語には同じ読みの言葉がたくさんあります。Asteriaは、直前に書いた文を手がかりに候補を選び直します。
 
-通常のAI経路では、**最初の生成・採点結果ができてから候補を表示**します。AIの準備中も読みの表示・編集・取消を続けられます。モデルの読み込みと推論は非同期で進みます。
+| 直前の文 | 読み | Asteria | Google日本語入力 |
+| --- | --- | --- | --- |
+| …2被告にはいづれも懲役3年（ | きゅうけいは | **求刑は** | 休憩は |
+| …芝生に寝そべりながら草競馬の | かんせんに | **観戦に** | 感染に |
+| …同町が10月26日に内示していた担当課長らの | いどうに | **異動に** | 移動に |
+| …東金市内の資材置き場の | そっこうに | **側溝に** | 速攻に |
 
-Spaceで変換を求め、Enterで確定。その後に続けて打った文字も、順番を保って処理します。AIを切った場合やAIが実行できない場合には、Mozcによる入力を継続します。候補が出るまでの時間は、PCの性能・読みの長さ・モデルの準備状態で変わります。
+実際のニュースや百科事典の文から、前の文がないと決められない同音語を集めた300問で比べると、Asteriaは
+**274問**、Google日本語入力は **133問** 正解しました（[測定方法](#数字で見る)）。
 
-[AI主体の候補表示の設計](docs/adr/0067-ai-first-candidate-publication.md) ／ [固定ソースでの検証](docs/verification/ai-first-publication-20261019.md)
+## 毎日の文章も、自然な表記で
 
-## カタカナから、英語の表記へ
+- **日常の表記**: 「ちょうどいい」「ください」「あとで」のように、普段よく使われる書き方を選びます。根拠は公開の会話コーパスで数えた使用比率です。
+- **数字と記号**: 「90ぱーせんと」は「90%」に、「賛成96、反対3」の読点は日本語の「、」のままにします。
+- **カタカナ語から英語**: 「アーキテクチャ」から architecture のように、英語の綴りも候補に出ます（約3.6万組）。
+- **いつものIMEの操作**: Mozc（Google日本語入力のオープンソース版）がもとなので、文節の区切り直し、学習、ユーザー辞書をそのまま使えます。
 
-日本語の候補と一緒に、英語の綴りも選べます。追加辞書のインポートや、入力モードの切り替えは不要です。
+## 待たせない
 
-| 入力 | 英語候補 |
-| --- | --- |
-| アーキテクチャ | architecture |
-| アクセシビリティ | accessibility |
-| コンフィギュレーション | configuration |
-| レストラン | restaurant |
+AIはログイン時に読み込まれ、常に準備ができています。打つ手が止まった瞬間から裏で変換を始めるので、
+普段の打ち方なら **Spaceを押すと、ほぼすぐに候補が出ます**（RTX 3060で、手を止めてから押した場合、95%が0.03秒以内）。
+AIが使えない状況でも、Mozcの変換で入力を続けられます。
 
-31,068の読み・36,402組の英語表記を収録しています。
+## 数字で見る
 
-## 3ステップで使い始める
+同じPC（RTX 3060）で、実際のIMEにキー入力して比べました。正解は、表記ゆれ（「見たり／観たり」など）を同じとみなして数えています。
 
-1. [Asteria64.msiをダウンロード](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi)します。
-2. MSIを開いてインストールします。管理者の確認が表示されます。
-3. **Windows + Space → Asteria日本語入力**を選びます。設定はデスクトップやスタートメニューの「Asteria」から開けます。
-
-未署名のため、SmartScreenが表示される場合があります。公式配布元を確認したうえで進める手順を[導入ガイド](docs/INSTALL.md#smartscreenが表示されたとき)にまとめています。OSから再起動を求められた場合は、その案内に従ってください。
-
-### 動作環境
-
-| 項目 | 条件 |
-| --- | --- |
-| OS | Windows 10 1809以降 / Windows 11・64bit |
-| メモリ | 8 GB以上、16 GB推奨 |
-| GPU AI | Vulkan対応の専用GPU、VRAM 3 GiB以上。NVIDIA / AMD / Intel Arc |
-| GPUがないPC | CPU向けのLow設定で動作。GPUのStandardと同じ品質・速度ではありません |
-| ディスク | インストールに約1.7 GBの空き容量 |
-
-内蔵GPUはAIに使用しません。モデル・実行環境はMSIに含まれ、PythonやCUDAの手動セットアップは不要です。10分間入力がなければ、GPU上のAIモデルを外してVRAMを解放します。
-
-## 品質を、条件と一緒に公開する
-
-開発用の固定変換器によるAJIMEE-Bench 200問のオフライン評価では、Standard・AI準備後・指定した前文ありで **188/200（94.0%）**。前文なしでは175/200（87.5%）でした。RC4に対応する固定ソースでも、第一候補の正解数を維持しています。
-
-この値は調整・回帰用データでの結果です。起動直後や導入済みIMEの実アプリ精度、他IMEとの最新比較を示す値ではありません。
-
-<details>
-<summary>評価条件と、辞書・連語の改善例を見る</summary>
-
-| AJIMEE-Benchの条件 | 正解数 |
-| --- | ---: |
-| Standard・AI準備後・前文あり | 188 / 200（94.0%） |
-| Standard・AI準備後・前文なし | 175 / 200（87.5%） |
-| AIなし・前文なし（Mozc＋追加連語） | 103 / 200（51.5%） |
-
-StandardはRTX 3060で測定。指定した文脈を渡したオフライン評価です。
-
-追加連語の変更前後をAIなし・前文なしで比べると、日常81問は65→69問正解（改善4問・改悪0問）でした。
-
-| 読み | 変更前 | 変更後 |
+| 評価 | Asteria v2.1.0 | Google日本語入力 3.34 |
 | --- | --- | --- |
-| あめがふってきた | 雨が振ってきた | 雨が降ってきた |
-| じかんをはかる | 時間を図る | 時間を計る |
-| たいじゅうをはかる | 体重を図る | 体重を量る |
-| あついほん | 暑い本 | 厚い本 |
+| 日常の短文・チャット 500問 | **461**（92.2%） | 434（86.8%） |
+| 前の文が必要な同音語 300問 | **274**（91.3%） | 133（44.3%） |
 
-この4例はAIの効果を示す比較ではありません。[測定条件・図表・固定ソース](docs/BENCHMARKS.md)、[追加連語の検証](docs/verification/accuracy-usage-collocations-20261018.md)を参照してください。
+評価文は公開コーパス（日常会話・ウィキニュース・2024年以降のWikipedia）から作り、調整には使っていない判定用のものです。
+分野別の結果（文書・技術・固有名詞を含む）、速さの内訳、測定の手順と原票は[検証記録](docs/verification/release-v2.1.0-20261023.md)にあります。
+誤変換が起こらないわけではありません。人名などの固有名詞は、ほかの分野より誤りが多めです。
 
-</details>
+## 使い始める
 
-v2.0.0は正式版です。同じ新MSIの導入・再導入・入力・削除、候補操作8項目、EDIT/RichEditの二重入力28条件とEdgeのtextarea/contenteditableの14条件を確認しています。実アプリでのGPU AI ON/OFF寄与、Officeなど未確認のアプリ、低性能実機、保護欄内部、旧版からの更新、再起動、独立した製品完成判定は未検証です。
+1. [Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi) をダウンロードして開きます。管理者の確認が表示されます。
+2. **Windows + Space** で「Asteria日本語入力」を選びます。
+3. 設定は、スタートメニューの「Asteria」から開けます。
 
-[v2.0.0の公開・検証記録](docs/verification/release-v2.0.0-20261021.md) ／ [評価方法とデータ](eval/README.md) ／ [過去の実入力比較](docs/BENCHMARKS.md#過去の実入力比較)
+配布ファイルはまだ署名されていないため、Windowsの警告（SmartScreen）が表示されることがあります。配布元とファイルの確かめ方は[導入ガイド](docs/INSTALL.md#smartscreenが表示されたとき)をご覧ください。
 
-## 使い方・応援・開発
+| 動作環境 | |
+| --- | --- |
+| OS | Windows 10（1809以降）/ Windows 11、64bit |
+| GPU | Vulkan対応の専用GPU（VRAM 3 GB以上。NVIDIA / AMD / Intel Arc）を推奨 |
+| GPUがないPC | CPU向けの設定で動きます。GPUより変換の速さと精度は下がります |
+| メモリ・空き容量 | メモリ8 GB以上（16 GB推奨）、空き容量 約1.7 GB |
 
-- [使い方と困ったとき](docs/USER_GUIDE.md) — キー操作、更新、アンインストール、データの保存場所
-- [不具合・誤変換・要望を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
-- [紹介・告知用の画像と文章](docs/marketing/README.md)
-- [Stripeから開発を支援](https://buy.stripe.com/cNi14m7jRdq005f0781ZS08) — 支援の有無による機能制限はありません
-- [開発方法](docs/DEVELOPMENT.md) ／ [設計記録](docs/adr/) ／ [仕様](docs/SPEC.md) ／ [開発規約](AGENTS.md)
+辞書・AIモデル・実行環境はすべてインストーラーに入っています。PythonやCUDAの準備は要りません。
 
-Asteriaは無料のオープンソースソフトウェアです。コードはApache License 2.0 / MIT License、Mozcへの変更はBSD-3-Clause。同梱コンポーネントを含む[ライセンス](docs/licenses.md)と[セキュリティ方針](SECURITY.md)を公開しています。
+## プライバシー
 
-<h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi">↓ Asteriaを試す</a>
-</h2>
+入力した文章は、変換のためにインターネットへ送られません。アカウント登録も不要です。
+学習した内容はこのPCの中にだけ保存され、設定画面から消せます。詳しくは[使い方とデータの扱い](docs/USER_GUIDE.md#データとプライバシー)へ。
 
-<p align="center">GPUで動くAI · 文章はPCの中に · Windows 10 / 11・64bit</p>
+## しくみ
+
+| 部分 | 役割 |
+| --- | --- |
+| [Mozc](https://github.com/google/mozc) | 辞書、文節の区切り、候補の一覧、学習、Windowsとの連携 |
+| [zenz-v2.5](https://huggingface.co/Miwa-Keita/zenz-v2.5-small) | 読みと前の文から、変換文を生成・採点する専用のAI |
+| [TinySwallow-1.5B](https://huggingface.co/SakanaAI/TinySwallow-1.5B) | 文章としての自然さを採点し、誤変換を補正する日本語のAI |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | AIをGPU（Vulkan）またはCPUで動かす |
+
+設計の判断は[設計記録（ADR）](docs/adr/)に、理由と測定結果と一緒に残しています。
+
+## 一緒につくる
+
+- [使い方と困ったとき](docs/USER_GUIDE.md) — キー操作、更新、アンインストール
+- [誤変換・不具合・要望を報告する](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose) — 誤変換は、読みと前の文があると直しやすくなります
+- [開発の始め方](docs/DEVELOPMENT.md) ／ [仕様](docs/SPEC.md) ／ [開発の約束ごと](AGENTS.md)
+- [開発を支援する（Stripe）](https://buy.stripe.com/cNi14m7jRdq005f0781ZS08) — 支援の有無で機能は変わりません
+
+## ライセンス
+
+Asteriaは無料のオープンソースソフトウェアです。コードは [Apache License 2.0](LICENSE-APACHE) / [MIT License](LICENSE-MIT)、
+Mozcへの変更は BSD-3-Clause です。同梱するモデル・辞書・ライブラリのライセンスは[一覧](docs/licenses.md)にまとめています。
+脆弱性の報告は[セキュリティ方針](SECURITY.md)へ。

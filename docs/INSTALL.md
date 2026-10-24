@@ -4,13 +4,13 @@ Windows 10 1809以降 / Windows 11・64bit向けの日本語入力です。モ�
 
 ## ダウンロードと導入
 
-1. [公式GitHub Releaseのv2.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)から、[Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi)をダウンロードします。約1.66 GBの正式版です。
+1. [公式GitHub Releaseの最新版](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest)から、[Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi)をダウンロードします（約1.7 GB）。
 2. MSIを開き、インストーラーの案内に従います。管理者の確認が表示されます。
-3. **Windows + Space**から「Asteria日本語入力」を選びます。設定はデスクトップやスタートメニューの「Asteria」から開けます。
+3. **Windows + Space**から「Asteria日本語入力」を選びます。設定はスタートメニューの「Asteria」から開けます。
 
 手動でのモデル配置やコマンド入力は不要です。OSが再起動を求める場合は、その案内に従ってください。
 
-GPU AIにはVulkan対応の専用GPU（VRAM 3 GiB以上）を使用します。GPUのないPCはCPU向けのLow設定で動作します。メモリ8 GB以上（16 GB推奨）、ディスクに約1.7 GBの空きが必要です。内蔵GPUはAIに使いません。
+AIにはVulkan対応の専用GPU（VRAM 3 GB以上）を使います。GPUのないPCはCPU向けの設定（Low）で動きます。メモリ8 GB以上（16 GB推奨）、ディスクに約1.7 GBの空きが必要です。内蔵GPUはAIに使いません。
 
 ## SmartScreenが表示されたとき
 
@@ -22,18 +22,12 @@ GPU AIにはVulkan対応の専用GPU（VRAM 3 GiB以上）を使用します。G
 
 ## ファイルを照合する
 
-同じReleaseにある [Asteria64.msi.sha256](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi.sha256)と比較できます。PowerShellで確認する場合:
+ダウンロードした `Asteria64.msi` のSHA-256を、同じReleaseの本文または [Asteria64.msi.sha256](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi.sha256) と比べます。PowerShellで確認する場合:
 
 ~~~powershell
 Get-FileHash -Algorithm SHA256 .\Asteria64.msi
 ~~~
 
-v2.0.0のSHA-256:
-
-~~~text
-1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a
-~~~
-
-ハッシュは、公開ファイルとの一致を確認するものです。[対応ソースと検証範囲](verification/release-v2.0.0-20261021.md)も公開しています。
+ハッシュは、公開されたファイルと同じものかを確かめるためのものです。各版の対応ソースと検証範囲は、Release本文から[検証記録](verification/)へリンクしています。
 
 更新・アンインストール・保存データ・詳しい操作は[使い方と困ったとき](USER_GUIDE.md)へ。[Asteriaの紹介へ戻る](../README.md)。
