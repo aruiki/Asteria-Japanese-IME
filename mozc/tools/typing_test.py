@@ -12,7 +12,7 @@ import time
 
 exe = os.environ.get("KOTORI_CONVERTER_MAIN", r"C:\Users\aruik\mz\src\bazel-bin\converter\converter_main.exe")
 cwd = exe + ".runfiles/_main"
-inst = os.environ.get("KOTORI_INSTALL_DIR", r"C:\Program Files (x86)\Kotori")
+inst = os.environ.get("KOTORI_INSTALL_DIR", (r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori"))
 interval = float(sys.argv[1]) if len(sys.argv) > 1 else 0.15
 env = dict(os.environ, KOTORI_RUNTIME_DIR=inst, KOTORI_MODEL_DIR=inst)
 env.update(dict(a.split("=", 1) for a in sys.argv[2:]))

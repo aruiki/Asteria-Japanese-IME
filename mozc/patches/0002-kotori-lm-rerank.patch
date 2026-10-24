@@ -132,10 +132,10 @@ index d8ebba55d..8c61d9c94 100644
      name = "init_mozc",
      srcs = ["init_mozc.cc"],
 diff --git a/src/base/const.h b/src/base/const.h
-index 20c649de6..4fbf798c1 100644
+index 20c649de6..b04a0e9bf 100644
 --- a/src/base/const.h
 +++ b/src/base/const.h
-@@ -33,9 +33,12 @@
+@@ -33,10 +33,17 @@
  namespace mozc {
  #ifdef GOOGLE_JAPANESE_INPUT_BUILD
  inline constexpr char kProductNameInEnglish[] = "Google Japanese Input";
@@ -146,9 +146,14 @@ index 20c649de6..4fbf798c1 100644
  inline constexpr char kProductNameInEnglish[] = "Kotori";
 +inline constexpr char kProductDisplayNameInEnglish[] = "Asteria";
  #define kProductPrefix "Kotori"
++// Asteria: 利用者に見えるフォルダの名前(インストール先と設定・学習の保存先。docs/adr/0072)。
++// 通信の名前やレジストリの鍵は旧名のまま(更新の直後に、入力中のアプリに残る前の版の IME とつながるため)。
++inline constexpr char kInstallDirName[] = "Asteria";
++inline constexpr char kLegacyInstallDirName[] = "Kotori";
  #endif  // GOOGLE_JAPANESE_INPUT_BUILD
  
-@@ -123,7 +126,7 @@ inline constexpr wchar_t kInfolistWindowClassName[] = L"KotoriInfolistWindow";
+ inline constexpr char kVersionRewriterVersionPrefix[] = kProductPrefix "-";
+@@ -123,7 +130,7 @@ inline constexpr wchar_t kInfolistWindowClassName[] = L"KotoriInfolistWindow";
  inline constexpr wchar_t kIMEUIWndClassName[] = L"KotoriUIWindow";
  inline constexpr char kIPCPrefix[] = "\\\\.\\pipe\\kotori.";
  inline constexpr wchar_t kCandidateUIDescription[] = L"KotoriCandidateUI";
@@ -587,6 +592,142 @@ index 000000000..13cae7120
 +}  // namespace mozc
 +
 +#endif  // MOZC_BASE_KOTORI_LIVE_H_
+diff --git a/src/base/system_util.cc b/src/base/system_util.cc
+index 0981fa174..a08ea1a76 100644
+--- a/src/base/system_util.cc
++++ b/src/base/system_util.cc
+@@ -67,8 +67,11 @@
+ #include <versionhelpers.h>
+ // clang-format on
+ 
++#include <cstdio>
++#include <cstdlib>
+ #include <memory>  // for unique_ptr
+ #include <optional>
++#include <vector>
+ 
+ #include "base/win32/wide_char.h"
+ #include "base/win32/win_util.h"
+@@ -167,6 +170,97 @@ void UserProfileDirectoryImpl::SetDir(const std::string& dir) {
+   dir_ = dir;
+ }
+ 
++#if defined(_WIN32) && !defined(GOOGLE_JAPANESE_INPUT_BUILD)
++namespace {
++
++// Asteria: ディレクトリのジャンクション(old → target)を作る。管理者の権限は要らない。
++bool CreateJunction(const std::wstring& link, const std::wstring& target) {
++  if (!::CreateDirectoryW(link.c_str(), nullptr)) return false;
++  HANDLE handle = ::CreateFileW(
++      link.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
++      FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
++  if (handle == INVALID_HANDLE_VALUE) {
++    ::RemoveDirectoryW(link.c_str());
++    return false;
++  }
++  // REPARSE_DATA_BUFFER の MountPointReparseBuffer(ntifs.h はユーザー側にないので同じ形を置く)。
++  const std::wstring substitute = L"\\??\\" + target;
++  const USHORT substitute_bytes = static_cast<USHORT>(substitute.size() * sizeof(wchar_t));
++  std::vector<BYTE> buffer(8 + 8 + substitute_bytes + sizeof(wchar_t) * 2);
++  auto put16 = [&](size_t at, USHORT v) { memcpy(&buffer[at], &v, sizeof(v)); };
++  const DWORD tag = IO_REPARSE_TAG_MOUNT_POINT;
++  memcpy(&buffer[0], &tag, sizeof(tag));
++  put16(4, static_cast<USHORT>(buffer.size() - 8));  // ReparseDataLength
++  put16(8, 0);                                         // SubstituteNameOffset
++  put16(10, substitute_bytes);                         // SubstituteNameLength
++  put16(12, static_cast<USHORT>(substitute_bytes + sizeof(wchar_t)));  // PrintNameOffset
++  put16(14, 0);                                        // PrintNameLength
++  memcpy(&buffer[16], substitute.data(), substitute_bytes);
++  DWORD returned = 0;
++  const BOOL ok = ::DeviceIoControl(handle, FSCTL_SET_REPARSE_POINT, buffer.data(),
++                                    static_cast<DWORD>(buffer.size()), nullptr, 0,
++                                    &returned, nullptr);
++  ::CloseHandle(handle);
++  if (!ok) ::RemoveDirectoryW(link.c_str());
++  return ok;
++}
++
++bool IsJunction(const std::wstring& path) {
++  const DWORD attributes = ::GetFileAttributesW(path.c_str());
++  return attributes != INVALID_FILE_ATTRIBUTES &&
++         (attributes & FILE_ATTRIBUTE_REPARSE_POINT);
++}
++
++// 今の Windows が起動した時刻(秒)。再起動したかを見分けるのに使う。
++int64_t BootTimeSeconds() {
++  FILETIME now;
++  ::GetSystemTimeAsFileTime(&now);
++  const int64_t now_seconds =
++      ((static_cast<int64_t>(now.dwHighDateTime) << 32) | now.dwLowDateTime) /
++      10000000;
++  return now_seconds - static_cast<int64_t>(::GetTickCount64() / 1000);
++}
++
++}  // namespace
++
++// Asteria: 旧名の保存先を新しい名前へ移し、旧名の場所には新しい保存先を指すジャンクションを置く。
++// 更新の直後は、入力中のアプリに前の版の IME が残り、旧名の場所で通信の鍵(*.ipc)を探すため。
++// Windows を再起動した後は前の版が残っていないので、ジャンクションを消す。移せないとき(ほかの
++// プロセスが中のファイルを開いている)は旧名の場所をそのまま使い、次の機会にやり直す。
++std::string MigrateProfileDirectory(const std::string& local_app_data) {
++  const std::wstring base = win32::Utf8ToWide(local_app_data);
++  const std::wstring current = base + L"\\" + win32::Utf8ToWide(kInstallDirName);
++  const std::wstring legacy = base + L"\\" + win32::Utf8ToWide(kLegacyInstallDirName);
++  const std::wstring marker = current + L"\\legacy-profile-link.txt";
++  const bool has_current = ::GetFileAttributesW(current.c_str()) != INVALID_FILE_ATTRIBUTES;
++  const bool has_legacy = ::GetFileAttributesW(legacy.c_str()) != INVALID_FILE_ATTRIBUTES;
++  if (!has_current && has_legacy && !IsJunction(legacy)) {
++    if (!::MoveFileExW(legacy.c_str(), current.c_str(), 0)) {
++      return win32::WideToUtf8(legacy);
++    }
++    if (CreateJunction(legacy, current)) {
++      if (std::FILE* f = _wfopen(marker.c_str(), L"w")) {
++        std::fprintf(f, "%lld\n", static_cast<long long>(BootTimeSeconds()));
++        std::fclose(f);
++      }
++    }
++    return win32::WideToUtf8(current);
++  }
++  if (has_current && IsJunction(legacy)) {
++    long long boot = 0;
++    if (std::FILE* f = _wfopen(marker.c_str(), L"r")) {
++      if (std::fscanf(f, "%lld", &boot) != 1) boot = 0;
++      std::fclose(f);
++    }
++    // 起動時刻が 1 分以上違えば、移した後に再起動している。
++    if (boot == 0 || std::abs(BootTimeSeconds() - boot) > 60) {
++      if (::RemoveDirectoryW(legacy.c_str())) ::DeleteFileW(marker.c_str());
++    }
++  }
++  return win32::WideToUtf8(current);
++}
++#endif  // _WIN32 && !GOOGLE_JAPANESE_INPUT_BUILD
++
+ std::string UserProfileDirectoryImpl::GetUserProfileDirectory() const {
+   if constexpr (port::IsChromeos()) {
+     // TODO(toka): Must use passed in user profile dir which passed in. If mojo
+@@ -200,8 +294,11 @@ std::string UserProfileDirectoryImpl::GetUserProfileDirectory() const {
+     if (absl::Status s = FileUtil::CreateDirectory(dir); !s.ok()) {
+       LOG(ERROR) << s;
+     }
+-#endif  // GOOGLE_JAPANESE_INPUT_BUILD
+     return FileUtil::JoinPath(dir, kProductNameInEnglish);
++#else   // GOOGLE_JAPANESE_INPUT_BUILD
++    // Asteria: 保存先を LocalLow\Kotori から LocalLow\Asteria へ移す(docs/adr/0072)。
++    return MigrateProfileDirectory(dir);
++#endif  // GOOGLE_JAPANESE_INPUT_BUILD
+ 
+ #elif defined(TARGET_OS_OSX) && TARGET_OS_OSX
+     std::string dir = MacUtil::GetApplicationSupportDirectory();
+@@ -330,7 +427,7 @@ std::string SystemUtil::GetServerDirectory() {
+       FileUtil::JoinPath(program_files.value_or(""), kCompanyNameInEnglish),
+       kProductNameInEnglish);
+ #else   // GOOGLE_JAPANESE_INPUT_BUILD
+-  return FileUtil::JoinPath(program_files.value_or(""), kProductNameInEnglish);
++  return FileUtil::JoinPath(program_files.value_or(""), kInstallDirName);
+ #endif  // GOOGLE_JAPANESE_INPUT_BUILD
+ 
+ #elif defined(__APPLE__)
 diff --git a/src/bazel/BUILD.bazel b/src/bazel/BUILD.bazel
 index 6832ad9ef..8cc7eb42a 100644
 --- a/src/bazel/BUILD.bazel
@@ -24866,7 +25007,7 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..4cf4d0fe2 100644
+index fd03a6c0c..b0b3cc18f 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -46,6 +46,7 @@
@@ -24920,15 +25061,27 @@ index fd03a6c0c..4cf4d0fe2 100644
  }
  
  bool EngineConverter::CheckState(
-@@ -148,6 +185,7 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
+@@ -145,9 +182,19 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
+   return conversion_preferences_;
+ }
+ 
++bool EngineConverter::KotoriFirstCandidatesKept() const {
++  if (kotori_resized_ || selected_candidate_indices_.empty()) return false;
++  for (int index : selected_candidate_indices_) {
++    if (index != 0) return false;
++  }
++  return true;
++}
++
  bool EngineConverter::Convert(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
++  kotori_resized_ = false;
 +  const auto input_generation = KotoriObserveInput(composer);
    DCHECK(CheckState(COMPOSITION | SUGGESTION | CONVERSION));
  
    DCHECK(request_);
-@@ -157,6 +195,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -157,6 +204,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    SetRequestType(ConversionRequest::CONVERSION, options);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -24936,7 +25089,7 @@ index fd03a6c0c..4cf4d0fe2 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -164,12 +203,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -164,12 +212,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
            .SetOptions(std::move(options))
            .Build();
  
@@ -24962,7 +25115,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    segment_index_ = 0;
    state_ = CONVERSION;
    // If TalkBack is enabled, the candidate list should be always visible to
-@@ -181,6 +232,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -181,6 +241,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    return true;
  }
  
@@ -25048,7 +25201,7 @@ index fd03a6c0c..4cf4d0fe2 100644
  bool EngineConverter::GetReadingText(absl::string_view source_text,
                                       std::string* reading) {
    DCHECK(reading);
-@@ -490,6 +620,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
+@@ -490,6 +629,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
  bool EngineConverter::Suggest(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25056,7 +25209,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION));
    candidate_list_visible_ = false;
  
-@@ -541,6 +672,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -541,6 +681,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    DCHECK(config_);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25064,7 +25217,7 @@ index fd03a6c0c..4cf4d0fe2 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +731,127 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +740,127 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25193,7 +25346,7 @@ index fd03a6c0c..4cf4d0fe2 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +860,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +869,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25208,7 +25361,7 @@ index fd03a6c0c..4cf4d0fe2 100644
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +876,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +885,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25220,7 +25373,7 @@ index fd03a6c0c..4cf4d0fe2 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +896,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +905,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25235,7 +25388,7 @@ index fd03a6c0c..4cf4d0fe2 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +911,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +920,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25253,7 +25406,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +929,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +938,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25301,7 +25454,7 @@ index fd03a6c0c..4cf4d0fe2 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +994,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +1003,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25329,7 +25482,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1024,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1033,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25337,7 +25490,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1042,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1051,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25345,7 +25498,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1074,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1083,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25353,7 +25506,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1087,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1096,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25361,7 +25514,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1188,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1197,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25369,7 +25522,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,6 +1248,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,6 +1257,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25377,7 +25530,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    const std::string key = composer.GetQueryForConversion();
    const std::string preedit = composer.GetStringForSubmission();
    std::string normalized_preedit = TextNormalizer::NormalizeText(preedit);
-@@ -956,6 +1286,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+@@ -956,6 +1295,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25385,7 +25538,15 @@ index fd03a6c0c..4cf4d0fe2 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1112,14 +1443,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1095,6 +1435,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
+     return;
+   }
+ 
++  kotori_resized_ = true;
+   UpdateCandidateList();
+   // Clears selected index of a focused segment and trailing segments.
+   // TODO(hsumita): Keep the indices if the segment type is FIXED_VALUE.
+@@ -1112,14 +1453,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25507,7 +25668,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1566,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1576,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25519,7 +25680,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1581,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1591,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25531,7 +25692,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1596,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1606,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25543,7 +25704,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1293,10 +1746,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1293,10 +1756,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
      // Conversion on Prediction or Conversion
      FillConversion(output->mutable_preedit());
    }
@@ -25557,7 +25718,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    }
  
    // All candidate words
-@@ -1319,6 +1775,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1785,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25568,7 +25729,7 @@ index fd03a6c0c..4cf4d0fe2 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1793,8 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1803,8 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
@@ -25577,7 +25738,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2174,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2184,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -25604,7 +25765,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2305,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2315,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -25623,7 +25784,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2324,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2334,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -25632,7 +25793,7 @@ index fd03a6c0c..4cf4d0fe2 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..d909e4d5a 100644
+index 6d061cfca..a5f8e392d 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -25651,7 +25812,7 @@ index 6d061cfca..d909e4d5a 100644
  
    // Checks if the current state is in the state bitmap.
    bool CheckState(States) const override;
-@@ -107,6 +109,17 @@ class EngineConverter : public EngineConverterInterface {
+@@ -107,6 +109,18 @@ class EngineConverter : public EngineConverterInterface {
                 const commands::Context& context,
                 const ConversionPreferences& preferences) override;
  
@@ -25663,13 +25824,14 @@ index 6d061cfca..d909e4d5a 100644
 +      const composer::Composer& composer, const commands::Context& context,
 +      const ConversionPreferences& preferences) override;
 +  bool KotoriIsAwaitingAi() const override { return kotori_awaiting_ai_; }
++  bool KotoriFirstCandidatesKept() const override;
 +
 +  void KotoriInputFieldTypeChanged() override { KotoriInvalidateInput(); }
 +
    // Sends a prediction request to the converter.
    // Brings base class overloads into scope to avoid name hiding.
    using EngineConverterInterface::Predict;
-@@ -116,6 +129,7 @@ class EngineConverter : public EngineConverterInterface {
+@@ -116,6 +130,7 @@ class EngineConverter : public EngineConverterInterface {
  
    // Clears conversion segments, but keep the context.
    void Cancel() override;
@@ -25677,7 +25839,7 @@ index 6d061cfca..d909e4d5a 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -274,6 +288,25 @@ class EngineConverter : public EngineConverterInterface {
+@@ -274,6 +289,25 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -25703,7 +25865,7 @@ index 6d061cfca..d909e4d5a 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +377,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +378,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -25712,11 +25874,13 @@ index 6d061cfca..d909e4d5a 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +459,10 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +460,12 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
 +  bool kotori_awaiting_ai_ = false;
++  // Asteria: 変換の後に文節の区切りを変えたか(正答率では「外れ」に数える)。
++  bool kotori_resized_ = false;
 +  std::optional<Segments> kotori_prepared_conversion_;
 +  std::string kotori_prepared_context_;
 +  bool kotori_prepared_history_ = true;
@@ -25724,10 +25888,10 @@ index 6d061cfca..d909e4d5a 100644
    // Mutable values of |config_|.  These values may be changed temporarily per
    // session.
 diff --git a/src/engine/engine_converter_interface.h b/src/engine/engine_converter_interface.h
-index f8e3b43ec..e7ee6e114 100644
+index f8e3b43ec..719704d9f 100644
 --- a/src/engine/engine_converter_interface.h
 +++ b/src/engine/engine_converter_interface.h
-@@ -141,6 +141,26 @@ class EngineConverterInterface {
+@@ -141,6 +141,28 @@ class EngineConverterInterface {
                     conversion_preferences());
    }
  
@@ -25747,6 +25911,8 @@ index f8e3b43ec..e7ee6e114 100644
 +    return KotoriAiStatus::kUnavailable;
 +  }
 +  virtual bool KotoriIsAwaitingAi() const { return false; }
++  // Asteria: 今の変換で、どの文節も1番目の候補のまま、区切りも変えていないか(ダッシュボードの正答率)。
++  virtual bool KotoriFirstCandidatesKept() const { return false; }
 +
 +  // Kotori: 入力欄の切り替え時、次の打鍵を待たず非同期補正を失効させる。
 +  virtual void KotoriInputFieldTypeChanged() {}
@@ -25754,7 +25920,7 @@ index f8e3b43ec..e7ee6e114 100644
    // Sends a prediction request to the converter.
    virtual bool Predict(const composer::Composer& composer,
                         const commands::Context& context,
-@@ -162,6 +182,9 @@ class EngineConverterInterface {
+@@ -162,6 +184,9 @@ class EngineConverterInterface {
    // Clear conversion segments, but keep the context.
    virtual void Cancel() = 0;
  
@@ -26351,15 +26517,17 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..a9e7182d8 100644
+index abbf55d68..f2c2bbdec 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
-@@ -30,12 +30,51 @@
+@@ -30,12 +30,55 @@
  // Qt component of configure dialog for Mozc
  #include "gui/config_dialog/config_dialog.h"
  
++#include <array>
 +#include <QCheckBox>
 +#include <QComboBox>
++#include <QDate>
 +#include <QDateTime>
 +#include <QDesktopServices>
 +#include <QDialog>
@@ -26375,6 +26543,7 @@ index abbf55d68..a9e7182d8 100644
 +#include <QHBoxLayout>
 +#include <QLabel>
 +#include <QLineEdit>
++#include <QLocale>
  #include <QMessageBox>
 +#include <QPainter>
 +#include <QPainterPath>
@@ -26384,6 +26553,7 @@ index abbf55d68..a9e7182d8 100644
 +#include <QRegularExpression>
 +#include <QScreen>
 +#include <QScrollArea>
++#include <QSettings>
 +#include <QStandardPaths>
 +#include <QSysInfo>
 +#include <QTimer>
@@ -26406,7 +26576,7 @@ index abbf55d68..a9e7182d8 100644
  #include <sstream>
  #include <string>
  
-@@ -43,6 +82,10 @@
+@@ -43,6 +86,10 @@
  #include "absl/log/log.h"
  #include "absl/strings/string_view.h"
  #include "base/config_file_stream.h"
@@ -26417,7 +26587,7 @@ index abbf55d68..a9e7182d8 100644
  #include "client/client.h"
  #include "config/config_handler.h"
  #include "config/stats_config_util.h"
-@@ -83,6 +126,431 @@ void Connect(const QList<T *> &objects, const char *signal,
+@@ -83,6 +130,457 @@ void Connect(const QList<T *> &objects, const char *signal,
  
  namespace mozc {
  namespace gui {
@@ -26502,13 +26672,13 @@ index abbf55d68..a9e7182d8 100644
 +      // AI を載せるのは専用 GPU で VRAM が 3 GB 以上のときだけ(rewriter/llama_runtime.h)。
 +      // 内蔵 GPU(専用の VRAM が少ない)では、どの品質を選んでも Low で動く。
 +      if (gb >= 3.0) {
-+        text = QString::fromUtf8("この PC の GPU: %1(VRAM %2 GB)。Standard 以上を使えます。")
++        text = QString::fromUtf8("このPCのGPU: %1（VRAM %2 GB）。Standard以上を使えます。")
 +                   .arg(name)
 +                   .arg(gb, 0, 'f', 0);
 +      } else {
 +        text = QString::fromUtf8(
-+                   "この PC の GPU: %1(VRAM %2 GB)。AI には使わず、どの品質を選んでも "
-+                   "Low(CPU)で動きます。")
++                   "このPCのGPU: %1（VRAM %2 GB）。AIには使わず、どの品質を選んでも"
++                   "Low（CPU）で動きます。")
 +                   .arg(name)
 +                   .arg(gb, 0, 'f', 1);
 +      }
@@ -26516,7 +26686,7 @@ index abbf55d68..a9e7182d8 100644
 +    }
 +  }
 +#endif  // _WIN32
-+  return "AI に使える GPU が見つかりません。どの品質を選んでも Low(CPU)で動きます。";
++  return "AIに使えるGPUが見つかりません。どの品質を選んでもLow（CPU）で動きます。";
 +}
 +
 +// Kotori: 実際に動いている AI の状態(変換サーバーがユーザーのプロファイルの
@@ -26580,6 +26750,7 @@ index abbf55d68..a9e7182d8 100644
 +  QString ai_state;
 +  std::optional<double> pc_cpu_load, pc_memory_load, server_cpu_load,
 +      server_ram_mib, ai_seconds;
++  std::optional<quint64> ai_calls;
 +
 +  void Update() {
 +    pc_cpu_load.reset();
@@ -26587,6 +26758,7 @@ index abbf55d68..a9e7182d8 100644
 +    server_cpu_load.reset();
 +    server_ram_mib.reset();
 +    ai_seconds.reset();
++    ai_calls.reset();
 +    ai_state = "unknown";
 +    const KotoriStatus status = ReadKotoriStatus();
 +    const auto value = [&](const char *key) {
@@ -26668,6 +26840,8 @@ index abbf55d68..a9e7182d8 100644
 +        ai_seconds =
 +            (match.captured(1).toDouble() + match.captured(5).toDouble()) /
 +            1000.0;
++        ai_calls = match.captured(3).toULongLong() +
++                   match.captured(7).toULongLong();
 +        inference = QString::fromUtf8("AI計算の累計: %1秒　モデル計算: %2回")
 +                        .arg((match.captured(1).toDouble() +
 +                              match.captured(5).toDouble()) /
@@ -26736,100 +26910,122 @@ index abbf55d68..a9e7182d8 100644
 +#endif
 +};
 +
-+// Kotori: 実測の履歴だけをGUIのメモリに持ち、閉じると破棄する。
-+class KotoriUsageGraph : public QWidget {
-+ public:
-+  explicit KotoriUsageGraph(QWidget *parent) : QWidget(parent) {
-+    clock_.start();
-+    setMinimumHeight(92);
-+    setAccessibleName(QString::fromUtf8("CPU使用率の推移。PC全体とAsteria。"));
-+  }
-+  void Add(std::optional<double> pc, std::optional<double> kotori) {
-+    if (!pc && !kotori) return;
-+    const qint64 now = clock_.elapsed();
-+    if (!samples_.empty() && now - samples_.back().time < 300)
-+      samples_.back() = {now, pc, kotori};
-+    else
-+      samples_.push_back({now, pc, kotori});
-+    while (!samples_.empty() && now - samples_.front().time > 60000)
-+      samples_.pop_front();
-+    setProperty("sampleCount", static_cast<int>(samples_.size()));
-+    update();
-+  }
-+
-+ protected:
-+  void paintEvent(QPaintEvent *) override {
-+    QPainter painter(this);
-+    painter.setRenderHint(QPainter::Antialiasing);
-+    const bool contrast = KotoriHighContrast();
-+    const QColor text = palette().color(QPalette::WindowText);
-+    const QColor blue = contrast ? text : QColor("#0F6CBD");
-+    const QColor purple =
-+        contrast ? palette().color(QPalette::Highlight) : QColor("#8764B8");
-+    const QRectF plot(36, 8, std::max(1, width() - 44),
-+                      std::max(1, height() - 28));
-+    for (int value : {0, 50, 100}) {
-+      const double y = plot.bottom() - value * plot.height() / 100.0;
-+      painter.setPen(contrast ? text : QColor("#E5E5E5"));
-+      painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
-+      painter.setPen(text);
-+      painter.drawText(QRectF(0, y - 7, 30, 14),
-+                       Qt::AlignRight | Qt::AlignVCenter,
-+                       QString::number(value));
-+    }
-+    if (samples_.empty()) {
-+      painter.drawText(plot, Qt::AlignCenter,
-+                       QString::fromUtf8("計測を始めています"));
-+      return;
-+    }
-+    const qint64 end = samples_.back().time;
-+    const qint64 span = std::max<qint64>(2000, end - samples_.front().time);
-+    const auto draw = [&](bool server, QColor color) {
-+      QPainterPath path;
-+      bool connected = false;
-+      painter.setPen(QPen(color, 2));
-+      for (const Sample &sample : samples_) {
-+        const auto value = server ? sample.kotori : sample.pc;
-+        if (!value) {
-+          connected = false;
-+          continue;
-+        }
-+        const QPointF point(
-+            plot.right() - (end - sample.time) * plot.width() / span,
-+            plot.bottom() -
-+                std::clamp(*value, 0.0, 100.0) * plot.height() / 100.0);
-+        if (connected)
-+          path.lineTo(point);
-+        else
-+          path.moveTo(point);
-+        connected = true;
-+        painter.drawEllipse(point, 2, 2);
-+      }
-+      painter.drawPath(path);
-+    };
-+    draw(false, blue);
-+    draw(true, purple);
-+    painter.setPen(text);
-+    painter.drawText(
-+        QRectF(plot.left(), plot.bottom() + 4, plot.width(), 16),
-+        Qt::AlignRight,
-+        QString::fromUtf8("直近 %1 秒")
-+            .arg(std::max<qint64>(1, (end - samples_.front().time) / 1000)));
-+  }
-+
-+ private:
-+  struct Sample {
-+    qint64 time;
-+    std::optional<double> pc, kotori;
-+  };
-+  std::deque<Sample> samples_;
-+  QElapsedTimer clock_;
++// Asteria: ダッシュボードの数字の札(題・今日の値・累計)。数字はサーバーが asteria_usage.txt に
++// 回数と時間だけを書く(session/kotori_usage_stats)。文章は保存しない。
++struct KotoriUsageTile {
++  QString title, value, total;
 +};
++
++QString KotoriDuration(qint64 ms) {
++  const qint64 seconds = (ms + 500) / 1000;
++  if (seconds < 60) return QString::fromUtf8("%1秒").arg(seconds);
++  const qint64 minutes = seconds / 60;
++  if (minutes < 60)
++    return QString::fromUtf8("%1分%2秒").arg(minutes).arg(seconds % 60);
++  return QString::fromUtf8("%1時間%2分").arg(minutes / 60).arg(minutes % 60);
++}
++
++std::array<KotoriUsageTile, 4> KotoriUsageTiles(const QByteArray &file,
++                                                const QString &today) {
++  std::map<QByteArray, qint64> v;
++  QByteArray date;
++  for (const QByteArray &raw : file.split('\n')) {
++    const QByteArray line = raw.trimmed();
++    const qsizetype equals = line.indexOf('=');
++    if (equals <= 0) continue;
++    if (line.left(equals) == "date") {
++      date = line.mid(equals + 1);
++      continue;
++    }
++    bool ok = false;
++    const qint64 number = line.mid(equals + 1).toLongLong(&ok);
++    if (ok && number >= 0) v[line.left(equals)] = number;
++  }
++  // 日付が変わってからまだ書かれていなければ、今日の分は 0。
++  const bool is_today = QString::fromUtf8(date) == today;
++  const auto get = [&](const char *prefix, const char *key) -> qint64 {
++    if (QByteArray(prefix) == "today_" && !is_today) return 0;
++    const auto found = v.find(QByteArray(prefix) + key);
++    return found == v.end() ? 0 : found->second;
++  };
++  const QLocale locale(QLocale::Japanese);
++  const auto count = [&](const char *p) {
++    return QString::fromUtf8("%1回").arg(locale.toString(get(p, "conversions")));
++  };
++  const auto wait = [&](const char *p) {
++    const qint64 n = get(p, "wait_count");
++    return n == 0 ? QString::fromUtf8("—")
++                  : QString::fromUtf8("%1 ms").arg((get(p, "wait_ms") + n / 2) / n);
++  };
++  const auto rate = [&](const char *p) {
++    const qint64 n = get(p, "conversions");
++    return n == 0 ? QString::fromUtf8("—")
++                  : QString::fromUtf8("%1%").arg((get(p, "first_kept") * 100 + n / 2) / n);
++  };
++  const bool knows_speed = v["ms_per_char"] > 0;
++  const auto saved = [&](const char *p) {
++    if (!knows_speed) return QString::fromUtf8("測っています");
++    return KotoriDuration(get(p, "saved_ms"));
++  };
++  return {{
++      {QString::fromUtf8("変換した回数"), count("today_"),
++       QString::fromUtf8("累計 %1").arg(count("total_"))},
++      {QString::fromUtf8("考える時間（Spaceから候補まで）"), wait("today_"),
++       QString::fromUtf8("累計の平均 %1").arg(wait("total_"))},
++      {QString::fromUtf8("正答率（1番目の候補で確定）"), rate("today_"),
++       QString::fromUtf8("累計 %1").arg(rate("total_"))},
++      {QString::fromUtf8("予測で節約できた時間"), saved("today_"),
++       QString::fromUtf8("累計 %1").arg(saved("total_"))},
++  }};
++}
++
++// 大きな数字の札の文: 数字は大きく、単位(回・ms・%・分・秒など)は小さく。
++QString KotoriBigNumberHtml(const QString &plain) {
++  QString html;
++  QString run;
++  bool digits = true;
++  const auto flush = [&] {
++    if (run.isEmpty()) return;
++    html += digits ? run.toHtmlEscaped()
++                   : QString("<span style=\"font-size:13pt; font-weight:400;\">%1</span>")
++                         .arg(run.toHtmlEscaped());
++    run.clear();
++  };
++  for (const QChar c : plain) {
++    const bool d = c.isDigit() || c == u',' || c == u'.';
++    if (d != digits) {
++      flush();
++      digits = d;
++    }
++    run += c;
++  }
++  flush();
++  return html;
++}
++
++std::array<KotoriUsageTile, 4> ReadKotoriUsageTiles() {
++  QFile file(QString::fromUtf8(
++      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
++                         "asteria_usage.txt")
++          .c_str()));
++  QByteArray content;
++  if (file.open(QIODevice::ReadOnly) && file.size() <= 8192)
++    content = file.readAll();
++  return KotoriUsageTiles(content,
++                          QDate::currentDate().toString(Qt::ISODate));
++}
 +
 +std::string KotoriAiStatus() {
 +  KotoriDashboardSample sample;
 +  sample.Update();
 +  return sample.ai.toUtf8().toStdString();
++}
++
++// Asteria: 応援のお願い(gui/tool/kotori_support_reminder)の設定ファイル。「disabled」が true なら出さない。
++// 設定画面は mozc_tool のライブラリに依存できないので、同じファイルと項目を直接読み書きする。
++QString KotoriSupportReminderPath() {
++  return QString::fromStdString(SystemUtil::GetUserProfileDirectory()) +
++         QStringLiteral("/support-reminder.ini");
 +}
 +
 +QPushButton *KotoriSupportButton(QWidget *parent) {
@@ -26849,7 +27045,7 @@ index abbf55d68..a9e7182d8 100644
  
  using ::mozc::config::StatsConfigUtil;
  
-@@ -104,6 +572,14 @@ ConfigDialog::ConfigDialog()
+@@ -104,6 +602,14 @@ ConfigDialog::ConfigDialog()
        initial_use_keyboard_to_change_preedit_method_(false),
        initial_use_mode_indicator_(true) {
    setupUi(this);
@@ -26864,7 +27060,7 @@ index abbf55d68..a9e7182d8 100644
    setStyleSheet(QString::fromUtf8(kQss.data(), kQss.size()));
  
    // Remove the context help button (question mark button) from the window.
-@@ -120,7 +596,6 @@ ConfigDialog::ConfigDialog()
+@@ -120,7 +626,6 @@ ConfigDialog::ConfigDialog()
  #ifdef __APPLE__
    miscDefaultIMEWidget->setVisible(false);
    miscAdministrationWidget->setVisible(false);
@@ -26872,7 +27068,7 @@ index abbf55d68..a9e7182d8 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +627,490 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +657,475 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27138,152 +27334,113 @@ index abbf55d68..a9e7182d8 100644
 +    scroll->setWidgetResizable(true);
 +    scroll->setFrameShape(QFrame::NoFrame);
 +    scroll->setWidget(page);
++    // Asteria: ダッシュボードは「使えるか」「ひとこと」「負担」「応援」だけにする(2026-10-24、PC 全体の
++    // CPU・メモリやグラフはタスクマネージャーと同じで伝わりにくいと利用者が指摘)。
 +    auto *outer = new QVBoxLayout(page);
 +    outer->setContentsMargins(20, 16, 20, 16);
 +    outer->setSpacing(12);
-+    auto *header = new QHBoxLayout();
 +    auto *title = new QLabel(QString::fromUtf8("Asteria"), page);
 +    title->setStyleSheet("font-size: 22pt; font-weight: 600;");
-+    header->addWidget(title);
-+    header->addStretch();
-+    auto *badge = new QLabel(QString::fromUtf8("確認中"), page);
-+    badge->setObjectName("kotoriDashboardStateBadge");
-+    header->addWidget(badge);
-+    outer->addLayout(header);
-+    auto *lead = new QLabel(QString::fromUtf8("日本語入力と、このPCの状態"), page);
-+    lead->setProperty("kotoriNote", true);
-+    outer->addWidget(lead);
-+    auto card = [&](const char *heading, bool add_to_outer = true) {
-+      auto *frame = new QFrame(page);
++    outer->addWidget(title);
++    auto card = [&](QWidget *parent) {
++      auto *frame = new QFrame(parent);
 +      frame->setObjectName("kotoriCard");
 +      auto *layout = new QVBoxLayout(frame);
-+      layout->setContentsMargins(14, 12, 14, 12);
++      layout->setContentsMargins(16, 14, 16, 14);
 +      layout->setSpacing(6);
-+      auto *label = new QLabel(QString::fromUtf8(heading), frame);
-+      label->setStyleSheet("font-size: 11pt; font-weight: 600;");
-+      layout->addWidget(label);
-+      if (add_to_outer) outer->addWidget(frame);
++      outer->addWidget(frame);
 +      return layout;
 +    };
-+    auto field = [&](QVBoxLayout *layout, const char *name) {
++    auto note = [&](QVBoxLayout *layout, const char *name) {
 +      auto *label = new QLabel(page);
 +      label->setObjectName(name);
 +      label->setWordWrap(true);
 +      label->setTextFormat(Qt::PlainText);
 +      label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++      label->setProperty("kotoriNote", true);
 +      layout->addWidget(label);
 +      return label;
 +    };
-+    auto *ai_card = card("AI");
-+    auto *ai_columns = new QHBoxLayout();
-+    auto *ai_left = new QVBoxLayout();
-+    auto *ai_right = new QVBoxLayout();
-+    ai_columns->addLayout(ai_left, 3);
-+    ai_columns->addSpacing(12);
-+    ai_columns->addLayout(ai_right, 2);
-+    ai_card->addLayout(ai_columns);
-+    auto *ai = field(ai_left, "kotoriDashboardAi");
-+    auto *models = field(ai_left, "kotoriDashboardModels");
++    // 使えるか: 一言の見出しと、AI の状態の説明。
++    auto *status_card = card(page);
++    auto *headline = new QLabel(QString::fromUtf8("確認中"), page);
++    headline->setObjectName("kotoriDashboardHeadline");
++    headline->setTextFormat(Qt::RichText);
++    headline->setProperty("kotoriPlain", QString::fromUtf8("確認中"));
++    headline->setStyleSheet("font-size: 16pt; font-weight: 600;");
++    status_card->addWidget(headline);
++    auto *ai = note(status_card, "kotoriDashboardAi");
 +    ai->setText(QString::fromUtf8("AIの状態を確認しています…"));
-+    models->setText(QString::fromUtf8("実行中のモデル: 確認中"));
-+    models->setProperty("kotoriNote", true);
 +    auto *settings = new QPushButton(QString::fromUtf8("AIの設定を開く"), page);
 +    settings->setAutoDefault(false);
 +    settings->setProperty("kotoriNavigation", true);
-+    ai_left->addWidget(settings, 0, Qt::AlignLeft);
++    status_card->addWidget(settings, 0, Qt::AlignLeft);
 +    QObject::connect(settings, &QPushButton::clicked, this,
 +                     [this] { configDialogTabWidget->setCurrentIndex(1); });
-+    auto *inference_value = field(ai_right, "kotoriDashboardInferenceValue");
-+    inference_value->setText(QString::fromUtf8("—"));
-+    inference_value->setStyleSheet("font-size: 24pt; font-weight: 600;");
-+    auto *inference = field(ai_right, "kotoriDashboardInference");
-+    inference->setText(QString::fromUtf8("AI計算時間: 確認中"));
-+    inference->setProperty("kotoriNote", true);
-+    auto *inference_note = new QLabel(
-+        QString::fromUtf8(
-+            "計算時間は起動後の累計です。変換の待ち時間とは異なります。"),
++    // 数字: 今日の値を大きく、累計を小さく。2列に並べる。
++    auto *usage_title = new QLabel(QString::fromUtf8("今日の使い方"), page);
++    usage_title->setObjectName("kotoriDashboardUsageTitle");
++    usage_title->setStyleSheet("font-size: 11pt; font-weight: 600;");
++    outer->addWidget(usage_title);
++    auto *usage_grid = new QGridLayout();
++    usage_grid->setHorizontalSpacing(12);
++    usage_grid->setVerticalSpacing(12);
++    usage_grid->setColumnStretch(0, 1);
++    usage_grid->setColumnStretch(1, 1);
++    outer->addLayout(usage_grid);
++    std::array<std::array<QLabel *, 3>, 4> usage_labels{};
++    for (int i = 0; i < 4; ++i) {
++      auto *frame = new QFrame(page);
++      frame->setObjectName("kotoriCard");
++      auto *layout = new QVBoxLayout(frame);
++      layout->setContentsMargins(16, 12, 16, 12);
++      layout->setSpacing(2);
++      for (int part = 0; part < 3; ++part) {
++        auto *label = new QLabel(frame);
++        label->setObjectName(QString("kotoriUsage%1_%2").arg(i).arg(part));
++        label->setTextFormat(Qt::PlainText);
++        label->setWordWrap(true);
++        if (part == 1) {
++          label->setTextFormat(Qt::RichText);
++          label->setStyleSheet("font-size: 22pt; font-weight: 600;");
++        }
++        else label->setProperty("kotoriNote", true);
++        layout->addWidget(label);
++        usage_labels[i][part] = label;
++      }
++      usage_grid->addWidget(frame, i / 2, i % 2);
++    }
++    auto *usage_note = new QLabel(
++        QString::fromUtf8("数えているのは回数と時間だけで、入力した文章は保存しません。"),
 +        page);
-+    inference_note->setWordWrap(true);
-+    inference_note->setProperty("kotoriNote", true);
-+    ai_right->addWidget(inference_note);
-+    struct Metric {
-+      QLabel *value;
-+      QLabel *detail;
-+      QProgressBar *bar;
-+    };
-+    auto *grid = new QGridLayout();
-+    grid->setSpacing(12);
-+    grid->setColumnStretch(0, 1);
-+    grid->setColumnStretch(1, 1);
-+    outer->addLayout(grid);
-+    const auto metric = [&](const char *heading, const char *name, int row,
-+                            int column, const char *gauge_name) {
-+      auto *layout = card(heading, false);
-+      auto *value = field(layout, (std::string(name) + "Value").c_str());
-+      value->setText(QString::fromUtf8("—"));
-+      value->setStyleSheet("font-size: 25pt; font-weight: 600;");
-+      auto *bar = new QProgressBar(page);
-+      bar->setObjectName(gauge_name);
-+      bar->setRange(0, 100);
-+      bar->setTextVisible(false);
-+      bar->setFixedHeight(6);
-+      // Kotori: 測定前の空欄や0%を実測値と見せない。
-+      bar->setVisible(false);
-+      if (!KotoriHighContrast())
-+        bar->setStyleSheet(
-+            "QProgressBar { background: #E5E5E5; border: none; border-radius: "
-+            "3px; } QProgressBar::chunk { background: #0F6CBD; border-radius: "
-+            "3px; }");
-+      layout->addWidget(bar);
-+      auto *detail = field(layout, name);
-+      detail->setText(QString::fromUtf8("計測しています…"));
-+      detail->setProperty("kotoriNote", true);
-+      grid->addWidget(layout->parentWidget(), row, column);
-+      return Metric{value, detail, bar};
-+    };
-+    const auto pc_cpu =
-+        metric("PCのCPU", "kotoriDashboardPcCpu", 0, 0, "kotoriPcCpuGauge");
-+    const auto pc_memory = metric("PCのメモリ", "kotoriDashboardPcMemory", 0, 1,
-+                                  "kotoriPcMemoryGauge");
-+    const auto server_cpu = metric("AsteriaのCPU", "kotoriDashboardCpu", 1, 0,
-+                                   "kotoriServerCpuGauge");
-+    const auto server_memory = metric("Asteriaのメモリ", "kotoriDashboardMemory",
-+                                      1, 1, "kotoriServerMemoryGauge");
-+    auto *history_card = card("CPUの推移");
-+    auto *legend =
-+        new QLabel(QString::fromUtf8(
-+                       "青: PC全体　紫: Asteria · 画面を開いている間の直近60秒"),
-+                   page);
-+    legend->setWordWrap(true);
-+    legend->setProperty("kotoriNote", true);
-+    history_card->addWidget(legend);
-+    auto *history = new KotoriUsageGraph(page);
-+    history->setObjectName("kotoriDashboardHistory");
-+    history_card->addWidget(history);
-+    auto *gpu = new QLabel(QString::fromUtf8(KotoriGpuSummary().c_str()), page);
-+    gpu->setWordWrap(true);
-+    gpu->setProperty("kotoriNote", true);
-+    outer->addWidget(gpu);
-+    auto *gpu_note = new QLabel(
-+        QString::fromUtf8(
-+            "GPUのVRAM表示は搭載容量です。現在の使用量ではありません。"),
-+        page);
-+    gpu_note->setWordWrap(true);
-+    gpu_note->setProperty("kotoriNote", true);
-+    outer->addWidget(gpu_note);
++    usage_note->setWordWrap(true);
++    usage_note->setProperty("kotoriNote", true);
++    outer->addWidget(usage_note);
++    // 負担: Asteria が使うメモリと GPU を1行ずつ。
++    auto *load_title = new QLabel(QString::fromUtf8("このPCで使っているもの"), page);
++    load_title->setStyleSheet("font-size: 11pt; font-weight: 600;");
++    outer->addWidget(load_title);
++    auto *load_card = card(page);
++    auto *memory = note(load_card, "kotoriDashboardMemory");
++    auto *gpu = note(load_card, "kotoriDashboardGpu");
++    gpu->setText(QString::fromUtf8(KotoriGpuSummary().c_str()));
++    // 応援と版。
 +    auto *support_row = new QHBoxLayout();
 +    auto *support_note = new QLabel(
-+        QString::fromUtf8(
-+            "無料のオープンソースソフト。開発への支援を受け付けています。"),
++        QString::fromUtf8("無料のオープンソースです。気に入ったら応援をお願いします。"),
 +        page);
 +    support_note->setWordWrap(true);
 +    support_note->setProperty("kotoriNote", true);
 +    support_row->addWidget(support_note, 1);
 +    support_row->addWidget(KotoriSupportButton(page));
 +    outer->addLayout(support_row);
-+    auto *updated = new QLabel(page);
-+    updated->setProperty("kotoriNote", true);
-+    outer->addWidget(updated);
++    auto *version = new QLabel(
++        QString::fromUtf8("ビルド %1").arg(
++            QString::fromStdString(Version::GetMozcVersion())),
++        page);
++    version->setObjectName("kotoriDashboardVersion");
++    version->setProperty("kotoriNote", true);
++    outer->addWidget(version);
 +    outer->addStretch();
 +    configDialogTabWidget->insertTab(0, scroll,
 +                                     QString::fromUtf8("ダッシュボード"));
@@ -27295,56 +27452,41 @@ index abbf55d68..a9e7182d8 100644
 +      ai->setText(sample->ai);
 +      if (auto *setting_status = findChild<QLabel *>("kotoriSettingsAiStatus"))
 +        setting_status->setText(sample->ai);
-+      models->setText(sample->models);
-+      inference->setText(sample->inference);
-+      inference_value->setText(
-+          sample->ai_seconds
-+              ? QString::fromUtf8("%1 秒").arg(*sample->ai_seconds, 0, 'f', 2)
-+              : QString::fromUtf8("—"));
-+      const auto show_metric = [](Metric metric, std::optional<double> value,
-+                                  const QString &detail, const QString &unit,
-+                                  bool percentage) {
-+        metric.value->setText(value ? QString::number(*value, 'f', 1) + unit
-+                                    : QString::fromUtf8("—"));
-+        metric.detail->setText(detail);
-+        metric.bar->setVisible(percentage && value.has_value());
-+        if (percentage && value)
-+          metric.bar->setValue(
-+              static_cast<int>(std::clamp(*value, 0.0, 100.0)));
-+      };
-+      show_metric(pc_cpu, sample->pc_cpu_load, sample->pc_cpu, "%", true);
-+      show_metric(pc_memory, sample->pc_memory_load, sample->pc_memory, "%",
-+                  true);
-+      show_metric(server_cpu, sample->server_cpu_load, sample->server_cpu, "%",
-+                  true);
-+      show_metric(server_memory, sample->server_ram_mib, sample->server_memory,
-+                  " MiB", false);
-+      QString label = QString::fromUtf8("未確認"), color = "#5C5C5C";
-+      if (sample->ai_state == "llm" || sample->ai_state == "zenz") {
-+        label = QString::fromUtf8("AI 動作中");
-+        color = "#107C10";
-+      } else if (sample->ai_state == "loading") {
-+        label = QString::fromUtf8("読み込み中");
-+        color = "#9D5D00";
-+      } else if (sample->ai_state == "sleep") {
-+        label = QString::fromUtf8("AI 休止中");
-+        color = "#0F6CBD";
-+      } else if (sample->ai_state == "off")
-+        label = QString::fromUtf8("AI オフ");
-+      else if (sample->ai_state == "error") {
-+        label = QString::fromUtf8("AIを確認してください");
-+        color = "#C42B1C";
++      QString words = QString::fromUtf8("AIの状態を確かめています");
++      if (sample->ai_state == "llm" || sample->ai_state == "zenz")
++        words = QString::fromUtf8("いつでも使えます");
++      else if (sample->ai_state == "loading")
++        words = QString::fromUtf8("AIを準備しています…");
++      else if (sample->ai_state == "sleep")
++        words = QString::fromUtf8("AIはひと休み中です");
++      else if (sample->ai_state == "off")
++        words = QString::fromUtf8("AIを使わずに変換しています");
++      else if (sample->ai_state == "error")
++        words = QString::fromUtf8("AIが動いていません（入力は続けられます）");
++      // 使える=緑、準備中=黄、止まっている=赤、それ以外=灰の印。ハイコントラストでは色を付けない。
++      QString dot = "#8A8A8A";
++      if (sample->ai_state == "llm" || sample->ai_state == "zenz") dot = "#107C10";
++      else if (sample->ai_state == "loading" || sample->ai_state == "sleep") dot = "#C19C00";
++      else if (sample->ai_state == "error") dot = "#C42B1C";
++      headline->setText(
++          KotoriHighContrast()
++              ? words.toHtmlEscaped()
++              : QString("<span style=\"color:%1; font-size:11pt;\">●</span>&nbsp;%2")
++                    .arg(dot, words.toHtmlEscaped()));
++      headline->setProperty("kotoriPlain", words);
++      const auto tiles = ReadKotoriUsageTiles();
++      for (int i = 0; i < 4; ++i) {
++        usage_labels[i][0]->setText(tiles[i].title);
++        usage_labels[i][1]->setText(KotoriBigNumberHtml(tiles[i].value));
++        usage_labels[i][1]->setProperty("kotoriPlain", tiles[i].value);
++        usage_labels[i][1]->setAccessibleName(tiles[i].title + " " + tiles[i].value);
++        usage_labels[i][2]->setText(tiles[i].total);
 +      }
-+      badge->setText(label);
-+      if (!KotoriHighContrast())
-+        badge->setStyleSheet(
-+            QString("color: %1; font-weight: 600; padding: 6px 10px; border: "
-+                    "1px solid #D1D1D1; border-radius: 4px;")
-+                .arg(color));
-+      history->Add(sample->pc_cpu_load, sample->server_cpu_load);
-+      updated->setText(
-+          QString::fromUtf8("2秒ごとに更新 · %1")
-+              .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
++      memory->setText(
++          sample->server_ram_mib
++              ? QString::fromUtf8("Asteriaが使っているメモリ: %1 GB")
++                    .arg(*sample->server_ram_mib / 1024.0, 0, 'f', 1)
++              : QString::fromUtf8("Asteriaが使っているメモリ: 確認中"));
 +    };
 +    auto *timer = new QTimer(page);
 +    timer->setInterval(2000);
@@ -27353,6 +27495,45 @@ index abbf55d68..a9e7182d8 100644
 +                     [refresh](int) { refresh(); });
 +    QTimer::singleShot(0, page, refresh);
 +    timer->start();
++    // 応援のお願いの通知を表示するか。目立たせないよう、最後の「その他」タブの末尾に置く(2026-10-24 利用者の指示)。
++    // ほかの項目と同じ「見出し＋線」と字下げのまとまり(「起動」の組と同じ部品と余白)にする。
++    {
++      auto *group_widget = new QWidget(miscTab);
++      group_widget->setObjectName("kotoriNoticeWidget");
++      auto *group_layout = new QVBoxLayout(group_widget);
++      group_layout->setContentsMargins(miscStartupWidget->layout()->contentsMargins());
++      group_layout->setSpacing(miscStartupWidget->layout()->spacing());
++      auto *header = new QFrame(group_widget);
++      header->setFrameShape(QFrame::NoFrame);
++      header->setProperty("class", "setting-group-header");
++      auto *header_layout = new QHBoxLayout(header);
++      header_layout->setContentsMargins(startupHeader->layout()->contentsMargins());
++      header_layout->setSpacing(startupHeader->layout()->spacing());
++      header_layout->addWidget(new QLabel(QString::fromUtf8("お知らせ"), header));
++      auto *line = new QFrame(header);
++      line->setFrameShape(QFrame::HLine);
++      line->setFrameShadow(QFrame::Sunken);
++      line->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
++      line->setProperty("class", "setting-group-line");
++      header_layout->addWidget(line);
++      group_layout->addWidget(header);
++      auto *group = new QFrame(group_widget);
++      group->setFrameShape(QFrame::NoFrame);
++      group->setProperty("class", "setting-group-layout");
++      auto *inner = new QVBoxLayout(group);
++      inner->setContentsMargins(startupGroup->layout()->contentsMargins());
++      inner->setSpacing(startupGroup->layout()->spacing());
++      kotoriSupportReminderCheckBox_ = new QCheckBox(
++          QString::fromUtf8("GitHub での応援のお願いを通知で表示する（3日ごと）"), group);
++      kotoriSupportReminderCheckBox_->setObjectName("kotoriSupportReminder");
++      QSettings reminder(KotoriSupportReminderPath(), QSettings::IniFormat);
++      kotoriSupportReminderCheckBox_->setChecked(
++          !reminder.value("disabled", false).toBool());
++      inner->addWidget(kotoriSupportReminderCheckBox_);
++      group_layout->addWidget(group);
++      miscTabLayout->insertWidget(std::max(0, miscTabLayout->count() - 1),
++                                  group_widget);
++    }
 +    const auto *screen = QGuiApplication::primaryScreen();
 +    const QSize available =
 +        screen ? screen->availableGeometry().size() : QSize(948, 924);
@@ -27363,7 +27544,7 @@ index abbf55d68..a9e7182d8 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1176,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1191,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27378,7 +27559,7 @@ index abbf55d68..a9e7182d8 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1217,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1232,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -27393,7 +27574,7 @@ index abbf55d68..a9e7182d8 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1270,30 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1285,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -27420,11 +27601,30 @@ index abbf55d68..a9e7182d8 100644
 +    }
 +    gridLayout_9->addWidget(note, 2, 0, 1, 7);
 +  }
++  // Kotori: 入力モード(オン/オフ、ひらがな・カタカナ等)をアプリごとに覚えず、全アプリで
++  // 共有する(カード 84)。パスワード欄などで強制された状態は共有しない。
++  {
++    kotoriShareInputModeCheckBox_ = new QCheckBox(
++        QString::fromUtf8("入力モードをすべてのアプリで共有する"), inputAssistanceGroup);
++    kotoriShareInputModeCheckBox_->setObjectName("kotoriShareInputMode");
++    auto *note = new QLabel(
++        QString::fromUtf8("アプリやウィンドウを切り替えても、最後に使った入力モードのまま"
++                          "入力できます。変更は、次に入力を始めたアプリから反映されます。"),
++        inputAssistanceGroup);
++    note->setObjectName("kotoriShareInputModeNote");
++    note->setWordWrap(true);
++    note->setProperty("kotoriNote", true);
++    const int row = gridLayout_9->rowCount();
++    gridLayout_9->addWidget(kotoriShareInputModeCheckBox_, row, 0, 1, 7);
++    gridLayout_9->addWidget(note, row + 1, 0, 1, 7);
++    QObject::connect(kotoriShareInputModeCheckBox_, SIGNAL(stateChanged(int)),
++                     this, SLOT(EnableApplyButton()));
++  }
 +
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1319,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1353,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -27435,7 +27635,7 @@ index abbf55d68..a9e7182d8 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1382,22 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1416,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -27454,11 +27654,16 @@ index abbf55d68..a9e7182d8 100644
 +    return false;
 +  }
 +  base_config_ = config;
++  if (kotoriSupportReminderCheckBox_ != nullptr) {
++    QSettings reminder(KotoriSupportReminderPath(), QSettings::IniFormat);
++    reminder.setValue("disabled", !kotoriSupportReminderCheckBox_->isChecked());
++    reminder.sync();
++  }
 +
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1420,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1459,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -27483,7 +27688,7 @@ index abbf55d68..a9e7182d8 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1445,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1484,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -27493,7 +27698,7 @@ index abbf55d68..a9e7182d8 100644
    return true;
  }
  
-@@ -524,6 +1542,21 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1581,22 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -27506,6 +27711,7 @@ index abbf55d68..a9e7182d8 100644
 +  kotoriLmModelComboBox_->setCurrentIndex(
 +      static_cast<int>(config.kotori_lm_model()));
 +  kotoriLmPredictCheckBox_->setChecked(config.kotori_lm_predict());
++  kotoriShareInputModeCheckBox_->setChecked(config.kotori_share_input_mode());
 +  kotoriLmCorrectionCheckBox_->setChecked(config.kotori_lm_correction());
 +  kotoriLmQualityComboBox_->setEnabled(config.kotori_lm_enabled());
 +  kotoriLmModelPathEdit_->setText(
@@ -27515,7 +27721,7 @@ index abbf55d68..a9e7182d8 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1645,17 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1685,19 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -27526,6 +27732,8 @@ index abbf55d68..a9e7182d8 100644
 +  config->set_kotori_lm_model(static_cast<config::Config::KotoriLmModel>(
 +      kotoriLmModelComboBox_->currentIndex()));
 +  config->set_kotori_lm_predict(kotoriLmPredictCheckBox_->isChecked());
++  config->set_kotori_share_input_mode(
++      kotoriShareInputModeCheckBox_->isChecked());
 +  config->set_kotori_lm_correction(kotoriLmCorrectionCheckBox_->isChecked());
 +  config->set_kotori_lm_model_path(
 +      kotoriLmModelPathEdit_->text().trimmed().toUtf8().toStdString());
@@ -27533,7 +27741,7 @@ index abbf55d68..a9e7182d8 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1890,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1932,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -27546,7 +27754,7 @@ index abbf55d68..a9e7182d8 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..b8bb25147 100644
+index 85e1c0075..4a17e767e 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
 @@ -33,6 +33,11 @@
@@ -27561,7 +27769,7 @@ index 85e1c0075..b8bb25147 100644
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +53,15 @@ namespace gui {
+@@ -48,6 +53,19 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -27571,13 +27779,17 @@ index 85e1c0075..b8bb25147 100644
 +  QComboBox *kotoriLmQualityComboBox_ = nullptr;
 +  QComboBox *kotoriLmModelComboBox_ = nullptr;
 +  QCheckBox *kotoriLmPredictCheckBox_ = nullptr;
++  // Kotori: 入力モードを全アプリで共有する(カード 84)。
++  QCheckBox *kotoriShareInputModeCheckBox_ = nullptr;
++  // Asteria: GitHub での応援のお願い(通知)を表示するか。support-reminder.ini に保存する。
++  QCheckBox *kotoriSupportReminderCheckBox_ = nullptr;
 +  QCheckBox *kotoriLmCorrectionCheckBox_ = nullptr;
 +  QLabel *kotoriSettingsStatusLabel_ = nullptr;
 +
   public:
    ConfigDialog();
  
-@@ -80,6 +94,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +98,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -27587,15 +27799,16 @@ index 85e1c0075..b8bb25147 100644
    // Set/GetSendStatsChechBox read/write registry or file directly
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
-index 000000000..7c1d0f98e
+index 000000000..f4047d6ba
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_dashboard_test.cc
-@@ -0,0 +1,323 @@
+@@ -0,0 +1,354 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include <QApplication>
 +#include <QDir>
 +#include <QDialogButtonBox>
 +#include <QCheckBox>
++#include <QDate>
 +#include <QEventLoop>
 +#include <QFontInfo>
 +#include <QGridLayout>
@@ -27605,6 +27818,7 @@ index 000000000..7c1d0f98e
 +#include <QPushButton>
 +#include <QScrollArea>
 +#include <QScrollBar>
++#include <QSettings>
 +#include <QStyle>
 +#include <QStyleFactory>
 +#include <QTabWidget>
@@ -27747,15 +27961,23 @@ index 000000000..7c1d0f98e
 +  EXPECT_EQ(status->property("saveState").toString(), "saved");
 +  EXPECT_TRUE(status->text().contains(QString::fromUtf8("設定を適用しました")));
 +}
-+TEST_F(KotoriDashboardTest, StartsOnDashboardAndUpdatesActualPcCounters) {
++TEST_F(KotoriDashboardTest, StartsOnDashboardWithStatusAndUsage) {
++  // 回数と時間だけのファイル(サーバーが書く形)。今日の日付で、累計は今日より多い。
++  const std::string usage =
++      "date=" + QDate::currentDate().toString(Qt::ISODate).toStdString() +
++      "\ntoday_conversions=40\ntoday_first_kept=37\ntoday_wait_count=40\n"
++      "today_wait_ms=3480\ntoday_saved_ms=72000\ntoday_saved_chars=360\n"
++      "total_conversions=12345\ntotal_first_kept=11358\ntotal_wait_count=12345\n"
++      "total_wait_ms=1111050\ntotal_saved_ms=11520000\ntotal_saved_chars=57600\n"
++      "ms_per_char=200\n";
++  ASSERT_TRUE(FileUtil::SetContents(
++                  FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
++                                     "asteria_usage.txt"),
++                  usage)
++                  .ok());
 +  ConfigDialog dialog;
-+  // 非表示で作成されても、最初の計測まで空欄や見せかけの0%を出さない。
-+  EXPECT_EQ(dialog.findChild<QLabel*>("kotoriDashboardPcCpuValue")->text(),
-+            QString::fromUtf8("—"));
-+  EXPECT_FALSE(dialog.findChild<QLabel*>("kotoriDashboardPcCpu")->text().isEmpty());
-+  EXPECT_EQ(dialog.findChild<QLabel*>("kotoriDashboardStateBadge")->text(),
++  EXPECT_EQ(dialog.findChild<QLabel*>("kotoriDashboardHeadline")->property("kotoriPlain").toString(),
 +            QString::fromUtf8("確認中"));
-+  EXPECT_TRUE(dialog.findChild<QProgressBar*>("kotoriPcCpuGauge")->isHidden());
 +  dialog.setAttribute(Qt::WA_DontShowOnScreen);
 +  dialog.show();
 +  QCoreApplication::processEvents();
@@ -27765,32 +27987,38 @@ index 000000000..7c1d0f98e
 +  EXPECT_EQ(tabs->currentIndex(), 0);
 +  EXPECT_EQ(tabs->tabText(0), QString::fromUtf8("ダッシュボード"));
 +  Refresh();
-+  auto* memory = dialog.findChild<QLabel*>("kotoriDashboardPcMemory");
-+  auto* cpu = dialog.findChild<QLabel*>("kotoriDashboardPcCpu");
-+  ASSERT_NE(memory, nullptr);
-+  ASSERT_NE(cpu, nullptr);
-+#ifdef _WIN32
-+  EXPECT_TRUE(memory->text().contains("GiB"));
-+  EXPECT_TRUE(cpu->text().endsWith("%"));
-+#endif
++  // AI の状態がまだ無いときは、動いているとは言わない。
 +  EXPECT_TRUE(dialog.findChild<QLabel*>("kotoriDashboardAi")
 +                  ->text()
 +                  .contains(QString::fromUtf8("まだ取得できません")));
-+  EXPECT_TRUE(dialog.findChild<QLabel*>("kotoriDashboardInference")
++  EXPECT_EQ(dialog.findChild<QLabel*>("kotoriDashboardHeadline")->property("kotoriPlain").toString(),
++            QString::fromUtf8("AIの状態を確かめています"));
++  const auto tile = [&dialog](int i, int part) {
++    auto* label = dialog.findChild<QLabel*>(QString("kotoriUsage%1_%2").arg(i).arg(part));
++    if (!label) return QString("(missing)");
++    return part == 1 ? label->property("kotoriPlain").toString() : label->text();
++  };
++  EXPECT_EQ(tile(0, 0), QString::fromUtf8("変換した回数"));
++  EXPECT_EQ(tile(0, 1), QString::fromUtf8("40回"));
++  EXPECT_EQ(tile(0, 2), QString::fromUtf8("累計 12,345回"));
++  EXPECT_EQ(tile(1, 1), QString::fromUtf8("87 ms"));
++  EXPECT_EQ(tile(1, 2), QString::fromUtf8("累計の平均 90 ms"));
++  EXPECT_EQ(tile(2, 1), QString::fromUtf8("93%"));
++  EXPECT_EQ(tile(2, 2), QString::fromUtf8("累計 92%"));
++  EXPECT_EQ(tile(3, 1), QString::fromUtf8("1分12秒"));
++  EXPECT_EQ(tile(3, 2), QString::fromUtf8("累計 3時間12分"));
++  // PC 全体の CPU・メモリ・グラフは出さない。
++  EXPECT_EQ(dialog.findChild<QWidget*>("kotoriDashboardHistory"), nullptr);
++  EXPECT_EQ(dialog.findChild<QLabel*>("kotoriDashboardPcCpu"), nullptr);
++  EXPECT_TRUE(dialog.findChild<QLabel*>("kotoriDashboardVersion")
 +                  ->text()
-+                  .contains(QString::fromUtf8("まだ計測")));
-+  auto* history = dialog.findChild<QWidget*>("kotoriDashboardHistory");
-+  auto* gauge = dialog.findChild<QProgressBar*>("kotoriPcCpuGauge");
-+  auto* memory_value = dialog.findChild<QLabel*>("kotoriDashboardMemoryValue");
-+  ASSERT_NE(history, nullptr);
-+  ASSERT_NE(gauge, nullptr);
-+  ASSERT_NE(memory_value, nullptr);
-+#ifdef _WIN32
-+  EXPECT_GE(history->property("sampleCount").toInt(), 1);
-+  EXPECT_GE(gauge->value(), 0);
-+  EXPECT_LE(gauge->value(), 100);
-+#endif
-+  EXPECT_EQ(memory_value->text(), QString::fromUtf8("—"));
++                  .startsWith(QString::fromUtf8("ビルド ")));
++  // 応援の通知のチェックはダッシュボードではなく「その他」タブにある。
++  auto* reminder = dialog.findChild<QCheckBox*>("kotoriSupportReminder");
++  ASSERT_NE(reminder, nullptr);
++  EXPECT_TRUE(reminder->isChecked());
++  EXPECT_FALSE(tabs->widget(0)->isAncestorOf(reminder));
++  EXPECT_TRUE(tabs->widget(tabs->count() - 1)->isAncestorOf(reminder));
 +  int support_count = 0;
 +  QPushButton* settings = nullptr;
 +  for (auto* button : dialog.findChildren<QPushButton*>()) {
@@ -27798,17 +28026,12 @@ index 000000000..7c1d0f98e
 +      ++support_count;
 +      EXPECT_FALSE(button->autoDefault());
 +    }
-+    if (button->text() == QString::fromUtf8("AIの設定を開く"))
-+      settings = button;
++    if (button->text() == QString::fromUtf8("AIの設定を開く")) settings = button;
 +  }
 +  EXPECT_EQ(support_count, 2);
 +  auto* correction = dialog.findChild<QCheckBox*>("kotoriLmCorrection");
 +  ASSERT_NE(correction, nullptr);
 +  EXPECT_TRUE(correction->isChecked());
-+  correction->setChecked(false);
-+  EXPECT_FALSE(KotoriConfigTestPeer::Serialize(dialog).kotori_lm_correction());
-+  correction->setChecked(true);
-+  EXPECT_TRUE(KotoriConfigTestPeer::Serialize(dialog).kotori_lm_correction());
 +#ifdef _WIN32
 +  EXPECT_EQ(app_->style()->objectName(),
 +            QStyleFactory::keys().contains("windowsvista", Qt::CaseInsensitive)
@@ -27817,18 +28040,20 @@ index 000000000..7c1d0f98e
 +  ASSERT_NE(settings, nullptr);
 +  const QString capture = qEnvironmentVariable("KOTORI_GUI_CAPTURE_DIR");
 +  if (!capture.isEmpty()) {
-+    Refresh();
 +    QDir().mkpath(capture);
 +    EXPECT_TRUE(dialog.grab().save(capture + "/dashboard.png"));
 +    for (auto* scroll : dialog.findChildren<QScrollArea*>()) {
-+      if (scroll->widget() && scroll->widget()->isAncestorOf(history)) {
-+        scroll->verticalScrollBar()->setValue(
-+            scroll->verticalScrollBar()->maximum());
++      if (scroll->widget() && scroll->widget()->isAncestorOf(settings)) {
++        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
 +        QCoreApplication::processEvents();
-+        EXPECT_TRUE(dialog.grab().save(capture + "/dashboard-details.png"));
++        EXPECT_TRUE(dialog.grab().save(capture + "/dashboard-bottom.png"));
 +        scroll->verticalScrollBar()->setValue(0);
 +      }
 +    }
++    tabs->setCurrentIndex(tabs->count() - 1);
++    QCoreApplication::processEvents();
++    EXPECT_TRUE(dialog.grab().save(capture + "/misc.png"));
++    tabs->setCurrentIndex(0);
 +    qInfo("Dashboard platform=%s font=%s pixelRatio=%.2f",
 +          qPrintable(QGuiApplication::platformName()),
 +          qPrintable(QFontInfo(dialog.font()).family()),
@@ -27847,10 +28072,29 @@ index 000000000..7c1d0f98e
 +  correction->click();
 +  EXPECT_TRUE(KotoriConfigTestPeer::Serialize(dialog).kotori_lm_correction());
 +  if (!capture.isEmpty()) {
-+    settings->setFocus(Qt::TabFocusReason);
 +    QCoreApplication::processEvents();
 +    EXPECT_TRUE(dialog.grab().save(capture + "/ai-settings.png"));
 +  }
++}
++// 応援の通知のチェックを外して適用すると、通知の設定ファイルに「出さない」と書く。
++TEST_F(KotoriDashboardTest, ReminderCheckboxWritesSettingOnApply) {
++  ConfigDialog dialog;
++  dialog.setAttribute(Qt::WA_DontShowOnScreen);
++  dialog.show();
++  auto* reminder = dialog.findChild<QCheckBox*>("kotoriSupportReminder");
++  auto* buttons = dialog.findChild<QDialogButtonBox*>("configDialogButtonBox");
++  ASSERT_NE(reminder, nullptr);
++  ASSERT_NE(buttons, nullptr);
++  EXPECT_CALL(*factory_.mock, CheckVersionOrRestartServer()).WillRepeatedly(Return(true));
++  EXPECT_CALL(*factory_.mock, SetConfig(_)).WillOnce(Return(true));
++  reminder->click();
++  EXPECT_FALSE(reminder->isChecked());
++  EXPECT_TRUE(buttons->button(QDialogButtonBox::Apply)->isEnabled());
++  buttons->button(QDialogButtonBox::Apply)->click();
++  QSettings saved(QString::fromStdString(SystemUtil::GetUserProfileDirectory()) +
++                      "/support-reminder.ini",
++                  QSettings::IniFormat);
++  EXPECT_TRUE(saved.value("disabled", false).toBool());
 +}
 +#ifdef _WIN32
 +// Kotori: 「句読点を打ったら変換する」の説明がチェックの直下にあり、下の行と重ならない。
@@ -27907,15 +28151,14 @@ index 000000000..7c1d0f98e
 +  auto* settings_ai = dialog.findChild<QLabel*>("kotoriSettingsAiStatus");
 +  ASSERT_NE(settings_ai, nullptr);
 +  EXPECT_EQ(settings_ai->text(), ai->text());
-+  EXPECT_FALSE(dialog.findChild<QLabel*>("kotoriDashboardModels")
-+                   ->text()
-+                   .contains("old-model"));
++  EXPECT_NE(dialog.findChild<QLabel*>("kotoriDashboardHeadline")->property("kotoriPlain").toString(),
++            QString::fromUtf8("いつでも使えます"));
 +}
 +#endif
 +}  // namespace
 +}  // namespace mozc::gui
 diff --git a/src/gui/tool/BUILD.bazel b/src/gui/tool/BUILD.bazel
-index 1c4726b0c..151687a06 100644
+index 1c4726b0c..ba7b4dd48 100644
 --- a/src/gui/tool/BUILD.bazel
 +++ b/src/gui/tool/BUILD.bazel
 @@ -31,6 +31,7 @@ load(
@@ -27953,7 +28196,7 @@ index 1c4726b0c..151687a06 100644
      ],
 +    # Kotori: アイコンを入力に入れる(入れないと、アイコンを差し替えても前のビルド結果が使われる)。
 +    resources = [
-+        "//data/images/win:tools_legacy_product.ico",
++        "//data/images/win:product_icon.ico",
 +    ],
      tags = MOZC_TAGS.WIN_ONLY,
      target_compatible_with = ["@platforms//os:windows"],
@@ -27975,11 +28218,11 @@ index 1c4726b0c..151687a06 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..b8866a45c
+index 000000000..c364b21e2
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
-@@ -0,0 +1,189 @@
-+// Kotori: Windowsの通知センターに届く週次の応援案内。
+@@ -0,0 +1,196 @@
++// Kotori: Windowsの通知センターに届く応援のお願い(3日ごと。kotori_support_reminder.h)。
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QApplication>
 +#include <QDateTime>
@@ -28003,11 +28246,18 @@ index 000000000..b8866a45c
 +}
 +bool SupportReminderState::Due(qint64 now) {
 +  settings_.sync();
-+  return settings_.status() == QSettings::NoError && !settings_.value("disabled", false).toBool() &&
-+      now >= settings_.value("next_prompt_utc", 0).toLongLong();
++  if (settings_.status() != QSettings::NoError || settings_.value("disabled", false).toBool()) {
++    return false;
++  }
++  // 初めて動いたときは、使い始めてから3日後に最初のお願いを出す。
++  if (!settings_.contains("next_prompt_utc")) {
++    Defer(now, kSupportFirstDelaySeconds);
++    return false;
++  }
++  return now >= settings_.value("next_prompt_utc", 0).toLongLong();
 +}
-+bool SupportReminderState::Defer(qint64 now) {
-+  settings_.setValue("next_prompt_utc", now + kSupportWeekSeconds);
++bool SupportReminderState::Defer(qint64 now, qint64 seconds) {
++  settings_.setValue("next_prompt_utc", now + seconds);
 +  settings_.sync();
 +  return settings_.status() == QSettings::NoError;
 +}
@@ -28022,16 +28272,16 @@ index 000000000..b8866a45c
 +  if (action == QStringLiteral("later")) return state.Defer(now);
 +  if (action != QStringLiteral("github")) return false;
 +  const QUrl url(QStringLiteral("https://github.com/aruiki/Asteria-Japanese-IME"));
-+  return open(url) && state.Disable();
++  return open(url) && state.Defer(now, kSupportAfterGithubSeconds);
 +}
 +QString SupportToastXml() {
 +  return QStringLiteral(
 +      "<toast launch='github'><visual><binding template='ToastGeneric'>"
 +      "<text>Asteriaの使い心地はいかがですか？</text>"
-+      "<text>気に入っていただけたら、GitHubのStarで応援をお願いします。リンクを開くと、以後このお願いは表示されません。</text>"
++      "<text>気に入っていただけたら、GitHubのStarで応援をお願いします。</text>"
 +      "</binding></visual><actions>"
 +      "<action content='GitHubで応援する' arguments='github' activationType='foreground'/>"
-+      "<action content='いいえ（1週間後に再表示）' arguments='later' activationType='foreground'/>"
++      "<action content='いいえ（3日後に再表示）' arguments='later' activationType='foreground'/>"
 +      "</actions><audio silent='true'/></toast>");
 +}
 +}  // namespace mozc::gui
@@ -28154,7 +28404,7 @@ index 000000000..b8866a45c
 +    const bool usable = GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &needed) && wcscmp(name, L"Default") == 0;
 +    CloseDesktop(desktop);
 +    if (!usable) return;
-+    // 無応答・閉じる・クラッシュも7日以内には再通知しない。
++    // 無応答・閉じる・クラッシュも3日以内には再通知しない。
 +    if (!state.Due(now) || !state.Defer(now)) { app.quit(); return; }
 +    const HRESULT hr = ShowSupportToast();
 +    qInfo("Asteria support toast HRESULT=0x%08lx", static_cast<unsigned long>(hr));
@@ -28170,10 +28420,10 @@ index 000000000..b8866a45c
 +}
 diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
 new file mode 100644
-index 000000000..bfa66487c
+index 000000000..557acffa0
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.h
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,31 @@
 +#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#include <QSettings>
@@ -28181,13 +28431,18 @@ index 000000000..bfa66487c
 +#include <QUrl>
 +#include <functional>
 +namespace mozc::gui {
-+inline constexpr qint64 kSupportWeekSeconds = 7 * 24 * 60 * 60;
++// Asteria: 応援のお願いは、初めて動いてから3日後に出し、その後は3日ごと。「GitHubで応援する」を
++// 押した後も30日後にもう一度出す(2026-10-24 利用者の指示)。以前の版で押して止めた人(disabled)には
++// 「以後表示しない」と約束したので出さない。
++inline constexpr qint64 kSupportFirstDelaySeconds = 3 * 24 * 60 * 60;
++inline constexpr qint64 kSupportIntervalSeconds = 3 * 24 * 60 * 60;
++inline constexpr qint64 kSupportAfterGithubSeconds = 30 * 24 * 60 * 60;
 +class SupportReminderState {
 + public:
 +  explicit SupportReminderState(const QString &path) : settings_(path, QSettings::IniFormat) {}
 +  bool Enabled();
 +  bool Due(qint64 now);
-+  bool Defer(qint64 now);
++  bool Defer(qint64 now, qint64 seconds = kSupportIntervalSeconds);
 +  bool Disable();
 + private:
 +  QSettings settings_;
@@ -28202,10 +28457,10 @@ index 000000000..bfa66487c
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..8fa3b53ac
+index 000000000..f17be3a13
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,90 @@
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QTemporaryDir>
 +#include "testing/gunit.h"
@@ -28215,41 +28470,58 @@ index 000000000..8fa3b53ac
 +  QString Path() { return dir_.filePath("support-reminder.ini"); }
 +  QTemporaryDir dir_;
 +};
-+TEST_F(SupportReminderTest, NewProfileAndSevenDayBoundary) {
++TEST_F(SupportReminderTest, NewProfileWaitsThreeDaysFirst) {
 +  SupportReminderState state(Path());
-+  EXPECT_TRUE(state.Due(100));
++  EXPECT_FALSE(state.Due(100));
++  EXPECT_FALSE(state.Due(100 + kSupportFirstDelaySeconds - 1));
++  EXPECT_TRUE(state.Due(100 + kSupportFirstDelaySeconds));
++}
++TEST_F(SupportReminderTest, ThreeDayBoundary) {
++  SupportReminderState state(Path());
 +  ASSERT_TRUE(state.Defer(100));
-+  EXPECT_FALSE(state.Due(100 + kSupportWeekSeconds - 1));
-+  EXPECT_TRUE(state.Due(100 + kSupportWeekSeconds));
++  EXPECT_FALSE(state.Due(100 + kSupportIntervalSeconds - 1));
++  EXPECT_TRUE(state.Due(100 + kSupportIntervalSeconds));
++  EXPECT_EQ(kSupportIntervalSeconds, 3 * 24 * 60 * 60);
 +}
 +TEST_F(SupportReminderTest, DeferSurvivesNewProcessAndClockRollback) {
 +  { SupportReminderState state(Path()); ASSERT_TRUE(state.Defer(1000)); }
 +  SupportReminderState reopened(Path());
 +  EXPECT_FALSE(reopened.Due(999));
-+  EXPECT_FALSE(reopened.Due(1000 + kSupportWeekSeconds - 1));
-+  EXPECT_TRUE(reopened.Due(1000 + kSupportWeekSeconds));
++  EXPECT_FALSE(reopened.Due(1000 + kSupportIntervalSeconds - 1));
++  EXPECT_TRUE(reopened.Due(1000 + kSupportIntervalSeconds));
 +}
-+TEST_F(SupportReminderTest, GithubSuccessPermanentlyStopsAndUsesFixedUrl) {
++TEST_F(SupportReminderTest, GithubAsksAgainAfterThirtyDaysWithFixedUrl) {
 +  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Defer(0));
 +  QUrl opened;
 +  ASSERT_TRUE(HandleSupportAction(state, "github", 100, [&](const QUrl &url) { opened = url; return true; }));
 +  EXPECT_EQ(opened.toString(), QStringLiteral("https://github.com/aruiki/Asteria-Japanese-IME"));
 +  SupportReminderState reopened(Path());
++  EXPECT_TRUE(reopened.Enabled());
++  EXPECT_FALSE(reopened.Due(100 + kSupportAfterGithubSeconds - 1));
++  EXPECT_TRUE(reopened.Due(100 + kSupportAfterGithubSeconds));
++  EXPECT_EQ(kSupportAfterGithubSeconds, 30 * 24 * 60 * 60);
++}
++TEST_F(SupportReminderTest, EarlierPermanentStopIsKept) {
++  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Disable());
++  SupportReminderState reopened(Path());
 +  EXPECT_FALSE(reopened.Enabled());
-+  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportWeekSeconds));
++  EXPECT_FALSE(reopened.Due(100 + 100 * kSupportAfterGithubSeconds));
 +}
 +TEST_F(SupportReminderTest, BrowserFailureAllowsRetry) {
 +  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Defer(0));
 +  EXPECT_FALSE(HandleSupportAction(state, "github", 100, [](const QUrl &) { return false; }));
 +  EXPECT_TRUE(state.Enabled());
-+  EXPECT_TRUE(state.Due(100));
++  EXPECT_TRUE(state.Due(kSupportIntervalSeconds));
 +}
-+TEST_F(SupportReminderTest, NoDefersOneWeek) {
++TEST_F(SupportReminderTest, NoDefersThreeDays) {
 +  SupportReminderState state(Path());
 +  EXPECT_TRUE(HandleSupportAction(state, "later", 200, [](const QUrl &) { ADD_FAILURE(); return false; }));
 +  EXPECT_TRUE(state.Enabled());
-+  EXPECT_FALSE(state.Due(200 + kSupportWeekSeconds - 1));
-+  EXPECT_TRUE(state.Due(200 + kSupportWeekSeconds));
++  EXPECT_FALSE(state.Due(200 + kSupportIntervalSeconds - 1));
++  EXPECT_TRUE(state.Due(200 + kSupportIntervalSeconds));
 +}
 +TEST_F(SupportReminderTest, StorageFailureDoesNotRepeatedlyPrompt) {
 +  SupportReminderState state(dir_.path());
@@ -28258,10 +28530,11 @@ index 000000000..8fa3b53ac
 +}
 +TEST_F(SupportReminderTest, RejectsUnknownAndDisabledActions) {
 +  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Defer(0));
 +  int opened = 0;
 +  auto open = [&](const QUrl &) { ++opened; return true; };
 +  EXPECT_FALSE(HandleSupportAction(state, "https://evil.example", 100, open));
-+  EXPECT_TRUE(state.Due(100));
++  EXPECT_TRUE(state.Due(kSupportIntervalSeconds));
 +  ASSERT_TRUE(state.Disable());
 +  EXPECT_FALSE(HandleSupportAction(state, "github", 100, open));
 +  EXPECT_FALSE(HandleSupportAction(state, "later", 100, open));
@@ -28273,22 +28546,11 @@ index 000000000..8fa3b53ac
 +  EXPECT_TRUE(xml.contains("arguments='github'"));
 +  EXPECT_TRUE(xml.contains("arguments='later'"));
 +  EXPECT_TRUE(xml.contains("silent='true'"));
++  EXPECT_TRUE(xml.contains(QString::fromUtf8("3日後")));
++  EXPECT_FALSE(xml.contains(QString::fromUtf8("以後このお願いは表示されません")));
 +  EXPECT_FALSE(xml.contains("activationType='protocol'"));
 +}
 +}  // namespace mozc::gui
-diff --git a/src/gui/tool/mozc_tool.rc b/src/gui/tool/mozc_tool.rc
-index f0086dbd7..630532c6a 100644
---- a/src/gui/tool/mozc_tool.rc
-+++ b/src/gui/tool/mozc_tool.rc
-@@ -13,7 +13,7 @@
- 
- /////////////////////////////////////////////////////////////////////////////
- // Icon
--IDI_ICON1   ICON  "data/images/win/product_icon.ico"
-+IDI_ICON1   ICON  "data/images/win/tools_legacy_product.ico"
- 
- /////////////////////////////////////////////////////////////////////////////
- // Japanese resources
 diff --git a/src/gui/tool/mozc_tool_libmain.cc b/src/gui/tool/mozc_tool_libmain.cc
 index 200ef7201..e10ef0823 100644
 --- a/src/gui/tool/mozc_tool_libmain.cc
@@ -28338,7 +28600,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..d782874cd 100644
+index 7d735374e..e892a951e 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -28350,7 +28612,7 @@ index 7d735374e..d782874cd 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,33 @@ message Config {
+@@ -360,6 +360,36 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -28380,6 +28642,9 @@ index 7d735374e..d782874cd 100644
 +  optional bool kotori_lm_correction = 205 [default = true];
 +  // Kotori: 変換候補の末尾の文字種メニューを表示しない。F6〜F10は維持。
 +  optional bool kotori_hide_character_types = 206 [default = true];
++  // Kotori: 最後に使った入力モード(オン/オフと、ひらがな・カタカナ等)を全アプリで共有する
++  // (カード 84)。パスワード欄などで入力の種類から強制された状態は共有しない。
++  optional bool kotori_share_input_mode = 207 [default = true];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -28446,12 +28711,65 @@ index 17723c3b7..4f68213de 100644
 +    target_compatible_with = ["@platforms//os:windows"],
 +    deps = [":win32_dpi_util", "//protocol:renderer_cc_proto", "//renderer:renderer_style_handler", "//bazel/win32:user32", "//testing:gunit_main"],
 +)
+diff --git a/src/renderer/win32/candidate_window.cc b/src/renderer/win32/candidate_window.cc
+index d50162f2b..30cdabb6b 100644
+--- a/src/renderer/win32/candidate_window.cc
++++ b/src/renderer/win32/candidate_window.cc
+@@ -35,6 +35,8 @@
+ #include <wil/resource.h>
+ #include <windows.h>
+ 
++#include <algorithm>
++
+ #include <cstdint>
+ #include <memory>
+ #include <sstream>
+@@ -270,6 +272,18 @@ void CandidateWindow::UpdateDpiDependentResources() {
+ 
+ LRESULT CandidateWindow::OnCreate(LPCREATESTRUCT create_struct) {
+   EnableOrDisableWindowForWorkaround();
++  // Asteria: Windows 11 では、ほかの窓と同じく角を少し丸める(DWMWA_WINDOW_CORNER_PREFERENCE=33、
++  // DWMWCP_ROUNDSMALL=3)。対応しない Windows では何もしない。dwmapi は読み込めたときだけ使う。
++  if (HMODULE dwm = ::LoadLibraryExW(L"dwmapi.dll", nullptr,
++                                     LOAD_LIBRARY_SEARCH_SYSTEM32)) {
++    using SetAttribute = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
++    if (auto set = reinterpret_cast<SetAttribute>(
++            ::GetProcAddress(dwm, "DwmSetWindowAttribute"))) {
++      const DWORD round_small = 3;
++      set(m_hWnd, 33, &round_small, sizeof(round_small));
++    }
++    ::FreeLibrary(dwm);
++  }
+   return 0;
+ }
+ 
+@@ -843,6 +857,20 @@ void CandidateWindow::DrawSelectedRect(HDC dc) {
+     ::SetDCBrushColor(dc, ToColorRef(style_.focused_border_color()));
+     ::FrameRect(dc, &selected_rect,
+                 static_cast<HBRUSH>(::GetStockObject(DC_BRUSH)));
++    // Asteria: 選んでいる行の左端に細い青の印(Windows 11 の一覧と同じ)。ハイコントラストでは
++    // 選択行の背景が地と同じなので付けず、枠だけにする。暗い配色では明るい青にする。
++    const COLORREF background = ToColorRef(style_.candidate_style().background_color());
++    const COLORREF focused = ToColorRef(style_.focused_background_color());
++    if (focused != background) {
++      const bool dark = GetRValue(background) + GetGValue(background) +
++                            GetBValue(background) < 3 * 128;
++      const int width = std::max(2, ::MulDiv(3, static_cast<int>(dpi_), 96));
++      const int inset = selected_rect.Height() / 4;
++      const int left = selected_rect.left + std::max(1, ::MulDiv(2, static_cast<int>(dpi_), 96));
++      CRect accent(left, selected_rect.top + inset, left + width,
++                   selected_rect.bottom - inset);
++      FillSolidRect(dc, &accent, dark ? RGB(76, 194, 255) : RGB(15, 108, 189));
++    }
+   }
+ }
+ 
 diff --git a/src/renderer/win32/kotori_candidate_snapshot.cc b/src/renderer/win32/kotori_candidate_snapshot.cc
 new file mode 100644
-index 000000000..97c6109f1
+index 000000000..833710ac9
 --- /dev/null
 +++ b/src/renderer/win32/kotori_candidate_snapshot.cc
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,99 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Kotori: 実際の候補描画を、非表示の専用ウィンドウで BMP に出す確認用ツール。
 +// 実行中の IME や入力先アプリには接続しない。
@@ -28459,34 +28777,60 @@ index 000000000..97c6109f1
 +
 +#include <cstdlib>
 +#include <fstream>
++#include <string>
 +#include <vector>
 +
 +#include "base/coordinates.h"
 +#include "protocol/candidate_window.pb.h"
 +#include "renderer/win32/candidate_window.h"
 +
++// 使い方: kotori_candidate_snapshot <出力 BMP> <DPI> [conversion|suggestion] [light|dark]
 +int main(int argc, char** argv) {
-+  if (argc != 3) return 1;  // 出力 BMP、DPI
++  if (argc < 3 || argc > 5) return 1;
 +  const int dpi = std::atoi(argv[2]);
 +  if (dpi < 96 || dpi > 384) return 1;
++  const std::string scenario = argc >= 4 ? argv[3] : "conversion";
++  if (argc >= 5) _putenv_s("ASTERIA_SNAPSHOT_THEME", argv[4]);
 +  SetProcessDPIAware();
 +  mozc::renderer::win32::CandidateWindow window;
 +  if (!window.Create(nullptr)) return 2;
 +  window.UpdateDpi(dpi);
 +  mozc::commands::CandidateWindow candidates;
-+  candidates.set_size(3);
 +  candidates.set_page_size(9);
-+  candidates.set_focused_index(0);
-+  candidates.set_category(mozc::commands::CONVERSION);
 +  int index = 0;
-+  for (const char* value : {"足を痛めたので", "足を傷めたので", "あしをいためたので"}) {
++  const auto add = [&](const char* value, const char* description) {
 +    auto* candidate = candidates.add_candidate();
 +    candidate->set_index(index);
-+    candidate->set_id(index++);
++    candidate->set_id(index);
 +    candidate->set_value(value);
-+    candidate->mutable_annotation()->set_shortcut(std::to_string(index));
++    if (*description) candidate->mutable_annotation()->set_description(description);
++    if (scenario == "conversion")
++      candidate->mutable_annotation()->set_shortcut(std::to_string(index + 1));
++    ++index;
++  };
++  if (scenario == "suggestion") {
++    candidates.set_category(mozc::commands::SUGGESTION);
++    add("ありがとうございます", "");
++    add("ありがとうございました", "");
++    add("ありがとう", "");
++    candidates.set_size(3);
++    candidates.mutable_footer()->set_label("Tabキーで選択");
++  } else {
++    candidates.set_category(mozc::commands::CONVERSION);
++    add("足を痛めたので", "");
++    add("足を傷めたので", "");
++    add("脚を痛めたので", "");
++    add("葦を痛めたので", "");
++    add("あしをいためたので", "ひらがな");
++    add("アシヲイタメタノデ", "カタカナ");
++    add("足を炒めたので", "");
++    add("足を悼めたので", "");
++    add("ｱｼｦｲﾀﾒﾀﾉﾃﾞ", "[半] カタカナ");
++    candidates.set_size(12);
++    candidates.set_focused_index(1);
++    candidates.mutable_footer()->set_index_visible(true);
++    candidates.mutable_footer()->set_logo_visible(true);
 +  }
-+  candidates.mutable_footer()->set_label("Kotori");
 +  window.UpdateLayout(candidates);
 +  const mozc::Size size = window.GetLayoutSize();
 +  if (size.width <= 0 || size.height <= 0) return 3;
@@ -28579,10 +28923,20 @@ index 650832ef0..febbd864c 100644
      }
      case TextRenderer::FONTSET_CANDIDATE: {
 diff --git a/src/renderer/win32/win32_dpi_util.cc b/src/renderer/win32/win32_dpi_util.cc
-index 92000261e..ab166ceab 100644
+index 92000261e..e1ce63a72 100644
 --- a/src/renderer/win32/win32_dpi_util.cc
 +++ b/src/renderer/win32/win32_dpi_util.cc
-@@ -65,12 +65,70 @@ uint32_t GetDpiForPoint(int x, int y) {
+@@ -32,6 +32,9 @@
+ #include <shellscalingapi.h>
+ #include <windows.h>
+ 
++#include <cstdlib>
++#include <string_view>
++
+ #include <cstdint>
+ 
+ #include "protocol/renderer_style.pb.h"
+@@ -65,12 +68,76 @@ uint32_t GetDpiForPoint(int x, int y) {
    return dpi_x;
  }
  
@@ -28596,16 +28950,18 @@ index 92000261e..ab166ceab 100644
 +  set(style->mutable_candidate_style()->mutable_background_color(), background);
 +  set(style->mutable_candidate_style()->mutable_foreground_color(), foreground);
 +  set(style->mutable_shortcut_style()->mutable_background_color(), background);
-+  set(style->mutable_shortcut_style()->mutable_foreground_color(), foreground);
-+  set(style->mutable_description_style()->mutable_foreground_color(), foreground);
-+  set(style->mutable_footer_style()->mutable_foreground_color(), foreground);
-+  set(style->mutable_footer_sub_label_style()->mutable_foreground_color(), foreground);
++  // Asteria: 暗い配色でも、番号・説明・下の帯の文字は候補より控えめにする(明るい配色と同じ主従)。
++  const COLORREF secondary = high_contrast ? foreground : RGB(170,170,170);
++  set(style->mutable_shortcut_style()->mutable_foreground_color(), secondary);
++  set(style->mutable_description_style()->mutable_foreground_color(), secondary);
++  set(style->mutable_footer_style()->mutable_foreground_color(), secondary);
++  set(style->mutable_footer_sub_label_style()->mutable_foreground_color(), secondary);
 +  set(style->mutable_footer_top_color(), background); set(style->mutable_footer_bottom_color(), background);
 +  set(style->mutable_focused_background_color(), selected); set(style->mutable_focused_border_color(), high_contrast ? ::GetSysColor(COLOR_HIGHLIGHT) : selected);
 +  set(style->mutable_border_color(), border);
 +  for (auto& c : *style->mutable_footer_border_colors()) set(&c,border);
 +  set(style->mutable_scrollbar_background_color(), background);
-+  set(style->mutable_scrollbar_indicator_color(), foreground);
++  set(style->mutable_scrollbar_indicator_color(), high_contrast ? foreground : RGB(110,110,110));
 +}
 +
  void GetScaledRendererStyle(::mozc::renderer::RendererStyle* style,
@@ -28647,6 +29003,10 @@ index 92000261e..ab166ceab 100644
 +  if (::RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &theme) == ERROR_SUCCESS) {
 +    ::RegQueryValueExW(theme, L"AppsUseLightTheme", nullptr, nullptr, reinterpret_cast<BYTE*>(&light), &bytes);
 +    ::RegCloseKey(theme);
++  }
++  // Asteria: 撮影の道具(kotori_candidate_snapshot)だけが、Windows の設定を変えずに明暗を選べる。
++  if (const char* forced = std::getenv("ASTERIA_SNAPSHOT_THEME")) {
++    light = std::string_view(forced) == "dark" ? 0 : 1;
 +  }
 +  ApplyKotoriPalette(style, high_contrast, light == 0);
 +
@@ -38256,26 +38616,62 @@ index eda5d517e..2c99a39c7 100644
    if (run_level == mozc::RunLevel::RESTRICTED) {
      MOZC_VLOG(1) << "Mozc server starts with timeout mode";
 diff --git a/src/session/BUILD.bazel b/src/session/BUILD.bazel
-index 2da5b8d46..5c2243e3e 100644
+index 2da5b8d46..a0315a9f4 100644
 --- a/src/session/BUILD.bazel
 +++ b/src/session/BUILD.bazel
-@@ -56,6 +56,7 @@ mozc_cc_library(
+@@ -44,6 +44,31 @@ load("//bazel:run_build_tool.bzl", "mozc_run_build_tool")
+ 
+ package(default_visibility = ["//visibility:private"])
+ 
++mozc_cc_library(
++    name = "kotori_usage_stats",
++    srcs = ["kotori_usage_stats.cc"],
++    hdrs = ["kotori_usage_stats.h"],
++    deps = [
++        "//base:file_util",
++        "//base:system_util",
++        "@com_google_absl//absl/base:core_headers",
++        "@com_google_absl//absl/strings",
++        "@com_google_absl//absl/synchronization",
++        "@com_google_absl//absl/time",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_usage_stats_test",
++    size = "small",
++    srcs = ["kotori_usage_stats_test.cc"],
++    deps = [
++        ":kotori_usage_stats",
++        "//testing:gunit_main",
++        "@com_google_absl//absl/time",
++    ],
++)
++
+ mozc_cc_library(
+     name = "session",
+     srcs = ["session.cc"],
+@@ -55,7 +80,9 @@ mozc_cc_library(
+         ":ime_context",
          ":key_event_transformer",
          ":keymap",
++        ":kotori_usage_stats",
          "//base:clock",
 +        "//base:kotori_live",
          "//base:util",
          "//composer",
          "//composer:key_event_util",
-@@ -82,6 +83,7 @@ mozc_cc_test(
+@@ -81,7 +108,9 @@ mozc_cc_test(
+     deps = [
          ":ime_context",
          ":keymap",
++        ":kotori_usage_stats",
          ":session",
 +        "//base:kotori_live",
          "//base:vlog",
          "//base/strings:assign",
          "//base/strings:unicode",
-@@ -531,6 +533,12 @@ mozc_cc_test(
+@@ -531,6 +560,12 @@ mozc_cc_test(
      data = [
          "//data/test/session/scenario:scenario_files",
      ],
@@ -38288,7 +38684,7 @@ index 2da5b8d46..5c2243e3e 100644
      shard_count = 8,
      tags = [
          "noandroid",  # TODO(b/73698251): disabled due to errors
-@@ -678,3 +686,18 @@ mozc_cc_test(
+@@ -678,3 +713,18 @@ mozc_cc_test(
          "@com_google_absl//absl/strings",
      ],
  )
@@ -38504,8 +38900,374 @@ index 000000000..12f0332ed
 +  if (!probe.Key("ESC", &output)) return 9;
 +  return 0;
 +}
+diff --git a/src/session/kotori_usage_stats.cc b/src/session/kotori_usage_stats.cc
+new file mode 100644
+index 000000000..7882466b7
+--- /dev/null
++++ b/src/session/kotori_usage_stats.cc
+@@ -0,0 +1,189 @@
++// Copyright 2026, Asteria Project.
++#include "session/kotori_usage_stats.h"
++
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++#include <string>
++#include <utility>
++
++#include "absl/strings/ascii.h"
++#include "absl/strings/match.h"
++#include "absl/strings/numbers.h"
++#include "absl/strings/str_cat.h"
++#include "absl/strings/str_split.h"
++#include "absl/strings/string_view.h"
++#include "absl/synchronization/mutex.h"
++#include "absl/time/clock.h"
++#include "absl/time/time.h"
++#include "base/file_util.h"
++#include "base/system_util.h"
++
++namespace mozc::session {
++namespace {
++
++constexpr absl::string_view kFileName = "asteria_usage.txt";
++// 打鍵の速さの平均は、新しい値を 1 割ずつ混ぜる(少しずつ今の速さに寄せる)。
++constexpr double kTypingWeight = 0.1;
++// 1文字あたりの時間として信じる範囲(ミリ秒)。外れたもの(考え込んだ、貼り付けた)は使わない。
++constexpr double kMinMsPerChar = 30;
++constexpr double kMaxMsPerChar = 2000;
++// 考える時間として信じる上限。モデルの読み込みを待った回は数えない。
++constexpr absl::Duration kMaxWait = absl::Seconds(10);
++
++std::string Day(absl::Time now) {
++  return absl::FormatTime("%Y-%m-%d", now, absl::LocalTimeZone());
++}
++
++void Append(std::string* out, absl::string_view prefix,
++            const KotoriUsageCounters& c) {
++  absl::StrAppend(out, prefix, "conversions=", c.conversions, "\n", prefix,
++                  "first_kept=", c.first_kept, "\n", prefix,
++                  "wait_count=", c.wait_count, "\n", prefix,
++                  "wait_ms=", c.wait_ms, "\n", prefix, "saved_ms=", c.saved_ms,
++                  "\n", prefix, "saved_chars=", c.saved_chars, "\n");
++}
++
++bool Assign(KotoriUsageCounters* c, absl::string_view key, int64_t value) {
++  if (key == "conversions") c->conversions = value;
++  else if (key == "first_kept") c->first_kept = value;
++  else if (key == "wait_count") c->wait_count = value;
++  else if (key == "wait_ms") c->wait_ms = value;
++  else if (key == "saved_ms") c->saved_ms = value;
++  else if (key == "saved_chars") c->saved_chars = value;
++  else return false;
++  return true;
++}
++
++}  // namespace
++
++KotoriUsageStats::KotoriUsageStats(std::string path) : path_(std::move(path)) {
++  if (path_.empty()) return;
++  if (absl::StatusOr<std::string> text = FileUtil::GetContents(path_);
++      text.ok()) {
++    Parse(*text);
++  }
++}
++
++KotoriUsageStats& KotoriUsageStats::Get() {
++  static KotoriUsageStats* stats = new KotoriUsageStats(
++      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(), kFileName));
++  return *stats;
++}
++
++void KotoriUsageStats::RollDay(absl::Time now) {
++  const std::string day = Day(now);
++  if (day != date_) {
++    date_ = day;
++    today_ = KotoriUsageCounters();
++  }
++}
++
++void KotoriUsageStats::Save() {
++  if (path_.empty()) return;
++  // 途中で止まっても壊れたファイルを残さないよう、別名で書いてから置き換える。
++  const std::string temporary = absl::StrCat(path_, ".tmp");
++  if (FileUtil::SetContents(temporary, SerializeLocked()).ok()) {
++    FileUtil::AtomicRename(temporary, path_).IgnoreError();
++  }
++}
++
++void KotoriUsageStats::RecordWait(absl::Duration wait, absl::Time now) {
++  if (wait < absl::ZeroDuration() || wait > kMaxWait) return;
++  absl::MutexLock lock(&mutex_);
++  RollDay(now);
++  const int64_t ms = absl::ToInt64Milliseconds(wait);
++  for (KotoriUsageCounters* c : {&today_, &total_}) {
++    ++c->wait_count;
++    c->wait_ms += ms;
++  }
++}
++
++void KotoriUsageStats::RecordConversionCommit(bool first_kept, absl::Time now) {
++  absl::MutexLock lock(&mutex_);
++  RollDay(now);
++  for (KotoriUsageCounters* c : {&today_, &total_}) {
++    ++c->conversions;
++    if (first_kept) ++c->first_kept;
++  }
++  Save();
++}
++
++void KotoriUsageStats::RecordTyping(size_t chars, absl::Duration elapsed) {
++  if (chars < 2) return;
++  const double ms = absl::ToDoubleMilliseconds(elapsed) / chars;
++  if (ms < kMinMsPerChar || ms > kMaxMsPerChar) return;
++  absl::MutexLock lock(&mutex_);
++  ms_per_char_ = ms_per_char_ == 0
++                     ? ms
++                     : ms_per_char_ * (1 - kTypingWeight) + ms * kTypingWeight;
++}
++
++void KotoriUsageStats::RecordPredictionCommit(size_t saved_chars,
++                                              absl::Time now) {
++  if (saved_chars == 0) return;
++  absl::MutexLock lock(&mutex_);
++  RollDay(now);
++  const int64_t ms = static_cast<int64_t>(saved_chars * ms_per_char_ + 0.5);
++  for (KotoriUsageCounters* c : {&today_, &total_}) {
++    c->saved_chars += static_cast<int64_t>(saved_chars);
++    c->saved_ms += ms;
++  }
++  Save();
++}
++
++KotoriUsageCounters KotoriUsageStats::Today(absl::Time now) {
++  absl::MutexLock lock(&mutex_);
++  RollDay(now);
++  return today_;
++}
++
++KotoriUsageCounters KotoriUsageStats::Total() {
++  absl::MutexLock lock(&mutex_);
++  return total_;
++}
++
++double KotoriUsageStats::MsPerChar() {
++  absl::MutexLock lock(&mutex_);
++  return ms_per_char_;
++}
++
++std::string KotoriUsageStats::SerializeLocked() const {
++  std::string out = absl::StrCat("date=", date_, "\n");
++  Append(&out, "today_", today_);
++  Append(&out, "total_", total_);
++  absl::StrAppend(&out, "ms_per_char=", static_cast<int64_t>(ms_per_char_ + 0.5),
++                  "\n");
++  return out;
++}
++
++std::string KotoriUsageStats::Serialize() {
++  absl::MutexLock lock(&mutex_);
++  return SerializeLocked();
++}
++
++void KotoriUsageStats::Parse(absl::string_view text) {
++  absl::MutexLock lock(&mutex_);
++  for (absl::string_view line : absl::StrSplit(text, '\n')) {
++    line = absl::StripAsciiWhitespace(line);
++    const size_t equals = line.find('=');
++    if (equals == absl::string_view::npos) continue;
++    const absl::string_view key = line.substr(0, equals);
++    const absl::string_view value = line.substr(equals + 1);
++    if (key == "date") {
++      date_ = std::string(value);
++      continue;
++    }
++    int64_t number = 0;
++    if (!absl::SimpleAtoi(value, &number) || number < 0) continue;
++    if (key == "ms_per_char") {
++      ms_per_char_ = static_cast<double>(number);
++    } else if (absl::StartsWith(key, "today_")) {
++      Assign(&today_, key.substr(6), number);
++    } else if (absl::StartsWith(key, "total_")) {
++      Assign(&total_, key.substr(6), number);
++    }
++  }
++}
++
++}  // namespace mozc::session
+diff --git a/src/session/kotori_usage_stats.h b/src/session/kotori_usage_stats.h
+new file mode 100644
+index 000000000..3cd3bf168
+--- /dev/null
++++ b/src/session/kotori_usage_stats.h
+@@ -0,0 +1,67 @@
++// Copyright 2026, Asteria Project.
++// Asteria: 設定画面のダッシュボードに出す使い方の数字(変換回数・考える時間・正答率・予測で節約できた
++// 時間)を数える。保存するのは回数と時間だけで、入力した文章や読みは保存しない。今日の分と累計を持ち、
++// 日付が変わると今日の分を 0 に戻す。
++
++#ifndef MOZC_SESSION_KOTORI_USAGE_STATS_H_
++#define MOZC_SESSION_KOTORI_USAGE_STATS_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <string>
++
++#include "absl/base/thread_annotations.h"
++#include "absl/strings/string_view.h"
++#include "absl/synchronization/mutex.h"
++#include "absl/time/time.h"
++
++namespace mozc::session {
++
++struct KotoriUsageCounters {
++  int64_t conversions = 0;  // Space で変換して確定した回数
++  int64_t first_kept = 0;   // そのうち、1番目の候補のまま確定した回数
++  int64_t wait_count = 0;   // 考える時間を測った回数
++  int64_t wait_ms = 0;      // Space から候補を出すまでの時間の合計
++  int64_t saved_ms = 0;     // 予測の候補で打たずに済んだ時間の合計
++  int64_t saved_chars = 0;  // 予測の候補で打たずに済んだ読みの文字数
++};
++
++class KotoriUsageStats {
++ public:
++  // path が空なら保存しない(試験用)。
++  explicit KotoriUsageStats(std::string path);
++
++  // サーバー全体で1つ。保存先は利用者のプロファイルの asteria_usage.txt。
++  static KotoriUsageStats& Get();
++
++  void RecordWait(absl::Duration wait, absl::Time now);
++  void RecordConversionCommit(bool first_kept, absl::Time now);
++  // 打った読みの文字数と、打ち始めから変換・確定までの時間。1文字あたりの速さを学ぶ。
++  void RecordTyping(size_t chars, absl::Duration elapsed);
++  void RecordPredictionCommit(size_t saved_chars, absl::Time now);
++
++  KotoriUsageCounters Today(absl::Time now);
++  KotoriUsageCounters Total();
++  // 1文字を打つのにかかる平均の時間(ミリ秒)。まだ測っていなければ 0。
++  double MsPerChar();
++
++  // 保存の形(key=value の行)。試験とダッシュボードの読み取りで使う。
++  std::string Serialize();
++  void Parse(absl::string_view text);
++
++ private:
++  void RollDay(absl::Time now) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  void Save() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  std::string SerializeLocked() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++
++  const std::string path_;
++  absl::Mutex mutex_;
++  std::string date_ ABSL_GUARDED_BY(mutex_);
++  KotoriUsageCounters today_ ABSL_GUARDED_BY(mutex_);
++  KotoriUsageCounters total_ ABSL_GUARDED_BY(mutex_);
++  double ms_per_char_ ABSL_GUARDED_BY(mutex_) = 0;
++};
++
++}  // namespace mozc::session
++
++#endif  // MOZC_SESSION_KOTORI_USAGE_STATS_H_
+diff --git a/src/session/kotori_usage_stats_test.cc b/src/session/kotori_usage_stats_test.cc
+new file mode 100644
+index 000000000..344468822
+--- /dev/null
++++ b/src/session/kotori_usage_stats_test.cc
+@@ -0,0 +1,92 @@
++// Copyright 2026, Asteria Project.
++#include "session/kotori_usage_stats.h"
++
++#include <string>
++
++#include "absl/time/civil_time.h"
++#include "absl/time/time.h"
++#include "testing/gunit.h"
++
++namespace mozc::session {
++namespace {
++
++absl::Time At(int day, int hour) {
++  return absl::FromCivil(absl::CivilSecond(2026, 10, day, hour, 0, 0),
++                         absl::LocalTimeZone());
++}
++
++TEST(KotoriUsageStatsTest, CountsConversionsAndFirstCandidates) {
++  KotoriUsageStats stats("");
++  stats.RecordConversionCommit(true, At(24, 10));
++  stats.RecordConversionCommit(false, At(24, 11));
++  stats.RecordConversionCommit(true, At(24, 12));
++  const KotoriUsageCounters today = stats.Today(At(24, 13));
++  EXPECT_EQ(today.conversions, 3);
++  EXPECT_EQ(today.first_kept, 2);
++  EXPECT_EQ(stats.Total().conversions, 3);
++}
++
++TEST(KotoriUsageStatsTest, NewDayStartsFromZeroButKeepsTotal) {
++  KotoriUsageStats stats("");
++  stats.RecordConversionCommit(true, At(24, 23));
++  stats.RecordConversionCommit(true, At(25, 1));
++  EXPECT_EQ(stats.Today(At(25, 2)).conversions, 1);
++  EXPECT_EQ(stats.Total().conversions, 2);
++  EXPECT_EQ(stats.Today(At(26, 9)).conversions, 0);
++}
++
++TEST(KotoriUsageStatsTest, WaitIgnoresModelLoading) {
++  KotoriUsageStats stats("");
++  stats.RecordWait(absl::Milliseconds(80), At(24, 10));
++  stats.RecordWait(absl::Milliseconds(120), At(24, 10));
++  stats.RecordWait(absl::Seconds(30), At(24, 10));  // 読み込みを待った回
++  const KotoriUsageCounters today = stats.Today(At(24, 10));
++  EXPECT_EQ(today.wait_count, 2);
++  EXPECT_EQ(today.wait_ms, 200);
++}
++
++TEST(KotoriUsageStatsTest, SavedTimeUsesLearnedTypingSpeed) {
++  KotoriUsageStats stats("");
++  // まだ速さを知らないときは文字数だけ数え、時間は 0 とする(推測で水増ししない)。
++  stats.RecordPredictionCommit(4, At(24, 10));
++  EXPECT_EQ(stats.Today(At(24, 10)).saved_chars, 4);
++  EXPECT_EQ(stats.Today(At(24, 10)).saved_ms, 0);
++  stats.RecordTyping(10, absl::Milliseconds(2000));  // 1文字 200ms
++  EXPECT_DOUBLE_EQ(stats.MsPerChar(), 200);
++  stats.RecordTyping(1, absl::Milliseconds(9000));   // 1文字だけは使わない
++  stats.RecordTyping(5, absl::Seconds(60));          // 考え込んだ回は使わない
++  EXPECT_DOUBLE_EQ(stats.MsPerChar(), 200);
++  stats.RecordPredictionCommit(3, At(24, 11));
++  EXPECT_EQ(stats.Today(At(24, 11)).saved_ms, 600);
++  EXPECT_EQ(stats.Today(At(24, 11)).saved_chars, 7);
++}
++
++TEST(KotoriUsageStatsTest, SerializeRoundTripHasNoText) {
++  KotoriUsageStats stats("");
++  stats.RecordConversionCommit(true, At(24, 10));
++  stats.RecordWait(absl::Milliseconds(90), At(24, 10));
++  stats.RecordTyping(4, absl::Milliseconds(800));
++  stats.RecordPredictionCommit(2, At(24, 10));
++  const std::string text = stats.Serialize();
++  KotoriUsageStats loaded("");
++  loaded.Parse(text);
++  EXPECT_EQ(loaded.Serialize(), text);
++  EXPECT_EQ(loaded.Today(At(24, 12)).conversions, 1);
++  EXPECT_EQ(loaded.Total().wait_ms, 90);
++  // 保存されるのは数字の行だけ。
++  for (char c : text) {
++    EXPECT_TRUE(c == '\n' || c == '=' || c == '_' || c == '-' ||
++                (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'));
++  }
++}
++
++TEST(KotoriUsageStatsTest, ParseIgnoresBrokenLines) {
++  KotoriUsageStats stats("");
++  stats.Parse("date=2026-10-24\ntoday_conversions=abc\ntotal_conversions=-5\n"
++              "total_first_kept=3\nunknown=1\nnoequals\n");
++  EXPECT_EQ(stats.Total().conversions, 0);
++  EXPECT_EQ(stats.Total().first_kept, 3);
++}
++
++}  // namespace
++}  // namespace mozc::session
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..00c1d9cb5 100644
+index 8186b0a8d..71119fdbd 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -38516,7 +39278,33 @@ index 8186b0a8d..00c1d9cb5 100644
  #include "base/util.h"
  #include "composer/composer.h"
  #include "composer/key_event_util.h"
-@@ -280,6 +281,28 @@ void Session::EnsureIMEIsOn() {
+@@ -55,6 +56,7 @@
+ #include "session/ime_context.h"
+ #include "session/key_event_transformer.h"
+ #include "session/keymap.h"
++#include "session/kotori_usage_stats.h"
+ #include "transliteration/transliteration.h"
+ 
+ #ifdef __APPLE__
+@@ -105,6 +107,17 @@ void ApplyCompositionMode(const commands::CompositionMode mode,
+   }
+ }
+ 
++// Kotori: 半角英数のモード(「A」に下線)は独立したモードとしては使わない(カード 84)。
++// アプリや言語バーが IME オンのまま半角英数を指定しても、IME をオンにするときはひらがなで
++// 始める。英字は直接入力(IME オフ)か、日本語の途中の Shift＋英字で打つ。
++// |direct_for_alphanumeric| が false(スマートフォン向けの要求・パスワード欄)なら変えない。
++commands::CompositionMode KotoriImeOnMode(const commands::CompositionMode mode,
++                                          bool direct_for_alphanumeric) {
++  return direct_for_alphanumeric && mode == commands::HALF_ASCII
++             ? commands::HIRAGANA
++             : mode;
++}
++
+ // Return true if the specified key event consists of any modifier key only.
+ bool IsPureModifierKeyEvent(const commands::KeyEvent& key) {
+   if (key.has_key_code()) {
+@@ -280,6 +293,28 @@ void Session::EnsureIMEIsOn() {
  }
  
  bool Session::SendCommand(commands::Command* command) {
@@ -38545,7 +39333,16 @@ index 8186b0a8d..00c1d9cb5 100644
    UpdateTime();
    UpdatePreferences(command);
    if (!command->input().has_command()) {
-@@ -386,6 +409,9 @@ bool Session::SendCommand(commands::Command* command) {
+@@ -305,6 +340,8 @@ bool Session::SendCommand(commands::Command* command) {
+         result = CompositionModeFullKatakana(command);
+         break;
+       case commands::HALF_ASCII:
++        // Kotori: Windows でアプリが半角英数を指定したときは、TIP が直接入力に変えて送る
++        // (tip_edit_session.cc。カード 84)。
+         result = CompositionModeHalfASCII(command);
+         break;
+       case commands::FULL_ASCII:
+@@ -386,6 +423,9 @@ bool Session::SendCommand(commands::Command* command) {
      case commands::SessionCommand::UPDATE_COMPOSITION:
        result = UpdateComposition(command);
        break;
@@ -38555,7 +39352,7 @@ index 8186b0a8d..00c1d9cb5 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +564,151 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +578,151 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -38707,7 +39504,40 @@ index 8186b0a8d..00c1d9cb5 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -717,6 +884,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -604,7 +785,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
+     case keymap::DirectInputState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
+       return CompositionModeFullASCII(command);
+     case keymap::DirectInputState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
+-      return CompositionModeHalfASCII(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : CompositionModeHalfASCII(command);
+     case keymap::DirectInputState::NONE:
+       return EchoBackAndClearUndoContext(command);
+     case keymap::DirectInputState::RECONVERT:
+@@ -648,7 +831,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+     case keymap::PrecompositionState::INSERT_FULL_SPACE:
+       return InsertSpaceFullWidth(command);
+     case keymap::PrecompositionState::TOGGLE_ALPHANUMERIC_MODE:
+-      return ToggleAlphanumericMode(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : ToggleAlphanumericMode(command);
+     case keymap::PrecompositionState::REVERT:
+       return Revert(command);
+     case keymap::PrecompositionState::UNDO:
+@@ -667,7 +852,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+     case keymap::PrecompositionState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
+       return CompositionModeFullASCII(command);
+     case keymap::PrecompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
+-      return CompositionModeHalfASCII(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : CompositionModeHalfASCII(command);
+     case keymap::PrecompositionState::COMPOSITION_MODE_SWITCH_KANA_TYPE:
+       return CompositionModeSwitchKanaType(command);
+ 
+@@ -717,6 +904,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -38737,13 +39567,192 @@ index 8186b0a8d..00c1d9cb5 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -2371,13 +2561,29 @@ bool Session::Convert(commands::Command* command) {
+@@ -821,7 +1031,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+       return TranslateHalfASCII(command);
+ 
+     case keymap::CompositionState::TOGGLE_ALPHANUMERIC_MODE:
+-      return ToggleAlphanumericMode(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : ToggleAlphanumericMode(command);
+ 
+     case keymap::CompositionState::COMPOSITION_MODE_HIRAGANA:
+       return CompositionModeHiragana(command);
+@@ -836,7 +1048,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+       return CompositionModeFullASCII(command);
+ 
+     case keymap::CompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
+-      return CompositionModeHalfASCII(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : CompositionModeHalfASCII(command);
+ 
+     case keymap::CompositionState::NONE:
+       return DoNothing(command);
+@@ -966,7 +1180,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
+       return TranslateHalfASCII(command);
+ 
+     case keymap::ConversionState::TOGGLE_ALPHANUMERIC_MODE:
+-      return ToggleAlphanumericMode(command);
++      return KotoriUsesDirectForAlphanumeric()
++                 ? KotoriAlphanumericToDirect(command)
++                 : ToggleAlphanumericMode(command);
+ 
+     case keymap::ConversionState::COMPOSITION_MODE_HIRAGANA:
+       return CompositionModeHiragana(command);
+@@ -1026,7 +1242,8 @@ bool Session::IMEOn(commands::Command* command) {
+ 
+   SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
+   if (command->input().has_key() && command->input().key().has_mode()) {
+-    ApplyCompositionMode(command->input().key().mode(),
++    ApplyCompositionMode(KotoriImeOnMode(command->input().key().mode(),
++                        KotoriUsesDirectForAlphanumeric()),
+                          context_->mutable_composer());
+   }
+   OutputMode(command);
+@@ -1062,8 +1279,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
+   }
+   if (command->input().has_command() &&
+       command->input().command().has_composition_mode()) {
+-    ApplyCompositionMode(command->input().command().composition_mode(),
+-                         context_->mutable_composer());
++    ApplyCompositionMode(
++        KotoriImeOnMode(command->input().command().composition_mode(),
++                        KotoriUsesDirectForAlphanumeric()),
++        context_->mutable_composer());
+   }
+   OutputMode(command);
+   return true;
+@@ -1087,8 +1306,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
+   }
+   if (command->input().has_command() &&
+       command->input().command().has_composition_mode()) {
+-    ApplyCompositionMode(command->input().command().composition_mode(),
+-                         context_->mutable_composer());
++    ApplyCompositionMode(
++        KotoriImeOnMode(command->input().command().composition_mode(),
++                        KotoriUsesDirectForAlphanumeric()),
++        context_->mutable_composer());
+   }
+   OutputMode(command);
+   return true;
+@@ -1388,9 +1609,11 @@ bool Session::CommitCandidate(commands::Command* command) {
+   } else {
+     // No candidate is focused.
+     size_t consumed_key_size = 0;
++    const size_t typed = context_->composer().GetLength();
+     if (context_->mutable_converter()->CommitSuggestionById(
+             input.command().id(), context_->composer(),
+             command->input().context(), &consumed_key_size)) {
++      KotoriRecordPredictionCommit(command, typed);
+       if (consumed_key_size < context_->composer().GetLength()) {
+         // partial suggestion was committed.
+         context_->mutable_composer()->DeleteRange(0, consumed_key_size);
+@@ -1523,6 +1746,10 @@ bool Session::InsertCharacter(commands::Command* command) {
+ 
+   const std::string composition = context_->composer().GetQueryForConversion();
+   bool should_commit = (context_->state() == ImeContext::CONVERSION);
++  // Asteria: 読みを打ち始めた時刻(ダッシュボードの「節約できた時間」に使う1文字あたりの速さ)。
++  if ((should_commit || context_->composer().Empty()) && KotoriCountsUsage()) {
++    kotori_typing_since_ = Clock::GetAbslTime();
++  }
+ 
+   if (context_->GetRequest().space_on_alphanumeric() ==
+           commands::Request::SPACE_OR_CONVERT_COMMITTING_COMPOSITION &&
+@@ -1784,6 +2011,12 @@ bool Session::CommitInternal(commands::Command* command,
+     context_->mutable_converter()->CommitPreedit(context_->composer(),
+                                                  command->input().context());
+   } else {  // ImeContext::CONVERSION
++    if (kotori_space_conversion_ && KotoriCountsUsage()) {
++      KotoriUsageStats::Get().RecordConversionCommit(
++          context_->converter().KotoriFirstCandidatesKept(),
++          Clock::GetAbslTime());
++    }
++    kotori_space_conversion_ = false;
+     context_->mutable_converter()->Commit(context_->composer(),
+                                           command->input().context());
+   }
+@@ -1827,6 +2060,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
+   return true;
+ }
+ 
++bool Session::KotoriCountsUsage() const {
++  return context_->composer().GetInputFieldType() !=
++             commands::Context::PASSWORD &&
++         !context_->GetConfig().incognito_mode() &&
++         !context_->GetRequest().is_incognito_mode();
++}
++
++void Session::KotoriRecordPredictionCommit(const commands::Command* command,
++                                           size_t typed) {
++  kotori_typing_since_.reset();
++  if (!KotoriCountsUsage() || !command->output().has_result()) return;
++  // 読みは文字数を数えるだけで、保存しない。
++  const size_t reading = Util::CharsLen(command->output().result().key());
++  if (reading > typed) {
++    KotoriUsageStats::Get().RecordPredictionCommit(reading - typed,
++                                                   Clock::GetAbslTime());
++  }
++}
++
+ bool Session::CommitFirstSuggestion(commands::Command* command) {
+   if (!(context_->state() == ImeContext::COMPOSITION ||
+         context_->state() == ImeContext::PRECOMPOSITION)) {
+@@ -1841,9 +2093,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
+ 
+   constexpr int kFirstIndex = 0;
+   size_t committed_key_size = 0;
++  const size_t typed = context_->composer().GetLength();
+   context_->mutable_converter()->CommitSuggestionByIndex(
+       kFirstIndex, context_->composer(), command->input().context(),
+       &committed_key_size);
++  KotoriRecordPredictionCommit(command, typed);
+ 
+   SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
+ 
+@@ -2158,6 +2412,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
+   return true;
+ }
+ 
++bool Session::KotoriUsesDirectForAlphanumeric() const {
++  // スマートフォン向けの要求(12 キーの英字など)とパスワード欄は、半角英数のモードで動く。
++  return !context_->GetRequest().mixed_conversion() &&
++         context_->composer().GetInputFieldType() !=
++             commands::Context::PASSWORD;
++}
++
++bool Session::KotoriAlphanumericToDirect(commands::Command* command) {
++  // Kotori: 半角英数のモード(「A」に下線。IME オンのまま英字を未確定で打つ)に入らず、
++  // 直接入力にする(カード 84)。未確定の文字は確定する。英数キー、言語バーやアプリからの
++  // 半角英数の指定、キー設定の「半角英数に入力切替」がここに来る。
++  if (context_->state() == ImeContext::DIRECT) {
++    command->mutable_output()->set_consumed(true);
++    OutputMode(command);
++    return true;
++  }
++  return IMEOff(command);
++}
++
+ bool Session::CompositionModeSwitchKanaType(commands::Command* command) {
+   if (context_->state() != ImeContext::PRECOMPOSITION) {
+     return DoNothing(command);
+@@ -2371,14 +2644,46 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
 -  if (!context_->mutable_converter()->Convert(context_->composer(),
 -                                              context_->client_context())) {
 -    LOG(ERROR) << "Conversion failed for some reasons.";
++  if (KotoriCountsUsage()) {
++    const absl::Time now = Clock::GetAbslTime();
++    kotori_space_at_ = now;
++    if (kotori_typing_since_) {
++      KotoriUsageStats::Get().RecordTyping(context_->composer().GetLength(),
++                                           now - *kotori_typing_since_);
++      kotori_typing_since_.reset();
++    }
++  }
++  kotori_space_conversion_ = false;
 +  return KotoriConvert(command, context_->converter().conversion_preferences());
 +}
 +
@@ -38769,9 +39778,16 @@ index 8186b0a8d..00c1d9cb5 100644
    }
 -
    SetSessionState(ImeContext::CONVERSION, context_.get());
++  if (kotori_space_at_) {
++    const absl::Time now = Clock::GetAbslTime();
++    KotoriUsageStats::Get().RecordWait(now - *kotori_space_at_, now);
++    kotori_space_at_.reset();
++    kotori_space_conversion_ = true;
++  }
    Output(command);
    return true;
-@@ -2389,16 +2595,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+ }
+@@ -2389,16 +2694,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -38789,7 +39805,7 @@ index 8186b0a8d..00c1d9cb5 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2873,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2972,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -38798,7 +39814,7 @@ index 8186b0a8d..00c1d9cb5 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2888,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2987,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -38821,7 +39837,7 @@ index 8186b0a8d..00c1d9cb5 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +2947,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +3046,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -38835,7 +39851,7 @@ index 8186b0a8d..00c1d9cb5 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3083,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3182,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -38847,10 +39863,18 @@ index 8186b0a8d..00c1d9cb5 100644
        command->input().context().input_field_type());
    Output(command);
 diff --git a/src/session/session.h b/src/session/session.h
-index a9903ecd3..c47893e38 100644
+index a9903ecd3..60e10e26e 100644
 --- a/src/session/session.h
 +++ b/src/session/session.h
-@@ -116,6 +116,10 @@ class Session {
+@@ -35,6 +35,7 @@
+ #include <cstddef>
+ #include <deque>
+ #include <memory>
++#include <optional>
+ #include <utility>
+ 
+ #include "absl/strings/string_view.h"
+@@ -116,6 +117,10 @@ class Session {
    // is called when the CONVERT_REVERSE SessionCommand is called.
    bool ConvertReverse(mozc::commands::Command* command);
  
@@ -38861,7 +39885,18 @@ index a9903ecd3..c47893e38 100644
    // Fills Output::Callback with the Undo SessionCommand to ask the
    // client to send back the SessionCommand to the server.
    // This function is called when the key event representing the
-@@ -275,6 +279,25 @@ class Session {
+@@ -200,6 +205,10 @@ class Session {
+   bool TranslateHalfASCII(mozc::commands::Command* command);
+   bool TranslateHalfWidth(mozc::commands::Command* command);
+   bool ToggleAlphanumericMode(mozc::commands::Command* command);
++  // Kotori: 英数キーや半角英数の指定で直接入力にする(カード 84)。
++  bool KotoriAlphanumericToDirect(mozc::commands::Command* command);
++  // デスクトップの通常の欄なら true(スマートフォン向けとパスワード欄は除く)。
++  bool KotoriUsesDirectForAlphanumeric() const;
+ 
+   // Switch the composition mode.
+   bool CompositionModeHiragana(mozc::commands::Command* command);
+@@ -275,6 +284,32 @@ class Session {
   private:
    friend class SessionTestPeer;
  
@@ -38881,6 +39916,13 @@ index a9903ecd3..c47893e38 100644
 +  void KotoriReplayFollowingKeys(commands::Command* command,
 +                                 const commands::Context& committed_context);
 +  engine::ConversionPreferences kotori_pending_preferences_;
++  // Asteria: ダッシュボードの数字を数えてよい入力欄か(パスワード欄・シークレットは数えない)。
++  bool KotoriCountsUsage() const;
++  void KotoriRecordPredictionCommit(const commands::Command* command,
++                                    size_t typed);
++  std::optional<absl::Time> kotori_space_at_;
++  std::optional<absl::Time> kotori_typing_since_;
++  bool kotori_space_conversion_ = false;
 +  bool KotoriConvert(commands::Command* command,
 +                     const engine::ConversionPreferences& preferences);
 +
@@ -39171,10 +40213,19 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..ef3d6b30f 100644
+index 012d822a5..12ef7809a 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
-@@ -43,6 +43,7 @@
+@@ -27,6 +27,8 @@
+ // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
++#include "base/clock.h"
++#include "session/kotori_usage_stats.h"
+ #include "session/session.h"
+ 
+ #include <cstddef>
+@@ -43,6 +45,7 @@
  #include "absl/strings/str_cat.h"
  #include "absl/strings/str_format.h"
  #include "absl/strings/string_view.h"
@@ -39182,7 +40233,7 @@ index 012d822a5..ef3d6b30f 100644
  #include "base/strings/assign.h"
  #include "base/strings/unicode.h"
  #include "base/vlog.h"
-@@ -1225,6 +1226,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
+@@ -1225,6 +1228,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -39192,7 +40243,7 @@ index 012d822a5..ef3d6b30f 100644
  
    commands::Command command;
    InsertCharacterChars("watasinonamaehanakanodesu", &session, &command);
-@@ -2098,6 +2102,9 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2098,6 +2104,9 @@ TEST_F(SessionTest, UpdatePreferences) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -39202,7 +40253,7 @@ index 012d822a5..ef3d6b30f 100644
    commands::Command command;
    InsertCharacterChars("aiueo", &session, &command);
    Segments segments;
-@@ -2109,6 +2116,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2109,6 +2118,7 @@ TEST_F(SessionTest, UpdatePreferences) {
        .WillRepeatedly(DoAll(SetArgPointee<1>(segments), Return(true)));
  
    SetSendKeyCommand("SPACE", &command);
@@ -39210,7 +40261,7 @@ index 012d822a5..ef3d6b30f 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(false);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2121,6 +2129,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2121,6 +2131,7 @@ TEST_F(SessionTest, UpdatePreferences) {
    session.ConvertCancel(&command);
  
    SetSendKeyCommand("SPACE", &command);
@@ -39218,7 +40269,23 @@ index 012d822a5..ef3d6b30f 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(true);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2291,6 +2300,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
+@@ -2138,13 +2149,12 @@ TEST_F(SessionTest, UpdatePreferences) {
+   command.Clear();
+   session.ConvertCancel(&command);
+ 
+-  // On MS-IME keymap, EISU key does nothing.
++  // Kotori: MS-IME のキー設定の英数キーは、半角英数のモードに入らず直接入力にする(カード 84)。
+   SetSendKeyCommand("EISU", &command);
+   command.mutable_input()->mutable_config()->set_session_keymap(
+       config::Config::MSIME);
+   session.SendKey(&command);
+-  EXPECT_EQ(command.output().status().mode(), commands::HALF_ASCII);
+-  EXPECT_EQ(command.output().status().comeback_mode(), commands::HALF_ASCII);
++  EXPECT_FALSE(command.output().status().activated());
+ 
+   // On KOTOERI keymap, EISU key does "ToggleAlphanumericMode".
+   SetSendKeyCommand("EISU", &command);
+@@ -2291,6 +2301,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -39228,7 +40295,7 @@ index 012d822a5..ef3d6b30f 100644
    commands::Command command;
  
    Segments segments;
-@@ -3799,6 +3811,9 @@ TEST_F(SessionTest, Issue1816861) {
+@@ -3799,6 +3812,9 @@ TEST_F(SessionTest, Issue1816861) {
    candidate = segment->add_candidate();
    candidate->value = "陰謀説";
  
@@ -39238,7 +40305,57 @@ index 012d822a5..ef3d6b30f 100644
    EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
        .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
  
-@@ -7165,7 +7180,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -6218,6 +6234,8 @@ TEST_F(SessionTest, Issue2223762) {
+ }
+ 
+ TEST_F(SessionTest, Issue2223755) {
++  // Kotori: 英数キーは直接入力にした(カード 84)。半角英数のモードの空白の扱いを
++  // 確かめるため、内部の切り替えを直接呼ぶ。
+   // This is a unittest against http://b/2223755.
+   // - F6 and F7 convert space to half-width.
+ 
+@@ -6230,9 +6248,11 @@ TEST_F(SessionTest, Issue2223755) {
+     commands::Command command;
+ 
+     EXPECT_TRUE(SendKey("a", &session, &command));
+-    EXPECT_TRUE(SendKey("Eisu", &session, &command));
++    command.Clear();
++    EXPECT_TRUE(session.ToggleAlphanumericMode(&command));
+     EXPECT_TRUE(SendKey("Space", &session, &command));
+-    EXPECT_TRUE(SendKey("Eisu", &session, &command));
++    command.Clear();
++    EXPECT_TRUE(session.ToggleAlphanumericMode(&command));
+     EXPECT_TRUE(SendKey("i", &session, &command));
+ 
+     EXPECT_EQ(GetComposition(command), "あ い");
+@@ -6249,9 +6269,11 @@ TEST_F(SessionTest, Issue2223755) {
+     commands::Command command;
+ 
+     EXPECT_TRUE(SendKey("a", &session, &command));
+-    EXPECT_TRUE(SendKey("Eisu", &session, &command));
++    command.Clear();
++    EXPECT_TRUE(session.ToggleAlphanumericMode(&command));
+     EXPECT_TRUE(SendKey("Space", &session, &command));
+-    EXPECT_TRUE(SendKey("Eisu", &session, &command));
++    command.Clear();
++    EXPECT_TRUE(session.ToggleAlphanumericMode(&command));
+     EXPECT_TRUE(SendKey("i", &session, &command));
+ 
+     EXPECT_EQ(GetComposition(command), "あ い");
+@@ -6708,9 +6730,10 @@ TEST_F(SessionTest, IMEOnWithModeTest) {
+     command.mutable_input()->mutable_key()->set_mode(commands::HALF_ASCII);
+     EXPECT_TRUE(session.IMEOn(&command));
+     EXPECT_TRUE(command.output().has_mode());
+-    EXPECT_EQ(command.output().mode(), commands::HALF_ASCII);
++    // Kotori: 半角英数を指定して IME をオンにしても、ひらがなで始める(カード 84)。
++    EXPECT_EQ(command.output().mode(), commands::HIRAGANA);
+     SendKey("a", &session, &command);
+-    EXPECT_SINGLE_SEGMENT("a", command);
++    EXPECT_SINGLE_SEGMENT("あ", command);
+   }
+ }
+ 
+@@ -7165,7 +7188,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterChars("123.", &session, &command);
  
@@ -39248,7 +40365,7 @@ index 012d822a5..ef3d6b30f 100644
    }
  
    // Don't trigger auto conversion for the ".."
-@@ -7190,7 +7206,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -7190,7 +7214,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterString("１２３。", "123.", &session, &command);
  
@@ -39258,7 +40375,7 @@ index 012d822a5..ef3d6b30f 100644
    }
  
    // Don't trigger auto conversion for "." only.
-@@ -7878,6 +7895,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -7878,6 +7903,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -39268,7 +40385,7 @@ index 012d822a5..ef3d6b30f 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9164,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9172,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -39306,7 +40423,7 @@ index 012d822a5..ef3d6b30f 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9856,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9864,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
@@ -39317,7 +40434,7 @@ index 012d822a5..ef3d6b30f 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10549,651 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10557,757 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -39967,10 +41084,116 @@ index 012d822a5..ef3d6b30f 100644
 +  EXPECT_FALSE(command.output().has_callback());
 +}
 +
++// Kotori: 半角英数のモードに入らず、直接入力にする(カード 84)。
++TEST_F(SessionTest, KotoriAlphanumericKeysTurnImeOff) {
++  MockEngine engine;
++  std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  commands::Command command;
++
++  // 英数キーは未確定の文字を確定して直接入力にする。
++  EXPECT_TRUE(SendKey("a", &session, &command));
++  EXPECT_TRUE(SendKey("Eisu", &session, &command));
++  EXPECT_EQ(session.context().state(), ImeContext::DIRECT);
++  ASSERT_TRUE(command.output().has_result());
++  EXPECT_EQ(command.output().result().value(), "あ");
++  EXPECT_FALSE(command.output().status().activated());
++
++  // 直接入力の英数キーで日本語入力に戻る。
++  EXPECT_TRUE(SendKey("Eisu", &session, &command));
++  EXPECT_NE(session.context().state(), ImeContext::DIRECT);
++  EXPECT_EQ(command.output().status().mode(), commands::HIRAGANA);
++
++  // アプリからの半角英数の指定は、Windows の TIP が直接入力(TURN_OFF_IME)に変えて送る。
++  command.Clear();
++  command.mutable_input()->set_type(commands::Input::SEND_COMMAND);
++  command.mutable_input()->mutable_command()->set_type(
++      commands::SessionCommand::TURN_OFF_IME);
++  command.mutable_input()->mutable_command()->set_composition_mode(
++      commands::HIRAGANA);
++  EXPECT_TRUE(session.SendCommand(&command));
++  EXPECT_EQ(session.context().state(), ImeContext::DIRECT);
++  EXPECT_FALSE(command.output().status().activated());
++
++  // 半角英数を指定して IME をオンにしても、ひらがなで始める。
++  command.Clear();
++  command.mutable_input()->set_type(commands::Input::SEND_COMMAND);
++  command.mutable_input()->mutable_command()->set_type(
++      commands::SessionCommand::TURN_ON_IME);
++  command.mutable_input()->mutable_command()->set_composition_mode(
++      commands::HALF_ASCII);
++  EXPECT_TRUE(session.SendCommand(&command));
++  EXPECT_EQ(session.context().state(), ImeContext::PRECOMPOSITION);
++  EXPECT_TRUE(command.output().status().activated());
++  EXPECT_EQ(command.output().status().mode(), commands::HIRAGANA);
++
++  // 日本語の途中の Shift＋英字は未確定の中で英字になり、確定すると日本語に戻る。
++  EXPECT_TRUE(SendKey("a", &session, &command));
++  EXPECT_TRUE(SendKey("B", &session, &command));
++  EXPECT_TRUE(SendKey("c", &session, &command));
++  EXPECT_EQ(GetComposition(command), "あBc");
++  EXPECT_TRUE(SendKey("Enter", &session, &command));
++  ASSERT_TRUE(command.output().has_result());
++  EXPECT_EQ(command.output().result().value(), "あBc");
++  EXPECT_TRUE(SendKey("a", &session, &command));
++  EXPECT_EQ(GetComposition(command), "あ");
++}
++
++
++// Asteria: Space で変換して確定した回数と、1番目の候補のまま確定したかを数える(ダッシュボードの数字)。
++TEST_F(SessionTest, KotoriUsageCountsSpaceConversionsAndFirstCandidates) {
++  MockEngine engine;
++  std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("わたし");
++  segment->add_candidate()->value = "私";
++  segment->add_candidate()->value = "渡し";
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(segments), Return(true)));
++  KotoriUsageStats& stats = KotoriUsageStats::Get();
++  const KotoriUsageCounters before = stats.Today(Clock::GetAbslTime());
++
++  commands::Command command;
++  InsertCharacterChars("watasi", &session, &command);
++  command.Clear();
++  session.Convert(&command);
++  command.Clear();
++  session.Commit(&command);
++  ASSERT_TRUE(command.output().has_result());
++  KotoriUsageCounters now = stats.Today(Clock::GetAbslTime());
++  EXPECT_EQ(now.conversions, before.conversions + 1);
++  EXPECT_EQ(now.first_kept, before.first_kept + 1);
++  EXPECT_EQ(now.wait_count, before.wait_count + 1);
++
++  // 候補を選び直してから確定したら、正答には数えない。
++  command.Clear();
++  InsertCharacterChars("watasi", &session, &command);
++  command.Clear();
++  session.Convert(&command);
++  command.Clear();
++  session.ConvertNext(&command);
++  command.Clear();
++  session.Commit(&command);
++  now = stats.Today(Clock::GetAbslTime());
++  EXPECT_EQ(now.conversions, before.conversions + 2);
++  EXPECT_EQ(now.first_kept, before.first_kept + 1);
++
++  // 変換せずに確定した読みは数えない。
++  command.Clear();
++  InsertCharacterChars("watasi", &session, &command);
++  command.Clear();
++  session.Commit(&command);
++  EXPECT_EQ(stats.Today(Clock::GetAbslTime()).conversions, before.conversions + 2);
++}
++
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..c410a52e0 100644
+index ada11a64a..7679e484c 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -39983,10 +41206,61 @@ index ada11a64a..c410a52e0 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6447
++BUILD = 6457
  # Represent the platform and release channel.
  REVISION = 100
  
+diff --git a/src/win32/base/config_snapshot.cc b/src/win32/base/config_snapshot.cc
+index 2a28811ff..f876e4425 100644
+--- a/src/win32/base/config_snapshot.cc
++++ b/src/win32/base/config_snapshot.cc
+@@ -50,6 +50,7 @@ struct StaticConfigSnapshot {
+   bool use_kana_input;
+   bool use_keyboard_to_change_preedit_method;
+   bool use_mode_indicator;
++  bool kotori_share_input_mode;
+   size_t num_direct_mode_keys;
+   KeyInformation direct_mode_keys[kMaxDirectModeKeys];
+ };
+@@ -63,6 +64,7 @@ StaticConfigSnapshot GetConfigSnapshotImpl() {
+   snapshot.use_keyboard_to_change_preedit_method =
+       config->use_keyboard_to_change_preedit_method();
+   snapshot.use_mode_indicator = config->use_mode_indicator();
++  snapshot.kotori_share_input_mode = config->kotori_share_input_mode();
+ 
+   const auto& direct_mode_keys =
+       KeyInfoUtil::ExtractSortedDirectModeKeys(*config);
+@@ -81,7 +83,8 @@ StaticConfigSnapshot GetConfigSnapshotImpl() {
+ ConfigSnapshot::Info::Info()
+     : use_kana_input(false),
+       use_keyboard_to_change_preedit_method(false),
+-      use_mode_indicator(false) {}
++      use_mode_indicator(false),
++      kotori_share_input_mode(false) {}
+ 
+ // static
+ bool ConfigSnapshot::Get(Info* info) {
+@@ -91,6 +94,7 @@ bool ConfigSnapshot::Get(Info* info) {
+   info->use_keyboard_to_change_preedit_method =
+       cached_snapshot.use_keyboard_to_change_preedit_method;
+   info->use_mode_indicator = cached_snapshot.use_mode_indicator;
++  info->kotori_share_input_mode = cached_snapshot.kotori_share_input_mode;
+   info->direct_mode_keys.resize(cached_snapshot.num_direct_mode_keys);
+   for (size_t i = 0; i < cached_snapshot.num_direct_mode_keys; ++i) {
+     info->direct_mode_keys[i] = cached_snapshot.direct_mode_keys[i];
+diff --git a/src/win32/base/config_snapshot.h b/src/win32/base/config_snapshot.h
+index 2393c119e..6431e18b6 100644
+--- a/src/win32/base/config_snapshot.h
++++ b/src/win32/base/config_snapshot.h
+@@ -43,6 +43,8 @@ class ConfigSnapshot {
+     bool use_kana_input;
+     bool use_keyboard_to_change_preedit_method;
+     bool use_mode_indicator;
++    // Kotori: 入力モードを全アプリで共有する(カード 84)。
++    bool kotori_share_input_mode;
+     std::vector<KeyInformation> direct_mode_keys;
+     Info();
+   };
 diff --git a/src/win32/base/display_name_resource.h b/src/win32/base/display_name_resource.h
 index 34ddf93fd..ef789ba71 100644
 --- a/src/win32/base/display_name_resource.h
@@ -40019,11 +41293,358 @@ index 08373c4cb..92d0691a1 100644
  
      result = profiles->AddLanguageProfile(
          TsfProfile::GetTextServiceGuid(), TsfProfile::GetLangId(),
+diff --git a/src/win32/custom_action/custom_action.cc b/src/win32/custom_action/custom_action.cc
+index 7dc47c2f6..5ebfd10f0 100644
+--- a/src/win32/custom_action/custom_action.cc
++++ b/src/win32/custom_action/custom_action.cc
+@@ -33,6 +33,7 @@
+ #include <windows.h>
+ #include <atlbase.h>
+ #include <msiquery.h>
++#include <tlhelp32.h>
+ #include <wow64apiset.h>
+ // clang-format on
+ 
+@@ -91,6 +92,86 @@ std::wstring GetMozcComponentPath(const absl::string_view filename) {
+       absl::StrCat(mozc::SystemUtil::GetServerDirectory(), "\\", filename));
+ }
+ 
++// Asteria: IME の DLL は版ごとの名前(mozc_tip64-<版>.dll)にする(docs/adr/0072)。入力中のアプリが
++// 読み込んでいる前の版の DLL を上書きしないので、更新に再起動が要らない。フォルダは同じにする
++// (サーバーの場所は登録した DLL のフォルダから求めるため。base/system_util.cc)。
++// 読み込まれたまま退けた DLL の名前の末尾。<元の名前>.<版>-<番号>.asteria-old
++constexpr wchar_t kMovedTipSuffix[] = L".asteria-old";
++
++std::wstring VersionedTipName(const absl::string_view filename) {
++  std::wstring name = mozc::win32::Utf8ToWide(filename);
++  const size_t dot = name.rfind(L'.');
++  return name.substr(0, dot) + L"-" +
++         mozc::win32::Utf8ToWide(mozc::Version::GetMozcVersion()) + name.substr(dot);
++}
++
++std::wstring GetTipComponentPath(const absl::string_view filename) {
++  return mozc::win32::Utf8ToWide(mozc::SystemUtil::GetServerDirectory()) + L"\\" +
++         VersionedTipName(filename);
++}
++
++// TIP の DLL があり得るフォルダ: インストール先と、改名前のインストール先(Program Files の Kotori)。
++std::vector<std::wstring> TipDirectories() {
++  std::vector<std::wstring> dirs = {
++      mozc::win32::Utf8ToWide(mozc::SystemUtil::GetServerDirectory())};
++  const std::optional<std::string>& program_files =
++      mozc::WinUtil::GetProgramFilesX86Path();
++  if (program_files.has_value()) {
++    const std::wstring legacy = mozc::win32::Utf8ToWide(
++        absl::StrCat(*program_files, "\\", mozc::kLegacyInstallDirName));
++    if (_wcsicmp(legacy.c_str(), dirs[0].c_str()) != 0) dirs.push_back(legacy);
++  }
++  return dirs;
++}
++
++bool FileExists(const std::wstring& path) {
++  return ::GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
++}
++
++// 読み込まれていれば上書きも削除もできないが、名前は変えられる。退けた後に消してみて、使われていれば
++// 次の再起動で消す。Windows Installer はファイルがないとみなし、再起動を求めない。
++void MoveAsideTip(const std::wstring& path) {
++  if (!FileExists(path)) return;
++  const std::wstring moved =
++      path + L"." + mozc::win32::Utf8ToWide(mozc::Version::GetMozcVersion()) + L"-" +
++      std::to_wstring(::GetTickCount64()) + kMovedTipSuffix;
++  if (!::MoveFileExW(path.c_str(), moved.c_str(), 0)) return;
++  if (!::DeleteFileW(moved.c_str())) {
++    ::MoveFileExW(moved.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);
++  }
++}
++
++// dir の IME の DLL(mozc_tip*.dll)を退ける。keep_current なら、この版の名前のものは残す。
++void MoveAsideTipsIn(const std::wstring& dir, bool keep_current) {
++  const std::wstring current =
++      L"-" + mozc::win32::Utf8ToWide(mozc::Version::GetMozcVersion()) + L".dll";
++  std::vector<std::wstring> names;
++  WIN32_FIND_DATAW data;
++  HANDLE find = ::FindFirstFileW((dir + L"\\mozc_tip*.dll").c_str(), &data);
++  if (find == INVALID_HANDLE_VALUE) return;
++  do {
++    const std::wstring name = data.cFileName;
++    const bool is_current = name.size() > current.size() &&
++        _wcsicmp(name.c_str() + name.size() - current.size(), current.c_str()) == 0;
++    if (!(keep_current && is_current)) names.push_back(name);
++  } while (::FindNextFileW(find, &data));
++  ::FindClose(find);
++  for (const std::wstring& name : names) MoveAsideTip(dir + L"\\" + name);
++}
++
++// 前の更新で退けたまま残っている DLL を、もう使われていなければ消す。
++void DeleteMovedTipsIn(const std::wstring& dir) {
++  WIN32_FIND_DATAW data;
++  const std::wstring pattern = dir + L"\\*" + kMovedTipSuffix;
++  HANDLE find = ::FindFirstFileW(pattern.c_str(), &data);
++  if (find != INVALID_HANDLE_VALUE) {
++    do {
++      ::DeleteFileW((dir + L"\\" + data.cFileName).c_str());
++    } while (::FindNextFileW(find, &data));
++    ::FindClose(find);
++  }
++}
++
+ // Retrieves the value for an installer property.
+ // Returns an empty string if a property corresponding to |name| is not found or
+ // error occurs.
+@@ -221,12 +302,12 @@ UINT __stdcall EnsureAllApplicationPackagesPermisssions(MSIHANDLE msi_handle) {
+     return ERROR_INSTALL_FAILURE;
+   }
+   if (!mozc::WinSandbox::EnsureAllApplicationPackagesPermisssion(
+-          GetMozcComponentPath(mozc::kMozcTIP32),
++          GetTipComponentPath(mozc::kMozcTIP32),
+           mozc::WinSandbox::AppContainerVisibilityType::kProgramFiles)) {
+     return ERROR_INSTALL_FAILURE;
+   }
+   if (!mozc::WinSandbox::EnsureAllApplicationPackagesPermisssion(
+-          GetMozcComponentPath(mozc::kMozcTIP64),
++          GetTipComponentPath(mozc::kMozcTIP64),
+           mozc::WinSandbox::AppContainerVisibilityType::kProgramFiles)) {
+     return ERROR_INSTALL_FAILURE;
+   }
+@@ -241,6 +322,73 @@ UINT __stdcall OpenUninstallSurveyPage(MSIHANDLE msi_handle) {
+   return ERROR_SUCCESS;
+ }
+ 
++// Asteria: 導入先(と旧名の導入先)から動いている Asteria のプログラム(お知らせ・設定画面・候補の窓など)を
++// 終わらせる。使用中のファイルが残ると、Windows Installer が「アプリを閉じますか」の画面
++// (MsiRMFilesInUse)を出そうとする(2026-10-24、常駐のお知らせ mozc_tool --mode=support_reminder で
++// 起きた)。利用者のほかのアプリには触れない。開けないプロセス(サービスなど)は飛ばす。
++// 戻り値は終わらせた数。照合は大文字・小文字と末尾の区切りを無視し、導入先の既定の場所(Program Files の
++// Asteria と Kotori)も含める(登録された TIP の場所だけでは照合できないことがあった)。
++int TerminateAsteriaProcesses() {
++  std::vector<std::wstring> dirs = TipDirectories();
++  const std::optional<std::string>& program_files = mozc::WinUtil::GetProgramFilesX86Path();
++  if (program_files.has_value()) {
++    for (const char* name : {mozc::kInstallDirName, mozc::kLegacyInstallDirName}) {
++      dirs.push_back(mozc::win32::Utf8ToWide(absl::StrCat(*program_files, "\\", name)));
++    }
++  }
++  for (std::wstring& dir : dirs) {
++    while (!dir.empty() && (dir.back() == L'\\' || dir.back() == L'/')) dir.pop_back();
++  }
++  int terminated = 0;
++  HANDLE snapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
++  if (snapshot == INVALID_HANDLE_VALUE) return 0;
++  PROCESSENTRY32W entry = {};
++  entry.dwSize = sizeof(entry);
++  for (BOOL ok = ::Process32FirstW(snapshot, &entry); ok;
++       ok = ::Process32NextW(snapshot, &entry)) {
++    if (entry.th32ProcessID == ::GetCurrentProcessId()) continue;
++    HANDLE process = ::OpenProcess(
++        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE,
++        entry.th32ProcessID);
++    if (process == nullptr) continue;
++    wchar_t path[MAX_PATH * 2] = {};
++    DWORD size = MAX_PATH * 2;
++    if (::QueryFullProcessImageNameW(process, 0, path, &size)) {
++      const std::wstring image(path, size);
++      const size_t slash = image.rfind(L'\\');
++      if (slash != std::wstring::npos) {
++        const std::wstring dir = image.substr(0, slash);
++        for (const std::wstring& candidate : dirs) {
++          if (_wcsicmp(dir.c_str(), candidate.c_str()) == 0) {
++            if (::TerminateProcess(process, 0)) ++terminated;
++            ::WaitForSingleObject(process, 3000);
++            break;
++          }
++        }
++      }
++    }
++    ::CloseHandle(process);
++  }
++  ::CloseHandle(snapshot);
++  return terminated;
++}
++
++// Asteria: 削除の最後に「削除しました」と知らせる。設定アプリからの削除は簡易な画面で動き、
++// インストーラーの完了の画面が出ないため。画面なしの削除(/qn)では Windows Installer が表示しない。
++// [Return='ignore']
++UINT __stdcall ShowRemovedMessage(MSIHANDLE msi_handle) {
++  DEBUG_BREAK_FOR_DEBUGGER();
++  PMSIHANDLE record = ::MsiCreateRecord(1);
++  ::MsiRecordSetStringW(record, 0,
++                        L"Asteria日本語入力を削除しました。"
++                        L"学習した内容とユーザー辞書は残してあり、入れ直すと元どおりに使えます。");
++  ::MsiProcessMessage(msi_handle,
++                      static_cast<INSTALLMESSAGE>(INSTALLMESSAGE_USER | MB_OK |
++                                                  MB_ICONINFORMATION),
++                      record);
++  return ERROR_SUCCESS;
++}
++
+ UINT __stdcall ShutdownServer(MSIHANDLE msi_handle) {
+   DEBUG_BREAK_FOR_DEBUGGER();
+   std::unique_ptr<mozc::client::ClientInterface> server_client(
+@@ -259,6 +407,13 @@ UINT __stdcall ShutdownServer(MSIHANDLE msi_handle) {
+     // they are still running. Just log error then go ahead.
+     LOG_ERROR_FOR_OMAHA();
+   }
++  // Asteria: 終了を頼んでも残ったもの、常駐のお知らせ・設定画面などを終わらせる。数をログに残す。
++  const int terminated = TerminateAsteriaProcesses();
++  PMSIHANDLE record = ::MsiCreateRecord(1);
++  ::MsiRecordSetStringW(
++      record, 0,
++      (L"Asteria: TerminateAsteriaProcesses ended " + std::to_wstring(terminated)).c_str());
++  ::MsiProcessMessage(msi_handle, INSTALLMESSAGE_INFO, record);
+   return ERROR_SUCCESS;
+ }
+ 
+@@ -461,7 +616,7 @@ UINT __stdcall RegisterTIP(MSIHANDLE msi_handle) {
+                            &native_machine);
+   const bool is_arm64_machine =
+       SUCCEEDED(result) && native_machine == IMAGE_FILE_MACHINE_ARM64;
+-  const std::wstring tip64_path = GetMozcComponentPath(
++  const std::wstring tip64_path = GetTipComponentPath(
+       is_arm64_machine ? mozc::kMozcTIP64X : mozc::kMozcTIP64);
+ 
+   result = mozc::win32::TsfRegistrar::RegisterCOMServer(
+@@ -474,7 +629,7 @@ UINT __stdcall RegisterTIP(MSIHANDLE msi_handle) {
+   }
+ 
+   // Register 32-bit TIP COM server.
+-  const std::wstring tip32_path = GetMozcComponentPath(mozc::kMozcTIP32);
++  const std::wstring tip32_path = GetTipComponentPath(mozc::kMozcTIP32);
+   result = mozc::win32::TsfRegistrar::RegisterCOMServer(
+       tip32_path.c_str(), tip32_path.length(),
+       mozc::win32::COMServerBitness::k32bit);
+@@ -525,6 +680,66 @@ UINT __stdcall UnregisterTIP(MSIHANDLE msi_handle) {
+   return ERROR_SUCCESS;
+ }
+ 
++// Kotori: 更新の前に、ほかの版の TIP の DLL を退ける(docs/adr/0072)。前の版を消すときに、入力中の
++// アプリが読み込んでいる DLL を削除しようとして再起動を求めるのを防ぐ。[Return='ignore']
++UINT __stdcall MoveAsideOldTip(MSIHANDLE msi_handle) {
++  DEBUG_BREAK_FOR_DEBUGGER();
++  for (const std::wstring& dir : TipDirectories()) {
++    DeleteMovedTipsIn(dir);
++    MoveAsideTipsIn(dir, /*keep_current=*/true);
++  }
++  return ERROR_SUCCESS;
++}
++
++// Kotori: アンインストールでは、この版の TIP も退ける(使われていれば次の再起動で消える)。
++// [Return='ignore']
++UINT __stdcall MoveAsideAllTip(MSIHANDLE msi_handle) {
++  DEBUG_BREAK_FOR_DEBUGGER();
++  for (const std::wstring& dir : TipDirectories()) {
++    DeleteMovedTipsIn(dir);
++    MoveAsideTipsIn(dir, /*keep_current=*/false);
++    // 使用中で残った DLL が次の再起動で消えた後に、空になったフォルダも消す(空でなければ何もしない)。
++    ::MoveFileExW(dir.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);
++  }
++  return ERROR_SUCCESS;
++}
++
++// Kotori: 途中で失敗したら、この版の操作で退けた DLL を元の名前へ戻す(前の版がそのまま動くように)。
++// [Return='ignore']
++UINT __stdcall RestoreMovedTip(MSIHANDLE msi_handle) {
++  DEBUG_BREAK_FOR_DEBUGGER();
++  const std::wstring tag =
++      L"." + mozc::win32::Utf8ToWide(mozc::Version::GetMozcVersion()) + L"-";
++  for (const std::wstring& dir : TipDirectories()) {
++    WIN32_FIND_DATAW data;
++    const std::wstring pattern = dir + L"\\*" + kMovedTipSuffix;
++    HANDLE find = ::FindFirstFileW(pattern.c_str(), &data);
++    if (find == INVALID_HANDLE_VALUE) continue;
++    do {
++      const std::wstring name = data.cFileName;
++      const size_t at = name.find(tag);
++      if (at == std::wstring::npos) continue;
++      const std::wstring original = dir + L"\\" + name.substr(0, at);
++      if (!FileExists(original)) {
++        ::MoveFileExW((dir + L"\\" + name).c_str(), original.c_str(), 0);
++      }
++    } while (::FindNextFileW(find, &data));
++    ::FindClose(find);
++  }
++  return ERROR_SUCCESS;
++}
++
++// Kotori: 導入・更新の後に、利用者の権限で変換エンジンを起動しておく(docs/adr/0072)。
++// 更新の途中で止めたエンジンを、開いたままのアプリが次に打ったときに待たせないため。
++// 画面つきの導入(InstallUISequence)でだけ動く。[Return='ignore']
++UINT __stdcall StartServer(MSIHANDLE msi_handle) {
++  DEBUG_BREAK_FOR_DEBUGGER();
++  std::unique_ptr<mozc::client::ClientInterface> server_client(
++      mozc::client::ClientFactory::NewClient());
++  server_client->EnsureConnection();
++  return ERROR_SUCCESS;
++}
++
+ // [Return='ignore']
+ UINT __stdcall UnregisterTIPRollback(MSIHANDLE msi_handle) {
+   DEBUG_BREAK_FOR_DEBUGGER();
+diff --git a/src/win32/custom_action/custom_action.def b/src/win32/custom_action/custom_action.def
+index 7261f3982..fafcaaafd 100644
+--- a/src/win32/custom_action/custom_action.def
++++ b/src/win32/custom_action/custom_action.def
+@@ -17,3 +17,8 @@ EXPORTS
+     FixupConfigFilePermission
+     WriteApValue
+     WriteApValueRollback
++    MoveAsideOldTip
++    MoveAsideAllTip
++    RestoreMovedTip
++    StartServer
++    ShowRemovedMessage
+diff --git a/src/win32/custom_action/custom_action.h b/src/win32/custom_action/custom_action.h
+index 486c37585..a5bcc8316 100644
+--- a/src/win32/custom_action/custom_action.h
++++ b/src/win32/custom_action/custom_action.h
+@@ -53,6 +53,13 @@ UINT __stdcall UnregisterTIP(MSIHANDLE msi_handle);
+ // A rollback custom action for UnregisterTIP.
+ UINT __stdcall UnregisterTIPRollback(MSIHANDLE msi_handle);
+ 
++// Kotori: 入力中のアプリが読み込んでいる TIP の DLL を、上書き・削除の前に退ける(docs/adr/0072)。
++UINT __stdcall MoveAsideOldTip(MSIHANDLE msi_handle);
++UINT __stdcall MoveAsideAllTip(MSIHANDLE msi_handle);
++UINT __stdcall RestoreMovedTip(MSIHANDLE msi_handle);
++UINT __stdcall StartServer(MSIHANDLE msi_handle);
++UINT __stdcall ShowRemovedMessage(MSIHANDLE msi_handle);
++
+ // Opens the uninstall survey page with the default browser.
+ UINT __stdcall OpenUninstallSurveyPage(MSIHANDLE msi_handle);
+ 
+diff --git a/src/win32/tip/BUILD.bazel b/src/win32/tip/BUILD.bazel
+index d8dbb0b66..1029a1d48 100644
+--- a/src/win32/tip/BUILD.bazel
++++ b/src/win32/tip/BUILD.bazel
+@@ -227,6 +227,7 @@ mozc_cc_library(
+         "//base/win32:hresult",
+         "//base/win32:hresultor",
+         "//protocol:commands_cc_proto",
++        "//win32/base:config_snapshot",
+         "//win32/base:msctf_dll",  # buildcleaner: keep
+         "//win32/base:win32_window_util",
+         "@com_google_absl//absl/base",
 diff --git a/src/win32/tip/tip_edit_session.cc b/src/win32/tip/tip_edit_session.cc
-index 35ffb0911..d166396f4 100644
+index 35ffb0911..328acfcc6 100644
 --- a/src/win32/tip/tip_edit_session.cc
 +++ b/src/win32/tip/tip_edit_session.cc
-@@ -298,6 +298,65 @@ class AsyncSessionCommandEditSessionImpl final
+@@ -209,8 +209,15 @@ class AsyncSwitchInputModeEditSessionImpl final
+     if (!ConversionModeUtil::ToMozcMode(native_mode_, &mozc_mode)) {
+       return E_FAIL;
+     }
++    // Kotori: アプリや言語バーが IME オンのまま半角英数を指定したら、未確定の英字を作る
++    // 半角英数のモードに入らず、直接入力にする(カード 84)。次にオンにするとひらがなで始まる。
++    bool open = open_;
++    if (open && mozc_mode == commands::HALF_ASCII) {
++      open = false;
++      mozc_mode = commands::HIRAGANA;
++    }
+     Output output;
+-    if (!open_) {
++    if (!open) {
+       // The next on/off mode is OFF. Send TURN_OFF_IME to update the converter
+       // state.
+       SessionCommand command;
+@@ -298,6 +305,65 @@ class AsyncSessionCommandEditSessionImpl final
    SessionCommand session_command_;
  };
  
@@ -40089,7 +41710,7 @@ index 35ffb0911..d166396f4 100644
  bool OnSessionCommandAsync(TipTextService* text_service, ITfContext* context,
                             const SessionCommand& session_command) {
    auto edit_session = MakeComPtr<AsyncSessionCommandEditSessionImpl>(
-@@ -488,6 +547,9 @@ enum EditSessionMode {
+@@ -488,6 +554,9 @@ enum EditSessionMode {
  
  bool OnOutputReceivedImpl(TipTextService* text_service, ITfContext* context,
                            Output new_output, EditSessionMode mode) {
@@ -40099,7 +41720,7 @@ index 35ffb0911..d166396f4 100644
    if (new_output.has_callback() &&
        new_output.callback().has_session_command() &&
        new_output.callback().session_command().has_type()) {
-@@ -743,6 +805,20 @@ bool TipEditSession::OnRendererCallbackAsync(TipTextService* text_service,
+@@ -743,6 +812,20 @@ bool TipEditSession::OnRendererCallbackAsync(TipTextService* text_service,
    }
  }
  
@@ -40136,6 +41757,32 @@ index 640c76986..85af0dba3 100644
    // Begins an async edit session to cancel the current composition.
    static bool CancelCompositionAsync(TipTextService* text_service,
                                       ITfContext* context);
+diff --git a/src/win32/tip/tip_lang_bar.cc b/src/win32/tip/tip_lang_bar.cc
+index 7abe4099d..b94461c61 100644
+--- a/src/win32/tip/tip_lang_bar.cc
++++ b/src/win32/tip/tip_lang_bar.cc
+@@ -166,9 +166,7 @@ HRESULT TipLangBar::InitLangBar(TipLangBarCallback* text_service) {
+          IDI_FULL_ALPHANUMERIC},
+         {kTipLangBarItemTypeDefault, TipLangBarCallback::kHalfKatakana,
+          IDS_HALF_KATAKANA, IDI_HALF_KATAKANA_NT, IDI_HALF_KATAKANA},
+-        {kTipLangBarItemTypeDefault, TipLangBarCallback::kHalfAlphanumeric,
+-         IDS_HALF_ALPHANUMERIC, IDI_HALF_ALPHANUMERIC_NT,
+-         IDI_HALF_ALPHANUMERIC},
++        // Kotori: 半角英数のモードは選べない。英字は直接入力で打つ(カード 84)。
+         {kTipLangBarItemTypeRadioChecked, TipLangBarCallback::kDirect,
+          IDS_DIRECT, IDI_DIRECT_NT, IDI_DIRECT},
+         {kTipLangBarItemTypeSeparator, 0, 0, 0, 0},
+@@ -205,9 +203,7 @@ HRESULT TipLangBar::InitLangBar(TipLangBarCallback* text_service) {
+          IDI_FULL_ALPHANUMERIC},
+         {kTipLangBarItemTypeDefault, TipLangBarCallback::kHalfKatakana,
+          IDS_HALF_KATAKANA, IDI_HALF_KATAKANA_NT, IDI_HALF_KATAKANA},
+-        {kTipLangBarItemTypeDefault, TipLangBarCallback::kHalfAlphanumeric,
+-         IDS_HALF_ALPHANUMERIC, IDI_HALF_ALPHANUMERIC_NT,
+-         IDI_HALF_ALPHANUMERIC},
++        // Kotori: 半角英数のモードは選べない。英字は直接入力で打つ(カード 84)。
+         {kTipLangBarItemTypeDefault, TipLangBarCallback::kDirect, IDS_DIRECT,
+          IDI_DIRECT_NT, IDI_DIRECT},
+         {kTipLangBarItemTypeSeparator, 0, 0, 0, 0},
 diff --git a/src/win32/tip/tip_resource.rc b/src/win32/tip/tip_resource.rc
 index f6f2c38dc..3e2c1e865 100644
 --- a/src/win32/tip/tip_resource.rc
@@ -40230,11 +41877,114 @@ index 684d46e93..b03135e3a 100644
  #endif  // GOOGLE_JAPANESE_INPUT_BUILD
  
  }  // namespace
+diff --git a/src/win32/tip/tip_status.cc b/src/win32/tip/tip_status.cc
+index 4bea39d46..a320497e9 100644
+--- a/src/win32/tip/tip_status.cc
++++ b/src/win32/tip/tip_status.cc
+@@ -42,6 +42,29 @@
+ namespace mozc {
+ namespace win32 {
+ namespace tsf {
++namespace {
++
++// Kotori: 共有する入力モードの compartment(カード 84)。
++// {6A3E5C21-8F4B-4D7E-9C2A-1B5D7E9F3A41}
++constexpr GUID kKotoriSharedInputModeCompartment = {
++    0x6a3e5c21,
++    0x8f4b,
++    0x4d7e,
++    {0x9c, 0x2a, 0x1b, 0x5d, 0x7e, 0x9f, 0x3a, 0x41}};
++// 値は「書いた印 | 変換モード << 1 | オン」。変換モードは IME_CMODE_* の 16 ビットに収まる。
++constexpr LONG kSharedInputModeMarker = 0x40000000;
++
++wil::com_ptr_nothrow<ITfCompartmentMgr> GetGlobalCompartmentMgr(
++    ITfThreadMgr* thread_mgr) {
++  wil::com_ptr_nothrow<ITfCompartmentMgr> manager;
++  if (thread_mgr == nullptr ||
++      FAILED(thread_mgr->GetGlobalCompartment(&manager))) {
++    return nullptr;
++  }
++  return manager;
++}
++
++}  // namespace
+ 
+ bool TipStatus::IsOpen(ITfThreadMgr* thread_mgr) {
+   // Retrieve the compartment manager from the thread manager, which contains
+@@ -131,6 +154,42 @@ bool TipStatus::SetInputModeConversion(ITfThreadMgr* thread_mgr,
+       .Succeeded();
+ }
+ 
++bool TipStatus::GetSharedInputMode(ITfThreadMgr* thread_mgr, bool* open,
++                                   DWORD* native_mode) {
++  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
++      GetGlobalCompartmentMgr(thread_mgr);
++  if (!manager) {
++    return false;
++  }
++  HResultOr<wil::unique_variant> var = TipCompartmentUtil::Get(
++      manager.get(), kKotoriSharedInputModeCompartment);
++  if (!var.has_value() || var->vt != VT_I4 ||
++      (var->lVal & kSharedInputModeMarker) == 0) {
++    return false;
++  }
++  *open = (var->lVal & 1) != 0;
++  *native_mode = static_cast<DWORD>((var->lVal >> 1) & 0xffff);
++  return true;
++}
++
++bool TipStatus::SetSharedInputMode(ITfThreadMgr* thread_mgr,
++                                   TfClientId client_id, bool open,
++                                   DWORD native_mode) {
++  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
++      GetGlobalCompartmentMgr(thread_mgr);
++  if (!manager) {
++    return false;
++  }
++  wil::unique_variant var;
++  var.vt = VT_I4;
++  var.lVal = kSharedInputModeMarker |
++             static_cast<LONG>((native_mode & 0xffff) << 1) | (open ? 1 : 0);
++  return TipCompartmentUtil::Set(manager.get(),
++                                 kKotoriSharedInputModeCompartment, client_id,
++                                 std::move(var))
++      .Succeeded();
++}
++
+ }  // namespace tsf
+ }  // namespace win32
+ }  // namespace mozc
+diff --git a/src/win32/tip/tip_status.h b/src/win32/tip/tip_status.h
+index 52b5ab884..7777c43e6 100644
+--- a/src/win32/tip/tip_status.h
++++ b/src/win32/tip/tip_status.h
+@@ -65,6 +65,13 @@ class TipStatus {
+   // Returns true if TSF conversion mode is updated.
+   static bool SetInputModeConversion(ITfThreadMgr* thread_mgr, DWORD client_id,
+                                      DWORD native_mode);
++
++  // Kotori: 全アプリで共有する入力モード(カード 84)。TSF のグローバル compartment に置くので、
++  // 別のプロセス(サンドボックスのアプリを含む)からも読める。まだ書かれていなければ false。
++  static bool GetSharedInputMode(ITfThreadMgr* thread_mgr, bool* open,
++                                 DWORD* native_mode);
++  static bool SetSharedInputMode(ITfThreadMgr* thread_mgr, TfClientId client_id,
++                                 bool open, DWORD native_mode);
+ };
+ 
+ }  // namespace tsf
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
-index beaef1a55..7b351a8f0 100644
+index beaef1a55..2b1fd63f8 100644
 --- a/src/win32/tip/tip_text_service.cc
 +++ b/src/win32/tip/tip_text_service.cc
-@@ -111,6 +111,8 @@ volatile bool g_module_unloaded = false;
+@@ -58,6 +58,7 @@
+ #include "base/win32/hresultor.h"
+ #include "base/win32/win_util.h"
+ #include "protocol/commands.pb.h"
++#include "win32/base/config_snapshot.h"
+ #include "win32/base/win32_window_util.h"
+ #include "win32/tip/tip_display_attributes.h"
+ #include "win32/tip/tip_dll_module.h"
+@@ -111,6 +112,8 @@ volatile bool g_module_unloaded = false;
  volatile DWORD g_tls_index = TLS_OUT_OF_INDEXES;
  
  constexpr UINT kUpdateUIMessage = WM_USER;
@@ -40243,7 +41993,77 @@ index beaef1a55..7b351a8f0 100644
  
  #ifdef GOOGLE_JAPANESE_INPUT_BUILD
  
-@@ -973,6 +975,44 @@ class TipTextServiceImpl
+@@ -613,6 +616,9 @@ class TipTextServiceImpl
+       LOG(WARNING) << "WriteActiveUsageInfo failed";
+     }
+ 
++    // Kotori: 新しく入力を始めたアプリも、最後に使った入力モードで始める(カード 84)。
++    KotoriApplySharedInputMode();
++
+     // Copy the initial mode.
+     DWORD native_mode = 0;
+     if (TipStatus::GetInputModeConversion(thread_mgr, client_id,
+@@ -729,6 +735,8 @@ class TipTextServiceImpl
+   // ITfThreadFocusSink
+   STDMETHODIMP OnSetThreadFocus() override {
+     EnsureKanaLockUnlocked();
++    // Kotori: アプリを切り替えたら、最後に使った入力モードに合わせる(カード 84)。
++    KotoriApplySharedInputMode();
+ 
+     // A temporary workaround for b/24793812.  When previous attempt to
+     // establish conection failed, retry again as if this was the first attempt.
+@@ -804,6 +812,7 @@ class TipTextServiceImpl
+       eaten = &dummy_eaten;
+     }
+     *eaten = FALSE;
++    KotoriMarkUserAction();
+     return TipKeyeventHandler::OnKeyDown(this, context, wparam, lparam, eaten);
+   }
+   STDMETHODIMP OnKeyUp(ITfContext* context, WPARAM wparam, LPARAM lparam,
+@@ -813,6 +822,7 @@ class TipTextServiceImpl
+       eaten = &dummy_eaten;
+     }
+     *eaten = FALSE;
++    KotoriMarkUserAction();
+     return TipKeyeventHandler::OnKeyUp(this, context, wparam, lparam, eaten);
+   }
+   STDMETHODIMP OnPreservedKey(ITfContext* context, REFGUID guid,
+@@ -827,6 +837,7 @@ class TipTextServiceImpl
+     if (it == preserved_key_map_.end()) {
+       return result;
+     }
++    KotoriMarkUserAction();
+     const UINT vk = it->second;
+     const UINT alt_down = (::GetKeyState(VK_MENU) & 0x8000) != 0 ? 1 : 0;
+     const UINT scan_code = ::MapVirtualKey(VK_F10, 0);
+@@ -892,8 +903,10 @@ class TipTextServiceImpl
+     }
+ 
+     if (::IsEqualGUID(guid, GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION)) {
++      KotoriPublishInputMode();
+       TipEditSession::OnModeChangedAsync(this);
+     } else if (::IsEqualGUID(guid, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)) {
++      KotoriPublishInputMode();
+       TipEditSession::OnOpenCloseChangedAsync(this);
+     }
+     return S_OK;
+@@ -901,6 +914,7 @@ class TipTextServiceImpl
+ 
+   // TipLangBarCallback
+   STDMETHODIMP OnMenuSelect(ItemId menu_id) override {
++    KotoriMarkUserAction();
+     switch (menu_id) {
+       case TipLangBarCallback::kDirect:
+       case TipLangBarCallback::kHiragana:
+@@ -924,6 +938,7 @@ class TipTextServiceImpl
+     }
+   }
+   STDMETHODIMP OnItemClick(const wchar_t* description) override {
++    KotoriMarkUserAction();
+     // Change input mode to be consistent with MSIME 2012 on Windows 8.
+     const bool open =
+         thread_context_->GetInputModeManager()->GetEffectiveOpenClose();
+@@ -973,6 +988,44 @@ class TipTextServiceImpl
      PostMessageW(task_window_handle_, kUpdateUIMessage, 0, 0);
    }
  
@@ -40288,7 +42108,92 @@ index beaef1a55..7b351a8f0 100644
    void UpdateLangbar(bool enabled, uint32_t mozc_mode) override {
      langbar_.UpdateMenu(enabled, mozc_mode);
    }
-@@ -1332,6 +1372,7 @@ class TipTextServiceImpl
+@@ -1002,6 +1055,84 @@ class TipTextServiceImpl
+     return static_cast<TipTextServiceImpl*>(::TlsGetValue(g_tls_index));
+   }
+ 
++  // Kotori: 入力モードを全アプリで共有する(カード 84)。
++  static bool KotoriShareInputModeEnabled() {
++    ConfigSnapshot::Info snapshot;
++    return ConfigSnapshot::Get(&snapshot) && snapshot.kotori_share_input_mode;
++  }
++
++  // キーボードの入力を受けているスレッドか。裏のアプリが自分で変えたモードは共有しない。
++  static bool KotoriHasKeyboardFocus() {
++    GUITHREADINFO info = {sizeof(info)};
++    if (!::GetGUIThreadInfo(0, &info)) {
++      return false;
++    }
++    const HWND window = info.hwndFocus ? info.hwndFocus : info.hwndActive;
++    return window != nullptr &&
++           ::GetWindowThreadProcessId(window, nullptr) == ::GetCurrentThreadId();
++  }
++
++  // 利用者の操作(キー、タスクバーの入力モード)を受けた時刻を覚える。
++  void KotoriMarkUserAction() { kotori_last_user_action_ = ::GetTickCount64(); }
++
++  // このスレッドで変わったオン/オフと変換モードを共有の値に書く。利用者がキーやタスクバーで
++  // 切り替えた直後だけ書き、アプリや窓が自分で変えたモード(インストーラーの画面が IME を
++  // 切る、など)は共有しない。入力の種類(パスワード欄など)で強制されている間も書かない。
++  void KotoriPublishInputMode() {
++    constexpr ULONGLONG kUserActionWindowMs = 1000;
++    if (!thread_mgr_ || !KotoriShareInputModeEnabled() ||
++        !KotoriHasKeyboardFocus() ||
++        ::GetTickCount64() - kotori_last_user_action_ > kUserActionWindowMs) {
++      return;
++    }
++    const TipInputModeManager* manager =
++        GetThreadContext()->GetInputModeManager();
++    if (manager->GetEffectiveOpenClose() != manager->GetTsfOpenClose() ||
++        manager->GetEffectiveConversionMode() !=
++            manager->GetTsfConversionMode()) {
++      return;
++    }
++    DWORD native_mode = 0;
++    if (!TipStatus::GetInputModeConversion(thread_mgr_.get(), client_id_,
++                                           &native_mode)) {
++      return;
++    }
++    const bool open = TipStatus::IsOpen(thread_mgr_.get());
++    bool shared_open = false;
++    DWORD shared_mode = 0;
++    if (TipStatus::GetSharedInputMode(thread_mgr_.get(), &shared_open,
++                                      &shared_mode) &&
++        shared_open == open && shared_mode == native_mode) {
++      return;
++    }
++    TipStatus::SetSharedInputMode(thread_mgr_.get(), client_id_, open,
++                                  native_mode);
++  }
++
++  // 共有の値をこのスレッドの compartment に書く。compartment の変化は OnChange から
++  // 変換エンジンに伝わる。
++  void KotoriApplySharedInputMode() {
++    if (!thread_mgr_ || !KotoriShareInputModeEnabled()) {
++      return;
++    }
++    bool shared_open = false;
++    DWORD shared_mode = 0;
++    if (!TipStatus::GetSharedInputMode(thread_mgr_.get(), &shared_open,
++                                       &shared_mode)) {
++      return;
++    }
++    DWORD native_mode = 0;
++    if (TipStatus::GetInputModeConversion(thread_mgr_.get(), client_id_,
++                                          &native_mode) &&
++        native_mode != shared_mode) {
++      TipStatus::SetInputModeConversion(thread_mgr_.get(), client_id_,
++                                        shared_mode);
++    }
++    if (TipStatus::IsOpen(thread_mgr_.get()) != shared_open) {
++      TipStatus::SetIMEOpen(thread_mgr_.get(), client_id_, shared_open);
++    }
++  }
++
+   HRESULT OnDocumentMgrChanged(ITfDocumentMgr* document_mgr) {
+     // nullptr document is not an error.
+     if (document_mgr != nullptr) {
+@@ -1332,6 +1463,7 @@ class TipTextServiceImpl
      if (!::IsWindow(task_window_handle_)) {
        return S_FALSE;
      }
@@ -40296,7 +42201,7 @@ index beaef1a55..7b351a8f0 100644
      ::DestroyWindow(task_window_handle_);
      task_window_handle_ = nullptr;
      return S_OK;
-@@ -1349,6 +1390,10 @@ class TipTextServiceImpl
+@@ -1349,6 +1481,10 @@ class TipTextServiceImpl
          self->OnUpdateUI();
          return 0;
        }
@@ -40307,7 +42212,17 @@ index beaef1a55..7b351a8f0 100644
      }
      return ::DefWindowProcW(window_handle, message, wparam, lparam);
    }
-@@ -1481,6 +1526,8 @@ class TipTextServiceImpl
+@@ -1452,6 +1588,9 @@ class TipTextServiceImpl
+   // Stores the flag passed to ActivateEx.
+   DWORD activate_flags_;
+ 
++  // Kotori: 利用者がキーやタスクバーで操作した時刻(GetTickCount64。カード 84)。
++  ULONGLONG kotori_last_user_action_ = 0;
++
+   // Represents the cookie ID for the thread manager.
+   DWORD thread_mgr_cookie_;
+ 
+@@ -1481,6 +1620,8 @@ class TipTextServiceImpl
    PreservedKeyMap preserved_key_map_;
    std::unique_ptr<TipThreadContext> thread_context_;
    HWND task_window_handle_;

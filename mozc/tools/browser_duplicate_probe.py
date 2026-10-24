@@ -8,6 +8,9 @@ import sys
 import time
 import uuid
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import asteria_paths  # noqa: E402
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -113,8 +116,9 @@ window.snapshot=id=>({value:document.getElementById(id).value??document.getEleme
                     finally:
                         row["after"] = page.evaluate("snapshot", host)
                         page.screenshot(path=str(args.out / (host + "-" + mode + "-" + str(delay) + ".png")))
-            expected_tip = str((args.install / "mozc_tip64.dll").resolve()).casefold()
-            if not any(expected_tip == path.casefold() for call in report["driver_calls"] for path in call["loaded_tips"]):
+            # v3.0.0 から IME の DLL は版ごとの名前(docs/adr/0072)。
+            if not any(asteria_paths.is_tip_module(path, args.install)
+                       for call in report["driver_calls"] for path in call["loaded_tips"]):
                 raise RuntimeError("Edge process did not load the installed Asteria TIP")
             if len(report["trials"]) != 14:
                 raise RuntimeError("Incomplete browser duplicate suite")

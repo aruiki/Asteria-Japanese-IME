@@ -35,7 +35,7 @@ def main() -> None:
 
     exe = os.environ.get("KOTORI_CONVERTER_MAIN",
                          r"C:\Users\aruik\mz\src\bazel-bin\converter\converter_main.exe")
-    inst = os.environ.get("KOTORI_INSTALL_DIR", r"C:\Program Files (x86)\Kotori")
+    inst = os.environ.get("KOTORI_INSTALL_DIR", (r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori"))
     env = dict(os.environ, KOTORI_RUNTIME_DIR=inst, KOTORI_MODEL_DIR=inst, KOTORI_LM_STATS="1")
     env.update(dict(a.split("=", 1) for a in args.env))
     items = json.load(open(args.data, encoding="utf-8"))[: args.n]
