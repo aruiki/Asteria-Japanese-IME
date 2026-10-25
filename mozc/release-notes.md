@@ -40,29 +40,17 @@
 
 ## SmartScreenが表示された場合
 
-<p align="center">
-  <img
-    src="https://www.sanwa.co.jp/static/images/seihin_joho/windows11_protection/img_1-1.png"
-    alt="WindowsによってPCが保護されました と表示されたSmartScreen画面"
-    width="500">
-</p>
-
-<p align="center">
-  <sub>
-    SmartScreenの日本語表示例 —
-    <a href="https://www.sanwa.co.jp/seihin_joho/windows11_protection/index.html">
-      出典：サンワサプライ
-    </a>
-  </sub>
-</p>
-
 > [!IMPORTANT]
 > このGitHub Releaseからダウンロードした
 > **`Asteria64.msi`** であることを確認してください。
 
-1. <kbd>詳細情報</kbd> をクリック
-2. 表示内容（アプリ名が `Asteria64.msi`）を確認
-3. <kbd>実行</kbd> をクリック
+**1. <kbd>詳細情報</kbd> をクリック**
+
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-1.png" alt="WindowsによってPCが保護されました の画面で、詳細情報を押す" width="500"></p>
+
+**2. アプリ名が `Asteria64.msi` であることを確かめて、<kbd>実行</kbd> をクリック**
+
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-2.png" alt="詳細情報を開いた画面で、実行を押す" width="500"></p>
 
 これで通常のAsteriaインストーラーが起動します。
 **SmartScreenやMicrosoft Defenderを無効にする必要はありません。**
