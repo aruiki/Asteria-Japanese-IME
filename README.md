@@ -26,7 +26,10 @@
 
 <p align="center">
   <a href="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=3.0.0">
-    <img src="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=3.0.0" alt="Wordで107文字をローマ字で続けて打ち、Spaceを1回押すと「来月から始まる新しいプロジェクトの計画について部長と相談した結果…」と正しく変換される実際の録画と、Google日本語入力との比較グラフ" width="100%">
+    <video controls width="600">
+      <source src="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=3.0.0" type="video/mp4">
+       お使いのブラウザは動画タグに対応していません。
+    </video>
   </a>
   <br>
   <sub>実際の入力をそのまま録画しています（候補の選び直しなし）。<a href="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=3.0.0">▶ 音つきの紹介動画（39秒）</a></sub>
