@@ -18,6 +18,13 @@
 </h3>
 
 <p align="center">
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D"></a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D"></a>
+  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
+  <img alt="無料・オープンソース" src="https://img.shields.io/badge/%E7%84%A1%E6%96%99-%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%E3%82%BD%E3%83%BC%E3%82%B9-536779">
+</p>
+
+<p align="center">
   v3.0.0 正式版 · 約1.7 GB · アカウント登録なし · 1画面でインストール<br>
   <sub>アンインストールしても学習した内容は残り、入れ直せば元どおりに使えます。</sub>
 </p>
