@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/marketing/assets/hero.png?v=quality-20261022" alt="Asteria — 変換精度の高い日本語入力" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/crescent.png">
+    <img src="docs/images/asteria-icon-240.png" alt="Asteria" width="96">
+  </picture>
 </p>
 
 <h1 align="center">打ちたい言葉が、Space 1回で。</h1>
