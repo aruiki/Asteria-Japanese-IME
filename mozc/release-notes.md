@@ -38,7 +38,7 @@ AsteriaはMozcの辞書・文節処理・学習と、GPUで動くローカルAI�
 | 仕事の文書・メール | 88.8% |
 | 固有名詞・新語 | 80.2% |
 
-目標（短文・文書95%、専門語・固有名詞90%）にはまだ届いていません。同じPC・同じ打ち方でのGoogle日本語入力（3.34.6260）との比較では、日常の短文500問で457問対434問、前の文で正解が決まる300問で274問対133問でした。
+目標（短文・文書95%、専門語・固有名詞90%）にはまだ届いていません。同じPC・同じ打ち方でのGoogle日本語入力（3.34.6260）との比較では、日常の短文500問で461問対434問、前の文で正解が決まる300問で274問対133問でした（Asteriaは2026-10-25にv3.0.0と同じ変換の版で測定）。
 
 ### 既知の問題
 
@@ -61,6 +61,6 @@ Windows 10 / 11・64bit向け。GPU AIはVulkan対応の専用GPU（VRAM 3 GiB�
 
 ### 検証の範囲
 
-このPC（Windows 11、RTX 3060）で、配布するものと同じMSIの導入・前の版からの更新・実入力・削除を確認しました。結果と未検証の範囲は[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/release-v3.0.0-20261024.md)と添付の配布情報をご覧ください。Office等のアプリ、低性能の実機、GPUのないPC、保護欄の内部は未検証です。正式版としての公開は、製品の目標をすべて達成したという宣言ではありません。
+配布するMSIは、GitHubのCI（素のWindows）で導入・日本語入力・削除を確認しました。同じソースから作った版（テストの期待値だけが異なる）を、このPC（Windows 11、RTX 3060）で前の版からの更新・実入力・削除まで確認しています。結果と未検証の範囲は[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/release-v3.0.0-20261024.md)と添付の配布情報をご覧ください。Office等のアプリ、低性能の実機、GPUのないPC、保護欄の内部は未検証です。正式版としての公開は、製品の目標をすべて達成したという宣言ではありません。
 
 [紹介・使い方](https://github.com/aruiki/Asteria-Japanese-IME#readme) ／ [不具合・誤変換を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
