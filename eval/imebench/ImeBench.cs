@@ -97,6 +97,12 @@ class Bench : Form {
         foreach (string line in File.ReadAllLines(args[2], Encoding.UTF8)) {
           string[] f = line.Split('\t');
           if (f.Length < 2) continue;
+          // 「#wait<TAB>ファイル」はファイルができるまで待つ。開いたままのアプリで、IME の更新の
+          // 前後に入力が続くかを確かめる(docs/adr/0072)。
+          if (f[0] == "#wait") {
+            while (!File.Exists(f[1])) Thread.Sleep(500);
+            continue;
+          }
           OnUi(() => { other.Focus(); });
           Thread.Sleep(150);
           OnUi(() => {

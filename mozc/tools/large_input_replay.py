@@ -26,7 +26,7 @@ def main():
     selection = ap.add_mutually_exclusive_group(required=True)
     selection.add_argument('--ids', help='case IDs separated by comma')
     selection.add_argument('--selected', type=Path)
-    ap.add_argument('--install', type=Path, default=Path('C:/Program Files (x86)/Kotori'))
+    ap.add_argument('--install', type=Path, default=Path(('C:/Program Files (x86)/Asteria' if os.path.isdir('C:/Program Files (x86)/Asteria') else 'C:/Program Files (x86)/Kotori')))
     ap.add_argument('--key-interval', type=float, default=.15)
     ap.add_argument('--settle', type=float, default=2.4)
     ap.add_argument('--cpu', action='store_true')

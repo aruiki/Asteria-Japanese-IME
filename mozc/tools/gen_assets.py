@@ -33,8 +33,10 @@ def gradient(w, h, top, bottom):
     return img
 
 
-# ようこそ・完了の画面(493x312)。左の 164px に藍の帯とマーク、右は白(WiX が文字を置く)。
-dlg = Image.new("RGB", (493, 312), (255, 255, 255))
+# ようこそ・完了の画面(493x312)。左の 164px に藍の帯とマーク、右は Windows の画面の地の色(#F0F0F0)。
+# チェックボックスとリンクは背景を透明にできず地の色で塗られるので、右側を同じ色にして帯を出さない
+# (2026-10-24、白の上で灰色の帯が浮いていた)。
+dlg = Image.new("RGB", (493, 312), (240, 240, 240))
 panel = gradient(164, 312, (17, 28, 45), (13, 22, 36))
 glow = Image.new("L", (164, 312), 0)
 ImageDraw.Draw(glow).ellipse([-90, -80, 190, 170], fill=8)
@@ -98,7 +100,7 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 ・短文の追加語彙: SudachiDict 20261015、Apache-2.0。UniDic・NEologd等の全帰属と全文はNOTICE-short-lexicon.txt。全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa)。加工TSVと生成記録を同梱
 ・Microsoft Visual C++ ランタイム: Microsoft のライセンス
 
-各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Kotori)の NOTICE-*.txt と documents フォルダにあります。
+各ライセンスの内容・参照先と帰属表示は、インストール先(C:\\Program Files (x86)\\Asteria)の NOTICE-*.txt と documents フォルダにあります。
 
 Asteria はインターネットに接続しません。変換と AI の処理は、すべてこの PC の中で行います。
 """
@@ -122,7 +124,7 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
 # Qt 6.9.1 のソースの LICENSES/GPL-3.0-only.txt をそのまま写したもの。
 (out / "NOTICE-third-party.txt").write_text(
     "Asteria日本語入力に同梱している第三者のソフトウェア\n\n"
-    "この PC のインストール先(C:\\Program Files (x86)\\Kotori)にあるファイルと、そのライセンスの一覧です。\n"
+    "この PC のインストール先(C:\\Program Files (x86)\\Asteria)にあるファイルと、そのライセンスの一覧です。\n"
     "AI のモデルは NOTICE-zenz.txt と NOTICE-tinyswallow.txt にあります。\n"
     "カタカナ英語辞書は NOTICE-katakana-english.txt、加工済みデータは KotoriEnglish.tsv にあります。\n\n"
     "■ Mozc(mozc_*.exe、mozc_tip*.dll、辞書)\n"

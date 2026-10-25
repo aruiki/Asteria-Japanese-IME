@@ -195,9 +195,20 @@ def check_contents(msi: pathlib.Path, work: pathlib.Path, check: Checks, require
     ext = work / "ext"
     shutil.rmtree(ext, ignore_errors=True)
     subprocess.run(["msiexec", "/a", str(msi), "/qn", f"TARGETDIR={ext}"], check=True)
-    root = ext / "PFiles" / "Kotori"
+    # v3.0.0 から導入先は Asteria、IME の DLL は版ごとの名前(docs/adr/0072)。それより前は Kotori。
+    root = ext / "PFiles" / "Asteria"
+    if not root.exists():
+        root = ext / "PFiles" / "Kotori"
     for name in BUNDLED:
+        if root.name == "Asteria" and name == "mozc_tip64.dll":
+            continue
         check((root / name).exists(), f"同梱: {name}")
+    if root.name == "Asteria":
+        for bits in ("64", "32"):
+            name = f"mozc_tip{bits}-{ver}.dll"
+            check((root / name).is_file(), f"同梱(版ごとの名前): {name}")
+            check(not (root / f"mozc_tip{bits}.dll").exists(), f"版のない名前の DLL を入れない: mozc_tip{bits}.dll")
+        check(not (ext / "PFiles" / "Kotori").exists(), "旧名の導入先(Kotori)を作らない")
     check_generator(root, check, require_generator)
     check_collocations(root, check, require_collocations)
     check_short_lexicon(root, check, require_short_lexicon)

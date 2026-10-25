@@ -63,6 +63,12 @@ sealed class ImeObservation : NativeWindow {
 }
 
 sealed partial class Acceptance : Form {
+  // Asteria の IME の DLL: 旧版の mozc_tip64.dll か、v3.0.0 からの版ごとの名前 mozc_tip64-<版>.dll。
+  internal static bool IsTipModule(string name) {
+    return String.Equals(name, "mozc_tip64.dll", StringComparison.OrdinalIgnoreCase) ||
+           (name.StartsWith("mozc_tip64-", StringComparison.OrdinalIgnoreCase) &&
+            name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
+  }
   readonly TextBox first = new TextBox(), second = new TextBox(), password = new TextBox();
   readonly RichTextBox rich = new RichTextBox();
   readonly Dictionary<string, object> report = new Dictionary<string, object>();
@@ -201,9 +207,12 @@ sealed partial class Acceptance : Form {
       Thread.Sleep(1500);
       Check("plain_preedit_space_commit", row => Convert(a, "nihonngo", "日本語"));
       string tip = "";
+      // v3.0.0 から IME の DLL は版ごとの名前(mozc_tip64-<版>.dll。docs/adr/0072)。
       foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
-        if (String.Equals(module.ModuleName, "mozc_tip64.dll", StringComparison.OrdinalIgnoreCase)) tip = module.FileName;
-      Require(String.Equals(tip, Path.Combine(installed, "mozc_tip64.dll"), StringComparison.OrdinalIgnoreCase),
+        if (IsTipModule(module.ModuleName)) tip = module.FileName;
+      Require(tip != "" && String.Equals(Path.GetDirectoryName(Path.GetFullPath(tip)).TrimEnd(Path.DirectorySeparatorChar),
+                                         Path.GetFullPath(installed).TrimEnd(Path.DirectorySeparatorChar),
+                                         StringComparison.OrdinalIgnoreCase),
               "The installed Asteria TIP was not loaded in the input host: " + tip);
       report["loaded_tip"] = tip;
       if (clickProbe) { RunClickProbe(); report["complete"] = true; exit = 0; return; }

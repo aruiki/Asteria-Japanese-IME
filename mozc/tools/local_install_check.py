@@ -27,11 +27,30 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import installer_smoke as smoke  # noqa: E402  導入ログ・実入力・受入れ検査を共有する
+import asteria_paths  # noqa: E402
 
-INSTALL = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Kotori"
+# 導入先と保存先は版によって違う(v3.0.0 で Kotori → Asteria)。試験では PROFILE / INSTALL を差し替える。
+INSTALL = None
 # Windows専用の道具だが、試験(CIのLinux)でも読み込めるよう環境変数がなくても止めない。
-PROFILE = Path(os.environ.get("USERPROFILE", "~")).expanduser() / "AppData" / "LocalLow" / "Kotori"
+PROFILE = None
 CORE_FILES = ("mozc_server.exe", "mozc_renderer.exe", "mozc_tip64.dll", "mozc_tip32.dll")
+
+
+def install_root():
+    return INSTALL or asteria_paths.install_dir()
+
+
+def profile():
+    return PROFILE or asteria_paths.profile_dir()
+
+
+def core_paths(directory):
+    """主要4ファイルの実際の場所(IME の DLL は版ごとの名前のことがある)。"""
+    directory = Path(directory)
+    return {"mozc_server.exe": directory / "mozc_server.exe",
+            "mozc_renderer.exe": directory / "mozc_renderer.exe",
+            "mozc_tip64.dll": asteria_paths.tip_path(directory, "64"),
+            "mozc_tip32.dll": asteria_paths.tip_path(directory, "32")}
 TIP = "{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}"
 
 
@@ -92,14 +111,14 @@ def copy_profile(source, destination):
 
 def restore_profile(snapshot):
     """保存した内容へ戻す。サーバーが開いていると書き戻されるので、先に止めてから入れ替える。"""
-    smoke.stop_installed_processes(INSTALL)
-    if PROFILE.is_dir():
-        for path in PROFILE.rglob("*"):
+    smoke.stop_installed_processes(install_root())
+    if profile().is_dir():
+        for path in profile().rglob("*"):
             if path.is_file() and not is_runtime(path):
                 # 読み取り専用の履歴ファイルも消せるように(POSIX では読み取りの許可も残す)
                 os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
                 path.unlink()
-    shutil.copytree(snapshot, PROFILE, dirs_exist_ok=True)
+    shutil.copytree(snapshot, profile(), dirs_exist_ok=True)
 
 
 @contextlib.contextmanager
@@ -110,12 +129,16 @@ def profile_restored_after(r, stage):
     かかわらず戻して全ファイルのSHAが一致することを確かめる。止めた時点でまだ書き出されていない学習は
     保存に入らない（Mozcは一定間隔で書き出す）。
     """
-    smoke.stop_installed_processes(INSTALL)
+    smoke.stop_installed_processes(install_root())
     snapshot = r.out / f"profile-before-{stage}"
     if snapshot.exists():
-        shutil.rmtree(snapshot)
-    if PROFILE.is_dir():
-        copy_profile(PROFILE, snapshot)
+        # 前回の写しに読み取り専用のファイル(encrypt_key.db)があると消せないので、書けるようにしてから消す。
+        def writable(function, path, _error):
+            os.chmod(path, stat.S_IWRITE)
+            function(path)
+        shutil.rmtree(snapshot, onexc=writable)
+    if profile().is_dir():
+        copy_profile(profile(), snapshot)
     else:
         snapshot.mkdir(parents=True)
     expected = tree_hashes(snapshot)
@@ -123,14 +146,14 @@ def profile_restored_after(r, stage):
         yield
     finally:
         restore_profile(snapshot)
-        same = tree_hashes(PROFILE) == expected
+        same = tree_hashes(profile()) == expected
         r.save(f"{stage}_profile", profile_restored=same, profile_files=len(expected))
         if not same:
             raise RuntimeError(f"{stage}の後に学習履歴を元へ戻せませんでした（保存先 {snapshot}）")
 
 
 def core_hashes():
-    return {name: sha256(INSTALL / name) for name in CORE_FILES if (INSTALL / name).is_file()}
+    return {name: sha256(path) for name, path in core_paths(install_root()).items() if path.is_file()}
 
 
 class Run:
@@ -172,10 +195,10 @@ def precheck(args):
     if info["candidate"]["product_code"] == products[0]["code"]:
         raise RuntimeError("候補MSIが導入済みと同じProductCodeです")
     expected = Path(args.expected_dir).resolve()
-    expected_core = {name: sha256(expected / name) for name in CORE_FILES}
+    expected_core = {name: sha256(path) for name, path in core_paths(expected).items()}
     r.save("precheck", baseline_product=products[0], msi=info, expected_dir=str(expected),
            expected_core=expected_core, baseline_core=core_hashes(),
-           baseline_profile=tree_hashes(PROFILE), baseline_languages=language_list())
+           baseline_profile=tree_hashes(profile()), baseline_languages=language_list())
 
 
 def install(args):
@@ -184,17 +207,20 @@ def install(args):
     # 履歴は利用者の入力で常に変わるため、導入直前の内容を保存してそれを基準にする。
     backup = r.out / "profile-backup"
     if not backup.exists():
-        copy_profile(PROFILE, backup)
+        copy_profile(profile(), backup)
     r.save("profile_backup", backup_profile=tree_hashes(backup))
     msi = Path(r.state["msi"]["candidate"]["path"])
     if sha256(msi) != r.state["msi"]["candidate"]["sha256"]:
         raise RuntimeError("候補MSIがprecheck後に変わりました")
-    code = smoke.run_msi(["/i", str(msi)], r.out / "install.log")
+    log = r.out / "install.log"
+    code = smoke.run_msi(["/i", str(msi)], log, ui=args.ui)
+    # 画面つきでは、表示された画面と使用中ファイル・再起動の確認を数える(docs/adr/0072)。
+    screens = dict(ui=args.ui, dialogs=smoke.msi_dialogs(log)) if args.ui else dict(ui=False)
     if code not in (0, 3010):
-        r.save("install_failed", install_exit=code)
+        r.save("install_failed", install_exit=code, **screens)
         raise RuntimeError(f"導入の終了コード: {code}")
     r.save("install", install_exit=code, install_reboot_required=code == 3010,
-           products_after_install=installed_products())
+           products_after_install=installed_products(), **screens)
 
 
 def verify(args):
@@ -208,7 +234,7 @@ def verify(args):
     core = core_hashes()
     if core != r.state["expected_core"]:
         errors.append("導入ファイルが候補と一致しません（3010なら再起動後に再実行）: " + json.dumps(core))
-    profile_kept = all((PROFILE / name).is_file() for name in r.state["backup_profile"])
+    profile_kept = all((profile() / name).is_file() for name in r.state["backup_profile"])
     if not profile_kept:
         errors.append("更新後に利用者プロファイルのファイルが欠けています")
     if errors:
@@ -232,7 +258,7 @@ def verify_input(r, args):
     # ImeAcceptanceは普段のPCでの実行を拒否する。利用者の許可（GOAL.md 2026-10-22）をここでだけ伝える。
     os.environ["KOTORI_LOCAL_ACCEPTANCE"] = "owner-approved"
     if not args.skip_click:
-        report = smoke.run_acceptance(compiler, source, INSTALL, r.out, duplicate_stress=True)
+        report = smoke.run_acceptance(compiler, source, install_root(), r.out, duplicate_stress=True)
         r.save("verify", acceptance_checks=len(report["checks"]),
                duplicate_trials=len(report["duplicate_stress"]["trials"]),
                scope="this PC, upgrade from installed baseline; EDIT/RichEdit only")
@@ -240,12 +266,12 @@ def verify_input(r, args):
     # クリック試験は未検証として残す。それ以外は CI と同じ基準で全件合格を要求する。
     os.environ["KOTORI_SKIP_CLICK"] = "environment"
     try:
-        smoke.run_acceptance(compiler, source, INSTALL, r.out, duplicate_stress=True)
+        smoke.run_acceptance(compiler, source, install_root(), r.out, duplicate_stress=True)
     except RuntimeError as error:
         if "二重入力" not in str(error):
             raise
     report = json.loads((r.out / "acceptance.json").read_text(encoding="utf-8"))
-    smoke.validate_acceptance(report, INSTALL)
+    smoke.validate_acceptance(report, install_root())
     stress = report.get("duplicate_stress", {})
     trials = stress.get("trials", [])
     clicks = [t for t in trials if t.get("mode") == "click"]
@@ -274,7 +300,7 @@ def clickprobe(args):
                                                  "ImeDuplicateStress.cs", "ImeClickProbe.cs"))])
     os.environ["KOTORI_LOCAL_ACCEPTANCE"] = "owner-approved"
     with profile_restored_after(r, "clickprobe"):
-        process = subprocess.run([str(exe), str(INSTALL), str(output), "--click-probe"], timeout=300)
+        process = subprocess.run([str(exe), str(install_root()), str(output), "--click-probe"], timeout=300)
     report = json.loads(output.read_text(encoding="utf-8")) if output.is_file() else {}
     r.save("clickprobe", clickprobe_exit=process.returncode,
            clickprobe_committed=[t.get("committed_by_click") for t in report.get("click_probe", [])])
@@ -301,7 +327,7 @@ def browser(args):
     with profile_restored_after(r, "browser"):
         process = subprocess.run([args.python, "-X", "utf8",
                                   str(Path(__file__).with_name("browser_duplicate_probe.py")),
-                                  "--driver", str(exe), "--install", str(INSTALL), "--out", str(destination)],
+                                  "--driver", str(exe), "--install", str(install_root()), "--out", str(destination)],
                                  timeout=600)
     report = json.loads((destination / "summary.json").read_text(encoding="utf-8"))
     trials = report.get("trials", [])
@@ -323,7 +349,7 @@ def rollback(args):
     products = installed_products()
     codes = [p["code"] for p in products]
     if want["candidate"]["product_code"] in codes:
-        smoke.stop_installed_processes(INSTALL)
+        smoke.stop_installed_processes(install_root())
         code = smoke.run_msi(["/x", want["candidate"]["product_code"]], r.out / "uninstall.log")
         if code not in (0, 3010):
             r.save("rollback_failed", uninstall_exit=code)
@@ -344,7 +370,7 @@ def rollback(args):
     backup = r.out / "profile-backup"
     if args.restore_profile and backup.exists():
         restore_profile(backup)
-        restored_profile = tree_hashes(PROFILE) == r.state["backup_profile"]
+        restored_profile = tree_hashes(profile()) == r.state["backup_profile"]
     r.save("rollback", profile_restored=restored_profile)
 
 
@@ -354,7 +380,7 @@ def restored(args):
     checks = {
         "product": [p["code"] for p in installed_products()] == [r.state["baseline_product"]["code"]],
         "core_files": core_hashes() == r.state["baseline_core"],
-        "profile_files_kept": all((PROFILE / name).is_file() for name in r.state.get("backup_profile", {})),
+        "profile_files_kept": all((profile() / name).is_file() for name in r.state.get("backup_profile", {})),
         "languages": language_list() == r.state["baseline_languages"],
     }
     r.save("restored", restored_checks=checks, restored_all=all(checks.values()))
@@ -368,10 +394,12 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--candidate")
     ap.add_argument("--rollback")
-    ap.add_argument("--expected-dir", help="候補MSIを管理展開したKotoriフォルダ")
+    ap.add_argument("--expected-dir", help="候補MSIを管理展開した導入先のフォルダ(PFiles/Asteria)")
     ap.add_argument("--restore-profile", action="store_true", help="rollbackで導入直前のプロファイルへ戻す")
     ap.add_argument("--skip-click", action="store_true", help="verify/browserで候補クリック試験を未検証として残す")
     ap.add_argument("--python", help="browser段階でplaywrightを入れたPython")
+    ap.add_argument("--ui", action="store_true",
+                    help="installを利用者と同じ画面で行い、表示された画面を数える")
     args = ap.parse_args()
     if sys.platform != "win32":
         raise RuntimeError("Windows専用です")

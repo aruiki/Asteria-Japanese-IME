@@ -17,6 +17,16 @@ class AcceptanceReceiptTest(unittest.TestCase):
     def test_complete_receipt(self):
         validate_acceptance(self.report, self.install)
 
+    def test_versioned_tip_name_is_accepted_only_in_install_dir(self):
+        # v3.0.0 から IME の DLL は版ごとの名前(docs/adr/0072)。
+        versioned = dict(self.report, loaded_tip=str(self.install / "mozc_tip64-3.34.6448.100.dll"))
+        validate_acceptance(versioned, self.install)
+        for other in (self.install.parent / "mozc_tip64-3.34.6448.100.dll",
+                      self.install / "mozc_tip64-3.34.6448.100.dll.3.34.6448.100-1.asteria-old",
+                      self.install / "other.dll"):
+            with self.assertRaises(RuntimeError):
+                validate_acceptance(dict(self.report, loaded_tip=str(other)), self.install)
+
     def test_incomplete_or_failed_receipts_are_rejected(self):
         variants = [dict(self.report, complete=False), dict(self.report, checks=[]),
                     dict(self.report, checks=self.report["checks"][:-1]),

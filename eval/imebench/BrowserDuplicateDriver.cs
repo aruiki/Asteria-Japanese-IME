@@ -106,7 +106,7 @@ static class BrowserDuplicateDriver {
       }
       var tips = new List<string>();
       foreach (ProcessModule module in process.Modules)
-        if (String.Equals(module.ModuleName, "mozc_tip64.dll", StringComparison.OrdinalIgnoreCase)) tips.Add(module.FileName);
+        if (Acceptance.IsTipModule(module.ModuleName)) tips.Add(module.FileName);
       Console.WriteLine(new JavaScriptSerializer().Serialize(new {mode = mode, process_id = pid, loaded_tips = tips, candidate_moves = candidateMoves}));
       return 0;
     } catch (Exception error) { Console.Error.WriteLine(error.ToString()); return 1; }
