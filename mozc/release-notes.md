@@ -1,66 +1,92 @@
-## Asteria v3.0.0 — 正式版
+<h2 align="center">
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">
+    ⬇ Asteria64.msi をダウンロード
+  </a>
+</h2>
 
-**変換精度の高い日本語IME。** 無料・オープンソース。オフラインで使えます。
+<p align="center">
+  <strong>Windows 10 / 11・64bit</strong>　·　約1.7 GB　·　無料・オープンソース
+</p>
 
-AsteriaはMozcの辞書・文節処理・学習と、GPUで動くローカルAIの候補生成・採点を組み合わせたWindows日本語入力です。文章を外部サーバーへ送らず、モデル・実行環境を同梱してオフラインで動作します。
+<p align="center">
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest">
+    <img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D">
+  </a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases">
+    <img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D">
+  </a>
+  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
+  <img alt="オフライン動作" src="https://img.shields.io/badge/AI-%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-536779">
+</p>
 
-### v2.0.0からの主な更新
+> [!NOTE]
+> `Asteria64.msi` の実行時に Microsoft Defender SmartScreen の<br>
+> **「WindowsによってPCが保護されました」**
+> という画面が表示される場合があります。下の手順で続けられます。
 
-**変換の待ちを大きく短縮しました。** 少し間を置いてSpaceを押したときの候補表示（p95）は、RTX 3060で約420〜620msから約20msになりました。AIはログイン時から常駐し、入力の手が止まった時点で採点を先に始めます。打ち終えてすぐSpaceを押した場合は約260〜350msで、目標の150msにはまだ届いていません。
+---
 
-**インストールと更新を簡単にしました。** 「インストール」（導入済みなら「更新」）を押して、Windowsの確認を許可するだけです。終わると完了の画面が出ます。「開いているアプリを閉じてください」と求めることはありません。v3.0.0以降どうしの更新とアンインストールは再起動もいりません。開いていたアプリも、そのまま新しい版で入力できます。アンインストールしても学習した内容とユーザー辞書は残り、入れ直すと元どおりに使えます。
+## インストールの流れ
 
-**v2.0.0以前からの更新では、Windowsの再起動が必要です。** 導入先が `Program Files (x86)\Asteria` に変わるため、更新の前から開いていたアプリは、再起動するまで日本語に変換できません。完了の画面と、その後のWindowsの確認で再起動をご案内します。設定・学習・ユーザー辞書は、新しい保存先へ自動で引き継ぎます。
+1. 上の **Asteria64.msi** をダウンロードして開きます。
+2. SmartScreen が出たら、**詳細情報 → 実行**（下の説明）。
+3. **「インストール」**（入っている場合は「更新」）を押し、Windows の確認（UAC）を許可します。完了の画面が出たら終わりです。
+4. **Windows + Space** で「Asteria日本語入力」を選ぶと使えます。
 
-**設定画面のダッシュボードを作り直しました。** 今日と累計の「変換した回数」「考える時間（Spaceから候補まで）」「正答率（1番目の候補で確定した割合）」「予測で節約できた時間」を表示します。数えるのは回数と時間だけで、入力した文章は保存しません。
+「開いているアプリを閉じてください」と求めることはありません。v3.0.0 以降の更新は再起動もいりません。
+**v2.0.0 以前から更新したときだけ、最後に Windows を再起動してください**（再起動まで、更新前から開いていたアプリでは日本語に変換できません）。設定・学習・ユーザー辞書は引き継ぎます。
 
-**候補の窓を整えました。** 選んでいる候補の左に印を付け、暗い配色では番号と説明を控えめな色にしました。Windows 11では窓の角を丸めます。
+---
 
-**入力モードを分かりやすくしました。**
-- 英数キーや言語バーの「半角英数」は直接入力に切り替えます。IMEがオンのまま英字が未確定で残る「半角英数」モードに入りません。
-- 入力モード（オン/オフ、ひらがな・カタカナ等）を全アプリで共有します。アプリを切り替えても最後のモードのまま入力できます（設定画面で無効にできます）。パスワード欄などで強制された状態は共有しません。
+## SmartScreenが表示された場合
 
-**変換の正確さを改善しました。**
-- 数字の後の句読点を日本語のままにしました（「賛成96、反対3」「…298、最寄りの駅は」）。「1,000」「3.14」のように数字に挟まれた場合は従来どおりです。
-- 「90ぱーせんと」を「90%」に変換します。
-- ひらがなで書くのが普通の語を、むやみに漢字にしないようにしました（ちょうどいい、ください、あとで）。根拠は公開の会話コーパスで数えた使用比率です。文脈に強い根拠があるときは漢字にします。
-- 単語・短い入力の語彙を約11.5万語補強しました（出典と帰属は同梱の NOTICE-short-lexicon.txt）。
+> [!IMPORTANT]
+> このGitHub Releaseからダウンロードした
+> **`Asteria64.msi`** であることを確認してください。
 
-### 精度の測り方と結果
+**1. <kbd>詳細情報</kbd> をクリック**
 
-実際のIMEと同じ処理の経路で、公開コーパスから作った評価セット（各分野500問、調整に未使用）を使って測りました。表記ゆれ（見たり/観たり、わかる/分かる等）は同じとみなします。
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-1.png" alt="WindowsによってPCが保護されました の画面で、詳細情報を押す" width="500"></p>
 
-| 分野 | 正解率 |
-| --- | --- |
-| 前の文で正解が決まる同音語（150組300問） | 93.3% |
-| 日常の短文・チャット | 92.0% |
-| 技術・専門用語 | 91.0% |
-| 仕事の文書・メール | 88.8% |
-| 固有名詞・新語 | 80.2% |
+**2. アプリ名が `Asteria64.msi` であることを確かめて、<kbd>実行</kbd> をクリック**
 
-目標（短文・文書95%、専門語・固有名詞90%）にはまだ届いていません。同じPC・同じ打ち方でのGoogle日本語入力（3.34.6260）との比較では、日常の短文500問で461問対434問、前の文で正解が決まる300問で274問対133問でした（Asteriaは2026-10-25にv3.0.0と同じ変換の版で測定）。
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-2.png" alt="詳細情報を開いた画面で、実行を押す" width="500"></p>
 
-### 既知の問題
+これで通常のAsteriaインストーラーが起動します。
+**SmartScreenやMicrosoft Defenderを無効にする必要はありません。**
 
-- 文の意味で決まる同音語（例: 駐車/注射）を誤ることがあります。
-- 人名・店名などの固有名詞は、ほかの分野より誤りが多くなります。
-- 打ち終えてすぐSpaceを押すと、候補が出るまでに0.3秒前後かかることがあります。
-- v2.0.0以前から更新した直後は、Windowsを再起動するまで、開いていたアプリで日本語に変換できません。
+### なぜこの警告が出るの？
 
-### ダウンロードと導入
+SmartScreenは、ウイルスの検査だけでなく、ダウンロードしたアプリや発行元に
+**Windows上で十分な「評判（reputation）」があるか**も見ています。
+Asteriaのインストーラーはコード署名をしていないため、この画面が出ることがあります。
 
-このページ下部の **Assets → Asteria64.msi** を開き、「インストール」（導入済みなら「更新」）を押してください。OSの管理者確認（UAC）が表示されたら許可します。導入後は **Windows + Space → Asteria日本語入力** を選択します。v2.0.0以前からはそのまま上書きで更新でき、更新の後にWindowsを再起動してください。
+**「WindowsによってPCが保護されました」＝「マルウェアが検出された」ではありません。**
+[Microsoft公式：SmartScreenの評判について](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
 
-GitHubのStarで応援をお願いする通知が、使い始めて3日後から3日ごとに表示されます。設定画面の「その他」で止められます。
+<details>
+<summary><strong>安全性をさらに確認する</strong></summary>
 
-Windows 10 / 11・64bit向け。GPU AIはVulkan対応の専用GPU（VRAM 3 GiB以上）を使用します。GPUのないPCはCPU向けのLow設定で動作します。メモリ8 GB以上（16 GB推奨）、ディスクに約1.7 GBの空き容量が必要です。
+<br>
 
-### 署名とSmartScreen
+- [ソースコード](https://github.com/aruiki/Asteria-Japanese-IME)
+- [Security Policy](https://github.com/aruiki/Asteria-Japanese-IME/security/policy)
+- ファイルの照合: PowerShell で `Get-FileHash -Algorithm SHA256 .\Asteria64.msi` を実行し、添付の `Asteria64.msi.sha256` と同じか確かめます。
 
-**配布MSIは未署名です。** SmartScreenの「WindowsによってPCが保護されました」が表示される場合があります。公式Releaseのファイルであることと、添付のSHA-256を確認してから **詳細情報 → 実行** を選択してください。
+AsteriaのAIモデル・辞書・日本語変換はPCの中で動き、
+**入力した文章をAsteriaのサーバーや外部AIサービスへ送信しません。**
 
-### 検証の範囲
+</details>
 
-配布するMSIは、GitHubのCI（素のWindows）で導入・日本語入力・削除を確認しました。同じソースから作った版（テストの期待値だけが異なる）を、このPC（Windows 11、RTX 3060）で前の版からの更新・実入力・削除まで確認しています。結果と未検証の範囲は[検証記録](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/release-v3.0.0-20261024.md)と添付の配布情報をご覧ください。Office等のアプリ、低性能の実機、GPUのないPC、保護欄の内部は未検証です。正式版としての公開は、製品の目標をすべて達成したという宣言ではありません。
+> [!WARNING]
+> SmartScreenの「認識されないアプリ」という警告ではなく、
+> Microsoft Defenderなどから**具体的な脅威名やマルウェア名**が表示された場合は実行しないでください。
 
-[紹介・使い方](https://github.com/aruiki/Asteria-Japanese-IME#readme) ／ [不具合・誤変換を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
+---
+
+## 動作環境
+
+- Windows 10 1809 以降 / Windows 11（64bit）、メモリ 8 GB 以上（16 GB 推奨）、ディスク約 1.7 GB
+- AI は Vulkan 対応の専用 GPU（VRAM 3 GiB 以上）で動きます。GPU のない PC は CPU 向けの設定で動きます。
+
+[使い方と紹介（README）](https://github.com/aruiki/Asteria-Japanese-IME#readme) ／ [不具合・誤変換を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
