@@ -24972,6 +24972,169 @@ index fbff8075b..f26b9240a 100644
  
  # Convert without history
  
+diff --git a/src/data/test/session/scenario/input_mode.txt b/src/data/test/session/scenario/input_mode.txt
+index 463423feb..d6b6d37f2 100644
+--- a/src/data/test/session/scenario/input_mode.txt
++++ b/src/data/test/session/scenario/input_mode.txt
+@@ -80,6 +80,7 @@ SEND_KEYS	hoge
+ EXPECT_PREEDIT	ﾎｹﾞ
+ 
+ # ToggleAlphanumericMode
++# Kotori: 英数キー(と Shift+無変換)は半角英数のモードに入らず直接入力にする(カード 84)。直接入力で英数キーを押すと、元のモードで IME がオンに戻る。
+ RESET_CONTEXT
+ SWITCH_COMPOSITION_MODE	HIRAGANA
+ SEND_KEYS	hoge
+@@ -88,7 +89,7 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+@@ -106,10 +107,10 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	SHIFT MUHENKAN
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT
+ SEND_KEY	ENTER
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT
+ 
+ # SWITCH_KANA_TYPE
+ # Full Katakana -> Half Katakana -> Hiragana
+@@ -202,6 +203,7 @@ SEND_KEYS	hoge
+ EXPECT_PREEDIT	ｈｏｇｅ
+ 
+ # ToggleAlphanumericMode
++# Kotori: 英数キー(と Shift+無変換)は半角英数のモードに入らず直接入力にする(カード 84)。直接入力で英数キーを押すと、元のモードで IME がオンに戻る。
+ # Full Ascii -> Hiragana -> Half Ascii -> Hiragana -> ...
+ RESET_CONTEXT
+ SWITCH_COMPOSITION_MODE	FULL_ASCII
+@@ -211,20 +213,20 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT	ｈｏｇｅ
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ENTER
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ 
+ # SWITCH_KANA_TYPE
+ # Full Katakana -> Half Katakana -> Hiragana
+@@ -322,6 +324,7 @@ SEND_KEYS	hoge
+ EXPECT_PREEDIT	ほげ
+ 
+ # ToggleAlphanumericMode
++# Kotori: 英数キー(と Shift+無変換)は半角英数のモードに入らず直接入力にする(カード 84)。直接入力で英数キーを押すと、元のモードで IME がオンに戻る。
+ # Full Katakana -> Hiragana -> Half Ascii -> Hiragana -> Half Ascii -> ...
+ RESET_CONTEXT
+ SWITCH_COMPOSITION_MODE	FULL_KATAKANA
+@@ -331,20 +334,20 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT	ホゲ
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ENTER
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ 
+ # SWITCH_KANA_TYPE
+ # Full Katakana -> Half Katakana -> Hiragana
+@@ -437,6 +440,7 @@ SEND_KEYS	hoge
+ EXPECT_PREEDIT	hoge
+ 
+ # ToggleAlphanumericMode
++# Kotori: 英数キー(と Shift+無変換)は半角英数のモードに入らず直接入力にする(カード 84)。直接入力で英数キーを押すと、元のモードで IME がオンに戻る。
+ # Half Ascii -> Hiragana -> Half Ascii -> Hiragana -> ...
+ RESET_CONTEXT
+ SWITCH_COMPOSITION_MODE	HALF_ASCII
+@@ -446,7 +450,7 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+@@ -456,10 +460,10 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ENTER
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ 
+ # SWITCH_KANA_TYPE
+ # Full Katakana -> Half Katakana -> Hiragana
+@@ -559,6 +563,7 @@ SEND_KEYS	hoge
+ EXPECT_PREEDIT	ホゲ
+ 
+ # ToggleAlphanumericMode
++# Kotori: 英数キー(と Shift+無変換)は半角英数のモードに入らず直接入力にする(カード 84)。直接入力で英数キーを押すと、元のモードで IME がオンに戻る。
+ # Half Katakana -> Hiragana -> Half Ascii -> Hiragana -> Half Ascii -> ...
+ RESET_CONTEXT
+ SWITCH_COMPOSITION_MODE	HALF_KATAKANA
+@@ -568,20 +573,20 @@ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	hoge
++EXPECT_PREEDIT	ﾎｹﾞ
+ SEND_KEY	ESC
+ EXPECT_PREEDIT
+ SEND_KEY	EISU
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ SEND_KEY	ENTER
+ SEND_KEYS	hoge
+-EXPECT_PREEDIT	ほげ
++EXPECT_PREEDIT
+ 
+ # SWITCH_KANA_TYPE
+ # Full Katakana -> Half Katakana -> Hiragana
 diff --git a/src/data_manager/oss/BUILD.bazel b/src/data_manager/oss/BUILD.bazel
 index 5d8232f36..d9b8935b0 100644
 --- a/src/data_manager/oss/BUILD.bazel
