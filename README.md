@@ -31,7 +31,7 @@
 </p>
 
 <p align="center">
-  <sub>同じPC・同じ打ち方で、調整に使っていない問題の第一候補を数えた結果（Asteria v3.0.0 / Google日本語入力 3.34.6260、2026年10月）。
+  <sub>前の文で意味が決まる同音語300問の正答率は、Asteria 91%、Google日本語入力 44%（同じ PC・同じ打ち方、Asteria v3.0.0 / Google日本語入力 3.34.6260、2026年10月）。
   <a href="docs/verification/release-v3.0.0-20261024.md#google日本語入力との比較の測り直し紹介動画のグラフ2026-10-25">測り方と全結果</a></sub>
 </p>
 
