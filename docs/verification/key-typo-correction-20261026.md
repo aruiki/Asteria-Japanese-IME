@@ -106,3 +106,11 @@ v300 と v310 で、GPU と CPU(`KOTORI_LM_DEVICE=cpu`)の両方で実行し、4
 
 - 5 例のうち直せるのは 3 例(手を止めてから Space)。すぐ Space を押したときは 0 例。
 - 打ち間違いのある文では Space の待ちが延びる(上の表)。
+
+## 公開(2026-10-27、ADR0044)
+
+- PR196 を main へマージ(b1ce6d3)。MSI は PR の CI run 40377864700(ソース head bd957b1、checkout 84c0c21)の成果物をそのまま使った。マージ後の main の tree は CI の checkout と同じ(5ccc1d7)。
+- 最初の CI の MSI は 3.34.6458.100 で、公開中の v3.0.0 と同じ版だったため使わず、パッチの BUILD を 6458 に上げて作り直した(上書きで古いファイルが残るのを防ぐ)。
+- `Asteria64.msi`: 1,665,388,544 bytes、SHA-256 `40864c8226963b55c9684fb5e33ce22b1ba07f4747e99cf924b7dd24846d28e7`、ProductVersion 3.34.6459.100、未署名(NotSigned)。CI で導入・実入力 8 項目・二重入力・同じ MSI の再導入・削除が成功(終了コード 0、再起動不要)。
+- [v3.1.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v3.1.0) を Latest で公開。添付は MSI・`.sha256`・`distribution-info.json`。公開後の `check_release.py v3.1.0` はすべて OK(SHA、大きさ、版、同梱モデル・連語・短文語彙、mozc_server.exe の版 = ProductVersion)。README のダウンロードは最新版を指す形にし、v3.1.0 の MSI が届くことを確かめた。
+- **未実施**: 利用者の PC への導入(v3.0.0 からの更新)と実入力の検査。UAC の確認に 2 回応答がなく取り消されたため、公開前には行えなかった。利用者が許可できるときに `mozc/tools/local_install_check.py`(install → verify)で行う。
