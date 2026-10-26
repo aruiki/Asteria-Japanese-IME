@@ -7,7 +7,11 @@
 
 <h1 align="center">打ちたい言葉が、Space 1回で。</h1>
 
-<p align="center">変換精度の高い Windows の日本語入力。無料・オープンソース。</p>
+<p align="center">
+  <strong>GPU の力を惜しまず使って、変換の正確さを最優先にした Windows の日本語入力。</strong><br>
+  完全無料・オープンソース。有料版も、課金もありません。<br>
+  ライブ変換のような、入力中に文字が勝手に変わる機能はなし。Space で変換する、いつもの打ち方のままです。
+</p>
 
 <p align="center">
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D"></a>
