@@ -7,7 +7,11 @@
 
 <h1 align="center">打ちたい言葉が、Space 1回で。</h1>
 
-<p align="center">変換精度の高い Windows の日本語入力。無料・オープンソース。</p>
+<p align="center">
+  <strong>GPU の力を惜しまず使って、変換の正確さを最優先にした Windows の日本語入力。</strong><br>
+  完全無料・オープンソース。有料版も、課金もありません。<br>
+  ライブ変換のような、入力中に文字が勝手に変わる機能はなし。Space で変換する、いつもの打ち方のままです。
+</p>
 
 <p align="center">
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest"><img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D"></a>
@@ -23,7 +27,7 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/gpu-power.jpg" alt="Space を押すと、辞書（Mozc）が作った候補の素材を、GPU の上の 2 つの AI（zenz-v2.5 が読みから文を生成し、TinySwallow-1.5B が前の文と比べて採点）が処理して、最初の候補を選ぶ図。約16億パラメータ、VRAM 約1.5 GB に常駐、前の文で決まる同音語の正答率 91%（Google日本語入力 44%）、通信 0。" width="100%">
+  <img src="docs/images/gpu-local.jpg" alt="あなたの GPU が、日本語入力の AI になる。Space を押すと、PC の GPU の VRAM に載った 2 つの AI モデル（zenz-v2.5-small が読みから文の候補を書き、TinySwallow-1.5B が前の文と比べて採点）が最初の候補を選ぶ。llama.cpp・Vulkan・GGUF で動き、AI が使う VRAM は約1.5 GB。Windows 10 / 11、AI モデルも同梱で約1.7 GB、ログイン時に常駐、GPU がない PC は CPU で動く。" width="100%">
 </p>
 
 <p align="center">

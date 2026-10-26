@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- README の GIF の下に置く図版の原本。render_gpu_local.py で gpu-local.jpg を作る。 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Asteria GPU</title>
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --ink: #142033;
+    --sub: #56637a;
+    --line: #d5dce7;
+    --blue: #2f6fe4;
+    --blue-soft: #e4ecfb;
+    --cyan: #3cc8f0;
+    --teal: #1fb5a6;
+    --orange: #f2914a;
+    --card: #121a2b;
+    --card2: #1a2438;
+    --mono: "BIZ UDGothic", "Consolas", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body {
+    background: var(--bg);
+    font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink);
+    position: relative;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(#e6ebf2 1px, transparent 1px),
+      linear-gradient(90deg, #e6ebf2 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  header { position: absolute; left: 80px; top: 58px; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 16px; color: var(--blue); letter-spacing: .04em;
+    border: 1.5px solid #b9cdf3; background: #fff; padding: 6px 14px; border-radius: 8px;
+  }
+  .kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 3px rgba(31,181,166,.18); }
+  h1 { margin-top: 18px; font-size: 52px; font-weight: 900; line-height: 1.2; letter-spacing: .01em; }
+  h1 em { font-style: normal; color: var(--blue); }
+  .lead { margin-top: 12px; font-size: 21px; color: var(--sub); }
+
+  .abs { position: absolute; }
+  .panel {
+    background: #fff; border: 1.5px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(20,32,51,.08);
+  }
+  .tag { font-family: var(--mono); font-size: 13px; letter-spacing: .08em; color: var(--sub); }
+
+  /* 左: Space キー */
+  .typed { left: 80px; top: 356px; width: 232px; }
+  .typed .tag { display: block; margin-bottom: 6px; }
+  .typed div { font-size: 17px; line-height: 1.55; color: var(--ink); }
+  .key {
+    left: 80px; top: 450px; width: 232px; height: 100px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-bottom: 5px solid #c3ccda;
+  }
+  .key b { font-size: 30px; font-weight: 900; letter-spacing: .08em; }
+  .key span { font-size: 14px; color: var(--sub); margin-top: 2px; }
+
+  /* 中央: GPU */
+  .gpu { left: 400px; top: 262px; width: 760px; height: 380px; }
+  .board {
+    position: absolute; left: 0; top: 0; width: 720px; height: 330px;
+    background: linear-gradient(160deg, #1a2438 0%, var(--card) 60%);
+    border: 1.5px solid #2c3a55; border-radius: 22px;
+    box-shadow: 0 24px 50px rgba(18,26,43,.28), inset 0 1px 0 rgba(255,255,255,.06);
+    overflow: hidden;
+  }
+  .board::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--cyan) 30%, var(--blue) 70%, transparent);
+  }
+  .bracket {
+    position: absolute; left: 718px; top: 18px; width: 28px; height: 300px;
+    background: linear-gradient(90deg, #cfd6e1, #b8c1cf); border: 1.5px solid #9aa5b6; border-radius: 0 8px 8px 0;
+  }
+  .bracket i { display: block; width: 9px; height: 46px; margin: 26px 0 0 8px; background: #2c3a55; border-radius: 3px; }
+  .pcie {
+    position: absolute; left: 120px; top: 329px; width: 360px; height: 22px;
+    background: #d9b24c; border: 1.5px solid #a98a35; border-top: 0; border-radius: 0 0 6px 6px;
+    background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(20,32,51,.3) 10px 12px);
+  }
+  .fan {
+    position: absolute; top: 34px; width: 150px; height: 150px; border-radius: 50%;
+    background: #0d1422; border: 1.5px solid #34435f;
+    box-shadow: inset 0 0 0 8px #161f31;
+  }
+  .fan::before {
+    content: ""; position: absolute; inset: 16px; border-radius: 50%;
+    background: conic-gradient(#3a4a68 0 20deg, transparent 20deg 51deg, #3a4a68 51deg 71deg, transparent 71deg 102deg,
+      #3a4a68 102deg 122deg, transparent 122deg 153deg, #3a4a68 153deg 173deg, transparent 173deg 204deg,
+      #3a4a68 204deg 224deg, transparent 224deg 255deg, #3a4a68 255deg 275deg, transparent 275deg 306deg,
+      #3a4a68 306deg 326deg, transparent 326deg 360deg);
+  }
+  .fan::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px;
+    border-radius: 50%; background: #1d2840; border: 1.5px solid var(--cyan);
+    box-shadow: 0 0 12px rgba(60,200,240,.5);
+  }
+  .fan.f1 { left: 30px; } .fan.f2 { left: 196px; }
+  .brand { position: absolute; left: 40px; top: 210px; font-family: var(--mono); color: #8696b3; font-size: 14px; letter-spacing: .12em; }
+  .brand b { font-family: "Noto Sans JP", sans-serif; color: #fff; font-size: 22px; letter-spacing: .04em; margin-left: 6px; }
+  .stack { position: absolute; left: 40px; top: 248px; display: flex; gap: 8px; }
+  .stack span {
+    font-family: var(--mono); font-size: 14px; color: var(--cyan);
+    border: 1px solid rgba(60,200,240,.45); background: rgba(60,200,240,.07); border-radius: 6px; padding: 4px 10px;
+  }
+
+  /* VRAM の中のモデル */
+  .vram {
+    position: absolute; left: 372px; top: 26px; width: 326px; height: 278px;
+    background: rgba(8,13,24,.55); border: 1px solid #34435f; border-radius: 14px; padding: 14px 16px;
+  }
+  .vram .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .vram .head b { font-family: var(--mono); font-size: 16px; color: #fff; letter-spacing: .14em; }
+  .vram .head span { font-size: 13.5px; color: #8696b3; }
+  .model {
+    margin-top: 14px; border-radius: 10px; padding: 14px 14px 15px;
+    background: #182339; border: 1px solid #2c3a55; border-left: 4px solid;
+  }
+  .model.a { border-left-color: var(--teal); }
+  .model.b { border-left-color: var(--orange); }
+  .model .t { display: flex; align-items: baseline; justify-content: space-between; }
+  .model .name { font-size: 18px; font-weight: 700; color: #fff; }
+  .model .q { font-family: var(--mono); font-size: 12.5px; color: #8696b3; }
+  .model .spec { margin-top: 2px; font-family: var(--mono); font-size: 13px; }
+  .a .spec { color: #5fd6c9; } .b .spec { color: #f7b27c; }
+  .model .job { margin-top: 3px; font-size: 15px; color: #d3dbea; }
+
+  /* 右: 変換結果 */
+  .out { left: 1206px; top: 380px; width: 314px; padding: 18px 22px 20px; overflow: hidden; }
+  .out::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--orange); }
+  .out .sent { margin-top: 8px; font-size: 23px; font-weight: 700; line-height: 1.5; }
+  .out .ok {
+    margin-top: 12px; display: inline-block; font-family: var(--mono); font-size: 13.5px; color: #0f7a6e;
+    background: #e0f5f2; padding: 4px 10px; border-radius: 6px;
+  }
+
+  /* 下: 条件 */
+  .chips { position: absolute; left: 80px; right: 80px; top: 712px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .chip { background: #fff; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 18px 13px; }
+  .chip .k { font-family: var(--mono); font-size: 12.5px; color: var(--sub); letter-spacing: .08em; }
+  .chip .v { margin-top: 3px; font-size: 19px; font-weight: 900; }
+  .note { position: absolute; right: 80px; bottom: 70px; font-size: 13px; color: #8a93a3; }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+
+<svg class="abs" style="left:0;top:0" width="1600" height="900" viewBox="0 0 1600 900">
+  <g fill="none" stroke="#2f6fe4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M314 500 H 392"/>
+    <path d="M384 493 L393 500 L384 507"/>
+    <path d="M1148 500 H 1198"/>
+    <path d="M1190 493 L1199 500 L1190 507"/>
+  </g>
+  <g fill="#2f6fe4"><circle cx="314" cy="500" r="4"/><circle cx="1148" cy="500" r="4"/></g>
+</svg>
+
+<header>
+  <span class="kicker"><i></i>OFFLINE · ネットにつながず、PC の中だけで動く AI</span>
+  <h1>あなたの <em>GPU</em> が、日本語入力の AI になる。</h1>
+  <p class="lead">PC の GPU の上で、2つの AI モデルが変換を考えます。</p>
+</header>
+
+<div class="abs typed"><span class="tag">INPUT</span><div>らいげつからはじまる<br>あたらしいぷろじぇくと…</div></div>
+<div class="abs panel key"><b>Space</b><span>押すと GPU が動く</span></div>
+
+<div class="abs gpu">
+  <div class="pcie"></div>
+  <div class="board">
+    <div class="fan f1"></div>
+    <div class="fan f2"></div>
+    <div class="brand">GPU<b>あなたの PC</b></div>
+    <div class="stack"><span>llama.cpp</span><span>Vulkan</span><span>GGUF</span></div>
+    <div class="vram">
+      <div class="head"><b>VRAM</b><span>AI が使うのは 約1.5 GB</span></div>
+      <div class="model a">
+        <div class="t"><span class="name">zenz-v2.5-small</span><span class="q">Q8_0</span></div>
+        <div class="spec">91M params</div>
+        <div class="job">読みから、文の候補を書く</div>
+      </div>
+      <div class="model b">
+        <div class="t"><span class="name">TinySwallow-1.5B</span><span class="q">Q5_K_M</span></div>
+        <div class="spec">1.5B params</div>
+        <div class="job">前の文と比べて、候補を採点</div>
+      </div>
+    </div>
+  </div>
+  <div class="bracket"><i></i><i></i><i></i></div>
+</div>
+
+<div class="abs panel out">
+  <span class="tag">OUTPUT · 最初の候補</span>
+  <div class="sent">来月から始まる<br>新しいプロジェクト…</div>
+  <span class="ok">✓ 1回の Space で</span>
+</div>
+
+<div class="chips">
+  <div class="chip"><div class="k">OS</div><div class="v">Windows 10 / 11</div></div>
+  <div class="chip"><div class="k">INSTALL</div><div class="v">AI モデルも同梱 · 約 1.7 GB</div></div>
+  <div class="chip"><div class="k">LOAD</div><div class="v">ログイン時に常駐</div></div>
+  <div class="chip"><div class="k">NO GPU</div><div class="v">CPU で動きます</div></div>
+</div>
+<div class="note">既定（Standard）の構成。辞書による候補づくりは Mozc。</div>
+</body>
+</html>
