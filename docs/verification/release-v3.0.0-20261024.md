@@ -93,3 +93,13 @@ Google日本語入力は 10-23 の測定（3.34.6260）をそのまま使う。�
 | 前文が必要な同音語 300問・完全一致 | 274 (91.3%) | 274 (91.3%) | 133 (44.3%) |
 
 空の確定は 1 問（やり直しなし）。紹介動画のグラフはこの 6457 の数字と Google の 10-23 の数字を使い、版と日付を注記する。
+
+## 公開（2026-10-25、ADR0044）
+
+- PR187 を main へマージ（b34d846）。MSI は PR の CI run 40146659387（ソース head a03882a、checkout 185461b）の成果物をそのまま使った。b34d846 と a03882a の差は README・docs・リリースノートだけ。
+- `Asteria64.msi`: 1,665,400,832 bytes、SHA-256 `2c7163f891701dc13b5758d3e180c1def8970c9e36f16e0807f850a835319e6e`、ProductVersion 3.34.6458.100、未署名。CI で導入・実入力8項目・同じMSIの再導入・削除（終了コード0、再起動不要）が成功。
+- 文書だけの push で PR の MSI ビルドが走り直したため（GitHub の path 条件は PR 全体の差分で判定される）、同じソースの再ビルドとして取り消した（run 40182919571、40182858382）。
+- [v3.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v3.0.0) を Latest で公開。添付は MSI・`.sha256`・`distribution-info.json`。公開後の `check_release.py v3.0.0` はすべて OK（SHA、大きさ、版、同梱モデル・連語・短文語彙、mozc_server.exe の版 = ProductVersion）。
+- リリースノートは利用者の指示で、更新内容の一覧をやめ、ダウンロード・SmartScreen の通り方（Wikimedia Commons のパブリックドメインの図を日本語化）・インストールの流れ・動作環境だけにした。
+- 公式サイト（kanai PR14 → main 0edc146、gh-pages a374bfc）: 紹介動画を軸にトップを刷新し、和紙の白地に紺のアクセントへ。公開 25 ファイルを取得し直して配備元と全バイト一致。
+- README: 紹介動画（和紙の白地版）・比較グラフ・ダウンロード数の表示。
