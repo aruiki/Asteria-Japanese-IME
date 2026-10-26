@@ -1,0 +1,256 @@
+<!doctype html>
+<!-- README の GIF の下に置く図版の原本。render_gpu_power.py で gpu-power.jpg を作る。 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Asteria GPU</title>
+<style>
+  :root {
+    --navy: #0a1322;
+    --navy2: #111c2d;
+    --panel: #142236;
+    --line: #2b3d55;
+    --cream: #fff0d7;
+    --text: #f4efe6;
+    --sub: #9fb0c4;
+    --cyan: #5fd4ff;
+    --cyan2: #2a8cff;
+    --gold: #ffcf7a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; height: 900px; background: var(--navy); overflow: hidden; }
+  body {
+    font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+    color: var(--text);
+    position: relative;
+    background:
+      radial-gradient(ellipse 900px 620px at 1080px 470px, rgba(42,140,255,.20), transparent 70%),
+      radial-gradient(ellipse 700px 500px at 160px 120px, rgba(255,207,122,.06), transparent 70%),
+      linear-gradient(180deg, #0c1628 0%, #08101c 100%);
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(95,212,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(95,212,255,.045) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 1100px 700px at 1000px 470px, #000 30%, transparent 85%);
+  }
+  svg.wires { position: absolute; inset: 0; }
+
+  header { position: absolute; left: 88px; top: 70px; }
+  .kicker {
+    font-size: 19px; font-weight: 700; letter-spacing: .32em; color: var(--cyan);
+    text-shadow: 0 0 18px rgba(95,212,255,.55);
+  }
+  h1 {
+    margin-top: 16px;
+    font-family: "Noto Serif JP", serif; font-weight: 700;
+    font-size: 60px; line-height: 1.2; letter-spacing: .02em; color: var(--cream);
+  }
+  h1 em { font-style: normal; color: #fff; text-shadow: 0 0 28px rgba(95,212,255,.6); }
+
+  .card {
+    position: absolute; border-radius: 14px;
+    background: linear-gradient(180deg, rgba(25,40,62,.92), rgba(16,27,44,.92));
+    border: 1px solid var(--line);
+    box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    padding: 22px 24px;
+  }
+  .label { font-size: 15px; font-weight: 700; letter-spacing: .18em; color: var(--sub); }
+  .title { margin-top: 6px; font-size: 25px; font-weight: 700; color: var(--text); }
+  .note { margin-top: 4px; font-size: 16px; color: var(--sub); }
+
+  .kana {
+    margin-top: 14px; font-family: "BIZ UDGothic", monospace; font-size: 19px; line-height: 1.6;
+    color: #d8e6f5;
+  }
+  .chips { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 16px; padding: 4px 11px; border-radius: 7px;
+    border: 1px solid #34506f; color: #cfe0f2; background: rgba(42,140,255,.08);
+  }
+  .chip.dim { color: #7f93aa; border-color: #2a3d55; background: transparent; }
+
+  /* GPU のダイ */
+  .gpu {
+    position: absolute; left: 732px; top: 282px; width: 400px; height: 364px;
+    border-radius: 22px;
+    background:
+      linear-gradient(135deg, rgba(95,212,255,.10), rgba(42,140,255,.03) 45%, rgba(95,212,255,.08)),
+      #0f1c30;
+    border: 1.5px solid rgba(95,212,255,.75);
+    box-shadow:
+      0 0 0 6px rgba(95,212,255,.06),
+      0 0 60px rgba(42,140,255,.55),
+      0 0 140px rgba(42,140,255,.30),
+      inset 0 0 50px rgba(95,212,255,.12);
+    padding: 24px 26px;
+  }
+  .gpu .tag {
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .gpu .tag b {
+    font-size: 30px; letter-spacing: .14em; color: #fff;
+    text-shadow: 0 0 16px rgba(95,212,255,.9);
+  }
+  .gpu .tag span { font-size: 15px; letter-spacing: .14em; color: var(--cyan); }
+  .core {
+    margin-top: 16px; border-radius: 12px; padding: 15px 18px;
+    border: 1px solid rgba(95,212,255,.35);
+    background: linear-gradient(90deg, rgba(42,140,255,.18), rgba(42,140,255,.05));
+  }
+  .core .name { font-size: 21px; font-weight: 700; color: #fff; }
+  .core .name small { font-size: 14px; font-weight: 500; color: var(--cyan); margin-left: 8px; letter-spacing: .04em; }
+  .core .what { margin-top: 3px; font-size: 16.5px; color: #c4d6ea; }
+  .bars { margin-top: 11px; display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; height: 16px; align-items: end; }
+  .bars i { display: block; border-radius: 2px; background: linear-gradient(180deg, var(--cyan), var(--cyan2)); box-shadow: 0 0 8px rgba(95,212,255,.6); }
+  .pins { position: absolute; display: flex; gap: 14px; }
+  .pins i { display: block; background: rgba(95,212,255,.55); border-radius: 2px; }
+  .pins.top { top: -14px; left: 40px; } .pins.top i, .pins.bottom i { width: 6px; height: 10px; }
+  .pins.bottom { bottom: -14px; left: 40px; }
+  .pins.left { left: -14px; top: 38px; flex-direction: column; } .pins.left i, .pins.right i { width: 10px; height: 6px; }
+  .pins.right { right: -14px; top: 38px; flex-direction: column; }
+
+  .out {
+    border-color: rgba(255,207,122,.7);
+    background: linear-gradient(180deg, rgba(255,240,215,.13), rgba(255,240,215,.05));
+    box-shadow: 0 0 50px rgba(255,207,122,.25), 0 18px 40px rgba(0,0,0,.35);
+  }
+  .out .label { color: var(--gold); }
+  .out .sentence {
+    margin-top: 12px; font-family: "Noto Serif JP", serif; font-size: 24px; line-height: 1.6; color: var(--cream);
+  }
+  .ok { margin-top: 12px; font-size: 16px; font-weight: 700; color: var(--gold); letter-spacing: .06em; }
+
+  .stats {
+    position: absolute; left: 88px; right: 88px; top: 724px; height: 112px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line);
+  }
+  .stat { padding: 22px 26px 0; border-left: 1px solid var(--line); }
+  .stat:first-child { border-left: 0; padding-left: 0; }
+  .stat .num {
+    font-family: "Noto Sans JP", sans-serif; font-weight: 900; font-size: 44px; line-height: 1; color: #fff;
+    letter-spacing: .01em;
+  }
+  .stat .num small { font-size: 22px; font-weight: 700; margin-left: 4px; }
+  .stat .num.c { color: #fff; text-shadow: 0 0 22px rgba(95,212,255,.7); }
+  .stat .num.g { color: var(--cream); text-shadow: 0 0 22px rgba(255,207,122,.45); }
+  .stat .cap { margin-top: 10px; font-size: 16.5px; color: var(--sub); }
+  .foot { position: absolute; right: 88px; bottom: 22px; font-size: 13px; color: #6f8299; letter-spacing: .03em; }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+
+<svg class="wires" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="flow" x1="0" x2="1">
+      <stop offset="0" stop-color="#5fd4ff" stop-opacity=".15"/>
+      <stop offset=".6" stop-color="#5fd4ff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="flowgold" x1="0" x2="1">
+      <stop offset="0" stop-color="#5fd4ff" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#ffcf7a"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-200%" width="140%" height="500%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- 背景の配線 -->
+  <g stroke="#5fd4ff" stroke-opacity=".13" fill="none" stroke-width="1.5">
+    <path d="M1146 300 H1170 V240 H1560"/>
+    <path d="M1146 620 H1170 V690 H1600"/>
+    <path d="M732 620 H700 V690 H560"/>
+    <path d="M1000 268 V210 H1100 V120 H1600"/>
+    <path d="M1060 660 V700 H1240"/>
+  </g>
+  <g fill="#5fd4ff" fill-opacity=".35">
+    <circle cx="1560" cy="240" r="3"/><circle cx="560" cy="690" r="3"/><circle cx="1240" cy="700" r="3"/>
+  </g>
+  <!-- 流れ -->
+  <g filter="url(#glow)" fill="none" stroke-width="3" stroke-linecap="round">
+    <path d="M366 464 H392" stroke="url(#flow)"/>
+    <path d="M686 464 H704" stroke="url(#flow)"/>
+    <path d="M1152 464 H1172" stroke="url(#flowgold)"/>
+  </g>
+  <g fill="#ffffff" filter="url(#glow)">
+    <path d="M392 456 l12 8 -12 8z"/>
+    <path d="M704 456 l12 8 -12 8z"/>
+  </g>
+  <path d="M1172 456 l12 8 -12 8z" fill="#ffcf7a" filter="url(#glow)"/>
+  <!-- 前の文の文脈が GPU へ入る -->
+  <g fill="none" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" stroke="#ffcf7a" stroke-opacity=".8">
+    <path d="M300 262 H690 Q706 262 706 278 V330 H712"/>
+  </g>
+  <text x="300" y="250" font-family="Noto Sans JP" font-size="15" fill="#ffcf7a" letter-spacing="2.5">前の文の流れも一緒に読む</text>
+  <path d="M712 323 l10 7 -10 7z" fill="#ffcf7a" fill-opacity=".9"/>
+</svg>
+
+<header>
+  <div class="kicker">SPACE を押した瞬間、GPU の中で</div>
+  <h1>2つの AI が、<em>文の流れ</em>まで読む。</h1>
+</header>
+
+<div class="card" style="left:88px; top:362px; width:272px; height:204px;">
+  <div class="label">入力</div>
+  <div class="kana">らいげつからはじまる<br>あたらしいぷろじぇくと<br>のけいかくについて…</div>
+</div>
+
+<div class="card" style="left:408px; top:362px; width:272px; height:204px;">
+  <div class="label">辞書（Mozc）</div>
+  <div class="title">候補の素材を作る</div>
+  <div class="chips">
+    <span class="chip">来月</span><span class="chip dim">雷月</span>
+    <span class="chip">始まる</span><span class="chip dim">初まる</span>
+    <span class="chip">計画</span><span class="chip dim">経過区</span>
+  </div>
+</div>
+
+<div class="gpu">
+  <div class="pins top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="pins bottom"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="pins left"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="pins right"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="tag"><b>GPU</b><span>あなたの PC の中</span></div>
+  <div class="core">
+    <div class="name">zenz-v2.5<small>読み → 文を生成</small></div>
+    <div class="what">読みから自然な文の候補を書き起こす</div>
+    <div class="bars" id="b1"></div>
+  </div>
+  <div class="core">
+    <div class="name">TinySwallow-1.5B<small>文脈で採点</small></div>
+    <div class="what">前の文と比べて、自然な候補を選ぶ</div>
+    <div class="bars" id="b2"></div>
+  </div>
+</div>
+
+<div class="card out" style="left:1190px; top:338px; width:322px; height:252px;">
+  <div class="label">最初の候補</div>
+  <div class="sentence">来月から始まる<br>新しいプロジェクトの<br>計画について…</div>
+  <div class="ok">✓ Space 1回で</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="num c">約16億</div><div class="cap">パラメータの AI を GPU で動かす</div></div>
+  <div class="stat"><div class="num c">常駐<small>VRAM 約1.5 GB</small></div><div class="cap">モデルを GPU に載せたまま待つ</div></div>
+  <div class="stat"><div class="num g">91%<small>Google 44%</small></div><div class="cap">前の文で決まる同音語の正答率</div></div>
+  <div class="stat"><div class="num">通信 0</div><div class="cap">入力した文章は PC の外へ出ない</div></div>
+</div>
+
+<div class="foot">既定（Standard）の構成。zenz-v2.5-small と TinySwallow-1.5B。正答率は Asteria v3.0.0 / Google日本語入力 3.34.6260、2026年10月の測定（300問）。</div>
+
+<script>
+  // 固定の高さの棒（乱数を使わず、毎回同じ画像になるようにする）
+  const h1 = [5,8,12,9,14,16,11,15,16,13,10,14,16,12,9,13,15,16,11,8,12,14,10,7];
+  const h2 = [9,12,15,16,13,16,14,11,15,16,16,12,14,16,13,15,10,13,16,14,11,9,12,15];
+  for (const [id, hs] of [["b1", h1], ["b2", h2]]) {
+    const el = document.getElementById(id);
+    for (const h of hs) { const i = document.createElement("i"); i.style.height = h + "px"; el.appendChild(i); }
+  }
+</script>
+</body>
+</html>
