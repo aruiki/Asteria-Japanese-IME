@@ -41882,7 +41882,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..7679e484c 100644
+index ada11a64a..5878b7df6 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -41895,7 +41895,7 @@ index ada11a64a..7679e484c 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6457
++BUILD = 6458
  # Represent the platform and release channel.
  REVISION = 100
  
