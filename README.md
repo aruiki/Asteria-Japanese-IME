@@ -27,10 +27,6 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/gpu-local.jpg" alt="あなたの GPU が、日本語入力の AI になる。Space を押すと、PC の GPU の VRAM に載った 2 つの AI モデル（zenz-v2.5-small が読みから文の候補を書き、TinySwallow-1.5B が前の文と比べて採点）が最初の候補を選ぶ。llama.cpp・Vulkan・GGUF で動き、AI が使う VRAM は約1.5 GB。Windows 10 / 11、AI モデルも同梱で約1.7 GB、ログイン時に常駐、GPU がない PC は CPU で動く。" width="100%">
-</p>
-
-<p align="center">
   <sub>前の文で意味が決まる同音語300問の正答率は、Asteria 91%、Google日本語入力 44%（同じ PC・同じ打ち方、Asteria v3.0.0 / Google日本語入力 3.34.6260、2026年10月）。
   <a href="docs/verification/release-v3.0.0-20261024.md#google日本語入力との比較の測り直し紹介動画のグラフ2026-10-25">測り方と全結果</a></sub>
 </p>
