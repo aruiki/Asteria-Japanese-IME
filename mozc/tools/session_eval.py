@@ -96,7 +96,8 @@ def main():
         time.sleep(args.warm)
         send("SEND_KEY\tESC")
         for it in items:
-            romaji = to_romaji(it["input"])
+            # 打ち間違いの問は、打ったキーをそのまま送る(かなから組み立て直すと間違いが消えるため)。
+            romaji = it.get("romaji") or to_romaji(it["input"])
             if romaji is None:
                 rows.append(dict(index=it["index"], skipped=True))
                 continue

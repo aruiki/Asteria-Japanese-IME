@@ -24,10 +24,10 @@
 </p>
 
 <h3 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v3.0.0/Asteria64.msi">↓ 無料でダウンロード（Windows 10 / 11）</a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">↓ 無料でダウンロード（Windows 10 / 11）</a>
 </h3>
 
-<p align="center"><sub>v3.0.0 · 約1.7 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
+<p align="center"><sub>v3.1.0 · 約1.7 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
 
 ---
 
@@ -74,7 +74,7 @@ GPU がない PC では、CPU で動く軽い設定で変換します。AI が�
 
 ## インストール
 
-1. **[Asteria64.msi をダウンロード](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v3.0.0/Asteria64.msi)** して開きます。
+1. **[Asteria64.msi をダウンロード](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi)** して開きます。
 2. 「インストール」を押し、Windows の確認を許可します。完了の画面が出たら終わりです。
 3. **Windows + Space** で「Asteria日本語入力」を選びます。
 

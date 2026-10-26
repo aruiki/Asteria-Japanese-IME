@@ -109,6 +109,7 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `KOTORI_LM_CORRECTION=0` / `1` | 非同期の日本語LLM生成補正を無効/有効にする（既定有効）。AI設定の「入力中に文章の誤変換を補正する」でも切替可能。40文字以下の局所修正、辞書・意味の保護と採点差5.0を満たす場合だけ採用する。 |
 | `KOTORI_LM_CORRECTION_PROMPT=typing` / `examples` / `chat` | 開発比較用の生成方式。既定は一字の誤入力も扱うtyping。examplesは同音語の従来の3例、chatはモデルのchat templateを使う。採用ガードは共通。 |
 | `KOTORI_LM_TYPO=0`、`KOTORI_LM_TYPO_MARGIN`、`KOTORI_LM_TYPO_GATE`、`KOTORI_LM_TYPO_STRONG`、`KOTORI_LM_TYPO_GAIN`、`KOTORI_LM_TYPO_K` | 打ち間違いの補正を切る、直すのに要る点の差(既定 5)、試す条件(読み 1 文字あたりの点、既定 -1.8。辞書のコストが 4000 以上下がれば条件によらず試す)、辞書で区切ったコストが下がる量(既定 2000)、試す読みの数(既定 10)。docs/adr/0036 |
+| `KOTORI_LM_TYPO_KEYS=0`、`KOTORI_LM_TYPO_ROUNDS`、`KOTORI_LM_TYPO_BEAM`、`KOTORI_LM_TYPO_POOL`、`KOTORI_LM_TYPO_POOL_NEXT`、`KOTORI_LM_TYPO_SLACK`、`KOTORI_LM_TYPO_LLM_GAIN`、`KOTORI_LM_TYPO_TAIL`、`KOTORI_LM_TYPO_WINDOW`、`KOTORI_LM_TYPO_STRONG_LP`、`KOTORI_LM_TYPO_SOFT_MARGIN`、`KOTORI_LM_TYPO_SEARCH_MS`、`KOTORI_LM_TYPO_BATCH`、`KOTORI_LM_TYPO_WAIT_MS`、`KOTORI_LM_TYPO_QUICK_K`、`KOTORI_LM_TYPO_TRACE` | キーの単位・複数か所の補正を切る(ADR0036 のとおりに戻る)、直す箇所の数(既定 3)、次へ進める読みの数(既定 3)、LLM で採点する読みの数(1 か所目 80、2 か所目から 32)、捨てる辞書のコストの上がり(既定 2000)、残す点の上がり(既定 1)、比べる文字数(書き換えた所の後ろ 4)、文を作る読みの点の幅(既定 4)、ず/づ だけの直しで差を緩める条件(点の上がり 6、差 1)、2 か所目以降を探す時間(既定 200 ms)、1 回に採点する列(既定 16)、Space を押してから始めた変換の軽い補正に使う時間(既定 200 ms。0 で v3.0.0 のとおり省く)とその読みの数(既定 10)、指定した読みを含む書き換えを記録に出す(開発用)。docs/adr/0074 |
 | `KOTORI_LM_THREADS` | 推論のスレッド数(既定 4) |
 | `KOTORI_LM_PRECEDING`、`KOTORI_LM_CONTEXT_MAP` | 前の文を差し替える(評価) |
 | `KOTORI_LM_TIME`、`KOTORI_LM_STATS`、`KOTORI_LM_TRACE`、`KOTORI_LM_DEBUG` | 時間の内訳、計算量の累計、1 回ごとの計算、候補と点数を stderr に出す |
