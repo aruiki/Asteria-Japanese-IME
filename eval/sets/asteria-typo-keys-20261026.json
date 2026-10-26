@@ -1,0 +1,50 @@
+[
+ {
+  "index": "k01",
+  "context_text": "",
+  "romaji": "ko-hi-wotyuusitusuru",
+  "input": "こーひーをちゅうしつする",
+  "expected_output": [
+   "コーヒーを抽出する"
+  ]
+ },
+ {
+  "index": "k02",
+  "context_text": "",
+  "romaji": "makotonihitureisimasita",
+  "input": "まことにひつれいしました",
+  "expected_output": [
+   "誠に失礼しました",
+   "まことに失礼しました"
+  ]
+ },
+ {
+  "index": "k03",
+  "context_text": "",
+  "romaji": "hoikuennniomukainiikanaito",
+  "input": "ほいくえんにおむかいにいかないと",
+  "expected_output": [
+   "保育園にお迎えに行かないと"
+  ]
+ },
+ {
+  "index": "k04",
+  "context_text": "",
+  "romaji": "kyougakkuniikanaiikenakattanoninazekakyuukouninatteuesiina",
+  "input": "きょうがっくにいかないいけなかったのになぜかきゅうこうになってうえしいな",
+  "expected_output": [
+   "今日学校に行かないといけなかったのになぜか休校になってうれしいな",
+   "今日学校に行かないといけなかったのに何故か休校になってうれしいな",
+   "今日学校に行かないといけなかったのになぜか休校になって嬉しいな"
+  ]
+ },
+ {
+  "index": "k05",
+  "context_text": "",
+  "romaji": "tuzukiwosuru",
+  "input": "つづきをする",
+  "expected_output": [
+   "続きをする"
+  ]
+ }
+]
