@@ -1,0 +1,2873 @@
+[
+ {
+  "index": "passage-judge-000-0",
+  "input": "ろうすいのためしきょした。",
+  "context_text": "",
+  "expected_output": [
+   "老衰のため死去した。",
+   "老衰の為死去した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-000",
+  "source_doc": "news-訃報 村山富市元首相"
+ },
+ {
+  "index": "passage-judge-000-1",
+  "input": "101さいだったFNNぷらいむおんらいんより。",
+  "context_text": "老衰のため死去した。",
+  "expected_output": [
+   "101歳だったFNNプライムオンラインより。",
+   "１０１歳だったFNNプライムオンラインより。"
+  ],
+  "domain": "passage",
+  "passage": "judge-000",
+  "source_doc": "news-訃報 村山富市元首相"
+ },
+ {
+  "index": "passage-judge-000-2",
+  "input": "むらやましは1924ねん、おおいたししゅっしん。",
+  "context_text": "老衰のため死去した。101歳だったFNNプライムオンラインより。",
+  "expected_output": [
+   "村山氏は1924年、大分市出身。",
+   "村山氏は１９２４年、大分市出身。"
+  ],
+  "domain": "passage",
+  "passage": "judge-000",
+  "source_doc": "news-訃報 村山富市元首相"
+ },
+ {
+  "index": "passage-judge-000-3",
+  "input": "おおいたしぎかいぎいんを2き、おおいたけんぎかいぎいんを3きつとめたのち、",
+  "context_text": "老衰のため死去した。101歳だったFNNプライムオンラインより。村山氏は1924年、大分市出身。",
+  "expected_output": [
+   "大分市議会議員を2期、大分県議会議員を3期務めたのち、",
+   "大分市議会議員を２期、大分県議会議員を３期務めたのち、"
+  ],
+  "domain": "passage",
+  "passage": "judge-000",
+  "source_doc": "news-訃報 村山富市元首相"
+ },
+ {
+  "index": "passage-judge-001-0",
+  "input": "それならば、せんなんたくしーかぶしきがいしゃをおすすめします。",
+  "context_text": "",
+  "expected_output": [
+   "それならば、仙南タクシー（株）をおすすめします。",
+   "それならば、仙南タクシー(株)をおすすめします。"
+  ],
+  "domain": "passage",
+  "passage": "judge-001",
+  "source_doc": "mwoz-4540"
+ },
+ {
+  "index": "passage-judge-001-1",
+  "input": "0570021070です。",
+  "context_text": "それならば、仙南タクシー（株）をおすすめします。",
+  "expected_output": [
+   "0570021070です。",
+   "０５７００２１０７０です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-001",
+  "source_doc": "mwoz-4540"
+ },
+ {
+  "index": "passage-judge-001-2",
+  "input": "よやくせいこうしました。",
+  "context_text": "それならば、仙南タクシー（株）をおすすめします。0570021070です。",
+  "expected_output": [
+   "予約成功しました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-001",
+  "source_doc": "mwoz-4540"
+ },
+ {
+  "index": "passage-judge-001-3",
+  "input": "よやくばんごうは80715です。",
+  "context_text": "それならば、仙南タクシー（株）をおすすめします。0570021070です。予約成功しました。",
+  "expected_output": [
+   "予約番号は80715です。",
+   "予約番号は８０７１５です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-001",
+  "source_doc": "mwoz-4540"
+ },
+ {
+  "index": "passage-judge-002-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-002",
+  "source_doc": "mwoz-3223"
+ },
+ {
+  "index": "passage-judge-002-1",
+  "input": "なんかきぼうのようけんはございますか？",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "何か希望の要件はございますか？",
+   "何か希望の要件はございますか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-002",
+  "source_doc": "mwoz-3223"
+ },
+ {
+  "index": "passage-judge-002-2",
+  "input": "もうしわけございません。",
+  "context_text": "かしこまりました。何か希望の要件はございますか？",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-002",
+  "source_doc": "mwoz-3223"
+ },
+ {
+  "index": "passage-judge-002-3",
+  "input": "じょうけんにあうてんぽはみつかりませんでした。",
+  "context_text": "かしこまりました。何か希望の要件はございますか？申し訳ございません。",
+  "expected_output": [
+   "条件に合う店舗は見つかりませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-002",
+  "source_doc": "mwoz-3223"
+ },
+ {
+  "index": "passage-judge-003-0",
+  "input": "いかがでしょうか？",
+  "context_text": "",
+  "expected_output": [
+   "いかがでしょうか？",
+   "いかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-003",
+  "source_doc": "mwoz-3371"
+ },
+ {
+  "index": "passage-judge-003-1",
+  "input": "もうしわけございません。",
+  "context_text": "いかがでしょうか？",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-003",
+  "source_doc": "mwoz-3371"
+ },
+ {
+  "index": "passage-judge-003-2",
+  "input": "いただきましたじょうけんでのごよやくがよういできませんでした。",
+  "context_text": "いかがでしょうか？申し訳ございません。",
+  "expected_output": [
+   "頂きました条件でのご予約が用意できませんでした。",
+   "いただきました条件でのご予約が用意できませんでした。",
+   "いただきました条件でのご予約が用意出来ませんでした。",
+   "頂きました条件でのご予約が用意出来ませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-003",
+  "source_doc": "mwoz-3371"
+ },
+ {
+  "index": "passage-judge-003-3",
+  "input": "いかがいたしましょうか？",
+  "context_text": "いかがでしょうか？申し訳ございません。頂きました条件でのご予約が用意できませんでした。",
+  "expected_output": [
+   "いかがいたしましょうか？",
+   "いかがいたしましょうか?",
+   "いかが致しましょうか?",
+   "いかが致しましょうか？"
+  ],
+  "domain": "passage",
+  "passage": "judge-003",
+  "source_doc": "mwoz-3371"
+ },
+ {
+  "index": "passage-judge-004-0",
+  "input": "へいわこうつうかぶしきがいしゃですね。",
+  "context_text": "",
+  "expected_output": [
+   "平和交通（株）ですね。",
+   "平和交通(株)ですね。"
+  ],
+  "domain": "passage",
+  "passage": "judge-004",
+  "source_doc": "mwoz-4475"
+ },
+ {
+  "index": "passage-judge-004-1",
+  "input": "でんわばんごうは、0924114422でございます。",
+  "context_text": "平和交通（株）ですね。",
+  "expected_output": [
+   "電話番号は、0924114422でございます。",
+   "電話番号は、０９２４１１４４２２でございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-004",
+  "source_doc": "mwoz-4475"
+ },
+ {
+  "index": "passage-judge-004-2",
+  "input": "じゃんぼたくしーは、ひたいおうとなっております。",
+  "context_text": "平和交通（株）ですね。電話番号は、0924114422でございます。",
+  "expected_output": [
+   "ジャンボタクシーは、非対応となっております。"
+  ],
+  "domain": "passage",
+  "passage": "judge-004",
+  "source_doc": "mwoz-4475"
+ },
+ {
+  "index": "passage-judge-004-3",
+  "input": "かしこまりました。",
+  "context_text": "平和交通（株）ですね。電話番号は、0924114422でございます。ジャンボタクシーは、非対応となっております。",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-004",
+  "source_doc": "mwoz-4475"
+ },
+ {
+  "index": "passage-judge-005-0",
+  "input": "こうしえんきゅうじょうをぜんめんてんねんしばにするけいかくをけんとうしていることをあきらかにした。",
+  "context_text": "",
+  "expected_output": [
+   "甲子園球場を全面天然芝にする計画を検討していることを明らかにした。",
+   "甲子園球場を全面天然芝にする計画を検討している事を明らかにした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-005",
+  "source_doc": "news-甲子園球場、来シーズンにも全面天然芝移行か"
+ },
+ {
+  "index": "passage-judge-005-1",
+  "input": "はんしんでんてつのふくすうのかんぶが「ないやにもてんねんしばをはるほうこうでげんざいまえむきにけんとうちゅう。",
+  "context_text": "甲子園球場を全面天然芝にする計画を検討していることを明らかにした。",
+  "expected_output": [
+   "阪神電鉄の複数の幹部が「内野にも天然芝を張る方向で現在前向きに検討中。"
+  ],
+  "domain": "passage",
+  "passage": "judge-005",
+  "source_doc": "news-甲子園球場、来シーズンにも全面天然芝移行か"
+ },
+ {
+  "index": "passage-judge-005-2",
+  "input": "のこるかだいをかいしょうするためにさぎょうをすすめている」とせつめい。",
+  "context_text": "天然芝にする計画を検討していることを明らかにした。阪神電鉄の複数の幹部が「内野にも天然芝を張る方向で現在前向きに検討中。",
+  "expected_output": [
+   "残る課題を解消するために作業を進めている」と説明。",
+   "残る課題を解消する為に作業を進めている」と説明。"
+  ],
+  "domain": "passage",
+  "passage": "judge-005",
+  "source_doc": "news-甲子園球場、来シーズンにも全面天然芝移行か"
+ },
+ {
+  "index": "passage-judge-005-3",
+  "input": "こんご、しばのかんり・いじのかだいをちょうさしたうえで、",
+  "context_text": "阪神電鉄の複数の幹部が「内野にも天然芝を張る方向で現在前向きに検討中。残る課題を解消するために作業を進めている」と説明。",
+  "expected_output": [
+   "今後、芝の管理・維持の課題を調査したうえで、"
+  ],
+  "domain": "passage",
+  "passage": "judge-005",
+  "source_doc": "news-甲子園球場、来シーズンにも全面天然芝移行か"
+ },
+ {
+  "index": "passage-judge-006-0",
+  "input": "もうしわけございません。",
+  "context_text": "",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-006",
+  "source_doc": "mwoz-496"
+ },
+ {
+  "index": "passage-judge-006-1",
+  "input": "そのじょうけんであんないできるところがございませんでした。",
+  "context_text": "申し訳ございません。",
+  "expected_output": [
+   "その条件で案内できるところがございませんでした。",
+   "その条件で案内できる所がございませんでした。",
+   "その条件で案内出来るところがございませんでした。",
+   "その条件で案内出来る所がございませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-006",
+  "source_doc": "mwoz-496"
+ },
+ {
+  "index": "passage-judge-006-2",
+  "input": "いかがなさいますか。",
+  "context_text": "申し訳ございません。その条件で案内できるところがございませんでした。",
+  "expected_output": [
+   "いかがなさいますか。"
+  ],
+  "domain": "passage",
+  "passage": "judge-006",
+  "source_doc": "mwoz-496"
+ },
+ {
+  "index": "passage-judge-006-3",
+  "input": "ではしーさいどほてるついんずももちはいかがでしょうか。",
+  "context_text": "申し訳ございません。その条件で案内できるところがございませんでした。いかがなさいますか。",
+  "expected_output": [
+   "ではシーサイドホテルツインズももちはいかがでしょうか。"
+  ],
+  "domain": "passage",
+  "passage": "judge-006",
+  "source_doc": "mwoz-496"
+ },
+ {
+  "index": "passage-judge-007-0",
+  "input": "このような「えっきょうたいふう」のしゅつげんは、2018ねんのたいふう17ごういらい、5ねんぶりである。",
+  "context_text": "",
+  "expected_output": [
+   "このような「越境台風」の出現は、2018年の台風17号以来、5年ぶりである。",
+   "このような「越境台風」の出現は、２０１８年の台風１７号以来、５年ぶりである。",
+   "この様な「越境台風」の出現は、2018年の台風17号以来、5年ぶりである。",
+   "この様な「越境台風」の出現は、２０１８年の台風１７号以来、５年ぶりである。"
+  ],
+  "domain": "passage",
+  "passage": "judge-007",
+  "source_doc": "news-台風8号 (ドーラ) が発生 5年ぶりの越境台風"
+ },
+ {
+  "index": "passage-judge-007-1",
+  "input": "なお、この「はりけーん・どーら」によるきょうふうのえいきょうで、",
+  "context_text": "このような「越境台風」の出現は、2018年の台風17号以来、5年ぶりである。",
+  "expected_output": [
+   "なお、この「ハリケーン・ドーラ」による強風の影響で、"
+  ],
+  "domain": "passage",
+  "passage": "judge-007",
+  "source_doc": "news-台風8号 (ドーラ) が発生 5年ぶりの越境台風"
+ },
+ {
+  "index": "passage-judge-007-2",
+  "input": "はわいではやまかじのえんしょうがかくだいしたとみられている。",
+  "context_text": "な「越境台風」の出現は、2018年の台風17号以来、5年ぶりである。なお、この「ハリケーン・ドーラ」による強風の影響で、",
+  "expected_output": [
+   "ハワイでは山火事の延焼が拡大したとみられている。"
+  ],
+  "domain": "passage",
+  "passage": "judge-007",
+  "source_doc": "news-台風8号 (ドーラ) が発生 5年ぶりの越境台風"
+ },
+ {
+  "index": "passage-judge-007-3",
+  "input": "はわいのまういとうでは、やまかじによって67にんがしぼうするというおおきなひがいがでている。",
+  "context_text": "来、5年ぶりである。なお、この「ハリケーン・ドーラ」による強風の影響で、ハワイでは山火事の延焼が拡大したとみられている。",
+  "expected_output": [
+   "ハワイのマウイ島では、山火事によって67人が死亡するという大きな被害が出ている。",
+   "ハワイのマウイ島では、山火事によって６７人が死亡するという大きな被害が出ている。"
+  ],
+  "domain": "passage",
+  "passage": "judge-007",
+  "source_doc": "news-台風8号 (ドーラ) が発生 5年ぶりの越境台風"
+ },
+ {
+  "index": "passage-judge-008-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-008",
+  "source_doc": "mwoz-1162"
+ },
+ {
+  "index": "passage-judge-008-1",
+  "input": "ではにっしんこうつうかぶしきがいしゃがございます。",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "では日新交通（株）がございます。",
+   "では日新交通(株)がございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-008",
+  "source_doc": "mwoz-1162"
+ },
+ {
+  "index": "passage-judge-008-2",
+  "input": "こちらじゃんぼたくしーもたいおうしております。",
+  "context_text": "かしこまりました。では日新交通（株）がございます。",
+  "expected_output": [
+   "こちらジャンボタクシーも対応しております。"
+  ],
+  "domain": "passage",
+  "passage": "judge-008",
+  "source_doc": "mwoz-1162"
+ },
+ {
+  "index": "passage-judge-008-3",
+  "input": "でんわばんごうは0120152452でございます。",
+  "context_text": "かしこまりました。では日新交通（株）がございます。こちらジャンボタクシーも対応しております。",
+  "expected_output": [
+   "電話番号は0120152452でございます。",
+   "電話番号は０１２０１５２４５２でございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-008",
+  "source_doc": "mwoz-1162"
+ },
+ {
+  "index": "passage-judge-009-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-009",
+  "source_doc": "mwoz-3534"
+ },
+ {
+  "index": "passage-judge-009-1",
+  "input": "では、もりとうきかんはいかがでしょうか。",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "では、森陶器館はいかがでしょうか。"
+  ],
+  "domain": "passage",
+  "passage": "judge-009",
+  "source_doc": "mwoz-3534"
+ },
+ {
+  "index": "passage-judge-009-2",
+  "input": "ではがせんどうがございます。",
+  "context_text": "かしこまりました。では、森陶器館はいかがでしょうか。",
+  "expected_output": [
+   "では画箋堂がございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-009",
+  "source_doc": "mwoz-3534"
+ },
+ {
+  "index": "passage-judge-009-3",
+  "input": "もうしわけございません。",
+  "context_text": "かしこまりました。では、森陶器館はいかがでしょうか。では画箋堂がございます。",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-009",
+  "source_doc": "mwoz-3534"
+ },
+ {
+  "index": "passage-judge-010-0",
+  "input": "おほーつくかいえんがんにつなみけいほう、ほっかいどうたいへいようえんがんちゅうぶ、ほっかいどうたいへいようえんがんせいぶ、",
+  "context_text": "",
+  "expected_output": [
+   "オホーツク海沿岸に津波警報、北海道太平洋沿岸中部、北海道太平洋沿岸西部、"
+  ],
+  "domain": "passage",
+  "passage": "judge-010",
+  "source_doc": "news-千島列島でM7.8の地震、北海道に津波警報発令"
+ },
+ {
+  "index": "passage-judge-010-1",
+  "input": "ほっかいどうにっぽんかいえんがんほくぶ、あおもりけんたいへいようえんがんおよびいわてけん、みやぎけん、ふくしまけん、いばらきけん、",
+  "context_text": "オホーツク海沿岸に津波警報、北海道太平洋沿岸中部、北海道太平洋沿岸西部、",
+  "expected_output": [
+   "北海道日本海沿岸北部、青森県太平洋沿岸および岩手県、宮城県、福島県、茨城県、",
+   "北海道日本海沿岸北部、青森県太平洋沿岸及び岩手県、宮城県、福島県、茨城県、"
+  ],
+  "domain": "passage",
+  "passage": "judge-010",
+  "source_doc": "news-千島列島でM7.8の地震、北海道に津波警報発令"
+ },
+ {
+  "index": "passage-judge-010-2",
+  "input": "ちばけんくじゅうくり・そとぼう、ちばけんうちぼう、いずしょとう、さがみわん・みうらはんとう、",
+  "context_text": "北海道太平洋沿岸中部、北海道太平洋沿岸西部、北海道日本海沿岸北部、青森県太平洋沿岸および岩手県、宮城県、福島県、茨城県、",
+  "expected_output": [
+   "千葉県九十九里・外房、千葉県内房、伊豆諸島、相模湾・三浦半島、"
+  ],
+  "domain": "passage",
+  "passage": "judge-010",
+  "source_doc": "news-千島列島でM7.8の地震、北海道に津波警報発令"
+ },
+ {
+  "index": "passage-judge-010-3",
+  "input": "しずおかけんのかくえんがんにつなみちゅういほうをはつれいした。",
+  "context_text": "部、青森県太平洋沿岸および岩手県、宮城県、福島県、茨城県、千葉県九十九里・外房、千葉県内房、伊豆諸島、相模湾・三浦半島、",
+  "expected_output": [
+   "静岡県の各沿岸に津波注意報を発令した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-010",
+  "source_doc": "news-千島列島でM7.8の地震、北海道に津波警報発令"
+ },
+ {
+  "index": "passage-judge-011-0",
+  "input": "じゃんぼたくしーにもたいおうしております。",
+  "context_text": "",
+  "expected_output": [
+   "ジャンボタクシーにも対応しております。"
+  ],
+  "domain": "passage",
+  "passage": "judge-011",
+  "source_doc": "mwoz-463"
+ },
+ {
+  "index": "passage-judge-011-1",
+  "input": "でんわばんごうは0120023742でございます。",
+  "context_text": "ジャンボタクシーにも対応しております。",
+  "expected_output": [
+   "電話番号は0120023742でございます。",
+   "電話番号は０１２００２３７４２でございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-011",
+  "source_doc": "mwoz-463"
+ },
+ {
+  "index": "passage-judge-011-2",
+  "input": "ではしゅっぱつちともくてきちをおしえていただけますか。",
+  "context_text": "ジャンボタクシーにも対応しております。電話番号は0120023742でございます。",
+  "expected_output": [
+   "では出発地と目的地を教えていただけますか。"
+  ],
+  "domain": "passage",
+  "passage": "judge-011",
+  "source_doc": "mwoz-463"
+ },
+ {
+  "index": "passage-judge-011-3",
+  "input": "かしこまりました。",
+  "context_text": "ンボタクシーにも対応しております。電話番号は0120023742でございます。では出発地と目的地を教えていただけますか。",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-011",
+  "source_doc": "mwoz-463"
+ },
+ {
+  "index": "passage-judge-012-0",
+  "input": "いっぽう、とうきょうとの2つのこうえんでははとけい54わのしがいがはっけんされた。",
+  "context_text": "",
+  "expected_output": [
+   "一方、東京都の2つの公園ではハト計54羽の死骸が発見された。",
+   "一方、東京都の２つの公園ではハト計５４羽の死骸が発見された。"
+  ],
+  "domain": "passage",
+  "passage": "judge-012",
+  "source_doc": "news-北海道でスズメ、東京でハトがそれぞれ大量死"
+ },
+ {
+  "index": "passage-judge-012-1",
+  "input": "いずれもとりいんふるえんざういるすはかくにんされておらず、",
+  "context_text": "一方、東京都の2つの公園ではハト計54羽の死骸が発見された。",
+  "expected_output": [
+   "いずれもトリインフルエンザウイルスは確認されておらず、"
+  ],
+  "domain": "passage",
+  "passage": "judge-012",
+  "source_doc": "news-北海道でスズメ、東京でハトがそれぞれ大量死"
+ },
+ {
+  "index": "passage-judge-012-2",
+  "input": "しいんもまだとくていされていない。",
+  "context_text": "一方、東京都の2つの公園ではハト計54羽の死骸が発見された。いずれもトリインフルエンザウイルスは確認されておらず、",
+  "expected_output": [
+   "死因もまだ特定されていない。"
+  ],
+  "domain": "passage",
+  "passage": "judge-012",
+  "source_doc": "news-北海道でスズメ、東京でハトがそれぞれ大量死"
+ },
+ {
+  "index": "passage-judge-012-3",
+  "input": "ほっかいどうしんぶんによると、",
+  "context_text": "園ではハト計54羽の死骸が発見された。いずれもトリインフルエンザウイルスは確認されておらず、死因もまだ特定されていない。",
+  "expected_output": [
+   "北海道新聞によると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-012",
+  "source_doc": "news-北海道でスズメ、東京でハトがそれぞれ大量死"
+ },
+ {
+  "index": "passage-judge-013-0",
+  "input": "はい、もよりのえきはしぶやえきで、えりあはしぶやくにがいとういたします。",
+  "context_text": "",
+  "expected_output": [
+   "はい、最寄りの駅は渋谷駅で、エリアは渋谷区に該当致します。",
+   "はい、最寄りの駅は渋谷駅で、エリアは渋谷区に該当いたします。"
+  ],
+  "domain": "passage",
+  "passage": "judge-013",
+  "source_doc": "mwoz-4892"
+ },
+ {
+  "index": "passage-judge-013-1",
+  "input": "おまたせいたしました。",
+  "context_text": "はい、最寄りの駅は渋谷駅で、エリアは渋谷区に該当致します。",
+  "expected_output": [
+   "お待たせ致しました。",
+   "お待たせいたしました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-013",
+  "source_doc": "mwoz-4892"
+ },
+ {
+  "index": "passage-judge-013-2",
+  "input": "よやくばんごう65349でおとりさせていただきました。",
+  "context_text": "はい、最寄りの駅は渋谷駅で、エリアは渋谷区に該当致します。お待たせ致しました。",
+  "expected_output": [
+   "予約番号65349でお取りさせていただきました。",
+   "予約番号65349でお取りさせて頂きました。",
+   "予約番号６５３４９でお取りさせていただきました。",
+   "予約番号６５３４９でお取りさせて頂きました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-013",
+  "source_doc": "mwoz-4892"
+ },
+ {
+  "index": "passage-judge-013-3",
+  "input": "もうしわけありません。",
+  "context_text": "最寄りの駅は渋谷駅で、エリアは渋谷区に該当致します。お待たせ致しました。予約番号65349でお取りさせていただきました。",
+  "expected_output": [
+   "申し訳ありません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-013",
+  "source_doc": "mwoz-4892"
+ },
+ {
+  "index": "passage-judge-014-0",
+  "input": "にっかんすぽーつによると、",
+  "context_text": "",
+  "expected_output": [
+   "日刊スポーツによると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-014",
+  "source_doc": "news-訃報 細川隆一郎氏 - 辛口の政治評論家"
+ },
+ {
+  "index": "passage-judge-014-1",
+  "input": "ほそかわしのいぞくのはなしではこのひごごのちゅうしょくにさしみをたべるなどげんきだったが、",
+  "context_text": "日刊スポーツによると、",
+  "expected_output": [
+   "細川氏の遺族の話ではこの日午後の昼食に刺身を食べるなど元気だったが、",
+   "細川氏の遺族の話ではこの日午後の昼食に刺身を食べる等元気だったが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-014",
+  "source_doc": "news-訃報 細川隆一郎氏 - 辛口の政治評論家"
+ },
+ {
+  "index": "passage-judge-014-2",
+  "input": "よるになってろうそくがきえるかのようにしずかにいきをひきとったという。",
+  "context_text": "日刊スポーツによると、細川氏の遺族の話ではこの日午後の昼食に刺身を食べるなど元気だったが、",
+  "expected_output": [
+   "夜になってロウソクが消えるかのように静かに息を引き取ったという。",
+   "夜になってロウソクが消えるかの様に静かに息を引き取ったという。"
+  ],
+  "domain": "passage",
+  "passage": "judge-014",
+  "source_doc": "news-訃報 細川隆一郎氏 - 辛口の政治評論家"
+ },
+ {
+  "index": "passage-judge-014-3",
+  "input": "りょうめでぃあによると、ほそかわしはふくおかけんうまれのくまもとけんしゅっしん。",
+  "context_text": "の話ではこの日午後の昼食に刺身を食べるなど元気だったが、夜になってロウソクが消えるかのように静かに息を引き取ったという。",
+  "expected_output": [
+   "両メディアによると、細川氏は福岡県生まれの熊本県出身。"
+  ],
+  "domain": "passage",
+  "passage": "judge-014",
+  "source_doc": "news-訃報 細川隆一郎氏 - 辛口の政治評論家"
+ },
+ {
+  "index": "passage-judge-015-0",
+  "input": "とうほくしんかんせんにしんがたしゃりょう「E10けい」をとうにゅうすることをはっぴょうした。",
+  "context_text": "",
+  "expected_output": [
+   "東北新幹線に新型車両「E10系」を投入することを発表した。",
+   "東北新幹線に新型車両「E10系」を投入する事を発表した。",
+   "東北新幹線に新型車両「E１０系」を投入することを発表した。",
+   "東北新幹線に新型車両「E１０系」を投入する事を発表した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-015",
+  "source_doc": "news-東北新幹線に新型車両「E10系」を投入"
+ },
+ {
+  "index": "passage-judge-015-1",
+  "input": "E10けいはじゅうらいしゃりょうのE2けい・E5けいのこうけいしゃりょうとしてかいはつされ、",
+  "context_text": "東北新幹線に新型車両「E10系」を投入することを発表した。",
+  "expected_output": [
+   "E10系は従来車両のE2系・E5系の後継車両として開発され、",
+   "E１０系は従来車両のE２系・E５系の後継車両として開発され、"
+  ],
+  "domain": "passage",
+  "passage": "judge-015",
+  "source_doc": "news-東北新幹線に新型車両「E10系」を投入"
+ },
+ {
+  "index": "passage-judge-015-2",
+  "input": "2027ねんあきいこうにりょうさんせんこうしゃがかんせいしてそうこうしけんをおこなったあと、",
+  "context_text": "東北新幹線に新型車両「E10系」を投入することを発表した。E10系は従来車両のE2系・E5系の後継車両として開発され、",
+  "expected_output": [
+   "2027年秋以降に量産先行車が完成して走行試験を行った後、",
+   "２０２７年秋以降に量産先行車が完成して走行試験を行った後、"
+  ],
+  "domain": "passage",
+  "passage": "judge-015",
+  "source_doc": "news-東北新幹線に新型車両「E10系」を投入"
+ },
+ {
+  "index": "passage-judge-015-3",
+  "input": "2030ねんどのうんこうかいしをめざしている。",
+  "context_text": "。E10系は従来車両のE2系・E5系の後継車両として開発され、2027年秋以降に量産先行車が完成して走行試験を行った後、",
+  "expected_output": [
+   "2030年度の運行開始を目指している。",
+   "２０３０年度の運行開始を目指している。"
+  ],
+  "domain": "passage",
+  "passage": "judge-015",
+  "source_doc": "news-東北新幹線に新型車両「E10系」を投入"
+ },
+ {
+  "index": "passage-judge-016-0",
+  "input": "なんかごきぼうはございますか？",
+  "context_text": "",
+  "expected_output": [
+   "何かご希望はございますか？",
+   "何かご希望はございますか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-016",
+  "source_doc": "mwoz-3237"
+ },
+ {
+  "index": "passage-judge-016-1",
+  "input": "では、えりあでいうとほんちょうにある、おきなわけんりつはくぶつかん・びじゅつかんはいかがでしょう？",
+  "context_text": "何かご希望はございますか？",
+  "expected_output": [
+   "では、エリアでいうと本庁にある、沖縄県立博物館・美術館はいかがでしょう？",
+   "では、エリアでいうと本庁にある、沖縄県立博物館・美術館はいかがでしょう?"
+  ],
+  "domain": "passage",
+  "passage": "judge-016",
+  "source_doc": "mwoz-3237"
+ },
+ {
+  "index": "passage-judge-016-2",
+  "input": "もうしわけありません。",
+  "context_text": "何かご希望はございますか？では、エリアでいうと本庁にある、沖縄県立博物館・美術館はいかがでしょう？",
+  "expected_output": [
+   "申し訳ありません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-016",
+  "source_doc": "mwoz-3237"
+ },
+ {
+  "index": "passage-judge-016-3",
+  "input": "そのじょうけんではごあんないができません。",
+  "context_text": "何かご希望はございますか？では、エリアでいうと本庁にある、沖縄県立博物館・美術館はいかがでしょう？申し訳ありません。",
+  "expected_output": [
+   "その条件ではご案内ができません。",
+   "その条件ではご案内が出来ません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-016",
+  "source_doc": "mwoz-3237"
+ },
+ {
+  "index": "passage-judge-017-0",
+  "input": "あふりかれんごうといったこくさいきかんにひきわたすことをかのうにするほうあんをしんぎちゅうである。",
+  "context_text": "",
+  "expected_output": [
+   "アフリカ連合といった国際機関に引き渡すことを可能にする法案を審議中である。",
+   "アフリカ連合といった国際機関に引き渡す事を可能にする法案を審議中である。"
+  ],
+  "domain": "passage",
+  "passage": "judge-017",
+  "source_doc": "news-ナイジェリア、亡命者引渡し法案を審議―テイラー前リベリア大統領の処遇に影響も"
+ },
+ {
+  "index": "passage-judge-017-1",
+  "input": "このほうあんでは、ないじぇりあじょういんは、ぼうめいしかくのてきようをにんかするけんげんや、",
+  "context_text": "アフリカ連合といった国際機関に引き渡すことを可能にする法案を審議中である。",
+  "expected_output": [
+   "この法案では、ナイジェリア上院は、亡命資格の適用を認可する権限や、"
+  ],
+  "domain": "passage",
+  "passage": "judge-017",
+  "source_doc": "news-ナイジェリア、亡命者引渡し法案を審議―テイラー前リベリア大統領の処遇に影響も"
+ },
+ {
+  "index": "passage-judge-017-2",
+  "input": "ついでぼうめいちゅうのじんぶつをせいきゅうのあったくにやきかんにそうかんするけんげんをうるとしている。",
+  "context_text": "国際機関に引き渡すことを可能にする法案を審議中である。この法案では、ナイジェリア上院は、亡命資格の適用を認可する権限や、",
+  "expected_output": [
+   "次いで亡命中の人物を請求のあった国や機関に送還する権限を得るとしている。"
+  ],
+  "domain": "passage",
+  "passage": "judge-017",
+  "source_doc": "news-ナイジェリア、亡命者引渡し法案を審議―テイラー前リベリア大統領の処遇に影響も"
+ },
+ {
+  "index": "passage-judge-017-3",
+  "input": "ほうあんがかけつされれば、ないじぇりあは、",
+  "context_text": "ジェリア上院は、亡命資格の適用を認可する権限や、次いで亡命中の人物を請求のあった国や機関に送還する権限を得るとしている。",
+  "expected_output": [
+   "法案が可決されれば、ナイジェリアは、"
+  ],
+  "domain": "passage",
+  "passage": "judge-017",
+  "source_doc": "news-ナイジェリア、亡命者引渡し法案を審議―テイラー前リベリア大統領の処遇に影響も"
+ },
+ {
+  "index": "passage-judge-018-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-018",
+  "source_doc": "mwoz-3132"
+ },
+ {
+  "index": "passage-judge-018-1",
+  "input": "ほかにおしらべすることはございませんか？",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "他にお調べすることはございませんか？",
+   "他にお調べすることはございませんか?",
+   "他にお調べする事はございませんか?",
+   "他にお調べする事はございませんか？"
+  ],
+  "domain": "passage",
+  "passage": "judge-018",
+  "source_doc": "mwoz-3132"
+ },
+ {
+  "index": "passage-judge-018-2",
+  "input": "そうしますと、ろっぽんまつ421というところが1けんごあんないかのうです。",
+  "context_text": "かしこまりました。他にお調べすることはございませんか？",
+  "expected_output": [
+   "そうしますと、六本松421というところが１件ご案内可能です。",
+   "そうしますと、六本松421というところが1件ご案内可能です。",
+   "そうしますと、六本松421という所が1件ご案内可能です。",
+   "そうしますと、六本松421という所が１件ご案内可能です。",
+   "そうしますと、六本松４２１というところが１件ご案内可能です。",
+   "そうしますと、六本松４２１という所が１件ご案内可能です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-018",
+  "source_doc": "mwoz-3132"
+ },
+ {
+  "index": "passage-judge-018-3",
+  "input": "いかがでしょうか？",
+  "context_text": "かしこまりました。他にお調べすることはございませんか？そうしますと、六本松421というところが１件ご案内可能です。",
+  "expected_output": [
+   "いかがでしょうか？",
+   "いかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-018",
+  "source_doc": "mwoz-3132"
+ },
+ {
+  "index": "passage-judge-019-0",
+  "input": "よみうりしんぶんによると、はんけつごにきしゃかいけんしたげんこくがわだいりにんのべんごしは、",
+  "context_text": "",
+  "expected_output": [
+   "読売新聞によると、判決後に記者会見した原告側代理人の弁護士は、"
+  ],
+  "domain": "passage",
+  "passage": "judge-019",
+  "source_doc": "news-『蒟蒻畑』の窒息死訴訟、「製品に欠陥無し」と両親の請求棄却"
+ },
+ {
+  "index": "passage-judge-019-1",
+  "input": "「いっぱんしょうひしゃがぜりーのとくせいをにんしきしていたとのにんていはまちがっており、ふとうなはんけつ。",
+  "context_text": "読売新聞によると、判決後に記者会見した原告側代理人の弁護士は、",
+  "expected_output": [
+   "「一般消費者がゼリーの特性を認識していたとの認定は間違っており、不当な判決。"
+  ],
+  "domain": "passage",
+  "passage": "judge-019",
+  "source_doc": "news-『蒟蒻畑』の窒息死訴訟、「製品に欠陥無し」と両親の請求棄却"
+ },
+ {
+  "index": "passage-judge-019-2",
+  "input": "げんこくとそうだんしたうえでこうそするかをきめたい」とこめんとした。",
+  "context_text": "判決後に記者会見した原告側代理人の弁護士は、「一般消費者がゼリーの特性を認識していたとの認定は間違っており、不当な判決。",
+  "expected_output": [
+   "原告と相談した上で控訴するかを決めたい」とコメントした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-019",
+  "source_doc": "news-『蒟蒻畑』の窒息死訴訟、「製品に欠陥無し」と両親の請求棄却"
+ },
+ {
+  "index": "passage-judge-019-3",
+  "input": "よみうりしんぶんがこくみんせいかつせんたーのはなしとしてつたえたところによると、",
+  "context_text": "がゼリーの特性を認識していたとの認定は間違っており、不当な判決。原告と相談した上で控訴するかを決めたい」とコメントした。",
+  "expected_output": [
+   "読売新聞が国民生活センターの話として伝えたところによると、",
+   "読売新聞が国民生活センターの話として伝えた所によると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-019",
+  "source_doc": "news-『蒟蒻畑』の窒息死訴訟、「製品に欠陥無し」と両親の請求棄却"
+ },
+ {
+  "index": "passage-judge-020-0",
+  "input": "ちちはむせいえいがのじだいげきすたーだったふじまりんたろう。",
+  "context_text": "",
+  "expected_output": [
+   "父は無声映画の時代劇スターだった藤間林太郎。"
+  ],
+  "domain": "passage",
+  "passage": "judge-020",
+  "source_doc": "news-俳優の藤田まこと氏が急逝"
+ },
+ {
+  "index": "passage-judge-020-1",
+  "input": "しょうねんじだいをきょうとですごし、19さいのとき、かしゅをこころざしてじょうきょう。",
+  "context_text": "父は無声映画の時代劇スターだった藤間林太郎。",
+  "expected_output": [
+   "少年時代を京都で過ごし、19歳のとき、歌手を志して上京。",
+   "少年時代を京都で過ごし、19歳の時、歌手を志して上京。",
+   "少年時代を京都で過ごし、１９歳のとき、歌手を志して上京。",
+   "少年時代を京都で過ごし、１９歳の時、歌手を志して上京。"
+  ],
+  "domain": "passage",
+  "passage": "judge-020",
+  "source_doc": "news-俳優の藤田まこと氏が急逝"
+ },
+ {
+  "index": "passage-judge-020-2",
+  "input": "げきだんやしかいなどをへてげいのうのみちにはいった。",
+  "context_text": "父は無声映画の時代劇スターだった藤間林太郎。少年時代を京都で過ごし、19歳のとき、歌手を志して上京。",
+  "expected_output": [
+   "劇団や司会などを経て芸能の道に入った。",
+   "劇団や司会等を経て芸能の道に入った。"
+  ],
+  "domain": "passage",
+  "passage": "judge-020",
+  "source_doc": "news-俳優の藤田まこと氏が急逝"
+ },
+ {
+  "index": "passage-judge-020-3",
+  "input": "2002ねんにはしじゅほうしょうをじゅしょうしている。",
+  "context_text": "劇スターだった藤間林太郎。少年時代を京都で過ごし、19歳のとき、歌手を志して上京。劇団や司会などを経て芸能の道に入った。",
+  "expected_output": [
+   "2002年には紫綬褒章を受賞している。",
+   "２００２年には紫綬褒章を受賞している。"
+  ],
+  "domain": "passage",
+  "passage": "judge-020",
+  "source_doc": "news-俳優の藤田まこと氏が急逝"
+ },
+ {
+  "index": "passage-judge-021-0",
+  "input": "でんわばんごうは、0668383788です。",
+  "context_text": "",
+  "expected_output": [
+   "電話番号は、0668383788です。",
+   "電話番号は、０６６８３８３７８８です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-021",
+  "source_doc": "mwoz-1036"
+ },
+ {
+  "index": "passage-judge-021-1",
+  "input": "よやくできました。",
+  "context_text": "電話番号は、0668383788です。",
+  "expected_output": [
+   "予約出来ました。",
+   "予約できました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-021",
+  "source_doc": "mwoz-1036"
+ },
+ {
+  "index": "passage-judge-021-2",
+  "input": "よやくばんごうは、16992です。",
+  "context_text": "電話番号は、0668383788です。予約出来ました。",
+  "expected_output": [
+   "予約番号は、16992です。",
+   "予約番号は、１６９９２です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-021",
+  "source_doc": "mwoz-1036"
+ },
+ {
+  "index": "passage-judge-021-3",
+  "input": "ほかにごようけんはございますか？",
+  "context_text": "電話番号は、0668383788です。予約出来ました。予約番号は、16992です。",
+  "expected_output": [
+   "他にご用件はございますか？",
+   "他にご用件はございますか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-021",
+  "source_doc": "mwoz-1036"
+ },
+ {
+  "index": "passage-judge-022-0",
+  "input": "どりるとよばれるぐんたいのこうしんきょくのりずむをとりいれたりずむこうせいにとくちょうがあった。",
+  "context_text": "",
+  "expected_output": [
+   "ドリルと呼ばれる軍隊の行進曲のリズムを取り入れたリズム構成に特徴があった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-022",
+  "source_doc": "news-訃報 フランキー・ジーさん"
+ },
+ {
+  "index": "passage-judge-022-1",
+  "input": "このりずむはみりたりーらっぷとよばれ、のりがよいとひょうかされ、",
+  "context_text": "ドリルと呼ばれる軍隊の行進曲のリズムを取り入れたリズム構成に特徴があった。",
+  "expected_output": [
+   "このリズムはミリタリーラップと呼ばれ、ノリがよいと評価され、"
+  ],
+  "domain": "passage",
+  "passage": "judge-022",
+  "source_doc": "news-訃報 フランキー・ジーさん"
+ },
+ {
+  "index": "passage-judge-022-2",
+  "input": "おうべいやにっぽんをはじめこくさいてきににんきをはくした。",
+  "context_text": "る軍隊の行進曲のリズムを取り入れたリズム構成に特徴があった。このリズムはミリタリーラップと呼ばれ、ノリがよいと評価され、",
+  "expected_output": [
+   "欧米や日本をはじめ国際的に人気を博した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-022",
+  "source_doc": "news-訃報 フランキー・ジーさん"
+ },
+ {
+  "index": "passage-judge-022-3",
+  "input": "きんねんはすぺいんのまよるかとうにいじゅうし、ぱるまにすんでいた。",
+  "context_text": "構成に特徴があった。このリズムはミリタリーラップと呼ばれ、ノリがよいと評価され、欧米や日本をはじめ国際的に人気を博した。",
+  "expected_output": [
+   "近年はスペインのマヨルカ島に移住し、パルマに住んでいた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-022",
+  "source_doc": "news-訃報 フランキー・ジーさん"
+ },
+ {
+  "index": "passage-judge-023-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-023",
+  "source_doc": "mwoz-3671"
+ },
+ {
+  "index": "passage-judge-023-1",
+  "input": "なんかほかのきぼうのようけんはございますか？",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "何か他の希望の要件はございますか？",
+   "何か他の希望の要件はございますか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-023",
+  "source_doc": "mwoz-3671"
+ },
+ {
+  "index": "passage-judge-023-2",
+  "input": "かしこまりました。",
+  "context_text": "かしこまりました。何か他の希望の要件はございますか？",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-023",
+  "source_doc": "mwoz-3671"
+ },
+ {
+  "index": "passage-judge-023-3",
+  "input": "であればまるほしこうつうはいかがですか？",
+  "context_text": "かしこまりました。何か他の希望の要件はございますか？かしこまりました。",
+  "expected_output": [
+   "であれば丸星交通はいかがですか？",
+   "であれば丸星交通はいかがですか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-023",
+  "source_doc": "mwoz-3671"
+ },
+ {
+  "index": "passage-judge-024-0",
+  "input": "もうしわけございません。",
+  "context_text": "",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-024",
+  "source_doc": "mwoz-3652"
+ },
+ {
+  "index": "passage-judge-024-1",
+  "input": "そのじょうけんではおさがしすることができませんでした。",
+  "context_text": "申し訳ございません。",
+  "expected_output": [
+   "その条件ではお探しすることが出来ませんでした。",
+   "その条件ではお探しすることができませんでした。",
+   "その条件ではお探しする事ができませんでした。",
+   "その条件ではお探しする事が出来ませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-024",
+  "source_doc": "mwoz-3652"
+ },
+ {
+  "index": "passage-judge-024-2",
+  "input": "かしこまりました。",
+  "context_text": "申し訳ございません。その条件ではお探しすることが出来ませんでした。",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-024",
+  "source_doc": "mwoz-3652"
+ },
+ {
+  "index": "passage-judge-024-3",
+  "input": "それではけいおうぷらざほてるさっぽろはいかがでしょうか？",
+  "context_text": "申し訳ございません。その条件ではお探しすることが出来ませんでした。かしこまりました。",
+  "expected_output": [
+   "それでは京王プラザホテル札幌はいかがでしょうか？",
+   "それでは京王プラザホテル札幌はいかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-024",
+  "source_doc": "mwoz-3652"
+ },
+ {
+  "index": "passage-judge-025-0",
+  "input": "そくじつかいひょうされた。",
+  "context_text": "",
+  "expected_output": [
+   "即日開票された。"
+  ],
+  "domain": "passage",
+  "passage": "judge-025",
+  "source_doc": "news-サルコジ、ロワイヤル両候補で決選投票へ―フランス大統領選"
+ },
+ {
+  "index": "passage-judge-025-1",
+  "input": "ぱりきょうどう＝にしにっぽんしんぶんによればだいとうりょうしゅうにんにはかはんすうのとくひょうがひつようであり、",
+  "context_text": "即日開票された。",
+  "expected_output": [
+   "パリ共同＝西日本新聞によれば大統領就任には過半数の得票が必要であり、",
+   "パリ共同=西日本新聞によれば大統領就任には過半数の得票が必要であり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-025",
+  "source_doc": "news-サルコジ、ロワイヤル両候補で決選投票へ―フランス大統領選"
+ },
+ {
+  "index": "passage-judge-025-2",
+  "input": "こんかいのとうひょうではそのようけんをみたすひとがいなかったため、",
+  "context_text": "即日開票された。パリ共同＝西日本新聞によれば大統領就任には過半数の得票が必要であり、",
+  "expected_output": [
+   "今回の投票ではその要件を満たす人がいなかったため、",
+   "今回の投票ではその要件を満たす人がいなかった為、"
+  ],
+  "domain": "passage",
+  "passage": "judge-025",
+  "source_doc": "news-サルコジ、ロワイヤル両候補で決選投票へ―フランス大統領選"
+ },
+ {
+  "index": "passage-judge-025-3",
+  "input": "とくひょうりつじょうい2めいのこうほのあいだでけっせんとうひょうがおこなわれることになった。",
+  "context_text": "。パリ共同＝西日本新聞によれば大統領就任には過半数の得票が必要であり、今回の投票ではその要件を満たす人がいなかったため、",
+  "expected_output": [
+   "得票率上位2名の候補の間で決選投票が行われることになった。",
+   "得票率上位2名の候補の間で決選投票が行われる事になった。",
+   "得票率上位２名の候補の間で決選投票が行われることになった。",
+   "得票率上位２名の候補の間で決選投票が行われる事になった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-025",
+  "source_doc": "news-サルコジ、ロワイヤル両候補で決選投票へ―フランス大統領選"
+ },
+ {
+  "index": "passage-judge-026-0",
+  "input": "もうしわけありません、このじょうけんではごあんないができません。",
+  "context_text": "",
+  "expected_output": [
+   "申し訳ありません、この条件ではご案内ができません。",
+   "申し訳ありません、この条件ではご案内が出来ません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-026",
+  "source_doc": "mwoz-4234"
+ },
+ {
+  "index": "passage-judge-026-1",
+  "input": "いかがいたしましょう？",
+  "context_text": "申し訳ありません、この条件ではご案内ができません。",
+  "expected_output": [
+   "いかが致しましょう？",
+   "いかがいたしましょう?",
+   "いかがいたしましょう？",
+   "いかが致しましょう?"
+  ],
+  "domain": "passage",
+  "passage": "judge-026",
+  "source_doc": "mwoz-4234"
+ },
+ {
+  "index": "passage-judge-026-2",
+  "input": "ありがとうございます。",
+  "context_text": "申し訳ありません、この条件ではご案内ができません。いかが致しましょう？",
+  "expected_output": [
+   "ありがとうございます。",
+   "有り難うございます。",
+   "有難うございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-026",
+  "source_doc": "mwoz-4234"
+ },
+ {
+  "index": "passage-judge-026-3",
+  "input": "では、うしやせいにくてんはいかがでしょう？",
+  "context_text": "申し訳ありません、この条件ではご案内ができません。いかが致しましょう？ありがとうございます。",
+  "expected_output": [
+   "では、うしや精肉店はいかがでしょう？",
+   "では、うしや精肉店はいかがでしょう?"
+  ],
+  "domain": "passage",
+  "passage": "judge-026",
+  "source_doc": "mwoz-4234"
+ },
+ {
+  "index": "passage-judge-027-0",
+  "input": "ぱろまみずほすたじあむは、あじあたいかいにむけかいちくがおこなわれており、",
+  "context_text": "",
+  "expected_output": [
+   "パロマ瑞穂スタジアムは、アジア大会に向け改築が行なわれており、"
+  ],
+  "domain": "passage",
+  "passage": "judge-027",
+  "source_doc": "news-改修後のパロマ瑞穂スタジアム、初公開 オリンピック選手視察"
+ },
+ {
+  "index": "passage-judge-027-1",
+  "input": "3がつまつにかんせいするよてい。",
+  "context_text": "パロマ瑞穂スタジアムは、アジア大会に向け改築が行なわれており、",
+  "expected_output": [
+   "3月末に完成する予定。",
+   "３月末に完成する予定。"
+  ],
+  "domain": "passage",
+  "passage": "judge-027",
+  "source_doc": "news-改修後のパロマ瑞穂スタジアム、初公開 オリンピック選手視察"
+ },
+ {
+  "index": "passage-judge-027-2",
+  "input": "2がつ19かにはつこうかいされたすたじあむをしさつしたのは、いいづかしょうたせんしゅ、さとうふうがせんしゅ、",
+  "context_text": "パロマ瑞穂スタジアムは、アジア大会に向け改築が行なわれており、3月末に完成する予定。",
+  "expected_output": [
+   "2月19日に初公開されたスタジアムを視察したのは、飯塚翔太選手、佐藤風雅選手、",
+   "２月１９日に初公開されたスタジアムを視察したのは、飯塚翔太選手、佐藤風雅選手、"
+  ],
+  "domain": "passage",
+  "passage": "judge-027",
+  "source_doc": "news-改修後のパロマ瑞穂スタジアム、初公開 オリンピック選手視察"
+ },
+ {
+  "index": "passage-judge-027-3",
+  "input": "でぃーんげんきせんしゅ。",
+  "context_text": "築が行なわれており、3月末に完成する予定。2月19日に初公開されたスタジアムを視察したのは、飯塚翔太選手、佐藤風雅選手、",
+  "expected_output": [
+   "ディーン元気選手。"
+  ],
+  "domain": "passage",
+  "passage": "judge-027",
+  "source_doc": "news-改修後のパロマ瑞穂スタジアム、初公開 オリンピック選手視察"
+ },
+ {
+  "index": "passage-judge-028-0",
+  "input": "「かたーれとやま」ときまった。",
+  "context_text": "",
+  "expected_output": [
+   "「カターレ富山」と決まった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-028",
+  "source_doc": "news-富山のサッカー社会人新チーム名は「カターレ富山」"
+ },
+ {
+  "index": "passage-judge-028-1",
+  "input": "にっかんときたにっぽんほうそう、きたにっぽんしんぶんによると、",
+  "context_text": "「カターレ富山」と決まった。",
+  "expected_output": [
+   "日刊と北日本放送、北日本新聞によると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-028",
+  "source_doc": "news-富山のサッカー社会人新チーム名は「カターレ富山」"
+ },
+ {
+  "index": "passage-judge-028-2",
+  "input": "とやまけんほうめんで「かて」をいみする「かたれ」や、",
+  "context_text": "「カターレ富山」と決まった。日刊と北日本放送、北日本新聞によると、",
+  "expected_output": [
+   "富山県方面で「勝て」を意味する「勝たれ」や、"
+  ],
+  "domain": "passage",
+  "passage": "judge-028",
+  "source_doc": "news-富山のサッカー社会人新チーム名は「カターレ富山」"
+ },
+ {
+  "index": "passage-judge-028-3",
+  "input": "いたりあごの「うた」をいみする「かんたーれ」、",
+  "context_text": "「カターレ富山」と決まった。日刊と北日本放送、北日本新聞によると、富山県方面で「勝て」を意味する「勝たれ」や、",
+  "expected_output": [
+   "イタリア語の「歌」を意味する「カンターレ」、"
+  ],
+  "domain": "passage",
+  "passage": "judge-028",
+  "source_doc": "news-富山のサッカー社会人新チーム名は「カターレ富山」"
+ },
+ {
+  "index": "passage-judge-029-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-029",
+  "source_doc": "mwoz-441"
+ },
+ {
+  "index": "passage-judge-029-1",
+  "input": "なにか、ごきぼうのじょうけんはございますか？",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "なにか、ご希望の条件はございますか？",
+   "なにか、ご希望の条件はございますか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-029",
+  "source_doc": "mwoz-441"
+ },
+ {
+  "index": "passage-judge-029-2",
+  "input": "かしこまりました。",
+  "context_text": "かしこまりました。なにか、ご希望の条件はございますか？",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-029",
+  "source_doc": "mwoz-441"
+ },
+ {
+  "index": "passage-judge-029-3",
+  "input": "では、りょかんめいりゅうはいかがでしょうか？",
+  "context_text": "かしこまりました。なにか、ご希望の条件はございますか？かしこまりました。",
+  "expected_output": [
+   "では、旅館名龍はいかがでしょうか？",
+   "では、旅館名龍はいかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-029",
+  "source_doc": "mwoz-441"
+ },
+ {
+  "index": "passage-judge-030-0",
+  "input": "たいへんもうしわけございません。",
+  "context_text": "",
+  "expected_output": [
+   "大変申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-030",
+  "source_doc": "mwoz-1982"
+ },
+ {
+  "index": "passage-judge-030-1",
+  "input": "そのじょうけんですと、ごあんないできるところがみつかりませんでした。",
+  "context_text": "大変申し訳ございません。",
+  "expected_output": [
+   "その条件ですと、ご案内できるところが見つかりませんでした。",
+   "その条件ですと、ご案内できる所が見つかりませんでした。",
+   "その条件ですと、ご案内出来るところが見つかりませんでした。",
+   "その条件ですと、ご案内出来る所が見つかりませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-030",
+  "source_doc": "mwoz-1982"
+ },
+ {
+  "index": "passage-judge-030-2",
+  "input": "ありがとうございます。",
+  "context_text": "大変申し訳ございません。その条件ですと、ご案内できるところが見つかりませんでした。",
+  "expected_output": [
+   "ありがとうございます。",
+   "有り難うございます。",
+   "有難うございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-030",
+  "source_doc": "mwoz-1982"
+ },
+ {
+  "index": "passage-judge-030-3",
+  "input": "そうしますと、11けんほどごあんないかのうです。",
+  "context_text": "大変申し訳ございません。その条件ですと、ご案内できるところが見つかりませんでした。ありがとうございます。",
+  "expected_output": [
+   "そうしますと、11件ほどご案内可能です。",
+   "そうしますと、11件程ご案内可能です。",
+   "そうしますと、１１件ほどご案内可能です。",
+   "そうしますと、１１件程ご案内可能です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-030",
+  "source_doc": "mwoz-1982"
+ },
+ {
+  "index": "passage-judge-031-0",
+  "input": "はい、じゃんぼたくしーにはたいおうしておりますが、きゃっしゅれすへのたいおうはふめいです。",
+  "context_text": "",
+  "expected_output": [
+   "はい、ジャンボタクシーには対応しておりますが、キャッシュレスへの対応は不明です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-031",
+  "source_doc": "mwoz-1774"
+ },
+ {
+  "index": "passage-judge-031-1",
+  "input": "でんわばんごうは、0570075678となります。",
+  "context_text": "はい、ジャンボタクシーには対応しておりますが、キャッシュレスへの対応は不明です。",
+  "expected_output": [
+   "電話番号は、0570075678となります。",
+   "電話番号は、０５７００７５６７８となります。"
+  ],
+  "domain": "passage",
+  "passage": "judge-031",
+  "source_doc": "mwoz-1774"
+ },
+ {
+  "index": "passage-judge-031-2",
+  "input": "もうしわけありません。",
+  "context_text": "、ジャンボタクシーには対応しておりますが、キャッシュレスへの対応は不明です。電話番号は、0570075678となります。",
+  "expected_output": [
+   "申し訳ありません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-031",
+  "source_doc": "mwoz-1774"
+ },
+ {
+  "index": "passage-judge-031-3",
+  "input": "このじょうけんではよやくができませんでした。",
+  "context_text": "には対応しておりますが、キャッシュレスへの対応は不明です。電話番号は、0570075678となります。申し訳ありません。",
+  "expected_output": [
+   "この条件では予約ができませんでした。",
+   "この条件では予約が出来ませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-031",
+  "source_doc": "mwoz-1774"
+ },
+ {
+  "index": "passage-judge-032-0",
+  "input": "たからたくしーだいさんは、いかがでしょうか？",
+  "context_text": "",
+  "expected_output": [
+   "宝タクシー第三は、いかがでしょうか？",
+   "宝タクシー第三は、いかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-032",
+  "source_doc": "mwoz-1296"
+ },
+ {
+  "index": "passage-judge-032-1",
+  "input": "でんわばんごうは、0526826000です。",
+  "context_text": "宝タクシー第三は、いかがでしょうか？",
+  "expected_output": [
+   "電話番号は、0526826000です。",
+   "電話番号は、０５２６８２６０００です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-032",
+  "source_doc": "mwoz-1296"
+ },
+ {
+  "index": "passage-judge-032-2",
+  "input": "もうしわけありません。",
+  "context_text": "宝タクシー第三は、いかがでしょうか？電話番号は、0526826000です。",
+  "expected_output": [
+   "申し訳ありません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-032",
+  "source_doc": "mwoz-1296"
+ },
+ {
+  "index": "passage-judge-032-3",
+  "input": "そのじょうけんでは、よやくできませんでした。",
+  "context_text": "宝タクシー第三は、いかがでしょうか？電話番号は、0526826000です。申し訳ありません。",
+  "expected_output": [
+   "その条件では、予約出来ませんでした。",
+   "その条件では、予約できませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-032",
+  "source_doc": "mwoz-1296"
+ },
+ {
+  "index": "passage-judge-033-0",
+  "input": "1997ねんには、",
+  "context_text": "",
+  "expected_output": [
+   "1997年には、",
+   "１９９７年には、"
+  ],
+  "domain": "passage",
+  "passage": "judge-033",
+  "source_doc": "news-訃報 灰谷健次郎氏"
+ },
+ {
+  "index": "passage-judge-033-1",
+  "input": "こうべしでおきたじけんのしょうねんようぎしゃのかおしゃしんをしゅうかんしにけいさいしたしんちょうしゃをひはんし、",
+  "context_text": "1997年には、",
+  "expected_output": [
+   "神戸市で起きた事件の少年容疑者の顔写真を週刊誌に掲載した新潮社を批判し、"
+  ],
+  "domain": "passage",
+  "passage": "judge-033",
+  "source_doc": "news-訃報 灰谷健次郎氏"
+ },
+ {
+  "index": "passage-judge-033-2",
+  "input": "どうしゃとのすべてのけいやくをかいしょうした。",
+  "context_text": "1997年には、神戸市で起きた事件の少年容疑者の顔写真を週刊誌に掲載した新潮社を批判し、",
+  "expected_output": [
+   "同社とのすべての契約を解消した。",
+   "同社との全ての契約を解消した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-033",
+  "source_doc": "news-訃報 灰谷健次郎氏"
+ },
+ {
+  "index": "passage-judge-033-3",
+  "input": "にっかんすぽーつによると、2004ねん12がつにしょくどうがんであることがはんめい。",
+  "context_text": "1997年には、神戸市で起きた事件の少年容疑者の顔写真を週刊誌に掲載した新潮社を批判し、同社とのすべての契約を解消した。",
+  "expected_output": [
+   "日刊スポーツによると、2004年12月に食道がんであることが判明。",
+   "日刊スポーツによると、2004年12月に食道がんである事が判明。",
+   "日刊スポーツによると、２００４年１２月に食道がんであることが判明。",
+   "日刊スポーツによると、２００４年１２月に食道がんである事が判明。"
+  ],
+  "domain": "passage",
+  "passage": "judge-033",
+  "source_doc": "news-訃報 灰谷健次郎氏"
+ },
+ {
+  "index": "passage-judge-034-0",
+  "input": "でんわばんごうは0120915502でございます。",
+  "context_text": "",
+  "expected_output": [
+   "電話番号は0120915502でございます。",
+   "電話番号は０１２０９１５５０２でございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-034",
+  "source_doc": "mwoz-1649"
+ },
+ {
+  "index": "passage-judge-034-1",
+  "input": "かしこまりました。",
+  "context_text": "電話番号は0120915502でございます。",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-034",
+  "source_doc": "mwoz-1649"
+ },
+ {
+  "index": "passage-judge-034-2",
+  "input": "よやくがかんりょういたしました。",
+  "context_text": "電話番号は0120915502でございます。かしこまりました。",
+  "expected_output": [
+   "予約が完了いたしました。",
+   "予約が完了致しました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-034",
+  "source_doc": "mwoz-1649"
+ },
+ {
+  "index": "passage-judge-034-3",
+  "input": "よやくばんごうは88957でございます。",
+  "context_text": "電話番号は0120915502でございます。かしこまりました。予約が完了いたしました。",
+  "expected_output": [
+   "予約番号は88957でございます。",
+   "予約番号は８８９５７でございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-034",
+  "source_doc": "mwoz-1649"
+ },
+ {
+  "index": "passage-judge-035-0",
+  "input": "4しょう1はい・かちてん12でかこさいこうの2い・ぎんめだるとなった。",
+  "context_text": "",
+  "expected_output": [
+   "4勝1敗・勝ち点12で過去最高の2位・銀メダルとなった。",
+   "4勝1敗・勝ち点12で過去最高の2くらい・銀メダルとなった。",
+   "４勝１敗・勝ち点１２で過去最高の２くらい・銀メダルとなった。",
+   "４勝１敗・勝ち点１２で過去最高の２位・銀メダルとなった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-035",
+  "source_doc": "news-バレーボール女子ワールドグランプリ、日本が初の準優勝で銀メダルを獲得"
+ },
+ {
+  "index": "passage-judge-035-1",
+  "input": "ゆうしょうは4しょう1はい・かちてん13のぶらじるで、2ねんれんぞく10かいめ。",
+  "context_text": "4勝1敗・勝ち点12で過去最高の2位・銀メダルとなった。",
+  "expected_output": [
+   "優勝は4勝1敗・勝ち点13のブラジルで、2年連続10回目。",
+   "優勝は４勝１敗・勝ち点１３のブラジルで、２年連続１０回目。"
+  ],
+  "domain": "passage",
+  "passage": "judge-035",
+  "source_doc": "news-バレーボール女子ワールドグランプリ、日本が初の準優勝で銀メダルを獲得"
+ },
+ {
+  "index": "passage-judge-035-2",
+  "input": "わーるどぐらんぷりでのにっぽんだいひょうのめだるかくとくははじめて。",
+  "context_text": "4勝1敗・勝ち点12で過去最高の2位・銀メダルとなった。優勝は4勝1敗・勝ち点13のブラジルで、2年連続10回目。",
+  "expected_output": [
+   "ワールドグランプリでの日本代表のメダル獲得は初めて。"
+  ],
+  "domain": "passage",
+  "passage": "judge-035",
+  "source_doc": "news-バレーボール女子ワールドグランプリ、日本が初の準優勝で銀メダルを獲得"
+ },
+ {
+  "index": "passage-judge-035-3",
+  "input": "1977ねんわーるどかっぷいらいのしゅようなこくさいたいかいでのゆうしょうははたせなかったが、",
+  "context_text": "となった。優勝は4勝1敗・勝ち点13のブラジルで、2年連続10回目。ワールドグランプリでの日本代表のメダル獲得は初めて。",
+  "expected_output": [
+   "1977年ワールドカップ以来の主要な国際大会での優勝は果たせなかったが、",
+   "１９７７年ワールドカップ以来の主要な国際大会での優勝は果たせなかったが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-035",
+  "source_doc": "news-バレーボール女子ワールドグランプリ、日本が初の準優勝で銀メダルを獲得"
+ },
+ {
+  "index": "passage-judge-036-0",
+  "input": "とうきょうしんぶんによると、",
+  "context_text": "",
+  "expected_output": [
+   "東京新聞によると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-036",
+  "source_doc": "news-台風13号、日本海へ抜ける―死者・不明者10人、負傷は250人超える"
+ },
+ {
+  "index": "passage-judge-036-1",
+  "input": "このたいふうによるししゃはひろしま・ふくおか・さが・おおいた・みやざきのかくけんであわせて9にんとなり、",
+  "context_text": "東京新聞によると、",
+  "expected_output": [
+   "この台風による死者は広島・福岡・佐賀・大分・宮崎の各県であわせて9人となり、",
+   "この台風による死者は広島・福岡・佐賀・大分・宮崎の各県であわせて９人となり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-036",
+  "source_doc": "news-台風13号、日本海へ抜ける―死者・不明者10人、負傷は250人超える"
+ },
+ {
+  "index": "passage-judge-036-2",
+  "input": "ひろしましのしんぶんきしゃのだんせいのゆくえもまだわかっていない。",
+  "context_text": "東京新聞によると、この台風による死者は広島・福岡・佐賀・大分・宮崎の各県であわせて9人となり、",
+  "expected_output": [
+   "広島市の新聞記者の男性の行方もまだ分かっていない。"
+  ],
+  "domain": "passage",
+  "passage": "judge-036",
+  "source_doc": "news-台風13号、日本海へ抜ける―死者・不明者10人、負傷は250人超える"
+ },
+ {
+  "index": "passage-judge-036-3",
+  "input": "よみうりしんぶんととうきょうしんぶんによれば、このうちみやざきけんのべおかしでは、",
+  "context_text": "風による死者は広島・福岡・佐賀・大分・宮崎の各県であわせて9人となり、広島市の新聞記者の男性の行方もまだ分かっていない。",
+  "expected_output": [
+   "読売新聞と東京新聞によれば、このうち宮崎県延岡市では、"
+  ],
+  "domain": "passage",
+  "passage": "judge-036",
+  "source_doc": "news-台風13号、日本海へ抜ける―死者・不明者10人、負傷は250人超える"
+ },
+ {
+  "index": "passage-judge-037-0",
+  "input": "2010ねんをめどに18くらぶいじょうにするもくひょうをさだめた。",
+  "context_text": "",
+  "expected_output": [
+   "2010年をメドに18クラブ以上にする目標を定めた。",
+   "２０１０年をメドに１８クラブ以上にする目標を定めた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-037",
+  "source_doc": "news-J2リーグ・2010年をメドに18クラブへ拡大へ"
+ },
+ {
+  "index": "passage-judge-037-1",
+  "input": "また、げんざいのJ2かめいきじゅんもめいかくなないようにあらためて、",
+  "context_text": "2010年をメドに18クラブ以上にする目標を定めた。",
+  "expected_output": [
+   "また、現在のJ2加盟基準も明確な内容に改めて、",
+   "また、現在のJ２加盟基準も明確な内容に改めて、",
+   "又、現在のJ2加盟基準も明確な内容に改めて、",
+   "又、現在のJ２加盟基準も明確な内容に改めて、"
+  ],
+  "domain": "passage",
+  "passage": "judge-037",
+  "source_doc": "news-J2リーグ・2010年をメドに18クラブへ拡大へ"
+ },
+ {
+  "index": "passage-judge-037-2",
+  "input": "かくくらぶのけいえいどりょくをうながすこともていげんしており、",
+  "context_text": "2010年をメドに18クラブ以上にする目標を定めた。また、現在のJ2加盟基準も明確な内容に改めて、",
+  "expected_output": [
+   "各クラブの経営努力を促すことも提言しており、",
+   "各クラブの経営努力を促す事も提言しており、"
+  ],
+  "domain": "passage",
+  "passage": "judge-037",
+  "source_doc": "news-J2リーグ・2010年をメドに18クラブへ拡大へ"
+ },
+ {
+  "index": "passage-judge-037-3",
+  "input": "あらたなにゅうかいきじゅんとしてにゅうかいぜんねんどの「1しあいへいきんのかんきゃくどういんが3000にんいじょう」、",
+  "context_text": "クラブ以上にする目標を定めた。また、現在のJ2加盟基準も明確な内容に改めて、各クラブの経営努力を促すことも提言しており、",
+  "expected_output": [
+   "新たな入会基準として入会前年度の「1試合平均の観客動員が3000人以上」、",
+   "新たな入会基準として入会前年度の「１試合平均の観客動員が３０００人以上」、"
+  ],
+  "domain": "passage",
+  "passage": "judge-037",
+  "source_doc": "news-J2リーグ・2010年をメドに18クラブへ拡大へ"
+ },
+ {
+  "index": "passage-judge-038-0",
+  "input": "でんわばんごうは、0647020011です。",
+  "context_text": "",
+  "expected_output": [
+   "電話番号は、0647020011です。",
+   "電話番号は、０６４７０２００１１です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-038",
+  "source_doc": "mwoz-579"
+ },
+ {
+  "index": "passage-judge-038-1",
+  "input": "ごよやくをおとりしましょうか？",
+  "context_text": "電話番号は、0647020011です。",
+  "expected_output": [
+   "ご予約をおとりしましょうか？",
+   "ご予約をおとりしましょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-038",
+  "source_doc": "mwoz-579"
+ },
+ {
+  "index": "passage-judge-038-2",
+  "input": "もうしわけございません。",
+  "context_text": "電話番号は、0647020011です。ご予約をおとりしましょうか？",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-038",
+  "source_doc": "mwoz-579"
+ },
+ {
+  "index": "passage-judge-038-3",
+  "input": "ごきぼうのじょうけんではよやくをとることができませんでした。",
+  "context_text": "電話番号は、0647020011です。ご予約をおとりしましょうか？申し訳ございません。",
+  "expected_output": [
+   "ご希望の条件では予約をとることができませんでした。",
+   "ご希望の条件では予約をとることが出来ませんでした。",
+   "ご希望の条件では予約をとる事ができませんでした。",
+   "ご希望の条件では予約をとる事が出来ませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-038",
+  "source_doc": "mwoz-579"
+ },
+ {
+  "index": "passage-judge-039-0",
+  "input": "またあさひしんぶんは、うすいさんのすむかすかべしのきんじょのじゅうみんのしょうげんとして、",
+  "context_text": "",
+  "expected_output": [
+   "また朝日新聞は、臼井さんの住む春日部市の近所の住民の証言として、",
+   "又朝日新聞は、臼井さんの住む春日部市の近所の住民の証言として、"
+  ],
+  "domain": "passage",
+  "passage": "judge-039",
+  "source_doc": "news-漫画家・臼井儀人さんが失踪 - 「クレヨンしんちゃん」の原作者"
+ },
+ {
+  "index": "passage-judge-039-1",
+  "input": "うすいさんはしんこうしゅうきょうににゅうしんし、たがくのきふもいっていたらしく、",
+  "context_text": "また朝日新聞は、臼井さんの住む春日部市の近所の住民の証言として、",
+  "expected_output": [
+   "臼井さんは新興宗教に入信し、多額の寄付も行っていたらしく、"
+  ],
+  "domain": "passage",
+  "passage": "judge-039",
+  "source_doc": "news-漫画家・臼井儀人さんが失踪 - 「クレヨンしんちゃん」の原作者"
+ },
+ {
+  "index": "passage-judge-039-2",
+  "input": "これをめぐってははおやともめることがあったとほうじている。",
+  "context_text": "た朝日新聞は、臼井さんの住む春日部市の近所の住民の証言として、臼井さんは新興宗教に入信し、多額の寄付も行っていたらしく、",
+  "expected_output": [
+   "これをめぐって母親ともめることがあったと報じている。",
+   "これをめぐって母親ともめる事があったと報じている。"
+  ],
+  "domain": "passage",
+  "passage": "judge-039",
+  "source_doc": "news-漫画家・臼井儀人さんが失踪 - 「クレヨンしんちゃん」の原作者"
+ },
+ {
+  "index": "passage-judge-039-3",
+  "input": "そのため、このようなふわがげんいんでいえでをしたかのうせいもあるとしてきしている。",
+  "context_text": "言として、臼井さんは新興宗教に入信し、多額の寄付も行っていたらしく、これをめぐって母親ともめることがあったと報じている。",
+  "expected_output": [
+   "そのため、このような不和が原因で家出をした可能性もあると指摘している。",
+   "そのため、この様な不和が原因で家出をした可能性もあると指摘している。",
+   "その為、このような不和が原因で家出をした可能性もあると指摘している。",
+   "その為、この様な不和が原因で家出をした可能性もあると指摘している。"
+  ],
+  "domain": "passage",
+  "passage": "judge-039",
+  "source_doc": "news-漫画家・臼井儀人さんが失踪 - 「クレヨンしんちゃん」の原作者"
+ },
+ {
+  "index": "passage-judge-040-0",
+  "input": "どうげつちゅうにそうぎょうしゃのむすこでとうじしゃちょうであったじんぶつがじさつ、とらぶるがひんぱつした。",
+  "context_text": "",
+  "expected_output": [
+   "同月中に創業者の息子で当時社長であった人物が自殺、トラブルが頻発した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-040",
+  "source_doc": "news-松本引越センターが民事再生法の適用を申請"
+ },
+ {
+  "index": "passage-judge-040-1",
+  "input": "どうしゃのせつめいによると、これらのそうどうのあとに、",
+  "context_text": "同月中に創業者の息子で当時社長であった人物が自殺、トラブルが頻発した。",
+  "expected_output": [
+   "同社の説明によると、これらの騒動の後に、"
+  ],
+  "domain": "passage",
+  "passage": "judge-040",
+  "source_doc": "news-松本引越センターが民事再生法の適用を申請"
+ },
+ {
+  "index": "passage-judge-040-2",
+  "input": "とりひきぎんこう14ぎょうのうち7ぎょうからゆうしをうけられなくなり、",
+  "context_text": "同月中に創業者の息子で当時社長であった人物が自殺、トラブルが頻発した。同社の説明によると、これらの騒動の後に、",
+  "expected_output": [
+   "取引銀行14行のうち7行から融資を受けられなくなり、",
+   "取引銀行１４行のうち７行から融資を受けられなくなり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-040",
+  "source_doc": "news-松本引越センターが民事再生法の適用を申請"
+ },
+ {
+  "index": "passage-judge-040-3",
+  "input": "しきんくりにいきづまったのがとうさんのげんいんとし、",
+  "context_text": "が自殺、トラブルが頻発した。同社の説明によると、これらの騒動の後に、取引銀行14行のうち7行から融資を受けられなくなり、",
+  "expected_output": [
+   "資金繰りに行き詰まったのが倒産の原因とし、"
+  ],
+  "domain": "passage",
+  "passage": "judge-040",
+  "source_doc": "news-松本引越センターが民事再生法の適用を申請"
+ },
+ {
+  "index": "passage-judge-041-0",
+  "input": "さんけいしんぶんによると、",
+  "context_text": "",
+  "expected_output": [
+   "産経新聞によると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-041",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡"
+ },
+ {
+  "index": "passage-judge-041-1",
+  "input": "くらもとさんはうたれたあとただちにびょういんにはんそうされたがじけん10ふんごの7じ25ふんにしぼうした。",
+  "context_text": "産経新聞によると、",
+  "expected_output": [
+   "倉本さんは撃たれた後直ちに病院に搬送されたが事件10分後の7時25分に死亡した。",
+   "倉本さんは撃たれた後直ちに病院に搬送されたが事件10分後の7とき25分に死亡した。",
+   "倉本さんは撃たれた後直ちに病院に搬送されたが事件１０分後の７とき２５分に死亡した。",
+   "倉本さんは撃たれた後直ちに病院に搬送されたが事件１０分後の７時２５分に死亡した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-041",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡"
+ },
+ {
+  "index": "passage-judge-041-2",
+  "input": "にしにっぽんによると、るねさんすのせつめいで、くらもとさんはとうじぷーるにいたが、",
+  "context_text": "産経新聞によると、倉本さんは撃たれた後直ちに病院に搬送されたが事件10分後の7時25分に死亡した。",
+  "expected_output": [
+   "西日本によると、ルネサンスの説明で、倉本さんは当時プールにいたが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-041",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡"
+ },
+ {
+  "index": "passage-judge-041-3",
+  "input": "ほかのすたっふからにげるようにいわれてこどもらとじむしつににげこんだが、",
+  "context_text": "病院に搬送されたが事件10分後の7時25分に死亡した。西日本によると、ルネサンスの説明で、倉本さんは当時プールにいたが、",
+  "expected_output": [
+   "他のスタッフから逃げるように言われて子供らと事務室に逃げ込んだが、",
+   "他のスタッフから逃げる様に言われて子供らと事務室に逃げ込んだが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-041",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡"
+ },
+ {
+  "index": "passage-judge-042-0",
+  "input": "たいへんもうしわけございません。",
+  "context_text": "",
+  "expected_output": [
+   "大変申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-042",
+  "source_doc": "mwoz-1594"
+ },
+ {
+  "index": "passage-judge-042-1",
+  "input": "そのじょうけんですと、ごあんないできるところがみつかりませんでした。",
+  "context_text": "大変申し訳ございません。",
+  "expected_output": [
+   "その条件ですと、ご案内できるところが見つかりませんでした。",
+   "その条件ですと、ご案内できる所が見つかりませんでした。",
+   "その条件ですと、ご案内出来るところが見つかりませんでした。",
+   "その条件ですと、ご案内出来る所が見つかりませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-042",
+  "source_doc": "mwoz-1594"
+ },
+ {
+  "index": "passage-judge-042-2",
+  "input": "ありがとうございます。",
+  "context_text": "大変申し訳ございません。その条件ですと、ご案内できるところが見つかりませんでした。",
+  "expected_output": [
+   "ありがとうございます。",
+   "有り難うございます。",
+   "有難うございます。"
+  ],
+  "domain": "passage",
+  "passage": "judge-042",
+  "source_doc": "mwoz-1594"
+ },
+ {
+  "index": "passage-judge-042-3",
+  "input": "では、なんばやさかじんじゃはいかがでしょうか？",
+  "context_text": "大変申し訳ございません。その条件ですと、ご案内できるところが見つかりませんでした。ありがとうございます。",
+  "expected_output": [
+   "では、難波八坂神社はいかがでしょうか？",
+   "では、難波八坂神社はいかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-042",
+  "source_doc": "mwoz-1594"
+ },
+ {
+  "index": "passage-judge-043-0",
+  "input": "とらんぷだいとうりょうは、ぐたいてきなふくあんこそしめさなかったものの、",
+  "context_text": "",
+  "expected_output": [
+   "トランプ大統領は、具体的な腹案こそ示さなかったものの、",
+   "トランプ大統領は、具体的な腹案こそ示さなかった物の、"
+  ],
+  "domain": "passage",
+  "passage": "judge-043",
+  "source_doc": "news-トランプ大統領、北朝鮮のミサイル発射を受けて「偉大な同盟国日本を100％支持する」と記者会見で明言"
+ },
+ {
+  "index": "passage-judge-043-1",
+  "input": "どうめいこくのにっぽんをぜんめんてきにしじするはつげんをした。",
+  "context_text": "トランプ大統領は、具体的な腹案こそ示さなかったものの、",
+  "expected_output": [
+   "同盟国の日本を全面的に支持する発言をした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-043",
+  "source_doc": "news-トランプ大統領、北朝鮮のミサイル発射を受けて「偉大な同盟国日本を100％支持する」と記者会見で明言"
+ },
+ {
+  "index": "passage-judge-043-2",
+  "input": "すなわち、「わたくしがすべてのひとにりかいしてもらい、またしってもらいたいことは、",
+  "context_text": "トランプ大統領は、具体的な腹案こそ示さなかったものの、同盟国の日本を全面的に支持する発言をした。",
+  "expected_output": [
+   "すなわち、「私が全ての人に理解してもらい、また知ってもらいたいことは、",
+   "すなわち、「私がすべての人に理解してもらい、また知ってもらいたいことは、",
+   "すなわち、「私がすべての人に理解してもらい、また知ってもらいたい事は、",
+   "すなわち、「私がすべての人に理解してもらい、又知ってもらいたいことは、",
+   "すなわち、「私がすべての人に理解してもらい、又知ってもらいたい事は、",
+   "すなわち、「私が全ての人に理解してもらい、また知ってもらいたい事は、",
+   "すなわち、「私が全ての人に理解してもらい、又知ってもらいたいことは、",
+   "すなわち、「私が全ての人に理解してもらい、又知ってもらいたい事は、"
+  ],
+  "domain": "passage",
+  "passage": "judge-043",
+  "source_doc": "news-トランプ大統領、北朝鮮のミサイル発射を受けて「偉大な同盟国日本を100％支持する」と記者会見で明言"
+ },
+ {
+  "index": "passage-judge-043-3",
+  "input": "べいこくはいだいなどうめいこくであるにっぽんをしじするということだ。",
+  "context_text": "ものの、同盟国の日本を全面的に支持する発言をした。すなわち、「私が全ての人に理解してもらい、また知ってもらいたいことは、",
+  "expected_output": [
+   "米国は偉大な同盟国である日本を支持するということだ。",
+   "米国は偉大な同盟国である日本を支持するという事だ。"
+  ],
+  "domain": "passage",
+  "passage": "judge-043",
+  "source_doc": "news-トランプ大統領、北朝鮮のミサイル発射を受けて「偉大な同盟国日本を100％支持する」と記者会見で明言"
+ },
+ {
+  "index": "passage-judge-044-0",
+  "input": "もうしわけございません。",
+  "context_text": "",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-044",
+  "source_doc": "mwoz-4934"
+ },
+ {
+  "index": "passage-judge-044-1",
+  "input": "もうしわけございません。",
+  "context_text": "申し訳ございません。",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-044",
+  "source_doc": "mwoz-4934"
+ },
+ {
+  "index": "passage-judge-044-2",
+  "input": "ごしょうかいできるしせつがございません。",
+  "context_text": "申し訳ございません。申し訳ございません。",
+  "expected_output": [
+   "ご紹介できる施設がございません。",
+   "ご紹介出来る施設がございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-044",
+  "source_doc": "mwoz-4934"
+ },
+ {
+  "index": "passage-judge-044-3",
+  "input": "18けんみつかりました。",
+  "context_text": "申し訳ございません。申し訳ございません。ご紹介できる施設がございません。",
+  "expected_output": [
+   "18件見つかりました。",
+   "１８件見つかりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-044",
+  "source_doc": "mwoz-4934"
+ },
+ {
+  "index": "passage-judge-045-0",
+  "input": "おおさかしつるみくのまんしょんで、",
+  "context_text": "",
+  "expected_output": [
+   "大阪市鶴見区のマンションで、"
+  ],
+  "domain": "passage",
+  "passage": "judge-045",
+  "source_doc": "news-大阪市鶴見区で頼まれて父親を殺害した塗装工少年を逮捕"
+ },
+ {
+  "index": "passage-judge-045-1",
+  "input": "このまんしょんのじゅうにんから「ちちおやからころしてくれとたのまれて、",
+  "context_text": "大阪市鶴見区のマンションで、",
+  "expected_output": [
+   "このマンションの住人から「父親から殺してくれと頼まれて、"
+  ],
+  "domain": "passage",
+  "passage": "judge-045",
+  "source_doc": "news-大阪市鶴見区で頼まれて父親を殺害した塗装工少年を逮捕"
+ },
+ {
+  "index": "passage-judge-045-2",
+  "input": "ころした」と110ばんつうほうがあった。",
+  "context_text": "大阪市鶴見区のマンションで、このマンションの住人から「父親から殺してくれと頼まれて、",
+  "expected_output": [
+   "殺した」と110番通報があった。",
+   "殺した」と１１０番通報があった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-045",
+  "source_doc": "news-大阪市鶴見区で頼まれて父親を殺害した塗装工少年を逮捕"
+ },
+ {
+  "index": "passage-judge-045-3",
+  "input": "つるみけいさつしょしょいんがかけつけたところ、",
+  "context_text": "大阪市鶴見区のマンションで、このマンションの住人から「父親から殺してくれと頼まれて、殺した」と110番通報があった。",
+  "expected_output": [
+   "鶴見警察署署員が駆けつけたところ、",
+   "鶴見警察署署員が駆けつけた所、"
+  ],
+  "domain": "passage",
+  "passage": "judge-045",
+  "source_doc": "news-大阪市鶴見区で頼まれて父親を殺害した塗装工少年を逮捕"
+ },
+ {
+  "index": "passage-judge-046-0",
+  "input": "だい2ぴりおどでもぽいんとをうばえないままとなったが、",
+  "context_text": "",
+  "expected_output": [
+   "第2ピリオドでもポイントを奪えないままとなったが、",
+   "第２ピリオドでもポイントを奪えないままとなったが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-046",
+  "source_doc": "news-レスリング女子58kg級・伊調馨選手が金メダル獲得、女子選手初の五輪4連覇 - リオデジャネイロオリンピック13日目"
+ },
+ {
+  "index": "passage-judge-046-1",
+  "input": "のこり30びょうでこぶろわぞろぼわせんしゅのたっくるをつかまえると、",
+  "context_text": "第2ピリオドでもポイントを奪えないままとなったが、",
+  "expected_output": [
+   "残り30秒でコブロワゾロボワ選手のタックルを捕まえると、",
+   "残り３０秒でコブロワゾロボワ選手のタックルを捕まえると、"
+  ],
+  "domain": "passage",
+  "passage": "judge-046",
+  "source_doc": "news-レスリング女子58kg級・伊調馨選手が金メダル獲得、女子選手初の五輪4連覇 - リオデジャネイロオリンピック13日目"
+ },
+ {
+  "index": "passage-judge-046-2",
+  "input": "なんとかあいてにつかまれたみぎあしをはずししあいしゅうりょうまぎわ4びょうまえでばっくをとりぎゃくてん、",
+  "context_text": "第2ピリオドでもポイントを奪えないままとなったが、残り30秒でコブロワゾロボワ選手のタックルを捕まえると、",
+  "expected_output": [
+   "何とか相手に捕まれた右足を外し試合終了間際4秒前でバックを取り逆転、",
+   "何とか相手に捕まれた右足を外し試合終了間際４秒前でバックを取り逆転、"
+  ],
+  "domain": "passage",
+  "passage": "judge-046",
+  "source_doc": "news-レスリング女子58kg級・伊調馨選手が金メダル獲得、女子選手初の五輪4連覇 - リオデジャネイロオリンピック13日目"
+ },
+ {
+  "index": "passage-judge-046-3",
+  "input": "3-2でしょうりをきめた。",
+  "context_text": "30秒でコブロワゾロボワ選手のタックルを捕まえると、何とか相手に捕まれた右足を外し試合終了間際4秒前でバックを取り逆転、",
+  "expected_output": [
+   "3-2で勝利を決めた。",
+   "３-２で勝利を決めた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-046",
+  "source_doc": "news-レスリング女子58kg級・伊調馨選手が金メダル獲得、女子選手初の五輪4連覇 - リオデジャネイロオリンピック13日目"
+ },
+ {
+  "index": "passage-judge-047-0",
+  "input": "65さいいじょうのほうとちゅうこうせいは300えんで、しょうがくせいは200えんとなっております。",
+  "context_text": "",
+  "expected_output": [
+   "65歳以上の方と中高生は300円で、小学生は200円となっております。",
+   "６５歳以上の方と中高生は３００円で、小学生は２００円となっております。"
+  ],
+  "domain": "passage",
+  "passage": "judge-047",
+  "source_doc": "mwoz-3062"
+ },
+ {
+  "index": "passage-judge-047-1",
+  "input": "もうしわけございません。",
+  "context_text": "65歳以上の方と中高生は300円で、小学生は200円となっております。",
+  "expected_output": [
+   "申し訳ございません。"
+  ],
+  "domain": "passage",
+  "passage": "judge-047",
+  "source_doc": "mwoz-3062"
+ },
+ {
+  "index": "passage-judge-047-2",
+  "input": "じょうけんにあうてんぽはみつかりませんでした。",
+  "context_text": "65歳以上の方と中高生は300円で、小学生は200円となっております。申し訳ございません。",
+  "expected_output": [
+   "条件に合う店舗は見つかりませんでした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-047",
+  "source_doc": "mwoz-3062"
+ },
+ {
+  "index": "passage-judge-047-3",
+  "input": "それでしたら、みっどらんどすくえあはいかがですか？",
+  "context_text": "上の方と中高生は300円で、小学生は200円となっております。申し訳ございません。条件に合う店舗は見つかりませんでした。",
+  "expected_output": [
+   "それでしたら、ミッドランドスクエアはいかがですか？",
+   "それでしたら、ミッドランドスクエアはいかがですか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-047",
+  "source_doc": "mwoz-3062"
+ },
+ {
+  "index": "passage-judge-048-0",
+  "input": "どうげつ7かにならけんいこましのじたくちかくからなにわしょににんいどうこう、",
+  "context_text": "",
+  "expected_output": [
+   "同月7日に奈良県生駒市の自宅近くから浪速署に任意同行、",
+   "同月７日に奈良県生駒市の自宅近くから浪速署に任意同行、"
+  ],
+  "domain": "passage",
+  "passage": "judge-048",
+  "source_doc": "news-殺人事件の容疑者を逮捕前に捜査員と同宿、事実上逮捕前に身柄拘束? - 大阪府警"
+ },
+ {
+  "index": "passage-judge-048-1",
+  "input": "よるになるまでちょうしゅをおこなったが、じけんにかんするきょうじゅつはえられなかった。",
+  "context_text": "同月7日に奈良県生駒市の自宅近くから浪速署に任意同行、",
+  "expected_output": [
+   "夜になるまで聴取を行ったが、事件に関する供述は得られなかった。",
+   "夜になる迄聴取を行ったが、事件に関する供述は得られなかった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-048",
+  "source_doc": "news-殺人事件の容疑者を逮捕前に捜査員と同宿、事実上逮捕前に身柄拘束? - 大阪府警"
+ },
+ {
+  "index": "passage-judge-048-2",
+  "input": "こうしたけーすでは、つうじょうはきたくさせるが、そうさたんとうしゃは「とうぼうのおそれはないが、",
+  "context_text": "同月7日に奈良県生駒市の自宅近くから浪速署に任意同行、夜になるまで聴取を行ったが、事件に関する供述は得られなかった。",
+  "expected_output": [
+   "こうしたケースでは、通常は帰宅させるが、捜査担当者は「逃亡の虞は無いが、"
+  ],
+  "domain": "passage",
+  "passage": "judge-048",
+  "source_doc": "news-殺人事件の容疑者を逮捕前に捜査員と同宿、事実上逮捕前に身柄拘束? - 大阪府警"
+ },
+ {
+  "index": "passage-judge-048-3",
+  "input": "かこにじさつをはかったことがあり、じぼうじきになるおそれがある」とはんだん、",
+  "context_text": "取を行ったが、事件に関する供述は得られなかった。こうしたケースでは、通常は帰宅させるが、捜査担当者は「逃亡の虞は無いが、",
+  "expected_output": [
+   "過去に自殺を図ったことがあり、自暴自棄になる虞がある」と判断、",
+   "過去に自殺を図った事があり、自暴自棄になる虞がある」と判断、"
+  ],
+  "domain": "passage",
+  "passage": "judge-048",
+  "source_doc": "news-殺人事件の容疑者を逮捕前に捜査員と同宿、事実上逮捕前に身柄拘束? - 大阪府警"
+ },
+ {
+  "index": "passage-judge-049-0",
+  "input": "きしゃだんにたいし、「うちゅうをへいわりようするけんりは、どのくににもある」とのべた。",
+  "context_text": "",
+  "expected_output": [
+   "記者団に対し、「宇宙を平和利用する権利は、どの国にもある」と述べた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-049",
+  "source_doc": "news-北朝鮮国連大使、「宇宙開発は共通の権利」"
+ },
+ {
+  "index": "passage-judge-049-1",
+  "input": "これは、きたちょうせんがしゅちょうするじんこうえいせいのうちあげをおこなってから、",
+  "context_text": "記者団に対し、「宇宙を平和利用する権利は、どの国にもある」と述べた。",
+  "expected_output": [
+   "これは、北朝鮮が主張する人工衛星の打ち上げを行ってから、"
+  ],
+  "domain": "passage",
+  "passage": "judge-049",
+  "source_doc": "news-北朝鮮国連大使、「宇宙開発は共通の権利」"
+ },
+ {
+  "index": "passage-judge-049-2",
+  "input": "はじめてきたちょうせんがおおやけのばでたちばをひょうめいしたものだったとつたえた。",
+  "context_text": "団に対し、「宇宙を平和利用する権利は、どの国にもある」と述べた。これは、北朝鮮が主張する人工衛星の打ち上げを行ってから、",
+  "expected_output": [
+   "初めて北朝鮮が公の場で立場を表明したものだったと伝えた。",
+   "初めて北朝鮮が公の場で立場を表明した物だったと伝えた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-049",
+  "source_doc": "news-北朝鮮国連大使、「宇宙開発は共通の権利」"
+ },
+ {
+  "index": "passage-judge-049-3",
+  "input": "まいにちしんぶんとちゅうにちしんぶんによると、「あんぽりがなんらかのたいおうをすれば、",
+  "context_text": "述べた。これは、北朝鮮が主張する人工衛星の打ち上げを行ってから、初めて北朝鮮が公の場で立場を表明したものだったと伝えた。",
+  "expected_output": [
+   "毎日新聞と中日新聞によると、「安保理が何らかの対応をすれば、"
+  ],
+  "domain": "passage",
+  "passage": "judge-049",
+  "source_doc": "news-北朝鮮国連大使、「宇宙開発は共通の権利」"
+ },
+ {
+  "index": "passage-judge-050-0",
+  "input": "とうきょうとこうとうくとよす6ちょうめ1-16です。",
+  "context_text": "",
+  "expected_output": [
+   "東京都江東区豊洲6丁目1-16です。",
+   "東京都江東区豊洲６丁目１-１６です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-050",
+  "source_doc": "mwoz-4537"
+ },
+ {
+  "index": "passage-judge-050-1",
+  "input": "とうきょうでかんいしゅくしょといえばいくつかありますが、すみだながやをおすすめします。",
+  "context_text": "東京都江東区豊洲6丁目1-16です。",
+  "expected_output": [
+   "東京で簡易宿所といえばいくつかありますが、墨田長屋をおすすめします。"
+  ],
+  "domain": "passage",
+  "passage": "judge-050",
+  "source_doc": "mwoz-4537"
+ },
+ {
+  "index": "passage-judge-050-2",
+  "input": "ねだんたいはやすめですが、りょうきんしょうさいまではふめいです。",
+  "context_text": "東京都江東区豊洲6丁目1-16です。東京で簡易宿所といえばいくつかありますが、墨田長屋をおすすめします。",
+  "expected_output": [
+   "値段帯はやすめですが、料金詳細までは不明です。",
+   "値段帯はやすめですが、料金詳細迄は不明です。"
+  ],
+  "domain": "passage",
+  "passage": "judge-050",
+  "source_doc": "mwoz-4537"
+ },
+ {
+  "index": "passage-judge-050-3",
+  "input": "よやくせいこうしました。",
+  "context_text": "です。東京で簡易宿所といえばいくつかありますが、墨田長屋をおすすめします。値段帯はやすめですが、料金詳細までは不明です。",
+  "expected_output": [
+   "予約成功しました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-050",
+  "source_doc": "mwoz-4537"
+ },
+ {
+  "index": "passage-judge-051-0",
+  "input": "きょうごぜん5じのはっぴょうをさいごにしゅうりょうした。",
+  "context_text": "",
+  "expected_output": [
+   "今日午前5時の発表を最後に終了した。",
+   "今日午前5ときの発表を最後に終了した。",
+   "今日午前５ときの発表を最後に終了した。",
+   "今日午前５時の発表を最後に終了した。"
+  ],
+  "domain": "passage",
+  "passage": "judge-051",
+  "source_doc": "news-熱中症警戒アラート過去最多の計1232回"
+ },
+ {
+  "index": "passage-judge-051-1",
+  "input": "ことしのねっちゅうしょうけいかいあらーとのはっぴょうかいすうは1232かいとなり、",
+  "context_text": "今日午前5時の発表を最後に終了した。",
+  "expected_output": [
+   "今年の熱中症警戒アラートの発表回数は1232回となり、",
+   "今年の熱中症警戒アラートの発表回数は１２３２回となり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-051",
+  "source_doc": "news-熱中症警戒アラート過去最多の計1232回"
+ },
+ {
+  "index": "passage-judge-051-2",
+  "input": "はっぴょうかいすうがはじめて1000かいをこえた。",
+  "context_text": "今日午前5時の発表を最後に終了した。今年の熱中症警戒アラートの発表回数は1232回となり、",
+  "expected_output": [
+   "発表回数が初めて1000回を超えた。",
+   "発表回数が初めて１０００回を超えた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-051",
+  "source_doc": "news-熱中症警戒アラート過去最多の計1232回"
+ },
+ {
+  "index": "passage-judge-051-3",
+  "input": "かんきょうしょうによると、ぜんこく58ちいきへのはっぴょうかいすうはけい1232かいとなり、",
+  "context_text": "前5時の発表を最後に終了した。今年の熱中症警戒アラートの発表回数は1232回となり、発表回数が初めて1000回を超えた。",
+  "expected_output": [
+   "環境省によると、全国58地域への発表回数は計1232回となり、",
+   "環境省によると、全国５８地域への発表回数は計１２３２回となり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-051",
+  "source_doc": "news-熱中症警戒アラート過去最多の計1232回"
+ },
+ {
+  "index": "passage-judge-052-0",
+  "input": "げんちけいさつがおうしゅうしたたいま20とんをまちのちゅうしんぶのあきちでいっせいにしょうきゃくしょぶんし、",
+  "context_text": "",
+  "expected_output": [
+   "現地警察が押収した大麻20トンを街の中心部の空き地で一斉に焼却処分し、",
+   "現地警察が押収した大麻２０トンを街の中心部の空き地で一斉に焼却処分し、"
+  ],
+  "domain": "passage",
+  "passage": "judge-052",
+  "source_doc": "news-トルコ 押収した大麻を空き地で焼却、健康被害も"
+ },
+ {
+  "index": "passage-judge-052-1",
+  "input": "たいりょうのけむりがすうじつにわたってまちにたちこめた。",
+  "context_text": "現地警察が押収した大麻20トンを街の中心部の空き地で一斉に焼却処分し、",
+  "expected_output": [
+   "大量の煙が数日にわたって街に立ち込めた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-052",
+  "source_doc": "news-トルコ 押収した大麻を空き地で焼却、健康被害も"
+ },
+ {
+  "index": "passage-judge-052-2",
+  "input": "そのけっか、じゅうみんにはめまいやはきけ、こきゅうこんなん、",
+  "context_text": "現地警察が押収した大麻20トンを街の中心部の空き地で一斉に焼却処分し、大量の煙が数日にわたって街に立ち込めた。",
+  "expected_output": [
+   "その結果、住民には目眩や吐き気、呼吸困難、"
+  ],
+  "domain": "passage",
+  "passage": "judge-052",
+  "source_doc": "news-トルコ 押収した大麻を空き地で焼却、健康被害も"
+ },
+ {
+  "index": "passage-judge-052-3",
+  "input": "さらにはげんかくしょうじょうといったけんこうひがいのうったえがあいついだという。",
+  "context_text": "街の中心部の空き地で一斉に焼却処分し、大量の煙が数日にわたって街に立ち込めた。その結果、住民には目眩や吐き気、呼吸困難、",
+  "expected_output": [
+   "さらには幻覚症状といった健康被害の訴えが相次いだという。",
+   "更には幻覚症状といった健康被害の訴えが相次いだという。"
+  ],
+  "domain": "passage",
+  "passage": "judge-052",
+  "source_doc": "news-トルコ 押収した大麻を空き地で焼却、健康被害も"
+ },
+ {
+  "index": "passage-judge-053-0",
+  "input": "りょうしんにしらせずないしょであめりかをしゅっこくし、くうぇーとににゅうこく、",
+  "context_text": "",
+  "expected_output": [
+   "両親に知らせず内緒でアメリカを出国し、クウェートに入国、"
+  ],
+  "domain": "passage",
+  "passage": "judge-053",
+  "source_doc": "news-アメリカの16歳少年、イラクへ一人旅"
+ },
+ {
+  "index": "passage-judge-053-1",
+  "input": "いらくとのこっきょうちたいにたくしーでむかった。",
+  "context_text": "両親に知らせず内緒でアメリカを出国し、クウェートに入国、",
+  "expected_output": [
+   "イラクとの国境地帯にタクシーで向かった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-053",
+  "source_doc": "news-アメリカの16歳少年、イラクへ一人旅"
+ },
+ {
+  "index": "passage-judge-053-2",
+  "input": "しかしちょうどいらくはこくみんぎかいせんきょぜんごのけいかいたいせいがしかれており、",
+  "context_text": "両親に知らせず内緒でアメリカを出国し、クウェートに入国、イラクとの国境地帯にタクシーで向かった。",
+  "expected_output": [
+   "しかしちょうどイラクは国民議会選挙前後の警戒態勢が敷かれており、"
+  ],
+  "domain": "passage",
+  "passage": "judge-053",
+  "source_doc": "news-アメリカの16歳少年、イラクへ一人旅"
+ },
+ {
+  "index": "passage-judge-053-3",
+  "input": "こっきょうがふうさされていらくににゅうこくできなかった。",
+  "context_text": "ウェートに入国、イラクとの国境地帯にタクシーで向かった。しかしちょうどイラクは国民議会選挙前後の警戒態勢が敷かれており、",
+  "expected_output": [
+   "国境が封鎖されてイラクに入国できなかった。",
+   "国境が封鎖されてイラクに入国出来なかった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-053",
+  "source_doc": "news-アメリカの16歳少年、イラクへ一人旅"
+ },
+ {
+  "index": "passage-judge-054-0",
+  "input": "そふはきびしいひとだったのでへやにはいることができなかった」とあかした。",
+  "context_text": "",
+  "expected_output": [
+   "祖父は厳しい人だったので部屋に入ることが出来なかった」と明かした。",
+   "祖父は厳しい人だったので部屋に入ることができなかった」と明かした。",
+   "祖父は厳しい人だったので部屋に入る事ができなかった」と明かした。",
+   "祖父は厳しい人だったので部屋に入る事が出来なかった」と明かした。"
+  ],
+  "domain": "passage",
+  "passage": "judge-054",
+  "source_doc": "news-「東京都内最高齢111歳」の老人、30年以上前に死んでいた? 自宅に遺体見つかる"
+ },
+ {
+  "index": "passage-judge-054-1",
+  "input": "みつかったいたいは1かいしんしつのべっどじょうでみつかり、したぎやはだぎをつけて、",
+  "context_text": "祖父は厳しい人だったので部屋に入ることが出来なかった」と明かした。",
+  "expected_output": [
+   "見つかった遺体は1階寝室のベッド上で見つかり、下着や肌着をつけて、",
+   "見つかった遺体は１階寝室のベッド上で見つかり、下着や肌着をつけて、"
+  ],
+  "domain": "passage",
+  "passage": "judge-054",
+  "source_doc": "news-「東京都内最高齢111歳」の老人、30年以上前に死んでいた? 自宅に遺体見つかる"
+ },
+ {
+  "index": "passage-judge-054-2",
+  "input": "もうふがかけられたじょうたい。",
+  "context_text": "人だったので部屋に入ることが出来なかった」と明かした。見つかった遺体は1階寝室のベッド上で見つかり、下着や肌着をつけて、",
+  "expected_output": [
+   "毛布がかけられた状態。"
+  ],
+  "domain": "passage",
+  "passage": "judge-054",
+  "source_doc": "news-「東京都内最高齢111歳」の老人、30年以上前に死んでいた? 自宅に遺体見つかる"
+ },
+ {
+  "index": "passage-judge-054-3",
+  "input": "またいたいはいちぶはっこつかしたじょうたいでみいらかしていた。",
+  "context_text": "ことが出来なかった」と明かした。見つかった遺体は1階寝室のベッド上で見つかり、下着や肌着をつけて、毛布がかけられた状態。",
+  "expected_output": [
+   "また遺体は一部白骨化した状態でミイラ化していた。",
+   "又遺体は一部白骨化した状態でミイラ化していた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-054",
+  "source_doc": "news-「東京都内最高齢111歳」の老人、30年以上前に死んでいた? 自宅に遺体見つかる"
+ },
+ {
+  "index": "passage-judge-055-0",
+  "input": "ふけいによるときたむらようぎしゃは「いほうとわかっていた」とはなしているという。",
+  "context_text": "",
+  "expected_output": [
+   "府警によると北村容疑者は「違法とわかっていた」と話しているという。"
+  ],
+  "domain": "passage",
+  "passage": "judge-055",
+  "source_doc": "news-風営法上の許可を得ないままダンス営業、大阪・アメリカ村のクラブ経営者ら逮捕"
+ },
+ {
+  "index": "passage-judge-055-1",
+  "input": "あさひしんぶんによると、3にんのたいほようぎは、",
+  "context_text": "府警によると北村容疑者は「違法とわかっていた」と話しているという。",
+  "expected_output": [
+   "朝日新聞によると、3人の逮捕容疑は、",
+   "朝日新聞によると、３人の逮捕容疑は、"
+  ],
+  "domain": "passage",
+  "passage": "judge-055",
+  "source_doc": "news-風営法上の許可を得ないままダンス営業、大阪・アメリカ村のクラブ経営者ら逮捕"
+ },
+ {
+  "index": "passage-judge-055-2",
+  "input": "おおさかふこうあんいいんかいからふうぞくえいぎょうのきょかをうけないままてんないにだんすすぺーすをもうけ、",
+  "context_text": "府警によると北村容疑者は「違法とわかっていた」と話しているという。朝日新聞によると、3人の逮捕容疑は、",
+  "expected_output": [
+   "大阪府公安委員会から風俗営業の許可を受けないまま店内にダンススペースを設け、"
+  ],
+  "domain": "passage",
+  "passage": "judge-055",
+  "source_doc": "news-風営法上の許可を得ないままダンス営業、大阪・アメリカ村のクラブ経営者ら逮捕"
+ },
+ {
+  "index": "passage-judge-055-3",
+  "input": "6かごぜん2じころ、ふとくていたすうのきゃくにだんすをさせたなどというもの。",
+  "context_text": "という。朝日新聞によると、3人の逮捕容疑は、大阪府公安委員会から風俗営業の許可を受けないまま店内にダンススペースを設け、",
+  "expected_output": [
+   "6日午前2時頃、不特定多数の客にダンスをさせたなどというもの。",
+   "6日午前2ときころ、不特定多数の客にダンスをさせたなどというもの。",
+   "6日午前2ときころ、不特定多数の客にダンスをさせたなどという物。",
+   "6日午前2ときころ、不特定多数の客にダンスをさせた等というもの。",
+   "6日午前2ときころ、不特定多数の客にダンスをさせた等という物。",
+   "6日午前2とき頃、不特定多数の客にダンスをさせたなどというもの。",
+   "6日午前2とき頃、不特定多数の客にダンスをさせたなどという物。",
+   "6日午前2とき頃、不特定多数の客にダンスをさせた等というもの。",
+   "6日午前2とき頃、不特定多数の客にダンスをさせた等という物。",
+   "6日午前2時ころ、不特定多数の客にダンスをさせたなどというもの。",
+   "6日午前2時ころ、不特定多数の客にダンスをさせたなどという物。",
+   "6日午前2時ころ、不特定多数の客にダンスをさせた等というもの。",
+   "6日午前2時ころ、不特定多数の客にダンスをさせた等という物。",
+   "6日午前2時頃、不特定多数の客にダンスをさせたなどという物。",
+   "6日午前2時頃、不特定多数の客にダンスをさせた等というもの。",
+   "6日午前2時頃、不特定多数の客にダンスをさせた等という物。",
+   "６日午前２ときころ、不特定多数の客にダンスをさせたなどというもの。",
+   "６日午前２ときころ、不特定多数の客にダンスをさせたなどという物。",
+   "６日午前２ときころ、不特定多数の客にダンスをさせた等というもの。",
+   "６日午前２ときころ、不特定多数の客にダンスをさせた等という物。",
+   "６日午前２とき頃、不特定多数の客にダンスをさせたなどというもの。",
+   "６日午前２とき頃、不特定多数の客にダンスをさせたなどという物。",
+   "６日午前２とき頃、不特定多数の客にダンスをさせた等というもの。",
+   "６日午前２とき頃、不特定多数の客にダンスをさせた等という物。",
+   "６日午前２時ころ、不特定多数の客にダンスをさせたなどというもの。",
+   "６日午前２時ころ、不特定多数の客にダンスをさせたなどという物。",
+   "６日午前２時ころ、不特定多数の客にダンスをさせた等というもの。",
+   "６日午前２時ころ、不特定多数の客にダンスをさせた等という物。",
+   "６日午前２時頃、不特定多数の客にダンスをさせたなどというもの。",
+   "６日午前２時頃、不特定多数の客にダンスをさせたなどという物。",
+   "６日午前２時頃、不特定多数の客にダンスをさせた等というもの。",
+   "６日午前２時頃、不特定多数の客にダンスをさせた等という物。"
+  ],
+  "domain": "passage",
+  "passage": "judge-055",
+  "source_doc": "news-風営法上の許可を得ないままダンス営業、大阪・アメリカ村のクラブ経営者ら逮捕"
+ },
+ {
+  "index": "passage-judge-056-0",
+  "input": "かしこまりました。",
+  "context_text": "",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-056",
+  "source_doc": "mwoz-2171"
+ },
+ {
+  "index": "passage-judge-056-1",
+  "input": "そのじょうけんですと、50けんほどがいとうめいしょがございますが、なんかごきぼうありますか？",
+  "context_text": "かしこまりました。",
+  "expected_output": [
+   "その条件ですと、50件ほど該当名所がございますが、何かご希望ありますか？",
+   "その条件ですと、50件ほど該当名所がございますが、何かご希望ありますか?",
+   "その条件ですと、50件程該当名所がございますが、何かご希望ありますか?",
+   "その条件ですと、50件程該当名所がございますが、何かご希望ありますか？",
+   "その条件ですと、５０件ほど該当名所がございますが、何かご希望ありますか?",
+   "その条件ですと、５０件ほど該当名所がございますが、何かご希望ありますか？",
+   "その条件ですと、５０件程該当名所がございますが、何かご希望ありますか?",
+   "その条件ですと、５０件程該当名所がございますが、何かご希望ありますか？"
+  ],
+  "domain": "passage",
+  "passage": "judge-056",
+  "source_doc": "mwoz-2171"
+ },
+ {
+  "index": "passage-judge-056-2",
+  "input": "かしこまりました。",
+  "context_text": "かしこまりました。その条件ですと、50件ほど該当名所がございますが、何かご希望ありますか？",
+  "expected_output": [
+   "かしこまりました。"
+  ],
+  "domain": "passage",
+  "passage": "judge-056",
+  "source_doc": "mwoz-2171"
+ },
+ {
+  "index": "passage-judge-056-3",
+  "input": "それではきりんびーるせんだいこうじょうはいかがでしょうか？",
+  "context_text": "かしこまりました。その条件ですと、50件ほど該当名所がございますが、何かご希望ありますか？かしこまりました。",
+  "expected_output": [
+   "それではキリンビール仙台工場はいかがでしょうか？",
+   "それではキリンビール仙台工場はいかがでしょうか?"
+  ],
+  "domain": "passage",
+  "passage": "judge-056",
+  "source_doc": "mwoz-2171"
+ },
+ {
+  "index": "passage-judge-057-0",
+  "input": "すうがくのかんすうかいせきがく、とくにばなっはくうかんのきかがくにおいて、かーるそんちょっこうとは、",
+  "context_text": "",
+  "expected_output": [
+   "数学の関数解析学、特にバナッハ空間の幾何学において、カールソン直交とは、"
+  ],
+  "domain": "passage",
+  "passage": "judge-057",
+  "source_doc": "wiki-5281016"
+ },
+ {
+  "index": "passage-judge-057-1",
+  "input": "ないせきをもたないいっぱんののるむくうかんにおいて、",
+  "context_text": "数学の関数解析学、特にバナッハ空間の幾何学において、カールソン直交とは、",
+  "expected_output": [
+   "内積を持たない一般のノルム空間において、"
+  ],
+  "domain": "passage",
+  "passage": "judge-057",
+  "source_doc": "wiki-5281016"
+ },
+ {
+  "index": "passage-judge-057-2",
+  "input": "べくとるのちょっこうせいをいっぱんかしたがいねんのひとつである。",
+  "context_text": "数学の関数解析学、特にバナッハ空間の幾何学において、カールソン直交とは、内積を持たない一般のノルム空間において、",
+  "expected_output": [
+   "ベクトルの直交性を一般化した概念の一つである。"
+  ],
+  "domain": "passage",
+  "passage": "judge-057",
+  "source_doc": "wiki-5281016"
+ },
+ {
+  "index": "passage-judge-057-3",
+  "input": "1935ねんにすうぇーでんのすうがくしゃすてぃぐ・かーるそんによってどうにゅうされた。",
+  "context_text": "何学において、カールソン直交とは、内積を持たない一般のノルム空間において、ベクトルの直交性を一般化した概念の一つである。",
+  "expected_output": [
+   "1935年にスウェーデンの数学者スティグ・カールソンによって導入された。",
+   "１９３５年にスウェーデンの数学者スティグ・カールソンによって導入された。"
+  ],
+  "domain": "passage",
+  "passage": "judge-057",
+  "source_doc": "wiki-5281016"
+ },
+ {
+  "index": "passage-judge-058-0",
+  "input": "11がつ28かにおこなわれたとっとりけんぎかいきかくどぼくじょうにんいいんかいであきらかになった。",
+  "context_text": "",
+  "expected_output": [
+   "11月28日に行われた鳥取県議会企画土木常任委員会で明らかになった。",
+   "１１月２８日に行われた鳥取県議会企画土木常任委員会で明らかになった。"
+  ],
+  "domain": "passage",
+  "passage": "judge-058",
+  "source_doc": "news-寝台特急「出雲」廃止を検討"
+ },
+ {
+  "index": "passage-judge-058-1",
+  "input": "「いずも」は、1951ねんにとうきょうえきと、",
+  "context_text": "11月28日に行われた鳥取県議会企画土木常任委員会で明らかになった。",
+  "expected_output": [
+   "「出雲」は、1951年に東京駅と、",
+   "「出雲」は、１９５１年に東京駅と、"
+  ],
+  "domain": "passage",
+  "passage": "judge-058",
+  "source_doc": "news-寝台特急「出雲」廃止を検討"
+ },
+ {
+  "index": "passage-judge-058-2",
+  "input": "しまねけんにあったおおこそえきをむすんでうんこうがかいしされたきゅうこうれっしゃ「いずも」をそうしとし、",
+  "context_text": "11月28日に行われた鳥取県議会企画土木常任委員会で明らかになった。「出雲」は、1951年に東京駅と、",
+  "expected_output": [
+   "島根県にあった大社駅を結んで運行が開始された急行列車「いずも」を創始とし、"
+  ],
+  "domain": "passage",
+  "passage": "judge-058",
+  "source_doc": "news-寝台特急「出雲」廃止を検討"
+ },
+ {
+  "index": "passage-judge-058-3",
+  "input": "1972ねんにはとっきゅうにかくあげされた。",
+  "context_text": "かになった。「出雲」は、1951年に東京駅と、島根県にあった大社駅を結んで運行が開始された急行列車「いずも」を創始とし、",
+  "expected_output": [
+   "1972年には特急に格上げされた。",
+   "１９７２年には特急に格上げされた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-058",
+  "source_doc": "news-寝台特急「出雲」廃止を検討"
+ },
+ {
+  "index": "passage-judge-059-0",
+  "input": "どうえんうぇぶさいとはどうじつこれをつたえた。",
+  "context_text": "",
+  "expected_output": [
+   "同園ウェブサイトは同日これを伝えた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-059",
+  "source_doc": "news-ジャイアントパンダ「リンリン」死亡 - 東京・上野動物園、パンダが不在に"
+ },
+ {
+  "index": "passage-judge-059-1",
+  "input": "まいにちしんぶんによるとことし4がつはじめからうごきがにぶくなり、",
+  "context_text": "同園ウェブサイトは同日これを伝えた。",
+  "expected_output": [
+   "毎日新聞によると今年4月初めから動きが鈍くなり、",
+   "毎日新聞によると今年４月初めから動きが鈍くなり、"
+  ],
+  "domain": "passage",
+  "passage": "judge-059",
+  "source_doc": "news-ジャイアントパンダ「リンリン」死亡 - 東京・上野動物園、パンダが不在に"
+ },
+ {
+  "index": "passage-judge-059-2",
+  "input": "たべるりょうがつうじょうの5ぶんの1となっており、",
+  "context_text": "同園ウェブサイトは同日これを伝えた。毎日新聞によると今年4月初めから動きが鈍くなり、",
+  "expected_output": [
+   "食べる量が通常の5分の1となっており、",
+   "食べる量が通常の５分の１となっており、"
+  ],
+  "domain": "passage",
+  "passage": "judge-059",
+  "source_doc": "news-ジャイアントパンダ「リンリン」死亡 - 東京・上野動物園、パンダが不在に"
+ },
+ {
+  "index": "passage-judge-059-3",
+  "input": "びたみんざいのとうよをうけるほどからだがおとろえていた。",
+  "context_text": "園ウェブサイトは同日これを伝えた。毎日新聞によると今年4月初めから動きが鈍くなり、食べる量が通常の5分の1となっており、",
+  "expected_output": [
+   "ビタミン剤の投与を受けるほど体が衰えていた。",
+   "ビタミン剤の投与を受けるほどからだが衰えていた。",
+   "ビタミン剤の投与を受ける程からだが衰えていた。",
+   "ビタミン剤の投与を受ける程体が衰えていた。"
+  ],
+  "domain": "passage",
+  "passage": "judge-059",
+  "source_doc": "news-ジャイアントパンダ「リンリン」死亡 - 東京・上野動物園、パンダが不在に"
+ }
+]

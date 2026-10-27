@@ -55,7 +55,7 @@ def main():
     exe = args.exe.resolve()
     lines = queue.Queue()
     rows = []
-    with tempfile.TemporaryDirectory(prefix="kotori-session-eval-") as profile:
+    with tempfile.TemporaryDirectory(prefix="kotori-session-eval-", ignore_cleanup_errors=True) as profile:
         stderr_path = Path(profile) / "stderr.txt"
         stderr = open(stderr_path, "wb") if args.timeline else subprocess.DEVNULL
         p = subprocess.Popen([str(exe), "--dictionary=oss", "--profile=" + str(Path(profile) / "session")],
@@ -72,7 +72,17 @@ def main():
             while True:
                 line = lines.get(timeout=max(.01, deadline - time.monotonic()))
                 if line is None:
-                    raise RuntimeError("session handler exited: " + "\n".join(out[-20:]))
+                    # 落ちた原因を残す(終了コード、異常終了の記録、標準エラーの末尾)。一時プロファイルは消えるため。
+                    code = p.wait(timeout=30)
+                    report = [f"exit code {code} ({code & 0xffffffff:#x}) at item {len(rows)}"]
+                    for f in sorted((Path(profile) / "session" / "crash").glob("crash-*.txt")):
+                        report.append(f"--- {f.name}\n" + f.read_text(encoding="utf-8", errors="replace"))
+                    if args.timeline:
+                        stderr.flush()
+                        report.append("--- stderr tail\n" + "\n".join(
+                            stderr_path.read_text(encoding="utf-8", errors="replace").splitlines()[-60:]))
+                    Path(args.out + ".crash.txt").write_text("\n".join(report), encoding="utf-8")
+                    raise RuntimeError("session handler exited: " + report[0] + "\n" + "\n".join(out[-20:]))
                 out.append(line)
                 if tail and line.strip() == "}":
                     return "\n".join(out)

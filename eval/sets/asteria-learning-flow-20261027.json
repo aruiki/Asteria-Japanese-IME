@@ -1,0 +1,229 @@
+[
+ {
+  "name": "映画は観る",
+  "teach": {
+   "input": "えいがをみる",
+   "rejected": "見る",
+   "chosen": "観る"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "しゅうまつはえいがをみる",
+    "expect": "観る"
+   },
+   {
+    "kind": "no_cue",
+    "input": "そらをみる"
+   }
+  ]
+ },
+ {
+  "name": "子ども表記",
+  "teach": {
+   "input": "こどものえがお",
+   "rejected": "子供",
+   "chosen": "子ども"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "こどものえがおがすき",
+    "expect": "子ども"
+   },
+   {
+    "kind": "no_cue",
+    "input": "こどもがはしる"
+   }
+  ]
+ },
+ {
+  "name": "鼻が利く",
+  "teach": {
+   "input": "いぬははながきく",
+   "rejected": "効く",
+   "chosen": "利く"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "あのひとははながきく",
+    "expect": "利く"
+   },
+   {
+    "kind": "no_cue",
+    "input": "くすりがきく"
+   }
+  ]
+ },
+ {
+  "name": "推しを推す",
+  "teach": {
+   "input": "かれをりーだーにおす",
+   "rejected": "押す",
+   "chosen": "推す"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "かのじょをりーだーにおす",
+    "expect": "推す"
+   },
+   {
+    "kind": "no_cue",
+    "input": "ぼたんをおす"
+   }
+  ]
+ },
+ {
+  "name": "時間を計る",
+  "teach": {
+   "input": "さぎょうじかんをはかる",
+   "rejected": "測る",
+   "chosen": "計る"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "さぎょうのじかんをはかる",
+    "expect": "計る"
+   },
+   {
+    "kind": "no_cue",
+    "input": "たいおんをはかる"
+   }
+  ]
+ },
+ {
+  "name": "会社に勤める",
+  "teach": {
+   "input": "ぎんこうにつとめる",
+   "rejected": "務める",
+   "chosen": "勤める"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "ちちはぎんこうにつとめる",
+    "expect": "勤める"
+   },
+   {
+    "kind": "no_cue",
+    "input": "しかいをつとめる"
+   }
+  ]
+ },
+ {
+  "name": "ひらがなの確定は覚えない",
+  "teach": {
+   "input": "ほんをよむ",
+   "rejected": "本",
+   "chosen": "ほん"
+  },
+  "check": [
+   {
+    "kind": "hiragana",
+    "input": "ほんをよむ"
+   },
+   {
+    "kind": "no_cue",
+    "input": "ほんをかう"
+   }
+  ]
+ },
+ {
+  "name": "写真を撮る",
+  "teach": {
+   "input": "しゃしんをとる",
+   "rejected": "取る",
+   "chosen": "撮る"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "きねんしゃしんをとる",
+    "expect": "撮る"
+   },
+   {
+    "kind": "no_cue",
+    "input": "ぺんをとる"
+   }
+  ]
+ },
+ {
+  "name": "子供の表記を選ぶ",
+  "teach": {
+   "input": "こどものえがお",
+   "rejected": "子ども",
+   "chosen": "子供"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "こどものえがおがみたい",
+    "expect": "子供"
+   },
+   {
+    "kind": "no_cue",
+    "input": "こどもがはしる"
+   }
+  ]
+ },
+ {
+  "name": "想いを伝える",
+  "teach": {
+   "input": "かのじょにおもいをつたえる",
+   "rejected": "思い",
+   "chosen": "想い"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "かのじょへのおもい",
+    "expect": "想い"
+   },
+   {
+    "kind": "no_cue",
+    "input": "おもいにもつ"
+   }
+  ]
+ },
+ {
+  "name": "音楽を聴く",
+  "teach": {
+   "input": "おんがくをきく",
+   "rejected": "聞く",
+   "chosen": "聴く"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "よるにおんがくをきく",
+    "expect": "聴く"
+   },
+   {
+    "kind": "no_cue",
+    "input": "みちをきく"
+   }
+  ]
+ },
+ {
+  "name": "犯人を捜す",
+  "teach": {
+   "input": "はんにんをさがす",
+   "rejected": "探す",
+   "chosen": "捜す"
+  },
+  "check": [
+   {
+    "kind": "same_cue",
+    "input": "けいさつがはんにんをさがす",
+    "expect": "捜す"
+   },
+   {
+    "kind": "no_cue",
+    "input": "しごとをさがす"
+   }
+  ]
+ }
+]
