@@ -26,6 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval" / "imebench"
 from imebench import to_romaji  # noqa: E402
 
 P = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import eval_ai  # noqa: E402
 EXTRA = ["!", "?", "1", "23", "abc", "A", "-", ".", ",", "[", "]", "😀", "ｗ", "@", "~"]
 PROBES = ["kyouhaiitennkidesune", "kaiginosiryouwookurimasu", "eigawomiru", "kanozyoniomoiwotutaeru"]
 
@@ -43,9 +45,13 @@ def main():
     ap.add_argument("--actions", type=int, default=3000)
     ap.add_argument("--seed", type=int, default=20261027)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--models", default=str(P / "target/accuracy-guide/short-word-package-check-v7/payload/ext/PFiles/Kotori"))
+    ap.add_argument("--models", default=eval_ai.default_models())
+    ap.add_argument("--ai-state", default="llm",
+                    help="起動後に待つ AI の状態(kotori_ai_status の state、カンマ区切り。既定 llm。"
+                         "AI を切る評価は off、CPU は zenz,llm。any で確かめない)")
     ap.add_argument("--warm", type=float, default=15)
     args, extra = ap.parse_known_args()
+    eval_ai.check_models(args.models)
     rnd = random.Random(args.seed)
     words = []
     for name in ("kotori-daily.json", "asteria-short-dev-20261022.json", "kotori-homophone.json"):
@@ -115,6 +121,9 @@ def main():
             send("SEND_KEY\tON\nSEND_KEYS\tai", "on")
             time.sleep(args.warm)
             key("ESC")
+            if args.ai_state != "any":
+                result["ai_state"] = eval_ai.wait_ai(prof, lambda: (send("SEND_KEYS\tai", "poke"), key("ESC")),
+                                                     allow=tuple(args.ai_state.split(",")))
             before = []
             for r in PROBES:
                 before.append(preedit(convert(r)))

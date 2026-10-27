@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval" / "imebench"
 from imebench import to_romaji  # noqa: E402
 
 P = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import eval_ai  # noqa: E402
 
 
 def segments(text):
@@ -47,7 +49,10 @@ def main():
     ap.add_argument("exe", type=Path)
     ap.add_argument("--data", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--models", default=str(P / "target/accuracy-guide/short-word-package-check-v7/payload/ext/PFiles/Kotori"))
+    ap.add_argument("--models", default=eval_ai.default_models())
+    ap.add_argument("--ai-state", default="llm",
+                    help="起動後に待つ AI の状態(kotori_ai_status の state、カンマ区切り。既定 llm。"
+                         "AI を切る評価は off、CPU は zenz,llm。any で確かめない)")
     ap.add_argument("--warm", type=float, default=15)
     ap.add_argument("--log", help="サーバーの標準エラーを書き出すファイル(KOTORI_LM_DEBUG=1 と合わせて調べる)")
     ap.add_argument("--restart", action="store_true",
@@ -55,6 +60,7 @@ def main():
     ap.add_argument("--clear", action="store_true",
                     help="確かめた後に学習履歴を消し(設定の「学習履歴のクリア」と同じ)、学習の前の結果に戻るか確かめる")
     args, extra = ap.parse_known_args()
+    eval_ai.check_models(args.models)
     scenes = json.load(open(args.data, encoding="utf-8"))
     env = dict(os.environ, KOTORI_MODEL_DIR=args.models, KOTORI_RUNTIME_DIR=args.models)
     env.update(dict(e.split("=", 1) for e in extra if "=" in e))
@@ -75,6 +81,9 @@ def main():
             send("SEND_KEY\tON\nSEND_KEYS\tai")
             time.sleep(args.warm)
             send("SEND_KEY\tESC")
+            if args.ai_state != "any":
+                eval_ai.wait_ai(Path(profile) / "session", lambda: (send("SEND_KEYS\tai"), send("SEND_KEY\tESC")),
+                                allow=tuple(args.ai_state.split(",")))
 
         def stop():
             state["p"].stdin.close()

@@ -25,6 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval" / "imebench"
 from imebench import to_romaji  # noqa: E402
 
 P = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import eval_ai  # noqa: E402
 
 
 def main():
@@ -33,7 +35,10 @@ def main():
     ap.add_argument("--data", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--context", action="store_true")
-    ap.add_argument("--models", default=str(P / "target/accuracy-guide/short-word-package-check-v7/payload/ext/PFiles/Kotori"))
+    ap.add_argument("--models", default=eval_ai.default_models())
+    ap.add_argument("--ai-state", default="llm",
+                    help="起動後に待つ AI の状態(kotori_ai_status の state、カンマ区切り。既定 llm。"
+                         "AI を切る評価は off、CPU は zenz,llm。any で確かめない)")
     ap.add_argument("--warm", type=float, default=15)
     ap.add_argument("--n", type=int, default=0)
     ap.add_argument("--config", action="append", default=[],
@@ -45,6 +50,7 @@ def main():
     ap.add_argument("--timeline", action="store_true",
                     help="KOTORI_LM_TIMELINEでサーバーの各段の時刻を取り、Space→候補の内訳を出す")
     args, extra = ap.parse_known_args()
+    eval_ai.check_models(args.models)
     items = json.load(open(args.data, encoding="utf-8"))
     if args.n:
         items = items[: args.n]
@@ -105,6 +111,10 @@ def main():
         send("SEND_KEY\tON\nSEND_KEYS\tai")
         time.sleep(args.warm)
         send("SEND_KEY\tESC")
+        if args.ai_state != "any":
+            state = eval_ai.wait_ai(Path(profile) / "session", lambda: (send("SEND_KEYS\tai"), send("SEND_KEY\tESC")),
+                                    allow=tuple(args.ai_state.split(",")))
+            print(f"AI: {state}", file=sys.stderr)
         for it in items:
             # 打ち間違いの問は、打ったキーをそのまま送る(かなから組み立て直すと間違いが消えるため)。
             romaji = it.get("romaji") or to_romaji(it["input"])

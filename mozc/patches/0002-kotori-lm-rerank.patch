@@ -33541,10 +33541,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..7d318f6ac
+index 000000000..c4501b154
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4523 @@
+@@ -0,0 +1,4590 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -33617,6 +33617,10 @@ index 000000000..7d318f6ac
 +constexpr size_t kMaxCpuChars = 60;
 +// Kotori: 打ち間違いの補正を試す読みの長さの上限(docs/adr/0036)。
 +constexpr size_t kMaxTypoChars = 40;
++// Kotori: 補正する読みの最小の文字数(v3.2.0)。1〜3 文字の読みは、打ち間違いかを見分ける材料がなく、
++// 前の文脈に合う別の短い読みへ書き換えてしまう(前に「専門」がある「ご」が「の」になった。利用者の報告から)。
++// 打ち間違いの評価セットの読みは 5 文字以上。
++constexpr size_t kMinCorrectionChars = 4;
 +
 +// UTF-8 の文字を 1 つずつ(コードポイントで)返す。
 +std::vector<uint32_t> CodePoints(absl::string_view text) {
@@ -34620,6 +34624,19 @@ index 000000000..7d318f6ac
 +#endif
 +}
 +
++
++void DiffSpans(absl::string_view a, absl::string_view b, std::string* x, std::string* y) {
++  const std::u32string s = Util::Utf8ToUtf32(a), t = Util::Utf8ToUtf32(b);
++  size_t head = 0;
++  while (head < s.size() && head < t.size() && s[head] == t[head]) ++head;
++  size_t tail = 0;
++  while (tail < s.size() - head && tail < t.size() - head &&
++         s[s.size() - 1 - tail] == t[t.size() - 1 - tail]) {
++    ++tail;
++  }
++  *x = Util::Utf32ToUtf8(s.substr(head, s.size() - head - tail));
++  *y = Util::Utf32ToUtf8(t.substr(head, t.size() - head - tail));
++}
 +
 +bool IsKanjiSwap(absl::string_view a, absl::string_view b) {
 +  const std::u32string x = Util::Utf8ToUtf32(a), y = Util::Utf8ToUtf32(b);
@@ -36061,6 +36078,10 @@ index 000000000..7d318f6ac
 +  ZenzScorer* scorer = PrepareFor(request.config(), &k, &llm, &beams, &llm_top,
 +                                  false, sync_load_ || background,
 +                                  Util::CharsLen(reading));
++  if (Env("KOTORI_LM_DEBUG") != nullptr) {
++    std::fprintf(stderr, "[kotori] select reading=%s background=%d scorer=%d llm=%d\n",
++                 reading.c_str(), background ? 1 : 0, scorer != nullptr ? 1 : 0, llm != nullptr ? 1 : 0);
++  }
 +  if (scorer == nullptr ||
 +      (!HasGpu() && Util::CharsLen(reading) > kMaxCpuChars)) return std::nullopt;
 +  const auto t_load = std::chrono::steady_clock::now();
@@ -36085,6 +36106,12 @@ index 000000000..7d318f6ac
 +    cands.push_back(&c);
 +    values.push_back(c.value);
 +    if (cands.size() >= max_sentences_) break;
++  }
++  if (Env("KOTORI_LM_DEBUG") != nullptr) {
++    size_t no_boundary = 0;
++    for (const converter::Candidate& c : sentences) no_boundary += c.inner_segment_boundary.empty();
++    std::fprintf(stderr, "[kotori] lattice values=%zu no_boundary=%zu beams=%d\n", values.size(),
++                 no_boundary, beams);
 +  }
 +  // ユーザー辞書の語を含む文が Mozc の 1 位なら、利用者が登録した表記を AI で変えない
 +  // (docs/adr/0027、改善案 07)。
@@ -36316,6 +36343,44 @@ index 000000000..7d318f6ac
 +      }
 +    }
 +  }
++  // Kotori: 前の文脈の語の繰り返し(v3.2.0)。LLM は前の文脈に出た語をもう一度使う文を高く見る癖があり、
++  // 前に「口座を開設」があると「にほんごをかいせつ」を「日本語を開設」にした(利用者の報告)。1 番目の違う所が
++  // 前の文脈にそのまま出る語(2 文字以上)で、漢字の語を入れ替えた別の候補の語は前の文脈にないとき、その 2 つの
++  // LLM の点を前の文脈なしで取り直して比べる(zenz と前の文脈のほかの手がかりはそのまま)。docs/adr/0075。
++  if (llm != nullptr && llogp && !context.empty() && std::isfinite((*llogp)[top]) && !over()) {
++    size_t alt = values.size();
++    for (size_t i = 0; i < values.size(); ++i) {
++      if (i == top || !std::isfinite((*llogp)[i]) ||
++          !kotori_internal::IsKanjiSwap(values[top], values[i])) {
++        continue;
++      }
++      std::string x, y;
++      kotori_internal::DiffSpans(values[top], values[i], &x, &y);
++      if (Util::CharsLen(x) < 2 || !absl::StrContains(context, x) || absl::StrContains(context, y)) {
++        continue;
++      }
++      if (alt == values.size() || joint_scores[i] > joint_scores[alt]) alt = i;
++    }
++    if (alt != values.size()) {
++      if (const auto free = llm->Score("", reading, {values[top], values[alt]})) {
++        const double s_top = joint_scores[top] + ranking_llm_weight * ((*free)[0] - (*llogp)[top]);
++        const double s_alt = joint_scores[alt] + ranking_llm_weight * ((*free)[1] - (*llogp)[alt]);
++        if (debug) {
++          std::fprintf(stderr, "[copy] %s %.2f / %s %.2f\n", values[top].c_str(), s_top,
++                       values[alt].c_str(), s_alt);
++        }
++        if (s_alt > s_top) {
++          // 取り直した 2 つの差を後の段(文脈つきの学習・既定の手がかり)でも使う。元の点のままだと、前の文脈の
++          // 手がかり(口座→開設)が繰り返しの癖と重なって、また前の文脈の語へ戻した。ほかの候補と比べられるよう、
++          // 元の 1 番目の点を基準にする(取り直した点をそのまま入れると尺度がずれ、表記の違う候補が上がった)。
++          const double offset = joint_scores[top] - s_top;
++          joint_scores[alt] = s_alt + offset;
++          top = alt;
++          top_score = joint_scores[alt];
++        }
++      }
++    }
++  }
 +  // Kotori: 文脈つきの学習の点(docs/adr/0075)。学習を足した後の 1 番目が、学習なしの 1 番目より
 +  // context_margin_ を超えて低い点なら、学習を使わない(AI の強い確信を古い選択で覆さない)。
 +  if (use_history) {
@@ -36383,6 +36448,7 @@ index 000000000..7d318f6ac
 +  const bool llm_fixed =
 +      llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !correction_over() &&
++      Util::CharsLen(reading) >= kMinCorrectionChars &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindLlmCorrection(scorer, llm, context, reading, values[top],
 +                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
@@ -36408,6 +36474,7 @@ index 000000000..7d318f6ac
 +  const bool typo_fixed =
 +      !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !typo_over() &&
++      Util::CharsLen(reading) >= kMinCorrectionChars &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindTypoCorrection(scorer, llm, context, reading, TypingKeys(request),
 +                         values[top],
@@ -38070,10 +38137,10 @@ index 000000000..7d318f6ac
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..2117c734e
+index 000000000..d67da530e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,638 @@
+@@ -0,0 +1,640 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -38130,6 +38197,8 @@ index 000000000..2117c734e
 +// Kotori: a と b の違う所(同じ先頭と末尾を除いた部分)が、両方とも漢字を含み、英数字を含まないか。
 +// 漢字の語を別の漢字の語に入れ替えた(意味が変わる)違いで、かなと漢字の書き方の違いや略語ではない。
 +bool IsKanjiSwap(absl::string_view a, absl::string_view b);
++// Kotori: a と b の違う所(同じ先頭と末尾を除いた部分)を *x、*y に入れる。
++void DiffSpans(absl::string_view a, absl::string_view b, std::string* x, std::string* y);
 +double ConfidenceAwareLlmWeight(const std::vector<float>& zlogp,
 +                               double configured_weight, bool enabled,
 +                               bool has_left_context = false);
@@ -38714,10 +38783,10 @@ index 000000000..2117c734e
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..7dd340a05
+index 000000000..f472d91f7
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1318 @@
+@@ -0,0 +1,1328 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -38819,6 +38888,16 @@ index 000000000..7dd340a05
 + protected:
 +  const dictionary::PosMatcher pos_matcher_;
 +};
++
++TEST(LmRewriterKanjiSwapTest, DiffSpansStripsCommonParts) {
++  std::string x, y;
++  kotori_internal::DiffSpans("日本語を開設", "日本語を解説", &x, &y);
++  EXPECT_EQ(x, "開設");
++  EXPECT_EQ(y, "解説");
++  kotori_internal::DiffSpans("同じ", "同じ", &x, &y);
++  EXPECT_EQ(x, "");
++  EXPECT_EQ(y, "");
++}
 +
 +TEST(LmRewriterKanjiSwapTest, DetectsWordSwapsOnly) {
 +  EXPECT_TRUE(kotori_internal::IsKanjiSwap("開放感がある", "解放感がある"));
