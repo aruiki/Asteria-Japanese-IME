@@ -27,7 +27,7 @@
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">↓ 無料でダウンロード（Windows 10 / 11）</a>
 </h3>
 
-<p align="center"><sub>v3.1.0 · 約1.7 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
+<p align="center"><sub>v3.2.0 · 約1.7 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
 
 ---
 
