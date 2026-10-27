@@ -95,6 +95,8 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `KOTORI_LM_PRELOAD=0` | 起動時に裏で読み込まず、要求の中で読み込む(評価。状態のファイルも書かない) |
 | `KOTORI_LM_BEAMS`、`KOTORI_LM_LLM_TOP`、`KOTORI_LM_K`、`KOTORI_LM_NSENT` | 生成する文の数、LLM で採点する数、文節ごとに並べ替える数、ラティスの文全体の候補の数 |
 | `KOTORI_LM_LLM_WEIGHT`、`KOTORI_LM_WEIGHTS`、`KOTORI_LM_GEN_PENALTY`、`KOTORI_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 1.2。前文なしでzenz得点が過半なら最大0.7)と、生成した文の減点(LLMの有無によらず0.5) |
+| `KOTORI_LM_CONTEXT_HISTORY=0`、`KOTORI_LM_CONTEXT_HISTORY_PATH`、`KOTORI_LM_CONTEXT_WEIGHT`、`KOTORI_LM_CONTEXT_MARGIN`、`KOTORI_LM_CONTEXT_DEFAULTS=0`、`KOTORI_LM_CONTEXT_DEFAULT_WEIGHT` | 文脈つきの学習を切る、保存先(既定はプロファイルの `asteria_context.tsv`)、1 回の点(既定 3.5。選んだ表記に足し、退けた表記から引くので、1 回で差 7 まで覆る。3 回で頭打ち)、学習で覆してよい点の差(既定 8)、既定の学習データ(同音の語の手がかり)を切る、その点(既定 1)。docs/adr/0075 |
+| `KOTORI_LM_SWAP_LLM_WEIGHT` | 1 番目と、漢字の語を別の漢字の語に入れ替えただけの文(解放/開放)を比べ直すときの LLM の重み(既定 2.0。1.2 以下で比べ直さない)。かなと漢字の書き方の違い・英数字を含む違いには使わない。docs/adr/0075 |
 | `KOTORI_LM_CONFIDENCE_GUARD=0` | 前文なしでzenz得点が高いときのLLM重み抑制を無効にする。既定は有効。生成の減点は別設定 |
 | `KOTORI_LM_SENTENCE=0`、`KOTORI_LM_POST`、`KOTORI_LM_RIGHT` | 文全体の選択を切る、文全体の選択の後も文節ごとに並べ替える、右の文脈を使う |
 | `KOTORI_LM_SPLIT=0` | 生成した文を文節に分けない(docs/adr/0027) |

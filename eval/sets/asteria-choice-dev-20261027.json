@@ -1,0 +1,5714 @@
+[
+ {
+  "index": "choice-dev-000a",
+  "input": "またおとこはとうそうしあおきまさみち・なかのしぎかいぎちょうたくにたてこもりました。",
+  "context_text": "",
+  "expected_output": [
+   "また男は逃走し青木正道・中野市議会議長宅に立てこもりました。",
+   "又男は逃走し青木正道・中野市議会議長宅に立てこもりました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-000",
+  "word_reading": "とうそう",
+  "target": "逃走",
+  "rival": [
+   "闘争"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-長野県で立てこもり",
+  "target_reading": "とうそう"
+ },
+ {
+  "index": "choice-dev-000b",
+  "input": "もとがっこうきょうしで、ないせんかいしご、1995ねんからはんせいふとうそうにさんか。",
+  "context_text": "",
+  "expected_output": [
+   "元学校教師で、内戦開始後、1995年から反政府闘争に参加。",
+   "元学校教師で、内戦開始後、１９９５年から反政府闘争に参加。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-000",
+  "word_reading": "とうそう",
+  "target": "闘争",
+  "rival": [
+   "逃走"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ブルンジ、ンクルンジザ新大統領就任へ",
+  "target_reading": "とうそう"
+ },
+ {
+  "index": "choice-dev-001a",
+  "input": "2024ねん6がつにこうかいされたどうがせいせいもでるである。",
+  "context_text": "",
+  "expected_output": [
+   "2024年6月に公開された動画生成モデルである。",
+   "２０２４年６月に公開された動画生成モデルである。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-001",
+  "word_reading": "せいせい",
+  "target": "生成",
+  "rival": [
+   "精製"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5231702",
+  "target_reading": "せいせい"
+ },
+ {
+  "index": "choice-dev-001b",
+  "input": "そうなんです、せいせいしおよりからだにいいそうなので、たべてます。",
+  "context_text": "",
+  "expected_output": [
+   "そうなんです、精製塩より体にいいそうなので、食べてます。",
+   "そうなんです、精製塩よりからだにいいそうなので、食べてます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-001",
+  "word_reading": "せいせい",
+  "target": "精製",
+  "rival": [
+   "生成"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11018",
+  "target_reading": "せいせい"
+ },
+ {
+  "index": "choice-dev-002a",
+  "input": "だいとうりょうせんではひんみんそうのしじをあつめた。",
+  "context_text": "",
+  "expected_output": [
+   "大統領選では貧民層の支持を集めた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-002",
+  "word_reading": "しじ",
+  "target": "支持",
+  "rival": [
+   "指示"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ボリビア大統領選、エボ・モラレス氏の初当選が確実に",
+  "target_reading": "しじ"
+ },
+ {
+  "index": "choice-dev-002b",
+  "input": "けいざいさんぎょうしょうがてんけんしじをした7きしゅを、",
+  "context_text": "",
+  "expected_output": [
+   "経済産業省が点検指示をした7機種を、",
+   "経済産業省が点検指示をした７機種を、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-002",
+  "word_reading": "しじ",
+  "target": "指示",
+  "rival": [
+   "支持"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-パロマ工業、ガス湯沸かし器のリコール基準設けず",
+  "target_reading": "しじ"
+ },
+ {
+  "index": "choice-dev-003a",
+  "input": "けっこうせめてますよね。",
+  "context_text": "",
+  "expected_output": [
+   "結構攻めてますよね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-003",
+  "word_reading": "せめる",
+  "target": "攻め",
+  "rival": [
+   "責め"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-4326",
+  "target_reading": "せめ"
+ },
+ {
+  "index": "choice-dev-003b",
+  "input": "ちょっとじぶんをせめたりして",
+  "context_text": "",
+  "expected_output": [
+   "ちょっと自分を責めたりして"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-003",
+  "word_reading": "せめる",
+  "target": "責め",
+  "rival": [
+   "攻め",
+   "攻めよう",
+   "攻める"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-9538",
+  "target_reading": "せめ"
+ },
+ {
+  "index": "choice-dev-004a",
+  "input": "ちゅうしゃじょうもむりょうがおおいですし、きゅうけいしょもありますし",
+  "context_text": "",
+  "expected_output": [
+   "駐車場も無料が多いですし、休憩所もありますし",
+   "駐車場も無料が多いですし、休憩ところもありますし"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-004",
+  "word_reading": "きゅうけい",
+  "target": "休憩",
+  "rival": [
+   "求刑"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-115",
+  "target_reading": "きゅうけい"
+ },
+ {
+  "index": "choice-dev-004b",
+  "input": "」としてむきちょうえきをきゅうけいしていた。",
+  "context_text": "",
+  "expected_output": [
+   "」として無期懲役を求刑していた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-004",
+  "word_reading": "きゅうけい",
+  "target": "求刑",
+  "rival": [
+   "休憩"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-安倍元首相銃撃事件、被告が第一審判決に不服として控訴",
+  "target_reading": "きゅうけい"
+ },
+ {
+  "index": "choice-dev-005a",
+  "input": "ねっとたいせんまでやろうとはおもっていません。",
+  "context_text": "",
+  "expected_output": [
+   "ネット対戦までやろうとは思っていません。",
+   "ネット対戦迄やろうとは思っていません。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-005",
+  "word_reading": "たいせん",
+  "target": "対戦",
+  "rival": [
+   "大戦"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3066",
+  "target_reading": "たいせん"
+ },
+ {
+  "index": "choice-dev-005b",
+  "input": "そうです、ふくすうたいせんです！",
+  "context_text": "",
+  "expected_output": [
+   "そうです、複数大戦です！",
+   "そうです、複数大戦です!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-005",
+  "word_reading": "たいせん",
+  "target": "大戦",
+  "rival": [
+   "対戦"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12563",
+  "target_reading": "たいせん"
+ },
+ {
+  "index": "choice-dev-006a",
+  "input": "かいほうかんありますよね！",
+  "context_text": "",
+  "expected_output": [
+   "開放感ありますよね！",
+   "開放感ありますよね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-006",
+  "word_reading": "かいほうかん",
+  "target": "開放感",
+  "rival": [
+   "解放感"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6854",
+  "target_reading": "かいほうかん"
+ },
+ {
+  "index": "choice-dev-006b",
+  "input": "ますくもはずしていたので、ちょっとかいほうかんがありましたね。",
+  "context_text": "",
+  "expected_output": [
+   "マスクも外していたので、ちょっと解放感がありましたね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-006",
+  "word_reading": "かいほうかん",
+  "target": "解放感",
+  "rival": [
+   "開放感"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-167",
+  "target_reading": "かいほうかん"
+ },
+ {
+  "index": "choice-dev-007a",
+  "input": "かいがんそいでふーどこーとからうみがみえますよ！",
+  "context_text": "",
+  "expected_output": [
+   "海岸沿いでフードコートから海が見えますよ！",
+   "海岸沿いでフードコートから海が見えますよ!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-007",
+  "word_reading": "かいがん",
+  "target": "海岸",
+  "rival": [
+   "開眼"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1300",
+  "target_reading": "かいがん"
+ },
+ {
+  "index": "choice-dev-007b",
+  "input": "かってまんぞくしてたんですがこうすればいいのかとかいがんしました",
+  "context_text": "",
+  "expected_output": [
+   "買って満足してたんですがこうすればいいのかと開眼しました"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-007",
+  "word_reading": "かいがん",
+  "target": "開眼",
+  "rival": [
+   "海岸"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6254",
+  "target_reading": "かいがん"
+ },
+ {
+  "index": "choice-dev-008a",
+  "input": "それげになります、なんかきぐとかつかってますか？",
+  "context_text": "",
+  "expected_output": [
+   "それ気になります、何か器具とか使ってますか？",
+   "それ気になります、何か器具とか使ってますか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-008",
+  "word_reading": "きぐ",
+  "target": "器具",
+  "rival": [
+   "危惧"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-295",
+  "target_reading": "きぐ"
+ },
+ {
+  "index": "choice-dev-008b",
+  "input": "「くさけいばそのものがぜつめつきぐしゅといえそうだ」とまでひょうしている。",
+  "context_text": "",
+  "expected_output": [
+   "「草競馬そのものが絶滅危惧種と言えそうだ」とまで評している。",
+   "「草競馬そのものが絶滅危惧種と言えそうだ」と迄評している。",
+   "「草競馬その物が絶滅危惧種と言えそうだ」とまで評している。",
+   "「草競馬その物が絶滅危惧種と言えそうだ」と迄評している。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-008",
+  "word_reading": "きぐ",
+  "target": "危惧",
+  "rival": [
+   "器具"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-北海道の別海町で41回目の「馬事競技大会」が開催される - 繋駕速歩競走や騎乗速歩競走も行われる",
+  "target_reading": "きぐ"
+ },
+ {
+  "index": "choice-dev-009a",
+  "input": "どのとうじょうじんぶつがおすきなんですか",
+  "context_text": "",
+  "expected_output": [
+   "どの登場人物がお好きなんですか"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-009",
+  "word_reading": "とうじょう",
+  "target": "登場",
+  "rival": [
+   "搭乗"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11381",
+  "target_reading": "とうじょう"
+ },
+ {
+  "index": "choice-dev-009b",
+  "input": "そういうことです、むかしは15ふんまえのとうじょうでよかったのにな",
+  "context_text": "",
+  "expected_output": [
+   "そういう事です、昔は１５分前の搭乗でよかったのにな",
+   "そういうことです、昔は15分前の搭乗でよかったのにな",
+   "そういうことです、昔は１５分前の搭乗でよかったのにな",
+   "そういう事です、昔は15分前の搭乗でよかったのにな"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-009",
+  "word_reading": "とうじょう",
+  "target": "搭乗",
+  "rival": [
+   "登場"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6093",
+  "target_reading": "とうじょう"
+ },
+ {
+  "index": "choice-dev-010a",
+  "input": "しかしふくすうせいとうせいどうにゅういこうは、とくひょうは3ぶんの2にげんしょうした。",
+  "context_text": "",
+  "expected_output": [
+   "しかし複数政党制導入以降は、得票は3分の2に減少した。",
+   "しかし複数政党制導入以降は、得票は３分の２に減少した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-010",
+  "word_reading": "げんしょう",
+  "target": "減少",
+  "rival": [
+   "現象"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ガボンのボンゴ大統領、再選に意欲",
+  "target_reading": "げんしょう"
+ },
+ {
+  "index": "choice-dev-010b",
+  "input": "しんれいげんしょうがおきたりするんですか？",
+  "context_text": "",
+  "expected_output": [
+   "心霊現象が起きたりするんですか？",
+   "心霊現象が起きたりするんですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-010",
+  "word_reading": "げんしょう",
+  "target": "現象",
+  "rival": [
+   "減少"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4521",
+  "target_reading": "げんしょう"
+ },
+ {
+  "index": "choice-dev-011a",
+  "input": "げんじつとうひかもです。",
+  "context_text": "",
+  "expected_output": [
+   "現実逃避かもです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-011",
+  "word_reading": "とうひ",
+  "target": "逃避",
+  "rival": [
+   "頭皮"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13215",
+  "target_reading": "とうひ"
+ },
+ {
+  "index": "choice-dev-011b",
+  "input": "とうひとか、りふとあっぷにいいみたいで！",
+  "context_text": "",
+  "expected_output": [
+   "頭皮とか、リフトアップにいいみたいで！",
+   "頭皮とか、リフトアップにいいみたいで!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-011",
+  "word_reading": "とうひ",
+  "target": "頭皮",
+  "rival": [
+   "逃避"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10423",
+  "target_reading": "とうひ"
+ },
+ {
+  "index": "choice-dev-012a",
+  "input": "ごはんたいてなくてもぱんがあればたべれる。",
+  "context_text": "",
+  "expected_output": [
+   "ご飯炊いてなくてもパンがあれば食べれる。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-012",
+  "word_reading": "たく",
+  "target": "炊い",
+  "rival": [
+   "焚い",
+   "焚き",
+   "焚く"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-7660",
+  "target_reading": "たい"
+ },
+ {
+  "index": "choice-dev-012b",
+  "input": "いまはおおきめのものをたくことがおおいです。",
+  "context_text": "",
+  "expected_output": [
+   "今は大きめのものを焚くことが多いです。",
+   "今は大きめのものを焚く事が多いです。",
+   "今は大きめの物を焚くことが多いです。",
+   "今は大きめの物を焚く事が多いです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-012",
+  "word_reading": "たく",
+  "target": "焚く",
+  "rival": [
+   "炊い",
+   "炊か",
+   "炊き",
+   "炊く"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1828",
+  "target_reading": "たく"
+ },
+ {
+  "index": "choice-dev-013a",
+  "input": "たくさんおはなしちゃってすみません！",
+  "context_text": "",
+  "expected_output": [
+   "たくさんお話しちゃってすみません！",
+   "たくさんお話しちゃってすみません!",
+   "沢山お話しちゃってすみません!",
+   "沢山お話しちゃってすみません！"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-013",
+  "word_reading": "はなす",
+  "target": "話し",
+  "rival": [
+   "離さ",
+   "離し",
+   "離す"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-5245",
+  "target_reading": "はなし"
+ },
+ {
+  "index": "choice-dev-013b",
+  "input": "うちはしゅじゅつしてなかったので、つねにはなしてました。",
+  "context_text": "",
+  "expected_output": [
+   "うちは手術してなかったので、常に離してました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-013",
+  "word_reading": "はなす",
+  "target": "離し",
+  "rival": [
+   "話さ",
+   "話し",
+   "話す",
+   "話そ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1575",
+  "target_reading": "はなし"
+ },
+ {
+  "index": "choice-dev-014a",
+  "input": "まいにちしんぶんがどうしょのはなしとしてつたえたところによると、",
+  "context_text": "",
+  "expected_output": [
+   "毎日新聞が同署の話として伝えたところによると、",
+   "毎日新聞が同署の話として伝えた所によると、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-014",
+  "word_reading": "どうしょ",
+  "target": "同署",
+  "rival": [
+   "同所"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-移動動物園からカンガルーが脱走、警察などと捕物帳展開 - 滋賀",
+  "target_reading": "どうしょ"
+ },
+ {
+  "index": "choice-dev-014b",
+  "input": "じけんとうじ、どうしょにはかいいんとじゅうぎょういんあわせて70にんていどがおり、",
+  "context_text": "",
+  "expected_output": [
+   "事件当時、同所には会員と従業員合わせて70人程度がおり、",
+   "事件当時、同所には会員と従業員合わせて７０人程度がおり、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-014",
+  "word_reading": "どうしょ",
+  "target": "同所",
+  "rival": [
+   "同署"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡",
+  "target_reading": "どうしょ"
+ },
+ {
+  "index": "choice-dev-015a",
+  "input": "そうむしょうかんかつのNICTがおこなうこうぼじぎょうにさんかし、",
+  "context_text": "",
+  "expected_output": [
+   "総務省管轄のNICTが行う公募事業に参加し、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-015",
+  "word_reading": "さんか",
+  "target": "参加",
+  "rival": [
+   "傘下"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-オムロンがJR線の乗降客映像を無断で他の研究に流用 2憶5000万円を受け取る",
+  "target_reading": "さんか"
+ },
+ {
+  "index": "choice-dev-015b",
+  "input": "どうくみのさんかそしきにたいするほうしんについてこめんと。",
+  "context_text": "",
+  "expected_output": [
+   "同組の傘下組織に対する方針についてコメント。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-015",
+  "word_reading": "さんか",
+  "target": "傘下",
+  "rival": [
+   "参加"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-山口組6代目組長が府中刑務所を出所",
+  "target_reading": "さんか"
+ },
+ {
+  "index": "choice-dev-016a",
+  "input": "わくちんはうたれてますか？",
+  "context_text": "",
+  "expected_output": [
+   "ワクチンは打たれてますか？",
+   "ワクチンは打たれてますか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-016",
+  "word_reading": "うつ",
+  "target": "打た",
+  "rival": [
+   "撃た",
+   "撃ち",
+   "撃っ",
+   "撃つ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-4016",
+  "target_reading": "うた"
+ },
+ {
+  "index": "choice-dev-016b",
+  "input": "そこにはんにんがおいかけて2はつをうった。",
+  "context_text": "",
+  "expected_output": [
+   "そこに犯人が追いかけて2発を撃った。",
+   "そこに犯人が追いかけて２発を撃った。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-016",
+  "word_reading": "うつ",
+  "target": "撃っ",
+  "rival": [
+   "打た",
+   "打ち",
+   "打っ",
+   "打つ"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-佐世保のスポーツジムで銃乱射事件、2人死亡",
+  "target_reading": "うっ"
+ },
+ {
+  "index": "choice-dev-017a",
+  "input": "ふたりだからくるまでかえれるかんじです。",
+  "context_text": "",
+  "expected_output": [
+   "二人だから車で帰れる感じです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-017",
+  "word_reading": "かえれる",
+  "target": "帰れる",
+  "rival": [
+   "変えれ",
+   "変えれる"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-8789",
+  "target_reading": "かえれる"
+ },
+ {
+  "index": "choice-dev-017b",
+  "input": "もじのしゅるいがかえれるのがこじんてきにぽいんとたかいです。",
+  "context_text": "",
+  "expected_output": [
+   "文字の種類が変えれるのが個人的にポイント高いです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-017",
+  "word_reading": "かえれる",
+  "target": "変えれる",
+  "rival": [
+   "帰れ",
+   "帰れる",
+   "帰れれ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-5602",
+  "target_reading": "かえれる"
+ },
+ {
+  "index": "choice-dev-018a",
+  "input": "おはかまいりのたびにいくのがこうれいで、こんどのおひがんもいくよていです。",
+  "context_text": "",
+  "expected_output": [
+   "お墓参りのたびに行くのが恒例で、今度のお彼岸も行く予定です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-018",
+  "word_reading": "ひがん",
+  "target": "彼岸",
+  "rival": [
+   "悲願"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13012",
+  "target_reading": "ひがん"
+ },
+ {
+  "index": "choice-dev-018b",
+  "input": "げきてきなだいぎゃくてんゆうしょうでひがんのJりーぐはつたいとるをかくとくした。",
+  "context_text": "",
+  "expected_output": [
+   "劇的な大逆転優勝で悲願のJリーグ初タイトルを獲得した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-018",
+  "word_reading": "ひがん",
+  "target": "悲願",
+  "rival": [
+   "彼岸"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-サッカーJリーグ最終戦、ガンバ大阪J1初優勝—J1への入れ替え戦はヴァンフォーレ甲府",
+  "target_reading": "ひがん"
+ },
+ {
+  "index": "choice-dev-019a",
+  "input": "ぎたーとけんばんです、うたうのがいちばんすきですが。",
+  "context_text": "",
+  "expected_output": [
+   "ギターと鍵盤です、歌うのが一番好きですが。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-019",
+  "word_reading": "けんばん",
+  "target": "鍵盤",
+  "rival": [
+   "県版"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4129",
+  "target_reading": "けんばん"
+ },
+ {
+  "index": "choice-dev-019b",
+  "input": "まいにちしんぶんのとっとりけんばんによると、",
+  "context_text": "",
+  "expected_output": [
+   "毎日新聞の鳥取県版によると、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-019",
+  "word_reading": "けんばん",
+  "target": "県版",
+  "rival": [
+   "鍵盤"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-鳥取県知事選への平井氏の擁立活発化",
+  "target_reading": "けんばん"
+ },
+ {
+  "index": "choice-dev-020a",
+  "input": "たくはいびんさいおおて「やまとうんゆ」がにっぽんゆうせいこうしゃをあいてとり、",
+  "context_text": "",
+  "expected_output": [
+   "宅配便最大手「ヤマト運輸」が日本郵政公社を相手取り、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-020",
+  "word_reading": "こうしゃ",
+  "target": "公社",
+  "rival": [
+   "後者"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-「ゆうパック」不当廉売訴訟、ヤマト運輸が敗訴",
+  "target_reading": "こうしゃ"
+ },
+ {
+  "index": "choice-dev-020b",
+  "input": "しょくもつせんいはしっていましたが、こうしゃのじょうほうははつみみです。",
+  "context_text": "",
+  "expected_output": [
+   "食物繊維は知っていましたが、後者の情報は初耳です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-020",
+  "word_reading": "こうしゃ",
+  "target": "後者",
+  "rival": [
+   "公社"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4902",
+  "target_reading": "こうしゃ"
+ },
+ {
+  "index": "choice-dev-021a",
+  "input": "かいじょしはきりとくんみてるというへんけんがありました。",
+  "context_text": "",
+  "expected_output": [
+   "皆女子はキリト君見てるという偏見がありました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-021",
+  "word_reading": "じょし",
+  "target": "女子",
+  "rival": [
+   "助詞"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13405",
+  "target_reading": "じょし"
+ },
+ {
+  "index": "choice-dev-021b",
+  "input": "おもにじょしの「とて」をひょうきするためにつかわれる。",
+  "context_text": "",
+  "expected_output": [
+   "主に助詞の「とて」を表記するために使われる。",
+   "主に助詞の「とて」を表記する為に使われる。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-021",
+  "word_reading": "じょし",
+  "target": "助詞",
+  "rival": [
+   "女子"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5140097",
+  "target_reading": "じょし"
+ },
+ {
+  "index": "choice-dev-022a",
+  "input": "あこがれはありましたが、あさはやすぎてそうそうにだんねんしました。",
+  "context_text": "",
+  "expected_output": [
+   "憧れはありましたが、朝早すぎて早々に断念しました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-022",
+  "word_reading": "そうそう",
+  "target": "早々",
+  "rival": [
+   "葬送"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13203",
+  "target_reading": "はやばや"
+ },
+ {
+  "index": "choice-dev-022b",
+  "input": "そうそうのふりーれんというまんががおもしろかったです！",
+  "context_text": "",
+  "expected_output": [
+   "葬送のフリーレンという漫画が面白かったです！",
+   "葬送のフリーレンという漫画が面白かったです!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-022",
+  "word_reading": "そうそう",
+  "target": "葬送",
+  "rival": [
+   "早々"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2325",
+  "target_reading": "そうそう"
+ },
+ {
+  "index": "choice-dev-023a",
+  "input": "まえかわとうしゅからきゅうだんへはれんらくがないという。",
+  "context_text": "",
+  "expected_output": [
+   "前川投手から球団へは連絡がないという。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-023",
+  "word_reading": "とうしゅ",
+  "target": "投手",
+  "rival": [
+   "党首"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-オリックス・前川投手、無免許運転で逮捕 無期限謹慎に",
+  "target_reading": "とうしゅ"
+ },
+ {
+  "index": "choice-dev-023b",
+  "input": "しゃみんとうのふくしまとうしゅはどうとううぇぶさいとにてこめんとをだした。",
+  "context_text": "",
+  "expected_output": [
+   "社民党の福島党首は同党ウェブサイトにてコメントを出した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-023",
+  "word_reading": "とうしゅ",
+  "target": "党首",
+  "rival": [
+   "投手"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-福田首相、辞意を表明 - 在任1年、改造後1ヶ月で",
+  "target_reading": "とうしゅ"
+ },
+ {
+  "index": "choice-dev-024a",
+  "input": "こわれてすうじつつかえなかったときはほんとうにつらかったです。",
+  "context_text": "",
+  "expected_output": [
+   "壊れて数日使えなかった時は本当に辛かったです。",
+   "壊れて数日使えなかったときは本当に辛かったです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-024",
+  "word_reading": "ほんとう",
+  "target": "本当",
+  "rival": [
+   "本島"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7084",
+  "target_reading": "ほんとう"
+ },
+ {
+  "index": "choice-dev-024b",
+  "input": "でも、しまのうみはほんとうよりもきれいだとおもいますよ。",
+  "context_text": "",
+  "expected_output": [
+   "でも、島の海は本島よりもきれいだと思いますよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-024",
+  "word_reading": "ほんとう",
+  "target": "本島",
+  "rival": [
+   "本っ当",
+   "本当"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8364",
+  "target_reading": "ほんとう"
+ },
+ {
+  "index": "choice-dev-025a",
+  "input": "いちれんのやおちょうもんだいのちょうさがちょうきかするかのうせいをめいげんした。",
+  "context_text": "",
+  "expected_output": [
+   "一連の八百長問題の調査が長期化する可能性を明言した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-025",
+  "word_reading": "めいげん",
+  "target": "明言",
+  "rival": [
+   "名言"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-日本の大相撲、春場所中止の方針固める 夏場所以後にも影響か?",
+  "target_reading": "めいげん"
+ },
+ {
+  "index": "choice-dev-025b",
+  "input": "あんみかさんのめいげんです。",
+  "context_text": "",
+  "expected_output": [
+   "アンミカさんの名言です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-025",
+  "word_reading": "めいげん",
+  "target": "名言",
+  "rival": [
+   "明言"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12350",
+  "target_reading": "めいげん"
+ },
+ {
+  "index": "choice-dev-026a",
+  "input": "わたくしはせいたいにかよったり、こまめにすとれっちをしてました。",
+  "context_text": "",
+  "expected_output": [
+   "私は整体に通ったり、こまめにストレッチをしてました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-026",
+  "word_reading": "かよう",
+  "target": "通っ",
+  "rival": [
+   "家用"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-826",
+  "target_reading": "とおっ"
+ },
+ {
+  "index": "choice-dev-026b",
+  "input": "ふゆはかようのくつしたがとてもうれますね。",
+  "context_text": "",
+  "expected_output": [
+   "冬は家用の靴下がとても売れますね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-026",
+  "word_reading": "かよう",
+  "target": "家用",
+  "rival": [
+   "通い",
+   "通う",
+   "通え",
+   "通おう"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1423",
+  "target_reading": "かよう"
+ },
+ {
+  "index": "choice-dev-027a",
+  "input": "14めいがふしょう、そのうち4めいがきゅうきゅうはんそうされた。",
+  "context_text": "",
+  "expected_output": [
+   "14名が負傷、そのうち4名が救急搬送された。",
+   "１４名が負傷、そのうち４名が救急搬送された。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-027",
+  "word_reading": "ふしょう",
+  "target": "負傷",
+  "rival": [
+   "不詳"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-日本航空機と海保機が羽田空港の滑走路上で衝突、炎上",
+  "target_reading": "ふしょう"
+ },
+ {
+  "index": "choice-dev-027b",
+  "input": "どうほういはんようぎでようぎしゃふしょうのまましょるいそうけんすることにしていた。",
+  "context_text": "",
+  "expected_output": [
+   "同法違反容疑で容疑者不詳のまま書類送検することにしていた。",
+   "同法違反容疑で容疑者不詳のまま書類送検する事にしていた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-027",
+  "word_reading": "ふしょう",
+  "target": "不詳",
+  "rival": [
+   "負傷"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-パトカーに覚醒剤を3年間も隠す、警察官は誰も気付かず - 奈良県",
+  "target_reading": "ふしょう"
+ },
+ {
+  "index": "choice-dev-028a",
+  "input": "あとてんこうをしらべてください。",
+  "context_text": "",
+  "expected_output": [
+   "あと天候を調べてください。",
+   "あと天候を調べて下さい。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-028",
+  "word_reading": "てんこう",
+  "target": "天候",
+  "rival": [
+   "転校"
+  ],
+  "pos": "名詞",
+  "source_doc": "mwoz-4053",
+  "target_reading": "てんこう"
+ },
+ {
+  "index": "choice-dev-028b",
+  "input": "たしかにてんこうはかわいそうですね。",
+  "context_text": "",
+  "expected_output": [
+   "たしかに転校はかわいそうですね。",
+   "たしかに転校は可哀想ですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-028",
+  "word_reading": "てんこう",
+  "target": "転校",
+  "rival": [
+   "天候"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3133",
+  "target_reading": "てんこう"
+ },
+ {
+  "index": "choice-dev-029a",
+  "input": "このだんかいで30しゅうぜんごでそれらがしょうかされるという。",
+  "context_text": "",
+  "expected_output": [
+   "この段階で30州前後でそれらが消化されるという。",
+   "この段階で３０州前後でそれらが消化されるという。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-029",
+  "word_reading": "しょうか",
+  "target": "消化",
+  "rival": [
+   "消火"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-2008アメリカ大統領選挙開幕、アイオワ州で党員集会",
+  "target_reading": "しょうか"
+ },
+ {
+  "index": "choice-dev-029b",
+  "input": "このしょうかかつどうはかさいのはっせいからやく12じかんかかり、",
+  "context_text": "",
+  "expected_output": [
+   "この消火活動は火災の発生から約12時間かかり、",
+   "この消火活動は火災の発生から約１２時間かかり、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-029",
+  "word_reading": "しょうか",
+  "target": "消火",
+  "rival": [
+   "消化"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-JR有楽町駅前で火災 帰省Uターンラッシュに影響",
+  "target_reading": "しょうか"
+ },
+ {
+  "index": "choice-dev-030a",
+  "input": "そうなんですよね、しんけんにはみれなくなりました。",
+  "context_text": "",
+  "expected_output": [
+   "そうなんですよね、真剣には見れなくなりました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-030",
+  "word_reading": "しんけん",
+  "target": "真剣",
+  "rival": [
+   "親権"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11225",
+  "target_reading": "しんけん"
+ },
+ {
+  "index": "choice-dev-030b",
+  "input": "うぃすこんしんしゅうからしんけんぼうがいようぎでたいほじょうがはっこうされており、",
+  "context_text": "",
+  "expected_output": [
+   "ウィスコンシン州から親権妨害容疑で逮捕状が発行されており、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-030",
+  "word_reading": "しんけん",
+  "target": "親権",
+  "rival": [
+   "真剣"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-国際離婚の日本人女性、日本に長女を連れ帰りアメリカで逮捕される - ハーグ条約締結前に",
+  "target_reading": "しんけん"
+ },
+ {
+  "index": "choice-dev-031a",
+  "input": "ゆうこうかいとうすうは765めい。",
+  "context_text": "",
+  "expected_output": [
+   "有効回答数は765名。",
+   "有効回答数は７６５名。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-031",
+  "word_reading": "かいとう",
+  "target": "回答",
+  "rival": [
+   "解凍"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ウィキペディアを取り上げた教科書 検定通過",
+  "target_reading": "かいとう"
+ },
+ {
+  "index": "choice-dev-031b",
+  "input": "ちゅうもんのひつようにおうじてそれをかいとう・さいほうそうした「まきなおし」をおこない、",
+  "context_text": "",
+  "expected_output": [
+   "注文の必要に応じてそれを解凍・再包装した「巻き直し」を行い、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-031",
+  "word_reading": "かいとう",
+  "target": "解凍",
+  "rival": [
+   "回答"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-赤福餅でも表示偽装疑惑",
+  "target_reading": "かいとう"
+ },
+ {
+  "index": "choice-dev-032a",
+  "input": "おしのぐるーぷとかあるんですか？",
+  "context_text": "",
+  "expected_output": [
+   "推しのグループとかあるんですか？",
+   "推しのグループとかあるんですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-032",
+  "word_reading": "おし",
+  "target": "推し",
+  "rival": [
+   "押し"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11207",
+  "target_reading": "おし"
+ },
+ {
+  "index": "choice-dev-032b",
+  "input": "あなたのじもとのおしのたべものはなんですか？",
+  "context_text": "",
+  "expected_output": [
+   "あなたの地元の押しの食べ物はなんですか？",
+   "あなたの地元の押しの食べ物はなんですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-032",
+  "word_reading": "おし",
+  "target": "押し",
+  "rival": [
+   "推し"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3233",
+  "target_reading": "おし"
+ },
+ {
+  "index": "choice-dev-033a",
+  "input": "こうぞくのふぉるめんにせっしょく。",
+  "context_text": "",
+  "expected_output": [
+   "後続のフォルメンに接触。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-033",
+  "word_reading": "こうぞく",
+  "target": "後続",
+  "rival": [
+   "皇族"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-中央競馬史上最多・9頭の競走馬が落馬",
+  "target_reading": "こうぞく"
+ },
+ {
+  "index": "choice-dev-033b",
+  "input": "こうたいしふさいらこうぞく、あべしんぞうしゅしょうらがちょうもんにおとずれた。",
+  "context_text": "",
+  "expected_output": [
+   "皇太子夫妻ら皇族、安倍晋三首相らが弔問に訪れた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-033",
+  "word_reading": "こうぞく",
+  "target": "皇族",
+  "rival": [
+   "後続"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-桂宮宜仁親王がご薨去",
+  "target_reading": "こうぞく"
+ },
+ {
+  "index": "choice-dev-034a",
+  "input": "よつばとってまだきゅうさいしてましたか！",
+  "context_text": "",
+  "expected_output": [
+   "よつばとってまだ休載してましたか！",
+   "よつばとってまだ休載してましたか!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-034",
+  "word_reading": "きゅうさい",
+  "target": "休載",
+  "rival": [
+   "救済"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12152",
+  "target_reading": "きゅうさい"
+ },
+ {
+  "index": "choice-dev-034b",
+  "input": "とけないときは、なんかきゅうさいありますか？",
+  "context_text": "",
+  "expected_output": [
+   "解けない時は、何か救済ありますか？",
+   "解けないときは、何か救済ありますか?",
+   "解けないときは、何か救済ありますか？",
+   "解けない時は、何か救済ありますか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-034",
+  "word_reading": "きゅうさい",
+  "target": "救済",
+  "rival": [
+   "休載"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13251",
+  "target_reading": "きゅうさい"
+ },
+ {
+  "index": "choice-dev-035a",
+  "input": "ついついかんしょくをしていますね。",
+  "context_text": "",
+  "expected_output": [
+   "ついつい間食をしていますね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-035",
+  "word_reading": "かんしょく",
+  "target": "間食",
+  "rival": [
+   "感触"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9714",
+  "target_reading": "かんしょく"
+ },
+ {
+  "index": "choice-dev-035b",
+  "input": "どんなかんしょくなんですかね。",
+  "context_text": "",
+  "expected_output": [
+   "どんな感触なんですかね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-035",
+  "word_reading": "かんしょく",
+  "target": "感触",
+  "rival": [
+   "間食"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12082",
+  "target_reading": "かんしょく"
+ },
+ {
+  "index": "choice-dev-036a",
+  "input": "たのしいことにきもちをうつすしかありませんね。",
+  "context_text": "",
+  "expected_output": [
+   "楽しいことに気持ちを移すしかありませんね。",
+   "楽しい事に気持ちを移すしかありませんね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-036",
+  "word_reading": "うつす",
+  "target": "移す",
+  "rival": [
+   "映さ",
+   "映し",
+   "映す",
+   "映せ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-5287",
+  "target_reading": "うつす"
+ },
+ {
+  "index": "choice-dev-036b",
+  "input": "じゅぎょうによりますね、かおうつせっていうじゅぎょうもあります",
+  "context_text": "",
+  "expected_output": [
+   "授業によりますね、顔映せっていう授業もあります"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-036",
+  "word_reading": "うつす",
+  "target": "映せ",
+  "rival": [
+   "移さ",
+   "移し",
+   "移す",
+   "移そう"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-4436",
+  "target_reading": "うつせ"
+ },
+ {
+  "index": "choice-dev-037a",
+  "input": "かんきもできるからいいですよね。",
+  "context_text": "",
+  "expected_output": [
+   "換気もできるからいいですよね。",
+   "換気も出来るからいいですよね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-037",
+  "word_reading": "かんき",
+  "target": "換気",
+  "rival": [
+   "歓喜"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2935",
+  "target_reading": "かんき"
+ },
+ {
+  "index": "choice-dev-037b",
+  "input": "じもとのたいかんしゅうのはくしゅをまえにないんがかんきのわをつくり、",
+  "context_text": "",
+  "expected_output": [
+   "地元の大観衆の拍手を前にナインが歓喜の輪を作り、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-037",
+  "word_reading": "かんき",
+  "target": "歓喜",
+  "rival": [
+   "かん気",
+   "換気"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-2009アメリカ大リーグ ヤンキースがワールドチャンピオンに 松井秀喜が日本人初のMVP",
+  "target_reading": "かんき"
+ },
+ {
+  "index": "choice-dev-038a",
+  "input": "いまのってるのがしゃけんくるときにかえようかなっておもいます。",
+  "context_text": "",
+  "expected_output": [
+   "今乗ってるのが車検来るときに変えようかなって思います。",
+   "今乗ってるのが車検来る時に変えようかなって思います。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-038",
+  "word_reading": "しゃけん",
+  "target": "車検",
+  "rival": [
+   "車券"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11405",
+  "target_reading": "しゃけん"
+ },
+ {
+  "index": "choice-dev-038b",
+  "input": "しゃけんうりあげがていめいきみとなり、",
+  "context_text": "",
+  "expected_output": [
+   "車券売り上げが低迷気味となり、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-038",
+  "word_reading": "しゃけん",
+  "target": "車券",
+  "rival": [
+   "車検"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-神奈川県・花月園競輪場が来春廃止",
+  "target_reading": "しゃけん"
+ },
+ {
+  "index": "choice-dev-039a",
+  "input": "にんげんにくらべると、3かが1ねんぐらいのかんかくですよ。",
+  "context_text": "",
+  "expected_output": [
+   "人間に比べると、3日が1年ぐらいの感覚ですよ。",
+   "人間に比べると、３日が１年ぐらいの感覚ですよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-039",
+  "word_reading": "かんかく",
+  "target": "感覚",
+  "rival": [
+   "間隔"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2223",
+  "target_reading": "かんかく"
+ },
+ {
+  "index": "choice-dev-039b",
+  "input": "つくえとつくえのかんかくもひとがとおれないくらいのせまいばしょもありましたし。",
+  "context_text": "",
+  "expected_output": [
+   "机と机の間隔も人が通れないくらいの狭い場所もありましたし。",
+   "机と机の間隔も人が通れない位の狭い場所もありましたし。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-039",
+  "word_reading": "かんかく",
+  "target": "間隔",
+  "rival": [
+   "感覚"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13425",
+  "target_reading": "かんかく"
+ },
+ {
+  "index": "choice-dev-040a",
+  "input": "8がつ9かじてんのしゅうけいでは、ししゃが1013にんだったが、",
+  "context_text": "",
+  "expected_output": [
+   "8月9日時点の集計では、死者が1013人だったが、",
+   "８月９日時点の集計では、死者が１０１３人だったが、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-040",
+  "word_reading": "じてん",
+  "target": "時点",
+  "rival": [
+   "辞典"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-エボラ熱の死者、2014年8月からの1か月で倍増 - WHO集計",
+  "target_reading": "じてん"
+ },
+ {
+  "index": "choice-dev-040b",
+  "input": "べすとせらーとなっているじてんで、",
+  "context_text": "",
+  "expected_output": [
+   "ベストセラーとなっている辞典で、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-040",
+  "word_reading": "じてん",
+  "target": "辞典",
+  "rival": [
+   "時点"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-10年ぶりに広辞苑が大改訂—第六版発売",
+  "target_reading": "じてん"
+ },
+ {
+  "index": "choice-dev-041a",
+  "input": "わたしわかいころは、すごくとしうえにみられるかたでした。",
+  "context_text": "",
+  "expected_output": [
+   "わたし若い頃は、すごく年上に見られる方でした。",
+   "わたし若いころは、すごく年上に見られる方でした。",
+   "わたし若いころは、凄く年上に見られる方でした。",
+   "わたし若い頃は、凄く年上に見られる方でした。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-041",
+  "word_reading": "わかい",
+  "target": "若い",
+  "rival": [
+   "和解"
+  ],
+  "pos": "形容詞",
+  "source_doc": "rpc-3413",
+  "target_reading": "わかい"
+ },
+ {
+  "index": "choice-dev-041b",
+  "input": "みんじそしょうではわかいがせいりつしたがへんきんされなかった。",
+  "context_text": "",
+  "expected_output": [
+   "民事訴訟では和解が成立したが返金されなかった。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-041",
+  "word_reading": "わかい",
+  "target": "和解",
+  "rival": [
+   "若",
+   "若い",
+   "若かっ",
+   "若く"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-小室哲哉プロデューサーが楽曲著作権を譲渡すると偽って5億円を詐取し逮捕。容疑認める",
+  "target_reading": "わかい"
+ },
+ {
+  "index": "choice-dev-042a",
+  "input": "おかしはどんなおかしが？",
+  "context_text": "",
+  "expected_output": [
+   "お菓子はどんなお菓子が？",
+   "お菓子はどんなお菓子が?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-042",
+  "word_reading": "かし",
+  "target": "菓子",
+  "rival": [
+   "歌詞"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10495",
+  "target_reading": "かし"
+ },
+ {
+  "index": "choice-dev-042b",
+  "input": "いみふめいなかしとかあるし。",
+  "context_text": "",
+  "expected_output": [
+   "意味不明な歌詞とかあるし。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-042",
+  "word_reading": "かし",
+  "target": "歌詞",
+  "rival": [
+   "菓子"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12434",
+  "target_reading": "かし"
+ },
+ {
+  "index": "choice-dev-043a",
+  "input": "すみません3にんです、みえをはってすみません",
+  "context_text": "",
+  "expected_output": [
+   "すみません3人です、見栄を張ってすみません",
+   "すみません３人です、見栄を張ってすみません"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-043",
+  "word_reading": "はる",
+  "target": "張っ",
+  "rival": [
+   "貼っ",
+   "貼ら",
+   "貼り",
+   "貼る"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-2275",
+  "target_reading": "はっ"
+ },
+ {
+  "index": "choice-dev-043b",
+  "input": "はるというのは、くぎでうつのとまたちがうほうほうでしょうか？",
+  "context_text": "",
+  "expected_output": [
+   "貼るというのは、釘でうつのとまた違う方法でしょうか？",
+   "貼るというのは、釘でうつのとまた違う方法でしょうか?",
+   "貼るというのは、釘でうつのと又違う方法でしょうか?",
+   "貼るというのは、釘でうつのと又違う方法でしょうか？"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-043",
+  "word_reading": "はる",
+  "target": "貼る",
+  "rival": [
+   "張っ",
+   "張ら",
+   "張り",
+   "張る"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1130",
+  "target_reading": "はる"
+ },
+ {
+  "index": "choice-dev-044a",
+  "input": "しゅしょうはどうばんぐみないでがいこう・あんぜんほしょうせいさくについてとわれたなかで、",
+  "context_text": "",
+  "expected_output": [
+   "首相は同番組内で外交・安全保障政策について問われた中で、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-044",
+  "word_reading": "ほしょう",
+  "target": "保障",
+  "rival": [
+   "保証"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-高市首相、北朝鮮を「核保有国」と言及 政府は公式に認めず",
+  "target_reading": "ほしょう"
+ },
+ {
+  "index": "choice-dev-044b",
+  "input": "100えんすしではないのですが、そのぶんおいしさはほしょうします！",
+  "context_text": "",
+  "expected_output": [
+   "100円寿司ではないのですが、その分おいしさは保証します！",
+   "100円寿司ではないのですが、その分おいしさは保証します!",
+   "１００円寿司ではないのですが、その分おいしさは保証します!",
+   "１００円寿司ではないのですが、その分おいしさは保証します！"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-044",
+  "word_reading": "ほしょう",
+  "target": "保証",
+  "rival": [
+   "保障"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7477",
+  "target_reading": "ほしょう"
+ },
+ {
+  "index": "choice-dev-045a",
+  "input": "あ、たしかに、かとりせんこうもおせんこうのなかまですね！",
+  "context_text": "",
+  "expected_output": [
+   "あ、たしかに、蚊取り線香もお線香の仲間ですね！",
+   "あ、たしかに、蚊取り線香もお線香の仲間ですね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-045",
+  "word_reading": "せんこう",
+  "target": "線香",
+  "rival": [
+   "専攻"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7018",
+  "target_reading": "せんこう"
+ },
+ {
+  "index": "choice-dev-045b",
+  "input": "せんこうはなんでした？",
+  "context_text": "",
+  "expected_output": [
+   "専攻はなんでした？",
+   "専攻はなんでした?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-045",
+  "word_reading": "せんこう",
+  "target": "専攻",
+  "rival": [
+   "線香"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6660",
+  "target_reading": "せんこう"
+ },
+ {
+  "index": "choice-dev-046a",
+  "input": "16さいのしょうねんはいのちにべつじょうはなかったものの、",
+  "context_text": "",
+  "expected_output": [
+   "16歳の少年は命に別状はなかったものの、",
+   "16歳の少年は命に別状はなかった物の、",
+   "１６歳の少年は命に別状はなかったものの、",
+   "１６歳の少年は命に別状はなかった物の、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-046",
+  "word_reading": "べつじょう",
+  "target": "別状",
+  "rival": [
+   "別条"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-映画「ハリー・ポッター」シリーズに出演した青年殺傷される",
+  "target_reading": "べつじょう"
+ },
+ {
+  "index": "choice-dev-046b",
+  "input": "せんしゅのいのちにべつじょうはないものの、かんけいしゃにあたえたしょうげきはおおきく、",
+  "context_text": "",
+  "expected_output": [
+   "選手の命に別条は無いものの、関係者に与えた衝撃は大きく、",
+   "選手の命に別条は無い物の、関係者に与えた衝撃は大きく、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-046",
+  "word_reading": "べつじょう",
+  "target": "別条",
+  "rival": [
+   "別状"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-女子野球W杯の試合中、流れ弾が香港選手の脚に当たる - 日本は出場を継続",
+  "target_reading": "べつじょう"
+ },
+ {
+  "index": "choice-dev-047a",
+  "input": "94ねんから98ねんまでかんきょうしょうをつとめた。",
+  "context_text": "",
+  "expected_output": [
+   "94年から98年まで環境相を務めた。",
+   "94年から98年迄環境相を務めた。",
+   "９４年から９８年まで環境相を務めた。",
+   "９４年から９８年迄環境相を務めた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-047",
+  "word_reading": "かんきょうしょう",
+  "target": "環境相",
+  "rival": [
+   "環境省"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-独連立政権交渉、メルケルCDU党首の首相就任で合意",
+  "target_reading": "かんきょうしょう"
+ },
+ {
+  "index": "choice-dev-047b",
+  "input": "なおかんきょうしょうは9がつ6かに、",
+  "context_text": "",
+  "expected_output": [
+   "なお環境省は9月6日に、",
+   "なお環境省は９月６日に、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-047",
+  "word_reading": "かんきょうしょう",
+  "target": "環境省",
+  "rival": [
+   "環境相"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-代々木公園以外でもデング熱に感染か - 厚労省で緊急対策会議、新宿御苑なども閉鎖へ",
+  "target_reading": "かんきょうしょう"
+ },
+ {
+  "index": "choice-dev-048a",
+  "input": "じゃあにてますか？",
+  "context_text": "",
+  "expected_output": [
+   "じゃあ似てますか？",
+   "じゃあ似てますか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-048",
+  "word_reading": "にる",
+  "target": "似",
+  "rival": [
+   "煮",
+   "煮る"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-4343",
+  "target_reading": "に"
+ },
+ {
+  "index": "choice-dev-048b",
+  "input": "やはりちょうじかんにるのですか？",
+  "context_text": "",
+  "expected_output": [
+   "やはり長時間煮るのですか？",
+   "やはり長時間煮るのですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-048",
+  "word_reading": "にる",
+  "target": "煮る",
+  "rival": [
+   "似",
+   "似る"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-13621",
+  "target_reading": "にる"
+ },
+ {
+  "index": "choice-dev-049a",
+  "input": "かじのひですね。",
+  "context_text": "",
+  "expected_output": [
+   "家事の日ですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-049",
+  "word_reading": "かじ",
+  "target": "家事",
+  "rival": [
+   "火事"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11913",
+  "target_reading": "かじ"
+ },
+ {
+  "index": "choice-dev-049b",
+  "input": "かじでやすんだこともあってめがはなせません。",
+  "context_text": "",
+  "expected_output": [
+   "火事で休んだこともあって目が離せません。",
+   "火事で休んだ事もあって目が離せません。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-049",
+  "word_reading": "かじ",
+  "target": "火事",
+  "rival": [
+   "家事"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6056",
+  "target_reading": "かじ"
+ },
+ {
+  "index": "choice-dev-050a",
+  "input": "りょうりじたいはちゅうかなんですけど、こしょうにこだわっていて。",
+  "context_text": "",
+  "expected_output": [
+   "料理自体は中華なんですけど、胡椒にこだわっていて。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-050",
+  "word_reading": "こしょう",
+  "target": "胡椒",
+  "rival": [
+   "故障"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1695",
+  "target_reading": "こしょう"
+ },
+ {
+  "index": "choice-dev-050b",
+  "input": "せんだいくうこうにきちょうから「ひだりがわえんじんがこしょうした」とれんらくがはいった。",
+  "context_text": "",
+  "expected_output": [
+   "仙台空港に機長から「左側エンジンが故障した」と連絡が入った。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-050",
+  "word_reading": "こしょう",
+  "target": "故障",
+  "rival": [
+   "胡椒"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-エアーニッポンネットワークのボンバル機が片側エンジンで緊急着陸 - 1月23日",
+  "target_reading": "こしょう"
+ },
+ {
+  "index": "choice-dev-051a",
+  "input": "せんいをすいこんでしまうとはい・しんぞうなどにあくえいきょうをおよぼし、",
+  "context_text": "",
+  "expected_output": [
+   "繊維を吸い込んでしまうと肺・心臓などに悪影響を及ぼし、",
+   "繊維を吸い込んでしまうと肺・心臓等に悪影響を及ぼし、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-051",
+  "word_reading": "せんい",
+  "target": "繊維",
+  "rival": [
+   "線維"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-アスベスト、ヤンマーと菱電でも死者",
+  "target_reading": "せんい"
+ },
+ {
+  "index": "choice-dev-051b",
+  "input": "うちももをなでると、ちょうこつそけいしんけいのかんかくせんいがしげきされる。",
+  "context_text": "",
+  "expected_output": [
+   "内腿を撫でると、腸骨鼠径神経の感覚線維が刺激される。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-051",
+  "word_reading": "せんい",
+  "target": "線維",
+  "rival": [
+   "繊維"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-4931395",
+  "target_reading": "せんい"
+ },
+ {
+  "index": "choice-dev-052a",
+  "input": "いよくてきににっぽんでのおぺらこうえんをすいしんした。",
+  "context_text": "",
+  "expected_output": [
+   "意欲的に日本でのオペラ公演を推進した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-052",
+  "word_reading": "すいしん",
+  "target": "推進",
+  "rival": [
+   "水深"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 中山悌一氏 - バリトン歌手、声楽家団体「二期会」創設者",
+  "target_reading": "すいしん"
+ },
+ {
+  "index": "choice-dev-052b",
+  "input": "じこげんばはかわはばがひろくすいしんのふかいばしょであり、",
+  "context_text": "",
+  "expected_output": [
+   "事故現場は川幅が広く水深の深い場所であり、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-052",
+  "word_reading": "すいしん",
+  "target": "水深",
+  "rival": [
+   "推進"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-バングラデシュで沈没事故、行方不明者数百人",
+  "target_reading": "すいしん"
+ },
+ {
+  "index": "choice-dev-053a",
+  "input": "じっかではうなぎのかわりにさんまのかばやきがでてきます。",
+  "context_text": "",
+  "expected_output": [
+   "実家では鰻の代わりにサンマのかば焼きがでてきます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-053",
+  "word_reading": "かわり",
+  "target": "代わり",
+  "rival": [
+   "変わり"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4147",
+  "target_reading": "かわり"
+ },
+ {
+  "index": "choice-dev-053b",
+  "input": "はい、しょくよくはかわりないです、あなたは？",
+  "context_text": "",
+  "expected_output": [
+   "はい、食欲は変わりないです、あなたは？",
+   "はい、食欲は変わりないです、あなたは?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-053",
+  "word_reading": "かわり",
+  "target": "変わり",
+  "rival": [
+   "代り",
+   "代わり"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11016",
+  "target_reading": "かわり"
+ },
+ {
+  "index": "choice-dev-054a",
+  "input": "2006ねんもこのひのはいせんをもって12いとていめいしていたため、",
+  "context_text": "",
+  "expected_output": [
+   "2006年もこの日の敗戦を持って12位と低迷していたため、",
+   "2006年もこの日の敗戦を持って12くらいと低迷していたため、",
+   "2006年もこの日の敗戦を持って12くらいと低迷していた為、",
+   "2006年もこの日の敗戦を持って12位と低迷していた為、",
+   "２００６年もこの日の敗戦を持って１２くらいと低迷していたため、",
+   "２００６年もこの日の敗戦を持って１２くらいと低迷していた為、",
+   "２００６年もこの日の敗戦を持って１２位と低迷していたため、",
+   "２００６年もこの日の敗戦を持って１２位と低迷していた為、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-054",
+  "word_reading": "はいせん",
+  "target": "敗戦",
+  "rival": [
+   "配線"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-サッカー・横浜F・マリノス、岡田監督辞任",
+  "target_reading": "はいせん"
+ },
+ {
+  "index": "choice-dev-054b",
+  "input": "はいせんがせつだんされていたことがはんめいした。",
+  "context_text": "",
+  "expected_output": [
+   "配線が切断されていたことが判明した。",
+   "配線が切断されていた事が判明した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-054",
+  "word_reading": "はいせん",
+  "target": "配線",
+  "rival": [
+   "敗戦"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-JR西日本の電車で、今度は列車無線の配線が切断される - 内部犯行か",
+  "target_reading": "はいせん"
+ },
+ {
+  "index": "choice-dev-055a",
+  "input": "ものがたりこうはんのいみがわたくしはりかいできなかったんですよ。",
+  "context_text": "",
+  "expected_output": [
+   "物語後半の意味が私は理解出来なかったんですよ。",
+   "物語後半の意味が私は理解できなかったんですよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-055",
+  "word_reading": "こうはん",
+  "target": "後半",
+  "rival": [
+   "公判"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13544",
+  "target_reading": "こうはん"
+ },
+ {
+  "index": "choice-dev-055b",
+  "input": "よみうりしんぶんによると、もんだいのこうはんは、どうじつごぜん11じ50ふんにかいてい。",
+  "context_text": "",
+  "expected_output": [
+   "読売新聞によると、問題の公判は、同日午前11時50分に開廷。",
+   "読売新聞によると、問題の公判は、同日午前11とき50分に開廷。",
+   "読売新聞によると、問題の公判は、同日午前１１とき５０分に開廷。",
+   "読売新聞によると、問題の公判は、同日午前１１時５０分に開廷。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-055",
+  "word_reading": "こうはん",
+  "target": "公判",
+  "rival": [
+   "後半"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-検察官不在に気付かず判決言い渡す - 奈良地方裁判所",
+  "target_reading": "こうはん"
+ },
+ {
+  "index": "choice-dev-056a",
+  "input": "げんばにいたころはおさっしのとおりですね。",
+  "context_text": "",
+  "expected_output": [
+   "現場にいたころはお察しの通りですね。",
+   "現場にいたころはお察しのとおりですね。",
+   "現場にいた頃はお察しのとおりですね。",
+   "現場にいた頃はお察しの通りですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-056",
+  "word_reading": "さっし",
+  "target": "察し",
+  "rival": [
+   "冊子"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4557",
+  "target_reading": "さっし"
+ },
+ {
+  "index": "choice-dev-056b",
+  "input": "おかねをうけとるさいに、ぎんこうからとくべつにわたされるさっしがあるとか。",
+  "context_text": "",
+  "expected_output": [
+   "お金を受け取る際に、銀行から特別に渡される冊子があるとか。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-056",
+  "word_reading": "さっし",
+  "target": "冊子",
+  "rival": [
+   "察し"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9573",
+  "target_reading": "さっし"
+ },
+ {
+  "index": "choice-dev-057a",
+  "input": "のばすことはないんですか？",
+  "context_text": "",
+  "expected_output": [
+   "伸ばすことはないんですか？",
+   "伸ばすことはないんですか?",
+   "伸ばす事はないんですか?",
+   "伸ばす事はないんですか？"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-057",
+  "word_reading": "のばす",
+  "target": "伸ばす",
+  "rival": [
+   "延ばさ",
+   "延ばし",
+   "延ばせ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-7270",
+  "target_reading": "のばす"
+ },
+ {
+  "index": "choice-dev-057b",
+  "input": "さらに12がつへとのばされていた。",
+  "context_text": "",
+  "expected_output": [
+   "更に12月へと延ばされていた。",
+   "さらに12月へと延ばされていた。",
+   "さらに１２月へと延ばされていた。",
+   "更に１２月へと延ばされていた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-057",
+  "word_reading": "のばす",
+  "target": "延ばさ",
+  "rival": [
+   "伸ばし",
+   "伸ばす",
+   "伸ばせ",
+   "伸ばそう"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-台湾高速鉄道、年内にも営業開始―海外メディア向けに初の試乗会",
+  "target_reading": "のばさ"
+ },
+ {
+  "index": "choice-dev-058a",
+  "input": "きほんきゅうじつのあさ、おきることができたらへいじつのそうちょうなどですかね。",
+  "context_text": "",
+  "expected_output": [
+   "基本休日の朝、起きることができたら平日の早朝などですかね。",
+   "基本休日の朝、起きることができたら平日の早朝等ですかね。",
+   "基本休日の朝、起きることが出来たら平日の早朝などですかね。",
+   "基本休日の朝、起きることが出来たら平日の早朝等ですかね。",
+   "基本休日の朝、起きる事ができたら平日の早朝などですかね。",
+   "基本休日の朝、起きる事ができたら平日の早朝等ですかね。",
+   "基本休日の朝、起きる事が出来たら平日の早朝などですかね。",
+   "基本休日の朝、起きる事が出来たら平日の早朝等ですかね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-058",
+  "word_reading": "そうちょう",
+  "target": "早朝",
+  "rival": [
+   "総長"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2690",
+  "target_reading": "そうちょう"
+ },
+ {
+  "index": "choice-dev-058b",
+  "input": "これはすいすのみはえる・らうばーけんじそうちょうが9がつ29かに、",
+  "context_text": "",
+  "expected_output": [
+   "これはスイスのミハエル・ラウバー検事総長が9月29日に、",
+   "これはスイスのミハエル・ラウバー検事総長が９月２９日に、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-058",
+  "word_reading": "そうちょう",
+  "target": "総長",
+  "rival": [
+   "早朝"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-プラティニ氏 スイスの司法当局は容疑者の可能性も含めた「参考人」と位置付け",
+  "target_reading": "そうちょう"
+ },
+ {
+  "index": "choice-dev-059a",
+  "input": "こうにゅうじのだいきんはこうざからのじどうひきおとし、",
+  "context_text": "",
+  "expected_output": [
+   "購入時の代金は口座からの自動引き落とし、",
+   "購入ときの代金は口座からの自動引き落とし、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-059",
+  "word_reading": "こうざ",
+  "target": "口座",
+  "rival": [
+   "講座"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-スポーツ振興くじtoto、オンライン発売開始",
+  "target_reading": "こうざ"
+ },
+ {
+  "index": "choice-dev-059b",
+  "input": "もとおおさかこうりつだいがくだいがくいんいがくけんきゅうかひろういがくこうざとくにんきょうじゅ。",
+  "context_text": "",
+  "expected_output": [
+   "元大阪公立大学大学院医学研究科疲労医学講座特任教授。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-059",
+  "word_reading": "こうざ",
+  "target": "講座",
+  "rival": [
+   "口座"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5231584",
+  "target_reading": "こうざ"
+ },
+ {
+  "index": "choice-dev-060a",
+  "input": "かんこくりょうりとかていしょくとかごはんけいがすきですね。",
+  "context_text": "",
+  "expected_output": [
+   "韓国料理とか定食とかご飯系が好きですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-060",
+  "word_reading": "ていしょく",
+  "target": "定食",
+  "rival": [
+   "抵触"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9963",
+  "target_reading": "ていしょく"
+ },
+ {
+  "index": "choice-dev-060b",
+  "input": "せんきょでえらばれたってこととはなんのていしょくしないとおもいますよ。",
+  "context_text": "",
+  "expected_output": [
+   "選挙で選ばれたってこととはなんの抵触しないと思いますよ。",
+   "選挙で選ばれたって事とはなんの抵触しないと思いますよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-060",
+  "word_reading": "ていしょく",
+  "target": "抵触",
+  "rival": [
+   "定食"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-教育基本法改正案、特定のイズムを禁止と文部科学大臣",
+  "target_reading": "ていしょく"
+ },
+ {
+  "index": "choice-dev-061a",
+  "input": "だんなもすえっこをできあいしてます。",
+  "context_text": "",
+  "expected_output": [
+   "旦那も末っ子を溺愛してます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-061",
+  "word_reading": "できあい",
+  "target": "溺愛",
+  "rival": [
+   "出来合い"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3981",
+  "target_reading": "できあい"
+ },
+ {
+  "index": "choice-dev-061b",
+  "input": "できあいのものをつかってもおでんはすごいきがします。",
+  "context_text": "",
+  "expected_output": [
+   "出来合いのものを使ってもおでんはすごい気がします。",
+   "出来合いのものを使ってもおでんは凄い気がします。",
+   "出来合いの物を使ってもおでんはすごい気がします。",
+   "出来合いの物を使ってもおでんは凄い気がします。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-061",
+  "word_reading": "できあい",
+  "target": "出来合い",
+  "rival": [
+   "溺愛"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13317",
+  "target_reading": "できあい"
+ },
+ {
+  "index": "choice-dev-062a",
+  "input": "りっこうほのいしはかわらなかったとどうとうかんけいしゃがあきらかにした。",
+  "context_text": "",
+  "expected_output": [
+   "立候補の意思は変わらなかったと同党関係者が明らかにした。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-062",
+  "word_reading": "いし",
+  "target": "意思",
+  "rival": [
+   "医師"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-衆議院福岡6区補選 自民党執行部が蔵内氏に出馬辞退促す",
+  "target_reading": "いし"
+ },
+ {
+  "index": "choice-dev-062b",
+  "input": "じっかのあるわしんとんしゅうのしんるいのいしのしんさつをうけたけっか、",
+  "context_text": "",
+  "expected_output": [
+   "実家のあるワシントン州の親類の医師の診察を受けた結果、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-062",
+  "word_reading": "いし",
+  "target": "医師",
+  "rival": [
+   "意思"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-大リーグ・ジョン・レスター投手がガンを克服してノーヒットノーラン",
+  "target_reading": "いし"
+ },
+ {
+  "index": "choice-dev-063a",
+  "input": "いおんせんじょうとかよけいなきのうもいらないですよね！",
+  "context_text": "",
+  "expected_output": [
+   "イオン洗浄とか余計な機能もいらないですよね！",
+   "イオン洗浄とか余計な機能もいらないですよね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-063",
+  "word_reading": "せんじょう",
+  "target": "洗浄",
+  "rival": [
+   "戦場"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7576",
+  "target_reading": "せんじょう"
+ },
+ {
+  "index": "choice-dev-063b",
+  "input": "おこさんいると、どうしてもあさはせんじょうですもんね。",
+  "context_text": "",
+  "expected_output": [
+   "お子さんいると、どうしても朝は戦場ですもんね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-063",
+  "word_reading": "せんじょう",
+  "target": "戦場",
+  "rival": [
+   "洗浄"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3196",
+  "target_reading": "せんじょう"
+ },
+ {
+  "index": "choice-dev-064a",
+  "input": "あたまのかいてんがよいのは、こころからうらやましいです。",
+  "context_text": "",
+  "expected_output": [
+   "頭の回転が良いのは、心から羨ましいです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-064",
+  "word_reading": "かいてん",
+  "target": "回転",
+  "rival": [
+   "開店"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7733",
+  "target_reading": "かいてん"
+ },
+ {
+  "index": "choice-dev-064b",
+  "input": "えいぎょうじかんは11じかいてん、23じへいてんでございます。",
+  "context_text": "",
+  "expected_output": [
+   "営業時間は11時開店、23時閉店でございます。",
+   "営業時間は11とき開店、23とき閉店でございます。",
+   "営業時間は11とき開店、23時閉店でございます。",
+   "営業時間は11時開店、23とき閉店でございます。",
+   "営業時間は１１とき開店、２３とき閉店でございます。",
+   "営業時間は１１とき開店、２３時閉店でございます。",
+   "営業時間は１１時開店、２３とき閉店でございます。",
+   "営業時間は１１時開店、２３時閉店でございます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-064",
+  "word_reading": "かいてん",
+  "target": "開店",
+  "rival": [
+   "回転"
+  ],
+  "pos": "名詞",
+  "source_doc": "mwoz-1949",
+  "target_reading": "かいてん"
+ },
+ {
+  "index": "choice-dev-065a",
+  "input": "とまりはねん1かいほどですが、ひがえりはよくいきますよ。",
+  "context_text": "",
+  "expected_output": [
+   "泊まりは年1回ほどですが、日帰りはよく行きますよ。",
+   "泊まりは年1回程ですが、日帰りはよく行きますよ。",
+   "泊まりは年１回ほどですが、日帰りはよく行きますよ。",
+   "泊まりは年１回程ですが、日帰りはよく行きますよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-065",
+  "word_reading": "とまり",
+  "target": "泊まり",
+  "rival": [
+   "止まり"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-858",
+  "target_reading": "とまり"
+ },
+ {
+  "index": "choice-dev-065b",
+  "input": "いや、たしかとたいかいとまりだったかと。",
+  "context_text": "",
+  "expected_output": [
+   "いや、確か都大会止まりだったかと。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-065",
+  "word_reading": "とまり",
+  "target": "止まり",
+  "rival": [
+   "泊まり",
+   "泊り"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8553",
+  "target_reading": "とまり"
+ },
+ {
+  "index": "choice-dev-066a",
+  "input": "せんじつともだちにあかちゃんがうまれたんです！",
+  "context_text": "",
+  "expected_output": [
+   "先日友達に赤ちゃんが生まれたんです！",
+   "先日友達に赤ちゃんが生まれたんです!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-066",
+  "word_reading": "うまれる",
+  "target": "生まれ",
+  "rival": [
+   "産まれ",
+   "産まれる"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1752",
+  "target_reading": "うまれ"
+ },
+ {
+  "index": "choice-dev-066b",
+  "input": "いつかあかちゃんうさぎのうまれるきせつにみにいきたいなあと",
+  "context_text": "",
+  "expected_output": [
+   "いつか赤ちゃんうさぎの産まれる季節にみに行きたいなあと"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-066",
+  "word_reading": "うまれる",
+  "target": "産まれる",
+  "rival": [
+   "生まれ",
+   "生まれる",
+   "生まれれ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1848",
+  "target_reading": "うまれる"
+ },
+ {
+  "index": "choice-dev-067a",
+  "input": "ちゅうごくがわはゆうがいぶっしつがすうじつでかりゅうにながれさるとみて、",
+  "context_text": "",
+  "expected_output": [
+   "中国側は有害物質が数日で下流に流れ去ると見て、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-067",
+  "word_reading": "かりゅう",
+  "target": "下流",
+  "rival": [
+   "顆粒"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-中国・ロシア国境付近に広がる水質汚染、生活に影響も",
+  "target_reading": "かりゅう"
+ },
+ {
+  "index": "choice-dev-067b",
+  "input": "とりあえず、かりゅうのふぉーのだしみたいなものはかってみました。",
+  "context_text": "",
+  "expected_output": [
+   "とりあえず、顆粒のフォーのだしみたいなものは買ってみました。",
+   "とりあえず、顆粒のフォーのだしみたいな物は買ってみました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-067",
+  "word_reading": "かりゅう",
+  "target": "顆粒",
+  "rival": [
+   "下流"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8804",
+  "target_reading": "かりゅう"
+ },
+ {
+  "index": "choice-dev-068a",
+  "input": "きしょうかんけいのよほうもすぴーど・せいどともにかくだんにあがってますよね。",
+  "context_text": "",
+  "expected_output": [
+   "気象関係の予報もスピード・精度ともに格段に上がってますよね。",
+   "気象関係の予報もスピード・精度共に格段に上がってますよね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-068",
+  "word_reading": "きしょう",
+  "target": "気象",
+  "rival": [
+   "起床"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1989",
+  "target_reading": "きしょう"
+ },
+ {
+  "index": "choice-dev-068b",
+  "input": "さきほどひるねをしてきしょうしたばかりなんです。",
+  "context_text": "",
+  "expected_output": [
+   "先ほど昼寝をして起床したばかりなんです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-068",
+  "word_reading": "きしょう",
+  "target": "起床",
+  "rival": [
+   "気象"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12036",
+  "target_reading": "きしょう"
+ },
+ {
+  "index": "choice-dev-069a",
+  "input": "にわにてきとうにうえるぐらいですね。",
+  "context_text": "",
+  "expected_output": [
+   "庭に適当に植えるぐらいですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-069",
+  "word_reading": "うえる",
+  "target": "植える",
+  "rival": [
+   "飢え"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-2572",
+  "target_reading": "うえる"
+ },
+ {
+  "index": "choice-dev-069b",
+  "input": "それだけうえてたんですかね",
+  "context_text": "",
+  "expected_output": [
+   "それだけ飢えてたんですかね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-069",
+  "word_reading": "うえる",
+  "target": "飢え",
+  "rival": [
+   "植え",
+   "植えよう",
+   "植える",
+   "植えれ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-12676",
+  "target_reading": "うえ"
+ },
+ {
+  "index": "choice-dev-070a",
+  "input": "とうにゅうなべだいすきです。",
+  "context_text": "",
+  "expected_output": [
+   "豆乳鍋大好きです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-070",
+  "word_reading": "とうにゅう",
+  "target": "豆乳",
+  "rival": [
+   "投入"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6558",
+  "target_reading": "とうにゅう"
+ },
+ {
+  "index": "choice-dev-070b",
+  "input": "とうかいどうしんかんせんにとうにゅうされた。",
+  "context_text": "",
+  "expected_output": [
+   "東海道新幹線に投入された。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-070",
+  "word_reading": "とうにゅう",
+  "target": "投入",
+  "rival": [
+   "豆乳"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-東海道・山陽新幹線300系、来春引退へ",
+  "target_reading": "とうにゅう"
+ },
+ {
+  "index": "choice-dev-071a",
+  "input": "それならばおなじじょうきょうでしょうか。",
+  "context_text": "",
+  "expected_output": [
+   "それならば同じ状況でしょうか。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-071",
+  "word_reading": "じょうきょう",
+  "target": "状況",
+  "rival": [
+   "上京"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9476",
+  "target_reading": "じょうきょう"
+ },
+ {
+  "index": "choice-dev-071b",
+  "input": "あおもりけんひろさきしにうまれ、19さいでじょうきょう。",
+  "context_text": "",
+  "expected_output": [
+   "青森県弘前市に生まれ、19歳で上京。",
+   "青森県弘前市に生まれ、１９歳で上京。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-071",
+  "word_reading": "じょうきょう",
+  "target": "上京",
+  "rival": [
+   "状況"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 工藤甲人氏 - 日本画家、毎日芸術賞受賞",
+  "target_reading": "じょうきょう"
+ },
+ {
+  "index": "choice-dev-072a",
+  "input": "らいぶそのものよりは、うちあげめあてのふじゅんならいぶでした。",
+  "context_text": "",
+  "expected_output": [
+   "ライブそのものよりは、打ち上げ目当ての不純なライブでした。",
+   "ライブその物よりは、打ち上げ目当ての不純なライブでした。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-072",
+  "word_reading": "ふじゅん",
+  "target": "不純",
+  "rival": [
+   "不順"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3503",
+  "target_reading": "ふじゅん"
+ },
+ {
+  "index": "choice-dev-072b",
+  "input": "てんこうもふじゅんですし。",
+  "context_text": "",
+  "expected_output": [
+   "天候も不順ですし。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-072",
+  "word_reading": "ふじゅん",
+  "target": "不順",
+  "rival": [
+   "不純"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9321",
+  "target_reading": "ふじゅん"
+ },
+ {
+  "index": "choice-dev-073a",
+  "input": "20せいきこうはんではさいこうのわーぐなーかしゅとたたえられた。",
+  "context_text": "",
+  "expected_output": [
+   "20世紀後半では最高のワーグナー歌手と讃えられた。",
+   "２０世紀後半では最高のワーグナー歌手と讃えられた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-073",
+  "word_reading": "せいき",
+  "target": "世紀",
+  "rival": [
+   "正規"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 ヒルデガルト・ベーレンスさん",
+  "target_reading": "せいき"
+ },
+ {
+  "index": "choice-dev-073b",
+  "input": "せいきのりょうきんでいったら、ばいはかかりますよ",
+  "context_text": "",
+  "expected_output": [
+   "正規の料金でいったら、倍はかかりますよ"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-073",
+  "word_reading": "せいき",
+  "target": "正規",
+  "rival": [
+   "世紀"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8371",
+  "target_reading": "せいき"
+ },
+ {
+  "index": "choice-dev-074a",
+  "input": "きがいよぼうきていのさくせい、ほあんきょういくけいかくのりつあんとすいしん、",
+  "context_text": "",
+  "expected_output": [
+   "危害予防規定の作成、保安教育計画の立案と推進、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-074",
+  "word_reading": "きてい",
+  "target": "規定",
+  "rival": [
+   "規程"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5231740",
+  "target_reading": "きてい"
+ },
+ {
+  "index": "choice-dev-074b",
+  "input": "こうきょうかせつとうさぎょうしゅにんしゃぎのうこうしゅうきていは、",
+  "context_text": "",
+  "expected_output": [
+   "鋼橋架設等作業主任者技能講習規程は、",
+   "鋼橋架設など作業主任者技能講習規程は、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-074",
+  "word_reading": "きてい",
+  "target": "規程",
+  "rival": [
+   "規定"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5242654",
+  "target_reading": "きてい"
+ },
+ {
+  "index": "choice-dev-075a",
+  "input": "いまのそうりだいじんにはどんなみらいがよちされてるんですかね。",
+  "context_text": "",
+  "expected_output": [
+   "今の総理大臣にはどんな未来が予知されてるんですかね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-075",
+  "word_reading": "よち",
+  "target": "予知",
+  "rival": [
+   "余地"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7032",
+  "target_reading": "よち"
+ },
+ {
+  "index": "choice-dev-075b",
+  "input": "まだまだかいりょうのよちがあるきかいなんですね",
+  "context_text": "",
+  "expected_output": [
+   "まだまだ改良の余地がある器械なんですね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-075",
+  "word_reading": "よち",
+  "target": "余地",
+  "rival": [
+   "予知"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13265",
+  "target_reading": "よち"
+ },
+ {
+  "index": "choice-dev-076a",
+  "input": "あれでかんせいされてるとおもいます。",
+  "context_text": "",
+  "expected_output": [
+   "あれで完成されてると思います。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-076",
+  "word_reading": "かんせい",
+  "target": "完成",
+  "rival": [
+   "感性"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10865",
+  "target_reading": "かんせい"
+ },
+ {
+  "index": "choice-dev-076b",
+  "input": "しょうせつかみたいなかんせいをおもちですね、すてき",
+  "context_text": "",
+  "expected_output": [
+   "小説家みたいな感性をお持ちですね、素敵"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-076",
+  "word_reading": "かんせい",
+  "target": "感性",
+  "rival": [
+   "完成"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7722",
+  "target_reading": "かんせい"
+ },
+ {
+  "index": "choice-dev-077a",
+  "input": "さらにきょうきにつかったとされるはものもしょぶんしたときょうじゅつしており、",
+  "context_text": "",
+  "expected_output": [
+   "さらに凶器に使ったとされる刃物も処分したと供述しており、",
+   "更に凶器に使ったとされる刃物も処分したと供述しており、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-077",
+  "word_reading": "はもの",
+  "target": "刃物",
+  "rival": [
+   "葉物"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-栃木の小学生女児殺害 32歳の男が殺人で逮捕",
+  "target_reading": "はもの"
+ },
+ {
+  "index": "choice-dev-077b",
+  "input": "わたくしははものはやったことあるのですが、こんやさいはみけいけんです。",
+  "context_text": "",
+  "expected_output": [
+   "私は葉物はやったことあるのですが、今野菜は未経験です。",
+   "私は葉物はやった事あるのですが、今野菜は未経験です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-077",
+  "word_reading": "はもの",
+  "target": "葉物",
+  "rival": [
+   "刃物"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-5774",
+  "target_reading": "はもの"
+ },
+ {
+  "index": "choice-dev-078a",
+  "input": "ただ、いろいろしせつがじゅうじつしたすーぱーせんとうはみたいけんです。",
+  "context_text": "",
+  "expected_output": [
+   "ただ、色々施設が充実したスーパー銭湯は未体験です。",
+   "ただ、いろいろ施設が充実したスーパー銭湯は未体験です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-078",
+  "word_reading": "せんとう",
+  "target": "銭湯",
+  "rival": [
+   "戦闘"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2365",
+  "target_reading": "せんとう"
+ },
+ {
+  "index": "choice-dev-078b",
+  "input": "れきしものはせんとうしーんとかもかっこいいですよね！",
+  "context_text": "",
+  "expected_output": [
+   "歴史ものは戦闘シーンとかもかっこいいですよね！",
+   "歴史ものは戦闘シーンとかもかっこいいですよね!",
+   "歴史物は戦闘シーンとかもかっこいいですよね!",
+   "歴史物は戦闘シーンとかもかっこいいですよね！"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-078",
+  "word_reading": "せんとう",
+  "target": "戦闘",
+  "rival": [
+   "銭湯"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11744",
+  "target_reading": "せんとう"
+ },
+ {
+  "index": "choice-dev-079a",
+  "input": "ぶちゅたしは2001ねん9がつのどうじたはつてろいらい、",
+  "context_text": "",
+  "expected_output": [
+   "ブチュタ氏は2001年9月の同時多発テロ以来、",
+   "ブチュタ氏は２００１年９月の同時多発テロ以来、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-079",
+  "word_reading": "どうじ",
+  "target": "同時",
+  "rival": [
+   "同寺"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-イタリア、イスラム教指導者を追放",
+  "target_reading": "どうじ"
+ },
+ {
+  "index": "choice-dev-079b",
+  "input": "どうじうぇぶさいとによれば、",
+  "context_text": "",
+  "expected_output": [
+   "同寺ウェブサイトによれば、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-079",
+  "word_reading": "どうじ",
+  "target": "同寺",
+  "rival": [
+   "同時"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-京都・醍醐寺の准胝堂が全焼、落雷が原因か",
+  "target_reading": "どうじ"
+ },
+ {
+  "index": "choice-dev-080a",
+  "input": "どうやってしょくりょうをてにいれているんでしょうか。",
+  "context_text": "",
+  "expected_output": [
+   "どうやって食料を手に入れているんでしょうか。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-080",
+  "word_reading": "しょくりょう",
+  "target": "食料",
+  "rival": [
+   "食糧"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4841",
+  "target_reading": "しょくりょう"
+ },
+ {
+  "index": "choice-dev-080b",
+  "input": "しょくりょうふそくや、ぶっかこうとうがしんぱいですね。",
+  "context_text": "",
+  "expected_output": [
+   "食糧不足や、物価高騰が心配ですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-080",
+  "word_reading": "しょくりょう",
+  "target": "食糧",
+  "rival": [
+   "食料"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7381",
+  "target_reading": "しょくりょう"
+ },
+ {
+  "index": "choice-dev-081a",
+  "input": "こうきょうりょうきんとかも、さいきんぺいぺいです。",
+  "context_text": "",
+  "expected_output": [
+   "公共料金とかも、最近ペイペイです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-081",
+  "word_reading": "こうきょう",
+  "target": "公共",
+  "rival": [
+   "交響"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10568",
+  "target_reading": "こうきょう"
+ },
+ {
+  "index": "choice-dev-081b",
+  "input": "そのごどいつにわたり、けるんほうそうこうきょうがくだんしゅせきしきしゃにしゅうにん。",
+  "context_text": "",
+  "expected_output": [
+   "その後ドイツに渡り、ケルン放送交響楽団首席指揮者に就任。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-081",
+  "word_reading": "こうきょう",
+  "target": "交響",
+  "rival": [
+   "公共"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 若杉弘氏",
+  "target_reading": "こうきょう"
+ },
+ {
+  "index": "choice-dev-082a",
+  "input": "さいきんは、ようりょうのもんだいでやってないんですがおもしろいです。",
+  "context_text": "",
+  "expected_output": [
+   "最近は、容量の問題でやってないんですがおもしろいです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-082",
+  "word_reading": "ようりょう",
+  "target": "容量",
+  "rival": [
+   "要領"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12979",
+  "target_reading": "ようりょう"
+ },
+ {
+  "index": "choice-dev-082b",
+  "input": "かんこくこくないでは、にっぽんのちゅうがっこうのしんがくしゅうしどうようりょうかいせつしょに、",
+  "context_text": "",
+  "expected_output": [
+   "韓国国内では、日本の中学校の新学習指導要領解説書に、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-082",
+  "word_reading": "ようりょう",
+  "target": "要領",
+  "rival": [
+   "容量"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-韓国、竹島の実効支配強化へ",
+  "target_reading": "ようりょう"
+ },
+ {
+  "index": "choice-dev-083a",
+  "input": "しさんがすうおくあるのでこぜにですよ",
+  "context_text": "",
+  "expected_output": [
+   "資産が数億あるので小銭ですよ"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-083",
+  "word_reading": "しさん",
+  "target": "資産",
+  "rival": [
+   "試算"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13137",
+  "target_reading": "しさん"
+ },
+ {
+  "index": "choice-dev-083b",
+  "input": "けんなどがしさんしたところによると、",
+  "context_text": "",
+  "expected_output": [
+   "県などが試算したところによると、",
+   "県などが試算した所によると、",
+   "県等が試算したところによると、",
+   "県等が試算した所によると、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-083",
+  "word_reading": "しさん",
+  "target": "試算",
+  "rival": [
+   "資産"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-神奈川県初の津波避難タワーが湘南海岸公園に完成",
+  "target_reading": "しさん"
+ },
+ {
+  "index": "choice-dev-084a",
+  "input": "てんきがよいのであさからしーつをせんたくしました。",
+  "context_text": "",
+  "expected_output": [
+   "天気が良いので朝からシーツを洗濯しました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-084",
+  "word_reading": "せんたく",
+  "target": "洗濯",
+  "rival": [
+   "選択"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13681",
+  "target_reading": "せんたく"
+ },
+ {
+  "index": "choice-dev-084b",
+  "input": "いいせんたくだったとおもいます！",
+  "context_text": "",
+  "expected_output": [
+   "いい選択だったと思います！",
+   "いい選択だったと思います!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-084",
+  "word_reading": "せんたく",
+  "target": "選択",
+  "rival": [
+   "洗たく",
+   "洗濯"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10713",
+  "target_reading": "せんたく"
+ },
+ {
+  "index": "choice-dev-085a",
+  "input": "せっきゃくぎょうにじゅうじされてるかたはとてもそんけいします。",
+  "context_text": "",
+  "expected_output": [
+   "接客業に従事されてる方はとても尊敬します。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-085",
+  "word_reading": "じゅうじ",
+  "target": "従事",
+  "rival": [
+   "十字"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8601",
+  "target_reading": "じゅうじ"
+ },
+ {
+  "index": "choice-dev-085b",
+  "input": "ぜんじゅうじってそうとうないたみでしたよね？",
+  "context_text": "",
+  "expected_output": [
+   "前十字って相当な痛みでしたよね？",
+   "前十字って相当な痛みでしたよね?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-085",
+  "word_reading": "じゅうじ",
+  "target": "十字",
+  "rival": [
+   "従事"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6364",
+  "target_reading": "じゅうじ"
+ },
+ {
+  "index": "choice-dev-086a",
+  "input": "ねんれいとともに、1ねんがすぎるのはやくかんじませんか？",
+  "context_text": "",
+  "expected_output": [
+   "年齢とともに、1年が過ぎるの早く感じませんか？",
+   "年齢とともに、1年が過ぎるの早く感じませんか?",
+   "年齢とともに、１年が過ぎるの早く感じませんか?",
+   "年齢とともに、１年が過ぎるの早く感じませんか？",
+   "年齢と共に、1年が過ぎるの早く感じませんか?",
+   "年齢と共に、1年が過ぎるの早く感じませんか？",
+   "年齢と共に、１年が過ぎるの早く感じませんか?",
+   "年齢と共に、１年が過ぎるの早く感じませんか？"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-086",
+  "word_reading": "はやい",
+  "target": "早く",
+  "rival": [
+   "速",
+   "速い",
+   "速かっ",
+   "速く"
+  ],
+  "pos": "形容詞",
+  "source_doc": "rpc-1050",
+  "target_reading": "はやく"
+ },
+ {
+  "index": "choice-dev-086b",
+  "input": "たーげっとのうごきがはやいのでかめらもはやくうごきます",
+  "context_text": "",
+  "expected_output": [
+   "ターゲットの動きが速いのでカメラも速く動きます"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-086",
+  "word_reading": "はやい",
+  "target": "速い",
+  "rival": [
+   "早",
+   "早い",
+   "早かっ",
+   "早く"
+  ],
+  "pos": "形容詞",
+  "source_doc": "rpc-3600",
+  "target_reading": "はやい"
+ },
+ {
+  "index": "choice-dev-087a",
+  "input": "のちにしどうぶからぶんりした。",
+  "context_text": "",
+  "expected_output": [
+   "のちに指導部から分離した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-087",
+  "word_reading": "しどう",
+  "target": "指導",
+  "rival": [
+   "始動"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ダルフール―AU監視部隊員、反政府勢力により解放",
+  "target_reading": "しどう"
+ },
+ {
+  "index": "choice-dev-087b",
+  "input": "かくめいしどうひょうぎかいをたちあげ、そのぎちょうとなった。",
+  "context_text": "",
+  "expected_output": [
+   "革命始動評議会を立ち上げ、その議長となった。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-087",
+  "word_reading": "しどう",
+  "target": "始動",
+  "rival": [
+   "指導"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-カダフィ大佐死亡 - リビア・42年の独裁政権に終止符",
+  "target_reading": "しどう"
+ },
+ {
+  "index": "choice-dev-088a",
+  "input": "しきそれぞれあるみたいでいまぽちりたくなってます！",
+  "context_text": "",
+  "expected_output": [
+   "四季それぞれあるみたいで今ポチりたくなってます！",
+   "四季それぞれあるみたいで今ポチりたくなってます!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-088",
+  "word_reading": "しき",
+  "target": "四季",
+  "rival": [
+   "指揮"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9041",
+  "target_reading": "しき"
+ },
+ {
+  "index": "choice-dev-088b",
+  "input": "おかだしは2003ねんからF・まりのすでしきをとっており、",
+  "context_text": "",
+  "expected_output": [
+   "岡田氏は2003年からF・マリノスで指揮を取っており、",
+   "岡田氏は２００３年からF・マリノスで指揮を取っており、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-088",
+  "word_reading": "しき",
+  "target": "指揮",
+  "rival": [
+   "四季"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-サッカー・横浜F・マリノス、岡田監督辞任",
+  "target_reading": "しき"
+ },
+ {
+  "index": "choice-dev-089a",
+  "input": "うむをいわさずやるのがぽいんとですかね。",
+  "context_text": "",
+  "expected_output": [
+   "有無を言わさずやるのがポイントですかね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-089",
+  "word_reading": "うむ",
+  "target": "有無",
+  "rival": [
+   "産ま",
+   "産み",
+   "産む",
+   "産め"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13770",
+  "target_reading": "うむ"
+ },
+ {
+  "index": "choice-dev-089b",
+  "input": "いやーうみすぎました。",
+  "context_text": "",
+  "expected_output": [
+   "いやー産みすぎました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-089",
+  "word_reading": "うむ",
+  "target": "産み",
+  "rival": [
+   "有無"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-12261",
+  "target_reading": "うみ"
+ },
+ {
+  "index": "choice-dev-090a",
+  "input": "あついけどあさがたはひえててせっていおんどまよいます。",
+  "context_text": "",
+  "expected_output": [
+   "暑いけど朝方は冷えてて設定温度迷います。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-090",
+  "word_reading": "あさがた",
+  "target": "朝方",
+  "rival": [
+   "朝型"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10076",
+  "target_reading": "あさがた"
+ },
+ {
+  "index": "choice-dev-090b",
+  "input": "きょうせいてきにあさがたです。",
+  "context_text": "",
+  "expected_output": [
+   "強制的に朝型です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-090",
+  "word_reading": "あさがた",
+  "target": "朝型",
+  "rival": [
+   "朝方"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9409",
+  "target_reading": "あさがた"
+ },
+ {
+  "index": "choice-dev-091a",
+  "input": "ゆーりー・えはぬろふげんしゅしょうだいこうをあたらしいしゅしょうにしょうにんした。",
+  "context_text": "",
+  "expected_output": [
+   "ユーリー・エハヌロフ現首相代行を新しい首相に承認した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-091",
+  "word_reading": "しゅしょう",
+  "target": "首相",
+  "rival": [
+   "主将"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ウクライナ首相にエハヌロフ首相代行",
+  "target_reading": "しゅしょう"
+ },
+ {
+  "index": "choice-dev-091b",
+  "input": "くわはらしゅしょうは「らいきからほんとうのたたかいがはじまる。",
+  "context_text": "",
+  "expected_output": [
+   "桑原主将は「来季から本当の戦いが始まる。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-091",
+  "word_reading": "しゅしょう",
+  "target": "主将",
+  "rival": [
+   "首相"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-サッカー・ニューウェーブ北九州のJ2昇格承認 - Jリーグ",
+  "target_reading": "しゅしょう"
+ },
+ {
+  "index": "choice-dev-092a",
+  "input": "みるくかんがこそうで！",
+  "context_text": "",
+  "expected_output": [
+   "ミルク感が濃そうで！",
+   "ミルク感が濃そうで!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-092",
+  "word_reading": "こい",
+  "target": "濃",
+  "rival": [
+   "故意"
+  ],
+  "pos": "形容詞",
+  "source_doc": "rpc-2899",
+  "target_reading": "こ"
+ },
+ {
+  "index": "choice-dev-092b",
+  "input": "ほうじょのこいはなかったとけつろんつけた。",
+  "context_text": "",
+  "expected_output": [
+   "幇助の故意は無かったと結論付けた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-092",
+  "word_reading": "こい",
+  "target": "故意",
+  "rival": [
+   "濃",
+   "濃い",
+   "濃かっ",
+   "濃く"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-Winny開発者の無罪確定へ",
+  "target_reading": "こい"
+ },
+ {
+  "index": "choice-dev-093a",
+  "input": "いえん・いかいようにおけるそのやくわりをかいめいしたこと。",
+  "context_text": "",
+  "expected_output": [
+   "胃炎・胃潰瘍におけるその役割を解明したこと。",
+   "胃炎・胃潰瘍におけるその役割を解明した事。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-093",
+  "word_reading": "かいめい",
+  "target": "解明",
+  "rival": [
+   "改名"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-2005年ノーベル賞、発表はじまる",
+  "target_reading": "かいめい"
+ },
+ {
+  "index": "choice-dev-093b",
+  "input": "かいめいまえのなはじぇにふぁー・そーんばーぐ。",
+  "context_text": "",
+  "expected_output": [
+   "改名前の名はジェニファー・ソーンバーグ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-093",
+  "word_reading": "かいめい",
+  "target": "改名",
+  "rival": [
+   "解明"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-アメリカ人女性が自分の名前を「CutoutDissection.com」と改名",
+  "target_reading": "かいめい"
+ },
+ {
+  "index": "choice-dev-094a",
+  "input": "りくげんさいせつがんるいのねんだいがさんじょうきこうきからじゅらきちゅうきと、",
+  "context_text": "",
+  "expected_output": [
+   "陸源砕屑岩類の年代が三畳紀後期からジュラ紀中期と、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-094",
+  "word_reading": "こうき",
+  "target": "後期",
+  "rival": [
+   "高貴"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-4942518",
+  "target_reading": "こうき"
+ },
+ {
+  "index": "choice-dev-094b",
+  "input": "おぉ、こうきなかんじがしますね！",
+  "context_text": "",
+  "expected_output": [
+   "おぉ、高貴な感じがしますね！",
+   "おぉ、高貴な感じがしますね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-094",
+  "word_reading": "こうき",
+  "target": "高貴",
+  "rival": [
+   "後期"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10665",
+  "target_reading": "こうき"
+ },
+ {
+  "index": "choice-dev-095a",
+  "input": "らべんだーはあんみんこうかもあります。",
+  "context_text": "",
+  "expected_output": [
+   "ラベンダーは安眠効果もあります。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-095",
+  "word_reading": "こうか",
+  "target": "効果",
+  "rival": [
+   "高価"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11877",
+  "target_reading": "こうか"
+ },
+ {
+  "index": "choice-dev-095b",
+  "input": "いちばんこうかなかいものはなんですか？",
+  "context_text": "",
+  "expected_output": [
+   "一番高価な買い物は何ですか？",
+   "一番高価な買い物は何ですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-095",
+  "word_reading": "こうか",
+  "target": "高価",
+  "rival": [
+   "効果"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2195",
+  "target_reading": "こうか"
+ },
+ {
+  "index": "choice-dev-096a",
+  "input": "さいねんしょうとくてんきろくのほじしゃであり、",
+  "context_text": "",
+  "expected_output": [
+   "最年少得点記録の保持者であり、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-096",
+  "word_reading": "とくてん",
+  "target": "得点",
+  "rival": [
+   "特典"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-東京ヴェルディ・森本選手、イタリアリーグ移籍",
+  "target_reading": "とくてん"
+ },
+ {
+  "index": "choice-dev-096b",
+  "input": "どこものとくてんで1ねんむりょうでついてきました。",
+  "context_text": "",
+  "expected_output": [
+   "ドコモの特典で1年無料でついてきました。",
+   "ドコモの特典で１年無料でついてきました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-096",
+  "word_reading": "とくてん",
+  "target": "特典",
+  "rival": [
+   "得点"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9600",
+  "target_reading": "とくてん"
+ },
+ {
+  "index": "choice-dev-097a",
+  "input": "とつかわけいぶはすこしふるいかなと",
+  "context_text": "",
+  "expected_output": [
+   "十津川警部は少し古いかなと"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-097",
+  "word_reading": "けいぶ",
+  "target": "警部",
+  "rival": [
+   "頚部",
+   "頸部",
+   "頸（けい）部"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12535",
+  "target_reading": "けいぶ"
+ },
+ {
+  "index": "choice-dev-097b",
+  "input": "しきゅうけいぶ、ちつまたはこうもんかんのそうじょうへんぺいじょうひからはっせいする。",
+  "context_text": "",
+  "expected_output": [
+   "子宮頸部、膣または肛門管の層状扁平上皮から発生する。",
+   "子宮頸部、膣又は肛門管の層状扁平上皮から発生する。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-097",
+  "word_reading": "けいぶ",
+  "target": "頸部",
+  "rival": [
+   "警部"
+  ],
+  "pos": "名詞",
+  "source_doc": "wiki-5126418",
+  "target_reading": "けいぶ"
+ },
+ {
+  "index": "choice-dev-098a",
+  "input": "りょうしゃはまったくちがうたいけいをしていらっしゃいますね",
+  "context_text": "",
+  "expected_output": [
+   "両者は全く違う体型をしていらっしゃいますね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-098",
+  "word_reading": "りょうしゃ",
+  "target": "両者",
+  "rival": [
+   "両社"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-127",
+  "target_reading": "りょうしゃ"
+ },
+ {
+  "index": "choice-dev-098b",
+  "input": "じじつうしんによると、りょうしゃはけいえいとうごうじゅんびいいんかいをつくり、",
+  "context_text": "",
+  "expected_output": [
+   "時事通信によると、両社は経営統合準備委員会を作り、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-098",
+  "word_reading": "りょうしゃ",
+  "target": "両社",
+  "rival": [
+   "両者"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-日本の石油メーカー・新日石と新日鉱経営統合",
+  "target_reading": "りょうしゃ"
+ },
+ {
+  "index": "choice-dev-099a",
+  "input": "たしかに、わたくしはあげはそとでたべたりかってたべたりしてます。",
+  "context_text": "",
+  "expected_output": [
+   "たしかに、私は揚げは外で食べたり買って食べたりしてます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-099",
+  "word_reading": "あげ",
+  "target": "揚げ",
+  "rival": [
+   "上げ"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8391",
+  "target_reading": "あげ"
+ },
+ {
+  "index": "choice-dev-099b",
+  "input": "こっきのあげかたとかてんとのつくりかたとかみにつきました！",
+  "context_text": "",
+  "expected_output": [
+   "国旗の上げ方とかテントの作り方とか身に付きました！",
+   "国旗の上げ方とかテントの作り方とか身に付きました!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-099",
+  "word_reading": "あげ",
+  "target": "上げ",
+  "rival": [
+   "揚げ"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1620",
+  "target_reading": "あげ"
+ },
+ {
+  "index": "choice-dev-100a",
+  "input": "けいたいにもかおにんしょうあるんですね。",
+  "context_text": "",
+  "expected_output": [
+   "携帯にも顔認証あるんですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-100",
+  "word_reading": "にんしょう",
+  "target": "認証",
+  "rival": [
+   "人称"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-5478",
+  "target_reading": "にんしょう"
+ },
+ {
+  "index": "choice-dev-100b",
+  "input": "いちにんしょうはりあるのしてんにちかいです。",
+  "context_text": "",
+  "expected_output": [
+   "一人称はリアルの視点に近いです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-100",
+  "word_reading": "にんしょう",
+  "target": "人称",
+  "rival": [
+   "認証"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3648",
+  "target_reading": "にんしょう"
+ },
+ {
+  "index": "choice-dev-101a",
+  "input": "さいきんなんかじぶんのものをかいものしましたか？",
+  "context_text": "",
+  "expected_output": [
+   "最近何か自分のものを買い物しましたか？",
+   "最近何か自分のものを買い物しましたか?",
+   "最近何か自分の物を買い物しましたか?",
+   "最近何か自分の物を買い物しましたか？"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-101",
+  "word_reading": "さいきん",
+  "target": "最近",
+  "rival": [
+   "細菌"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11272",
+  "target_reading": "さいきん"
+ },
+ {
+  "index": "choice-dev-101b",
+  "input": "さいきんにもいろいろあるのですね。",
+  "context_text": "",
+  "expected_output": [
+   "細菌にも色々あるのですね。",
+   "細菌にもいろいろあるのですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-101",
+  "word_reading": "さいきん",
+  "target": "細菌",
+  "rival": [
+   "最近"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8959",
+  "target_reading": "さいきん"
+ },
+ {
+  "index": "choice-dev-102a",
+  "input": "かくせんこういいんはかてごりごとに60てんをもち、かいさいちをさいてんした。",
+  "context_text": "",
+  "expected_output": [
+   "各選考委員はカテゴリごとに60点をもち、開催地を採点した。",
+   "各選考委員はカテゴリごとに６０点をもち、開催地を採点した。",
+   "各選考委員はカテゴリ毎に60点をもち、開催地を採点した。",
+   "各選考委員はカテゴリ毎に６０点をもち、開催地を採点した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-102",
+  "word_reading": "いいん",
+  "target": "委員",
+  "rival": [
+   "医院"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ウィキマニア2008はエジプトで開催―審査委員会発表",
+  "target_reading": "いいん"
+ },
+ {
+  "index": "choice-dev-102b",
+  "input": "ちかくにひとりぐらしのこうれいのははのくすりをもらいにいいんへ。",
+  "context_text": "",
+  "expected_output": [
+   "近くに一人暮らしの高齢の母の薬をもらいに医院へ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-102",
+  "word_reading": "いいん",
+  "target": "医院",
+  "rival": [
+   "委員"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3008",
+  "target_reading": "いいん"
+ },
+ {
+  "index": "choice-dev-103a",
+  "input": "ぎふけんがいのなんばーのふしんしゃりょうがとまっていたことが、",
+  "context_text": "",
+  "expected_output": [
+   "岐阜県外のナンバーの不審車両が止まっていたことが、",
+   "岐阜県外のナンバーの不審車両が止まっていた事が、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-103",
+  "word_reading": "ふしん",
+  "target": "不審",
+  "rival": [
+   "不振"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-金塊2億円分奪われる―岐阜",
+  "target_reading": "ふしん"
+ },
+ {
+  "index": "choice-dev-103b",
+  "input": "そのせいせきふしんとけいざいふきょうのえいきょうがでることから、",
+  "context_text": "",
+  "expected_output": [
+   "その成績不振と経済不況の影響が出ることから、",
+   "その成績不振と経済不況の影響が出る事から、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-103",
+  "word_reading": "ふしん",
+  "target": "不振",
+  "rival": [
+   "不審"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-サッカー・大分トリニータがJリーグ開催基金の融資申請へ J1在籍クラブ初",
+  "target_reading": "ふしん"
+ },
+ {
+  "index": "choice-dev-104a",
+  "input": "きっといそがしいひびをおくられているんですね。",
+  "context_text": "",
+  "expected_output": [
+   "きっと忙しい日々を送られているんですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-104",
+  "word_reading": "おくる",
+  "target": "送ら",
+  "rival": [
+   "贈っ",
+   "贈ら",
+   "贈り",
+   "贈る"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1804",
+  "target_reading": "おくら"
+ },
+ {
+  "index": "choice-dev-104b",
+  "input": "ふぁんからはにんじんがおくられた。",
+  "context_text": "",
+  "expected_output": [
+   "ファンからはニンジンが贈られた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-104",
+  "word_reading": "おくる",
+  "target": "贈ら",
+  "rival": [
+   "送っ",
+   "送ら",
+   "送り",
+   "送る"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-ばんえい競馬の「中高年の星」ゴールデンバージが引退",
+  "target_reading": "おくら"
+ },
+ {
+  "index": "choice-dev-105a",
+  "input": "かめいするうんそうぎょうしゃにたいしこうしゅうとしけんをおこなっている。",
+  "context_text": "",
+  "expected_output": [
+   "加盟する運送業者に対し講習と試験を行っている。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-105",
+  "word_reading": "こうしゅう",
+  "target": "講習",
+  "rival": [
+   "公衆"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-フォークリフトの技能講習で不正合格、労働局が処分",
+  "target_reading": "こうしゅう"
+ },
+ {
+  "index": "choice-dev-105b",
+  "input": "いまねっとで、こうしゅうのまえでひいたりするどうががはやってますね。",
+  "context_text": "",
+  "expected_output": [
+   "今ネットで、公衆の前で引いたりする動画が流行ってますね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-105",
+  "word_reading": "こうしゅう",
+  "target": "公衆",
+  "rival": [
+   "講習"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2550",
+  "target_reading": "こうしゅう"
+ },
+ {
+  "index": "choice-dev-106a",
+  "input": "ちいきのじょうほうをいっぱんからぼしゅうしたどうがをはっしんして、",
+  "context_text": "",
+  "expected_output": [
+   "地域の情報を一般から募集した動画を発信して、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-106",
+  "word_reading": "はっしん",
+  "target": "発信",
+  "rival": [
+   "発進"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-毎日新聞が動画投稿サイトを開設",
+  "target_reading": "はっしん"
+ },
+ {
+  "index": "choice-dev-106b",
+  "input": "きてぃほーくはかんさいきをはっしんさせてじょうくうでごえいにつかせていた。",
+  "context_text": "",
+  "expected_output": [
+   "キティホークは艦載機を発進させて上空で護衛につかせていた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-106",
+  "word_reading": "はっしん",
+  "target": "発進",
+  "rival": [
+   "発信"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-アメリカ海軍の空母が台湾海峡を通過",
+  "target_reading": "はっしん"
+ },
+ {
+  "index": "choice-dev-107a",
+  "input": "じえいだところなのえいきょうはだいじょうぶでしたか？",
+  "context_text": "",
+  "expected_output": [
+   "自営だとコロナの影響は大丈夫でしたか？",
+   "自営だとコロナの影響は大丈夫でしたか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-107",
+  "word_reading": "じえい",
+  "target": "自営",
+  "rival": [
+   "自衛"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2240",
+  "target_reading": "じえい"
+ },
+ {
+  "index": "choice-dev-107b",
+  "input": "ただじえいはなるべくしようかなと。",
+  "context_text": "",
+  "expected_output": [
+   "ただ自衛はなるべくしようかなと。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-107",
+  "word_reading": "じえい",
+  "target": "自衛",
+  "rival": [
+   "自営"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10318",
+  "target_reading": "じえい"
+ },
+ {
+  "index": "choice-dev-108a",
+  "input": "そっかぁ、けっこうこうおんであたためるいめーじですものね。",
+  "context_text": "",
+  "expected_output": [
+   "そっかぁ、結構高温で温めるイメージですものね。",
+   "そっかぁ、結構高温で温めるイメージです物ね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-108",
+  "word_reading": "こうおん",
+  "target": "高温",
+  "rival": [
+   "高音"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3611",
+  "target_reading": "こうおん"
+ },
+ {
+  "index": "choice-dev-108b",
+  "input": "ちょっとこうおんなんですよ。",
+  "context_text": "",
+  "expected_output": [
+   "ちょっと高音なんですよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-108",
+  "word_reading": "こうおん",
+  "target": "高音",
+  "rival": [
+   "高温"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7528",
+  "target_reading": "こうおん"
+ },
+ {
+  "index": "choice-dev-109a",
+  "input": "すうかげつのかせいしゅうかいのあと、ちゃくりくきをぶんりして、",
+  "context_text": "",
+  "expected_output": [
+   "数ヶ月の火星周回の後、着陸機を分離して、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-109",
+  "word_reading": "ぶんり",
+  "target": "分離",
+  "rival": [
+   "文理"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-中国 火星探査機打ち上げ成功",
+  "target_reading": "ぶんり"
+ },
+ {
+  "index": "choice-dev-109b",
+  "input": "にっぽんぶんりのもうこうにあったためふたたびらいとのしゅびにまもり、",
+  "context_text": "",
+  "expected_output": [
+   "日本文理の猛攻に遭ったため再びライトの守備に守り、",
+   "日本文理の猛攻に遭った為再びライトの守備に守り、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-109",
+  "word_reading": "ぶんり",
+  "target": "文理",
+  "rival": [
+   "分離"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-2009夏の甲子園 中京大中京が古豪復活 - 43年ぶりの高校野球日本一",
+  "target_reading": "ぶんり"
+ },
+ {
+  "index": "choice-dev-110a",
+  "input": "あついくにのこうざんちいきとかにすむしかないですね。",
+  "context_text": "",
+  "expected_output": [
+   "暑い国の高山地域とかに住むしかないですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-110",
+  "word_reading": "こうざん",
+  "target": "高山",
+  "rival": [
+   "鉱山"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6721",
+  "target_reading": "たかやま"
+ },
+ {
+  "index": "choice-dev-110b",
+  "input": "せきゆやこうざんのさいくつもちゅうしされた。",
+  "context_text": "",
+  "expected_output": [
+   "石油や鉱山の採掘も中止された。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-110",
+  "word_reading": "こうざん",
+  "target": "鉱山",
+  "rival": [
+   "高山"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-トロピカルサイクロン「エマ」、オーストラリア西海岸に上陸して弱まる",
+  "target_reading": "こうざん"
+ },
+ {
+  "index": "choice-dev-111a",
+  "input": "ぴあの、ばいおりん、いろんながっきがあってくらしっくおんがくですね！",
+  "context_text": "",
+  "expected_output": [
+   "ピアノ、バイオリン、色んな楽器があってクラシック音楽ですね！",
+   "ピアノ、バイオリン、色んな楽器があってクラシック音楽ですね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-111",
+  "word_reading": "がっき",
+  "target": "楽器",
+  "rival": [
+   "学期"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6274",
+  "target_reading": "がっき"
+ },
+ {
+  "index": "choice-dev-111b",
+  "input": "1がっきのおわりにがっきゅうへいさになってるくらすもありました。",
+  "context_text": "",
+  "expected_output": [
+   "１学期の終わりに学級閉鎖になってるクラスもありました。",
+   "1学期の終わりに学級閉鎖になってるクラスもありました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-111",
+  "word_reading": "がっき",
+  "target": "学期",
+  "rival": [
+   "楽器"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11870",
+  "target_reading": "がっき"
+ },
+ {
+  "index": "choice-dev-112a",
+  "input": "げんちはあめのため、そうさくがなんこうしている。",
+  "context_text": "",
+  "expected_output": [
+   "現地は雨のため、捜索が難航している。",
+   "現地は雨の為、捜索が難航している。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-112",
+  "word_reading": "なんこう",
+  "target": "難航",
+  "rival": [
+   "軟膏"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ネパール北東部で24人の乗ったヘリコプターが墜落か",
+  "target_reading": "なんこう"
+ },
+ {
+  "index": "choice-dev-112b",
+  "input": "おろないんなんこうとかですね。",
+  "context_text": "",
+  "expected_output": [
+   "オロナイン軟膏とかですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-112",
+  "word_reading": "なんこう",
+  "target": "軟膏",
+  "rival": [
+   "難航"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8076",
+  "target_reading": "なんこう"
+ },
+ {
+  "index": "choice-dev-113a",
+  "input": "いぜんはばいくにのっていたので、あめはてんてきでしたよ。",
+  "context_text": "",
+  "expected_output": [
+   "以前はバイクに乗っていたので、雨は天敵でしたよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-113",
+  "word_reading": "てんてき",
+  "target": "天敵",
+  "rival": [
+   "点滴"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3847",
+  "target_reading": "てんてき"
+ },
+ {
+  "index": "choice-dev-113b",
+  "input": "こうねつとはきくだしで4じかんてんてきしてもらいました。",
+  "context_text": "",
+  "expected_output": [
+   "高熱と吐き下しで４時間点滴してもらいました。",
+   "高熱と吐き下しで4時間点滴してもらいました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-113",
+  "word_reading": "てんてき",
+  "target": "点滴",
+  "rival": [
+   "天敵"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8905",
+  "target_reading": "てんてき"
+ },
+ {
+  "index": "choice-dev-114a",
+  "input": "じしゃないではけんしゃいんとしてはたらかせていたことがあきらかとなった。",
+  "context_text": "",
+  "expected_output": [
+   "自社内で派遣社員として働かせていたことが明らかとなった。",
+   "自社内で派遣社員として働かせていた事が明らかとなった。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-114",
+  "word_reading": "じしゃ",
+  "target": "自社",
+  "rival": [
+   "寺社"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-職業安定法違反の疑い、大手PC販売会社を書類送検へ",
+  "target_reading": "じしゃ"
+ },
+ {
+  "index": "choice-dev-114b",
+  "input": "とうきょうはとかいですがじしゃぶっかくなんかもおおいですからね。",
+  "context_text": "",
+  "expected_output": [
+   "東京は都会ですが寺社仏閣なんかも多いですからね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-114",
+  "word_reading": "じしゃ",
+  "target": "寺社",
+  "rival": [
+   "自社"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-5309",
+  "target_reading": "じしゃ"
+ },
+ {
+  "index": "choice-dev-115a",
+  "input": "こんかいの「そうまやうまおい」はたかぎたけしふっこうしょうもしさつにおとずれた。",
+  "context_text": "",
+  "expected_output": [
+   "今回の「相馬野馬追」は高木毅復興相も視察に訪れた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-115",
+  "word_reading": "しさつ",
+  "target": "視察",
+  "rival": [
+   "刺殺"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-福島県の伝統行事「相馬野馬追」が2016年も例年通り行われる、高木復興相も視察に",
+  "target_reading": "しさつ"
+ },
+ {
+  "index": "choice-dev-115b",
+  "input": "とうじ33さいのだんせいのしさつたいがみつかったじけんで、",
+  "context_text": "",
+  "expected_output": [
+   "当時33歳の男性の刺殺体が見つかった事件で、",
+   "当時33歳の男性の刺殺からだが見つかった事件で、",
+   "当時３３歳の男性の刺殺からだが見つかった事件で、",
+   "当時３３歳の男性の刺殺体が見つかった事件で、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-115",
+  "word_reading": "しさつ",
+  "target": "刺殺",
+  "rival": [
+   "視察"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-殺人事件の容疑者を逮捕前に捜査員と同宿、事実上逮捕前に身柄拘束? - 大阪府警",
+  "target_reading": "しさつ"
+ },
+ {
+  "index": "choice-dev-116a",
+  "input": "けいしょうでいらしたとのこと、よかったです。",
+  "context_text": "",
+  "expected_output": [
+   "軽症でいらしたとのこと、よかったです。",
+   "軽症でいらしたとの事、よかったです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-116",
+  "word_reading": "けいしょう",
+  "target": "軽症",
+  "rival": [
+   "軽傷"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-5287",
+  "target_reading": "けいしょう"
+ },
+ {
+  "index": "choice-dev-116b",
+  "input": "しあいまえにはれいそるのさぽーたーがくちびるをきるけいしょう。",
+  "context_text": "",
+  "expected_output": [
+   "試合前にはレイソルのサポーターが唇を切る軽傷。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-116",
+  "word_reading": "けいしょう",
+  "target": "軽傷",
+  "rival": [
+   "軽症"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-Jリーグ・鹿島アントラーズサポーターに無期限スタジアム観戦禁止処分",
+  "target_reading": "けいしょう"
+ },
+ {
+  "index": "choice-dev-117a",
+  "input": "このごかいにいきます。",
+  "context_text": "",
+  "expected_output": [
+   "この後買いに行きます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-117",
+  "word_reading": "かい",
+  "target": "買い",
+  "rival": [
+   "甲斐"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8078",
+  "target_reading": "かい"
+ },
+ {
+  "index": "choice-dev-117b",
+  "input": "ちょっとおたかかったですが、たべたかいがありあました。",
+  "context_text": "",
+  "expected_output": [
+   "ちょっとお高かったですが、食べた甲斐がありあました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-117",
+  "word_reading": "かい",
+  "target": "甲斐",
+  "rival": [
+   "買い"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11480",
+  "target_reading": "かい"
+ },
+ {
+  "index": "choice-dev-118a",
+  "input": "よみうりしんぶんによると、このあぱーとでのかさいは、",
+  "context_text": "",
+  "expected_output": [
+   "読売新聞によると、このアパートでの火災は、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-118",
+  "word_reading": "かさい",
+  "target": "火災",
+  "rival": [
+   "家裁"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-女子中学生に交際を迫ったとして龍谷大生を逮捕、少女宅への放火容疑でも追求",
+  "target_reading": "かさい"
+ },
+ {
+  "index": "choice-dev-118b",
+  "input": "しんけんのへんこうをもとめこうべかさいいたみしぶにたいしかじしんぱんをもうしたて、",
+  "context_text": "",
+  "expected_output": [
+   "親権の変更を求め神戸家裁伊丹支部に対し家事審判を申し立て、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-118",
+  "word_reading": "かさい",
+  "target": "家裁",
+  "rival": [
+   "火災"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-国際離婚の日本人女性、日本に長女を連れ帰りアメリカで逮捕される - ハーグ条約締結前に",
+  "target_reading": "かさい"
+ },
+ {
+  "index": "choice-dev-119a",
+  "input": "はい、ひづけとじこく、どこからどこまででしょうか",
+  "context_text": "",
+  "expected_output": [
+   "はい、日付と時刻、どこからどこまででしょうか",
+   "はい、日付と時刻、どこからどこ迄でしょうか"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-119",
+  "word_reading": "じこく",
+  "target": "時刻",
+  "rival": [
+   "自国"
+  ],
+  "pos": "名詞",
+  "source_doc": "mwoz-3258",
+  "target_reading": "じこく"
+ },
+ {
+  "index": "choice-dev-119b",
+  "input": "ぶらじるはぜんかいのじこくかいさいだった1950ねんにも、",
+  "context_text": "",
+  "expected_output": [
+   "ブラジルは前回の自国開催だった1950年にも、",
+   "ブラジルは前回の自国開催だった１９５０年にも、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-119",
+  "word_reading": "じこく",
+  "target": "自国",
+  "rival": [
+   "時刻"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ブラジル自国開催での優勝を逃す ドイツに大敗 - 2014W杯サッカー",
+  "target_reading": "じこく"
+ },
+ {
+  "index": "choice-dev-120a",
+  "input": "「しょうをいただくことではつげんりょくがいちだんとあがるのではないか。",
+  "context_text": "",
+  "expected_output": [
+   "「賞をいただくことで発言力が一段と上がるのではないか。",
+   "「賞をいただく事で発言力が一段と上がるのではないか。",
+   "「賞を頂くことで発言力が一段と上がるのではないか。",
+   "「賞を頂く事で発言力が一段と上がるのではないか。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-120",
+  "word_reading": "あがる",
+  "target": "上がる",
+  "rival": [
+   "挙がっ",
+   "挙がら",
+   "挙がる"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-日本被団協に2024年度ノーベル平和賞 1974年の佐藤栄作氏以来日本人2組目の快挙",
+  "target_reading": "あがる"
+ },
+ {
+  "index": "choice-dev-120b",
+  "input": "こうほにあがった7つのしゅもくから15にんのりじのむきめいとうひょうで、",
+  "context_text": "",
+  "expected_output": [
+   "候補に挙がった7つの種目から15人の理事の無記名投票で、",
+   "候補に挙がった７つの種目から１５人の理事の無記名投票で、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-120",
+  "word_reading": "あがる",
+  "target": "挙がっ",
+  "rival": [
+   "上がっ",
+   "上がら",
+   "上がり",
+   "上がる"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-オリンピック 7人制ラグビーとゴルフを新種目として推薦 野球は事実上の落選",
+  "target_reading": "あがっ"
+ },
+ {
+  "index": "choice-dev-121a",
+  "input": "さつじんみすいとけんぞうぶつしんにゅうのようぎでたいほされた。",
+  "context_text": "",
+  "expected_output": [
+   "殺人未遂と建造物侵入の容疑で逮捕された。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-121",
+  "word_reading": "しんにゅう",
+  "target": "侵入",
+  "rival": [
+   "進入"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-神奈川の障害者施設で集団殺人 平成最悪の犠牲者数に",
+  "target_reading": "しんにゅう"
+ },
+ {
+  "index": "choice-dev-121b",
+  "input": "どうきは「しんにゅうきょかをえたとにんしきし、ふくしょうもした」としゃくめいした。",
+  "context_text": "",
+  "expected_output": [
+   "同機は「進入許可を得たと認識し、復唱もした」と釈明した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-121",
+  "word_reading": "しんにゅう",
+  "target": "進入",
+  "rival": [
+   "侵入"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-関空でエア・カナダ機が日航機着陸寸前の滑走路へ誤進入",
+  "target_reading": "しんにゅう"
+ },
+ {
+  "index": "choice-dev-122a",
+  "input": "せいしょくてきなせいさとこころのせいさのはんべつってむずかしいですね",
+  "context_text": "",
+  "expected_output": [
+   "生殖的な性差と心の性差の判別って難しいですね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-122",
+  "word_reading": "せいさ",
+  "target": "性差",
+  "rival": [
+   "精査"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13332",
+  "target_reading": "せいさ"
+ },
+ {
+  "index": "choice-dev-122b",
+  "input": "わたくしもせいさしてみます。",
+  "context_text": "",
+  "expected_output": [
+   "私も精査してみます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-122",
+  "word_reading": "せいさ",
+  "target": "精査",
+  "rival": [
+   "性差"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4763",
+  "target_reading": "せいさ"
+ },
+ {
+  "index": "choice-dev-123a",
+  "input": "いぶきもんかしょうはさしだしにんにたいして、「いのちはひとつしかない。",
+  "context_text": "",
+  "expected_output": [
+   "伊吹文科相は差出人に対して、「命は一つしかない。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-123",
+  "word_reading": "もんかしょう",
+  "target": "文科相",
+  "rival": [
+   "文科省"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-手紙で自殺予告、伊吹文明文科相に直接",
+  "target_reading": "もんかしょう"
+ },
+ {
+  "index": "choice-dev-123b",
+  "input": "れぽーとなどをかすことをもんかしょうがけんとうしている。",
+  "context_text": "",
+  "expected_output": [
+   "レポートなどを課すことを文科省が検討している。",
+   "レポートなどを課す事を文科省が検討している。",
+   "レポート等を課すことを文科省が検討している。",
+   "レポート等を課す事を文科省が検討している。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-123",
+  "word_reading": "もんかしょう",
+  "target": "文科省",
+  "rival": [
+   "文科相"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-必履修漏れ、熊本以外の全都道府県に",
+  "target_reading": "もんかしょう"
+ },
+ {
+  "index": "choice-dev-124a",
+  "input": "こんごはすうかいのきどうびちょうせいをおこなってちきゅうにせっきんし、",
+  "context_text": "",
+  "expected_output": [
+   "今後は数回の軌道微調整を行って地球に接近し、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-124",
+  "word_reading": "きどう",
+  "target": "軌道",
+  "rival": [
+   "起動"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-小惑星探査機はやぶさ、地球への帰還軌道へ",
+  "target_reading": "きどう"
+ },
+ {
+  "index": "choice-dev-124b",
+  "input": "きどうがおそくていつもおい、ってなります。",
+  "context_text": "",
+  "expected_output": [
+   "起動が遅くていつもおい、ってなります。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-124",
+  "word_reading": "きどう",
+  "target": "起動",
+  "rival": [
+   "軌道"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-7632",
+  "target_reading": "きどう"
+ },
+ {
+  "index": "choice-dev-125a",
+  "input": "いんせきとかてんじしてありそう",
+  "context_text": "",
+  "expected_output": [
+   "隕石とか展示してありそう"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-125",
+  "word_reading": "いんせき",
+  "target": "隕石",
+  "rival": [
+   "引責"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8329",
+  "target_reading": "いんせき"
+ },
+ {
+  "index": "choice-dev-125b",
+  "input": "じじによると、ひぐちしはこんかいのせきにんからいんせきじにんするものの、",
+  "context_text": "",
+  "expected_output": [
+   "時事によると、樋口氏は今回の責任から引責辞任するものの、",
+   "時事によると、樋口氏は今回の責任から引責辞任する物の、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-125",
+  "word_reading": "いんせき",
+  "target": "引責",
+  "rival": [
+   "隕石"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-コムスン、事業譲渡を凍結 記者会見で明らかに",
+  "target_reading": "いんせき"
+ },
+ {
+  "index": "choice-dev-126a",
+  "input": "いちにんしょうはりあるのしてんにちかいです。",
+  "context_text": "",
+  "expected_output": [
+   "一人称はリアルの視点に近いです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-126",
+  "word_reading": "してん",
+  "target": "視点",
+  "rival": [
+   "支店"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3648",
+  "target_reading": "してん"
+ },
+ {
+  "index": "choice-dev-126b",
+  "input": "よみうりしんぶんによると、どうしてんのちょうさでは、",
+  "context_text": "",
+  "expected_output": [
+   "読売新聞によると、同支店の調査では、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-126",
+  "word_reading": "してん",
+  "target": "支店",
+  "rival": [
+   "視点"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-郵便事業松江支店、現金書留入りの郵袋を紛失",
+  "target_reading": "してん"
+ },
+ {
+  "index": "choice-dev-127a",
+  "input": "なんでてんしょくしようとおもったんですか？",
+  "context_text": "",
+  "expected_output": [
+   "なんで転職しようと思ったんですか？",
+   "なんで転職しようと思ったんですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-127",
+  "word_reading": "てんしょく",
+  "target": "転職",
+  "rival": [
+   "天職"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-13986",
+  "target_reading": "てんしょく"
+ },
+ {
+  "index": "choice-dev-127b",
+  "input": "どれもちゅうとはんぱにできたので、このしゅもくはてんしょくでした。",
+  "context_text": "",
+  "expected_output": [
+   "どれも中途半端にできたので、この種目は天職でした。",
+   "どれも中途半端に出来たので、この種目は天職でした。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-127",
+  "word_reading": "てんしょく",
+  "target": "天職",
+  "rival": [
+   "転職"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3388",
+  "target_reading": "てんしょく"
+ },
+ {
+  "index": "choice-dev-128a",
+  "input": "それがせいかいですね！",
+  "context_text": "",
+  "expected_output": [
+   "それが正解ですね！",
+   "それが正解ですね!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-128",
+  "word_reading": "せいかい",
+  "target": "正解",
+  "rival": [
+   "政界"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10191",
+  "target_reading": "せいかい"
+ },
+ {
+  "index": "choice-dev-128b",
+  "input": "せいかいのおしょくやふはいをじょうかすることをきたいしている。",
+  "context_text": "",
+  "expected_output": [
+   "政界の汚職や腐敗を浄化することを期待している。",
+   "政界の汚職や腐敗を浄化する事を期待している。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-128",
+  "word_reading": "せいかい",
+  "target": "政界",
+  "rival": [
+   "正解"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-ポーランド大統領選、レフ・カチンスキ氏が当選",
+  "target_reading": "せいかい"
+ },
+ {
+  "index": "choice-dev-129a",
+  "input": "とうかいどうしんかんせんがじょこううんてんのため277ぽんのれっしゃがおくれた。",
+  "context_text": "",
+  "expected_output": [
+   "東海道新幹線が徐行運転のため277本の列車が遅れた。",
+   "東海道新幹線が徐行運転のため２７７本の列車が遅れた。",
+   "東海道新幹線が徐行運転の為277本の列車が遅れた。",
+   "東海道新幹線が徐行運転の為２７７本の列車が遅れた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-129",
+  "word_reading": "おくれる",
+  "target": "遅れ",
+  "rival": [
+   "送れ"
+  ],
+  "pos": "動詞",
+  "source_doc": "news-四国から東北地方に氷点下42度以下の寒気、名古屋は58年ぶりの大雪",
+  "target_reading": "おくれ"
+ },
+ {
+  "index": "choice-dev-129b",
+  "input": "たのしいこうこうせいかつおくれたでしょうね。",
+  "context_text": "",
+  "expected_output": [
+   "楽しい高校生活送れたでしょうね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-129",
+  "word_reading": "おくれる",
+  "target": "送れ",
+  "rival": [
+   "遅れ",
+   "遅れる"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-3043",
+  "target_reading": "おくれ"
+ },
+ {
+  "index": "choice-dev-130a",
+  "input": "しんぶんじぎょうをあんていてきにいじするために、",
+  "context_text": "",
+  "expected_output": [
+   "新聞事業を安定的に維持するために、",
+   "新聞事業を安定的に維持する為に、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-130",
+  "word_reading": "いじ",
+  "target": "維持",
+  "rival": [
+   "意地"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-西日本新聞・山口県版を3月末で休刊",
+  "target_reading": "いじ"
+ },
+ {
+  "index": "choice-dev-130b",
+  "input": "ですよね、わたくしもいじでふつうさいずです。",
+  "context_text": "",
+  "expected_output": [
+   "ですよね、私も意地で普通サイズです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-130",
+  "word_reading": "いじ",
+  "target": "意地",
+  "rival": [
+   "維持"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11606",
+  "target_reading": "いじ"
+ },
+ {
+  "index": "choice-dev-131a",
+  "input": "りょこうとちがって、いっしょにつれていくわけにもいきませんもんね。",
+  "context_text": "",
+  "expected_output": [
+   "旅行と違って、一緒に連れて行くわけにも行きませんもんね。",
+   "旅行と違って、いっしょに連れて行くわけにも行きませんもんね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-131",
+  "word_reading": "つれる",
+  "target": "連れ",
+  "rival": [
+   "釣れ",
+   "釣れる"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-11562",
+  "target_reading": "つれ"
+ },
+ {
+  "index": "choice-dev-131b",
+  "input": "いまはなんかあついせいかあおものがものすごくつれているみたいですね",
+  "context_text": "",
+  "expected_output": [
+   "今はなんか暑いせいか青物がものすごく釣れているみたいですね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-131",
+  "word_reading": "つれる",
+  "target": "釣れ",
+  "rival": [
+   "連れ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-8817",
+  "target_reading": "つれ"
+ },
+ {
+  "index": "choice-dev-132a",
+  "input": "ひなんしたためぶじだったほか、えきこうないのほーむやせんろ、",
+  "context_text": "",
+  "expected_output": [
+   "避難したため無事だったほか、駅構内のホームや線路、",
+   "避難した為無事だったほか、駅構内のホームや線路、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-132",
+  "word_reading": "こうない",
+  "target": "構内",
+  "rival": [
+   "校内"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-下関駅で放火事件、74歳の男逮捕",
+  "target_reading": "こうない"
+ },
+ {
+  "index": "choice-dev-132b",
+  "input": "こうないでおべんとうたべるのですね。",
+  "context_text": "",
+  "expected_output": [
+   "校内でお弁当食べるのですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-132",
+  "word_reading": "こうない",
+  "target": "校内",
+  "rival": [
+   "構内"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4963",
+  "target_reading": "こうない"
+ },
+ {
+  "index": "choice-dev-133a",
+  "input": "わたくしはおおきいかきがだめです。",
+  "context_text": "",
+  "expected_output": [
+   "私は大きい牡蠣がダメです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-133",
+  "word_reading": "かき",
+  "target": "牡蠣",
+  "rival": [
+   "夏期"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11655",
+  "target_reading": "かき"
+ },
+ {
+  "index": "choice-dev-133b",
+  "input": "また、ちょうりなどについてはかききゅうぎょうちゅうにじっしゅうをおこなっていた。",
+  "context_text": "",
+  "expected_output": [
+   "また、調理などについては夏期休業中に実習を行っていた。",
+   "また、調理等については夏期休業中に実習を行っていた。",
+   "又、調理などについては夏期休業中に実習を行っていた。",
+   "又、調理等については夏期休業中に実習を行っていた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-133",
+  "word_reading": "かき",
+  "target": "夏期",
+  "rival": [
+   "牡蠣"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-中学でも履修不足—松山市",
+  "target_reading": "かき"
+ },
+ {
+  "index": "choice-dev-134a",
+  "input": "かがくおたくのおとこのこです。",
+  "context_text": "",
+  "expected_output": [
+   "科学オタクの男の子です。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-134",
+  "word_reading": "かがく",
+  "target": "科学",
+  "rival": [
+   "化学"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-3395",
+  "target_reading": "かがく"
+ },
+ {
+  "index": "choice-dev-134b",
+  "input": "かがくぶんせきするものとか、けいじものです！",
+  "context_text": "",
+  "expected_output": [
+   "化学分析するものとか、刑事ものです！",
+   "化学分析するものとか、刑事ものです!",
+   "化学分析するものとか、刑事物です!",
+   "化学分析するものとか、刑事物です！",
+   "化学分析する物とか、刑事ものです!",
+   "化学分析する物とか、刑事ものです！",
+   "化学分析する物とか、刑事物です!",
+   "化学分析する物とか、刑事物です！"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-134",
+  "word_reading": "かがく",
+  "target": "化学",
+  "rival": [
+   "科学"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-11519",
+  "target_reading": "かがく"
+ },
+ {
+  "index": "choice-dev-135a",
+  "input": "はくろさんをはいしゅつした。",
+  "context_text": "",
+  "expected_output": [
+   "白露山を輩出した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-135",
+  "word_reading": "はいしゅつ",
+  "target": "輩出",
+  "rival": [
+   "排出"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 二十山親方(元・北天佑関)",
+  "target_reading": "はいしゅつ"
+ },
+ {
+  "index": "choice-dev-135b",
+  "input": "みずだけのんでも、はいしゅつされていくだけですからね",
+  "context_text": "",
+  "expected_output": [
+   "水だけ飲んでも、排出されていくだけですからね"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-135",
+  "word_reading": "はいしゅつ",
+  "target": "排出",
+  "rival": [
+   "輩出"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-1067",
+  "target_reading": "はいしゅつ"
+ },
+ {
+  "index": "choice-dev-136a",
+  "input": "みずとしおをかかさないように",
+  "context_text": "",
+  "expected_output": [
+   "水と塩を欠かさないように",
+   "水と塩を欠かさない様に"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-136",
+  "word_reading": "かかす",
+  "target": "欠かさ",
+  "rival": [
+   "書かさ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-1406",
+  "target_reading": "かかさ"
+ },
+ {
+  "index": "choice-dev-136b",
+  "input": "みたいなのかかされるんですよね。",
+  "context_text": "",
+  "expected_output": [
+   "みたいなの書かされるんですよね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-136",
+  "word_reading": "かかす",
+  "target": "書かさ",
+  "rival": [
+   "欠かさ",
+   "欠かし"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-5936",
+  "target_reading": "かかさ"
+ },
+ {
+  "index": "choice-dev-137a",
+  "input": "わかるーっておもってきょうかんしながらみたのもありました。",
+  "context_text": "",
+  "expected_output": [
+   "わかるーって思って共感しながら見たのもありました。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-137",
+  "word_reading": "きょうかん",
+  "target": "共感",
+  "rival": [
+   "教官"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-12557",
+  "target_reading": "きょうかん"
+ },
+ {
+  "index": "choice-dev-137b",
+  "input": "どうふけいは、せいとらがきょうかんのめをぬすんでいんしゅしていたとはんだんし、",
+  "context_text": "",
+  "expected_output": [
+   "同府警は、生徒らが教官の目を盗んで飲酒していたと判断し、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-137",
+  "word_reading": "きょうかん",
+  "target": "教官",
+  "rival": [
+   "共感"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-未成年の警察学校生、急性アルコール中毒で病院に搬送される",
+  "target_reading": "きょうかん"
+ },
+ {
+  "index": "choice-dev-138a",
+  "input": "なんならくつだってびーさんはけますし",
+  "context_text": "",
+  "expected_output": [
+   "なんなら靴だってビーサン履けますし"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-138",
+  "word_reading": "はける",
+  "target": "履け",
+  "rival": [
+   "捌け",
+   "捌ける"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-12876",
+  "target_reading": "はけ"
+ },
+ {
+  "index": "choice-dev-138b",
+  "input": "わりとなんでもはけますよ。",
+  "context_text": "",
+  "expected_output": [
+   "わりと何でも捌けますよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-138",
+  "word_reading": "はける",
+  "target": "捌け",
+  "rival": [
+   "履け",
+   "履ける",
+   "履けれ"
+  ],
+  "pos": "動詞",
+  "source_doc": "rpc-12439",
+  "target_reading": "はけ"
+ },
+ {
+  "index": "choice-dev-139a",
+  "input": "8がつ9かじてんのしゅうけいでは、ししゃが1013にんだったが、",
+  "context_text": "",
+  "expected_output": [
+   "8月9日時点の集計では、死者が1013人だったが、",
+   "８月９日時点の集計では、死者が１０１３人だったが、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-139",
+  "word_reading": "ししゃ",
+  "target": "死者",
+  "rival": [
+   "支社"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-エボラ熱の死者、2014年8月からの1か月で倍増 - WHO集計",
+  "target_reading": "ししゃ"
+ },
+ {
+  "index": "choice-dev-139b",
+  "input": "おおさかししゃがほんしゃにたいしじけんのほうこくをあげていなかったもようである。",
+  "context_text": "",
+  "expected_output": [
+   "大阪支社が本社に対し事件の報告を上げていなかった模様である。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-139",
+  "word_reading": "ししゃ",
+  "target": "支社",
+  "rival": [
+   "屍者",
+   "死者"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-JR西日本の電車で、今度は列車無線の配線が切断される - 内部犯行か",
+  "target_reading": "ししゃ"
+ },
+ {
+  "index": "choice-dev-140a",
+  "input": "ではじょうざんけいまんせいかくほてるみりおーねはいかがですか。",
+  "context_text": "",
+  "expected_output": [
+   "では定山渓万世閣ホテルミリオーネはいかがですか。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-140",
+  "word_reading": "まんせい",
+  "target": "万世",
+  "rival": [
+   "慢性"
+  ],
+  "pos": "名詞",
+  "source_doc": "mwoz-4260",
+  "target_reading": "まんせい"
+ },
+ {
+  "index": "choice-dev-140b",
+  "input": "じじつうしんによると、このだんせいはまんせいじんふぜんでとうせきをうけており、",
+  "context_text": "",
+  "expected_output": [
+   "時事通信によると、この男性は慢性腎不全で透析を受けており、"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-140",
+  "word_reading": "まんせい",
+  "target": "慢性",
+  "rival": [
+   "万世"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-新型インフルエンザで日本初の死者確認 - 沖縄",
+  "target_reading": "まんせい"
+ },
+ {
+  "index": "choice-dev-141a",
+  "input": "ただおんしつはまあまあです。",
+  "context_text": "",
+  "expected_output": [
+   "ただ音質はまあまあです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-141",
+  "word_reading": "おんしつ",
+  "target": "音質",
+  "rival": [
+   "温室"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6248",
+  "target_reading": "おんしつ"
+ },
+ {
+  "index": "choice-dev-141b",
+  "input": "ちょうのおんしつもあって、たくさんとんでいるとおもいます！",
+  "context_text": "",
+  "expected_output": [
+   "蝶の温室もあって、たくさん飛んでいると思います！",
+   "蝶の温室もあって、たくさん飛んでいると思います!",
+   "蝶の温室もあって、沢山飛んでいると思います!",
+   "蝶の温室もあって、沢山飛んでいると思います！"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-141",
+  "word_reading": "おんしつ",
+  "target": "温室",
+  "rival": [
+   "音質"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6648",
+  "target_reading": "おんしつ"
+ },
+ {
+  "index": "choice-dev-142a",
+  "input": "しゅどうってかなりちからいるんですよー、それでいやになります。",
+  "context_text": "",
+  "expected_output": [
+   "手動ってかなり力要るんですよー、それで嫌になります。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-142",
+  "word_reading": "しゅどう",
+  "target": "手動",
+  "rival": [
+   "主導"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-180",
+  "target_reading": "しゅどう"
+ },
+ {
+  "index": "choice-dev-142b",
+  "input": "とうのせいじりろんをしゅどうするしゃかいかがくけんきゅうしょしょちょうもりゅうにんする。",
+  "context_text": "",
+  "expected_output": [
+   "党の政治理論を主導する社会科学研究所所長も留任する。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-142",
+  "word_reading": "しゅどう",
+  "target": "主導",
+  "rival": [
+   "手動"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-日本共産党の不破議長が退任",
+  "target_reading": "しゅどう"
+ },
+ {
+  "index": "choice-dev-143a",
+  "input": "そういったしんりけいのもんだいとかおすきなんですか？",
+  "context_text": "",
+  "expected_output": [
+   "そういった心理系の問題とかお好きなんですか？",
+   "そういった心理系の問題とかお好きなんですか?"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-143",
+  "word_reading": "しんり",
+  "target": "心理",
+  "rival": [
+   "審理"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-4787",
+  "target_reading": "しんり"
+ },
+ {
+  "index": "choice-dev-143b",
+  "input": "さいこうさいにじょうこくし、しんりちゅうだった。",
+  "context_text": "",
+  "expected_output": [
+   "最高裁に上告し、審理中だった。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-143",
+  "word_reading": "しんり",
+  "target": "審理",
+  "rival": [
+   "心理"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-訃報 高橋治則さん",
+  "target_reading": "しんり"
+ },
+ {
+  "index": "choice-dev-144a",
+  "input": "うわあ、うんどうふそくはじかくしてるけど、いざとなるとこしがおもい！",
+  "context_text": "",
+  "expected_output": [
+   "うわあ、運動不足は自覚してるけど、いざとなると腰が重い！",
+   "うわあ、運動不足は自覚してるけど、いざとなると腰が重い!"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-144",
+  "word_reading": "おもい",
+  "target": "重い",
+  "rival": [
+   "思い",
+   "想い"
+  ],
+  "pos": "形容詞",
+  "source_doc": "rpc-9402",
+  "target_reading": "おもい"
+ },
+ {
+  "index": "choice-dev-144b",
+  "input": "ちかくにみすどがなくてくやしいおもいをしています。",
+  "context_text": "",
+  "expected_output": [
+   "近くにミスドがなくて悔しい思いをしています。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-144",
+  "word_reading": "おもい",
+  "target": "思い",
+  "rival": [
+   "重",
+   "重い",
+   "重かっ",
+   "重く"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-6161",
+  "target_reading": "おもい"
+ },
+ {
+  "index": "choice-dev-145a",
+  "input": "やとうがわによるこうぎはつづいた。",
+  "context_text": "",
+  "expected_output": [
+   "野党側による抗議は続いた。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-145",
+  "word_reading": "こうぎ",
+  "target": "抗議",
+  "rival": [
+   "講義"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-キルギスで大統領退陣を求めるデモ、鎮圧の催涙弾や銃弾で負傷者",
+  "target_reading": "こうぎ"
+ },
+ {
+  "index": "choice-dev-145b",
+  "input": "こうぎのどうがをみて、おふぃすがはいっていればいいのですが。",
+  "context_text": "",
+  "expected_output": [
+   "講義の動画を見て、オフィスが入っていればいいのですが。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-145",
+  "word_reading": "こうぎ",
+  "target": "講義",
+  "rival": [
+   "抗議"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-10668",
+  "target_reading": "こうぎ"
+ },
+ {
+  "index": "choice-dev-146a",
+  "input": "たけとよきしゅはこのれーすで2005ねんどは784せんめのきじょう。",
+  "context_text": "",
+  "expected_output": [
+   "武豊騎手はこのレースで2005年度は784戦目の騎乗。",
+   "武豊騎手はこのレースで２００５年度は７８４戦目の騎乗。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-146",
+  "word_reading": "ねんど",
+  "target": "年度",
+  "rival": [
+   "粘土"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-中央競馬・武豊騎手、史上初の3年連続年間200勝",
+  "target_reading": "ねんど"
+ },
+ {
+  "index": "choice-dev-146b",
+  "input": "ぎんねんど、っていうみたいです。",
+  "context_text": "",
+  "expected_output": [
+   "銀粘土、っていうみたいです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-146",
+  "word_reading": "ねんど",
+  "target": "粘土",
+  "rival": [
+   "年度"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-9394",
+  "target_reading": "ねんど"
+ },
+ {
+  "index": "choice-dev-147a",
+  "input": "それはとうぶんとりすぎますよ。",
+  "context_text": "",
+  "expected_output": [
+   "それは糖分取り過ぎますよ。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-147",
+  "word_reading": "とうぶん",
+  "target": "糖分",
+  "rival": [
+   "等分"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-8176",
+  "target_reading": "とうぶん"
+ },
+ {
+  "index": "choice-dev-147b",
+  "input": "ごとうぶんのはなよめ、というえいがです",
+  "context_text": "",
+  "expected_output": [
+   "五等分の花嫁、という映画です"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-147",
+  "word_reading": "とうぶん",
+  "target": "等分",
+  "rival": [
+   "糖分"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-2724",
+  "target_reading": "とうぶん"
+ },
+ {
+  "index": "choice-dev-148a",
+  "input": "じゃあ、いんしょくてんはきょうどりょうりのおみせでなくてもいいです。",
+  "context_text": "",
+  "expected_output": [
+   "じゃあ、飲食店は郷土料理のお店でなくてもいいです。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-148",
+  "word_reading": "きょうど",
+  "target": "郷土",
+  "rival": [
+   "強度"
+  ],
+  "pos": "名詞",
+  "source_doc": "mwoz-3807",
+  "target_reading": "きょうど"
+ },
+ {
+  "index": "choice-dev-148b",
+  "input": "うんどうきょうどなんていうものがあるんですね。",
+  "context_text": "",
+  "expected_output": [
+   "運動強度なんていうものがあるんですね。",
+   "運動強度なんていう物があるんですね。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-148",
+  "word_reading": "きょうど",
+  "target": "強度",
+  "rival": [
+   "郷土"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-332",
+  "target_reading": "きょうど"
+ },
+ {
+  "index": "choice-dev-149a",
+  "input": "しんえつせんはやく4じかんごにうんてんをさいかいした。",
+  "context_text": "",
+  "expected_output": [
+   "信越線は約4時間後に運転を再開した。",
+   "信越線は約４時間後に運転を再開した。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-149",
+  "word_reading": "さいかい",
+  "target": "再開",
+  "rival": [
+   "再会"
+  ],
+  "pos": "名詞",
+  "source_doc": "news-新潟県中越地方で震度5強",
+  "target_reading": "さいかい"
+ },
+ {
+  "index": "choice-dev-149b",
+  "input": "ゆめのなかでさいかいするにとどめておきます。",
+  "context_text": "",
+  "expected_output": [
+   "夢の中で再会するにとどめておきます。"
+  ],
+  "domain": "context_choice",
+  "pair": "dev-149",
+  "word_reading": "さいかい",
+  "target": "再会",
+  "rival": [
+   "再開"
+  ],
+  "pos": "名詞",
+  "source_doc": "rpc-430",
+  "target_reading": "さいかい"
+ }
+]
