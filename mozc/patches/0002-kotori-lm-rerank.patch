@@ -25170,18 +25170,21 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..b0b3cc18f 100644
+index fd03a6c0c..69b6ece82 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
-@@ -46,6 +46,7 @@
+@@ -44,8 +44,10 @@
+ 
+ #include "absl/log/check.h"
  #include "absl/log/log.h"
++#include "absl/strings/match.h"
  #include "absl/strings/str_cat.h"
  #include "absl/strings/string_view.h"
 +#include "base/strings/japanese.h"
  #include "base/text_normalizer.h"
  #include "base/util.h"
  #include "base/vlog.h"
-@@ -130,6 +131,42 @@ EngineConverter::EngineConverter(
+@@ -130,6 +132,42 @@ EngineConverter::EngineConverter(
    conversion_preferences_.request_suggestion = true;
    candidate_list_.set_page_size(request_->candidate_page_size());
    SetConfig(std::move(config));
@@ -25224,7 +25227,7 @@ index fd03a6c0c..b0b3cc18f 100644
  }
  
  bool EngineConverter::CheckState(
-@@ -145,9 +182,19 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
+@@ -145,9 +183,19 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
    return conversion_preferences_;
  }
  
@@ -25244,7 +25247,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | CONVERSION));
  
    DCHECK(request_);
-@@ -157,6 +204,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -157,6 +205,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    SetRequestType(ConversionRequest::CONVERSION, options);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25252,7 +25255,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -164,12 +212,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -164,12 +213,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
            .SetOptions(std::move(options))
            .Build();
  
@@ -25278,7 +25281,7 @@ index fd03a6c0c..b0b3cc18f 100644
    segment_index_ = 0;
    state_ = CONVERSION;
    // If TalkBack is enabled, the candidate list should be always visible to
-@@ -181,6 +241,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -181,6 +242,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    return true;
  }
  
@@ -25364,7 +25367,7 @@ index fd03a6c0c..b0b3cc18f 100644
  bool EngineConverter::GetReadingText(absl::string_view source_text,
                                       std::string* reading) {
    DCHECK(reading);
-@@ -490,6 +629,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
+@@ -490,6 +630,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
  bool EngineConverter::Suggest(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25372,7 +25375,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION));
    candidate_list_visible_ = false;
  
-@@ -541,6 +681,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -541,6 +682,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    DCHECK(config_);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25380,7 +25383,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +740,127 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +741,136 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25406,15 +25409,18 @@ index fd03a6c0c..b0b3cc18f 100644
 +  const auto input_generation = KotoriObserveInput(composer);
 +  if (!CheckState(COMPOSITION | SUGGESTION)) return false;
 +  // Kotori: 強い続き予測を、短い通常変換で押し下げない。
-+  if (state_ == SUGGESTION && segments_.conversion_segments_size() == 1 &&
++  const bool confident_prediction =
++      state_ == SUGGESTION && segments_.conversion_segments_size() == 1 &&
 +      segments_.conversion_segment(0).candidates_size() > 0 &&
-+      segments_.conversion_segment(0).candidate(0).kotori_confident_prediction) {
-+    return true;
-+  }
++      segments_.conversion_segment(0).candidate(0).kotori_confident_prediction;
++  // Asteria: ライブ変換では、未確定の表示のために変換は続ける(候補の並びは変えない)。
++  const bool live = config_->kotori_live_conversion();
++  if (confident_prediction && !live) return true;
 +  // 入力中の取り直し(利用者はまだ待っていない)。
 +  const KotoriAiStatus status = KotoriPrepareConversionImpl(
 +      composer, context, conversion_preferences(), false, false);
 +  kotori_awaiting_ai_ = status == KotoriAiStatus::kPending;
++  if (confident_prediction) kotori_awaiting_ai_ = false;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
 +  if (status != KotoriAiStatus::kReady || !kotori_prepared_conversion_) return false;
 +  const Segments& converted = *kotori_prepared_conversion_;
@@ -25426,6 +25432,12 @@ index fd03a6c0c..b0b3cc18f 100644
 +    value += seg.candidate(0).value;
 +  }
 +  if (value.empty() || key != composer.GetQueryForConversion()) return false;
++  if (live) {
++    // 表示している読み(ローマ字の打ちかけを含む)と組にする。読みが変われば使わない。
++    kotori_live_key_ = composer.GetStringForPreedit();
++    kotori_live_value_ = value;
++  }
++  if (confident_prediction) return true;
 +  if (state_ != SUGGESTION || segments_.conversion_segments_size() != 1) {
 +    segments_.clear_conversion_segments();
 +    segments_.add_segment()->set_key(key);
@@ -25509,7 +25521,7 @@ index fd03a6c0c..b0b3cc18f 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +869,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +879,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25524,7 +25536,7 @@ index fd03a6c0c..b0b3cc18f 100644
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +885,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +895,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25536,7 +25548,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +905,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +915,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25551,7 +25563,7 @@ index fd03a6c0c..b0b3cc18f 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +920,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +930,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25569,7 +25581,7 @@ index fd03a6c0c..b0b3cc18f 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +938,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +948,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25617,7 +25629,7 @@ index fd03a6c0c..b0b3cc18f 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +1003,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +1013,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25645,7 +25657,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1033,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1043,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25653,7 +25665,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1051,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1061,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25661,7 +25673,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1083,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1093,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25669,7 +25681,7 @@ index fd03a6c0c..b0b3cc18f 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1096,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1106,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25677,7 +25689,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1197,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1207,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25685,15 +25697,29 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,6 +1257,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,14 +1267,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
++  // Asteria: ライブ変換の表示があれば、表示どおりに確定する(docs/adr/0077)。
++  const std::string live = KotoriLiveText(composer);
 +  KotoriInvalidateInput();
    const std::string key = composer.GetQueryForConversion();
-   const std::string preedit = composer.GetStringForSubmission();
+-  const std::string preedit = composer.GetStringForSubmission();
++  const std::string reading = composer.GetStringForSubmission();
++  const std::string preedit = live.empty() ? reading : live;
    std::string normalized_preedit = TextNormalizer::NormalizeText(preedit);
-@@ -956,6 +1295,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+   output::FillPreeditResult(preedit, &result_);
++  if (!live.empty()) result_.set_key(reading);
+ 
+   // Add ResultToken
+   commands::ResultToken* token = result_.add_tokens();
+-  token->set_key(preedit);
++  token->set_key(live.empty() ? preedit : reading);
+   token->set_value(preedit);
+ 
+   // Cursor offset needs to be calculated based on normalized text.
+@@ -956,6 +1309,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25701,7 +25727,7 @@ index fd03a6c0c..b0b3cc18f 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1095,6 +1435,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
+@@ -1095,6 +1449,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
      return;
    }
  
@@ -25709,7 +25735,7 @@ index fd03a6c0c..b0b3cc18f 100644
    UpdateCandidateList();
    // Clears selected index of a focused segment and trailing segments.
    // TODO(hsumita): Keep the indices if the segment type is FIXED_VALUE.
-@@ -1112,14 +1453,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1467,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25831,7 +25857,7 @@ index fd03a6c0c..b0b3cc18f 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1576,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1590,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25843,7 +25869,7 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1591,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1605,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25855,7 +25881,7 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1606,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1620,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25867,7 +25893,58 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1293,10 +1756,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1261,6 +1738,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
+   output::FillPreedit(composer, preedit);
+ }
+ 
++std::string EngineConverter::KotoriLiveText(
++    const composer::Composer& composer) const {
++  if (!config_->kotori_live_conversion() || kotori_live_key_.empty()) return "";
++  if (composer.GetInputFieldType() == commands::Context::PASSWORD) return "";
++  // 読みの途中を編集しているときは、読みのまま出す。
++  if (composer.GetCursor() != composer.GetLength()) return "";
++  // 変換した後に打ち足した分は、読みのまま後ろにつなぐ。
++  const std::string preedit = composer.GetStringForPreedit();
++  if (!absl::StartsWith(preedit, kotori_live_key_)) return "";
++  return kotori_live_value_ + preedit.substr(kotori_live_key_.size());
++}
++
++void EngineConverter::KotoriFillPreedit(const composer::Composer& composer,
++                                        commands::Preedit* preedit) const {
++  const std::string live = KotoriLiveText(composer);
++  if (live.empty()) {
++    output::FillPreedit(composer, preedit);
++    return;
++  }
++  commands::Preedit::Segment* segment = preedit->add_segment();
++  segment->set_key(composer.GetStringForPreedit());
++  segment->set_value(live);
++  segment->set_value_length(Util::CharsLen(live));
++  segment->set_annotation(commands::Preedit::Segment::UNDERLINE);
++  preedit->set_cursor(static_cast<uint32_t>(Util::CharsLen(live)));
++  preedit->set_is_toggleable(false);
++}
++
+ void EngineConverter::FillOutput(const composer::Composer& composer,
+                                  commands::Output* output) const {
+   if (!output) {
+@@ -1272,7 +1777,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+   }
+   if (CheckState(COMPOSITION)) {
+     if (!composer.Empty()) {
+-      output::FillPreedit(composer, output->mutable_preedit());
++      KotoriFillPreedit(composer, output->mutable_preedit());
+     }
+   }
+ 
+@@ -1287,16 +1792,19 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+     // When the suggestion comes from zero query suggestion, the
+     // composer is empty.  In that case, preedit is not rendered.
+     if (!composer.Empty()) {
+-      output::FillPreedit(composer, output->mutable_preedit());
++      KotoriFillPreedit(composer, output->mutable_preedit());
+     }
+   } else if (CheckState(PREDICTION | CONVERSION)) {
      // Conversion on Prediction or Conversion
      FillConversion(output->mutable_preedit());
    }
@@ -25881,7 +25958,7 @@ index fd03a6c0c..b0b3cc18f 100644
    }
  
    // All candidate words
-@@ -1319,6 +1785,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1827,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25892,16 +25969,18 @@ index fd03a6c0c..b0b3cc18f 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1803,8 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1845,10 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
 +  kotori_awaiting_ai_ = false;
 +  kotori_prepared_conversion_.reset();
++  kotori_live_key_.clear();
++  kotori_live_value_.clear();
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2184,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2228,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -25928,7 +26007,7 @@ index fd03a6c0c..b0b3cc18f 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2315,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2359,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -25947,7 +26026,7 @@ index fd03a6c0c..b0b3cc18f 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2334,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2378,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -25956,7 +26035,7 @@ index fd03a6c0c..b0b3cc18f 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..a5f8e392d 100644
+index 6d061cfca..98b88efd9 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -26002,7 +26081,20 @@ index 6d061cfca..a5f8e392d 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -274,6 +289,25 @@ class EngineConverter : public EngineConverterInterface {
+@@ -239,6 +254,12 @@ class EngineConverter : public EngineConverterInterface {
+                    commands::Preedit* preedit) const override;
+ 
+   // Fills protocol buffers
++  // Asteria: ライブ変換で、未確定の文字として出す文字列。使えなければ空(docs/adr/0077)。
++  std::string KotoriLiveText(const composer::Composer& composer) const;
++  // 未確定の文字を出す。ライブ変換の結果があればそれを、なければ読みを出す。
++  void KotoriFillPreedit(const composer::Composer& composer,
++                         commands::Preedit* preedit) const;
++
+   void FillOutput(const composer::Composer& composer,
+                   commands::Output* output) const override;
+ 
+@@ -274,6 +295,25 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -26028,7 +26120,7 @@ index 6d061cfca..a5f8e392d 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +378,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +384,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -26037,7 +26129,7 @@ index 6d061cfca..a5f8e392d 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +460,12 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +466,15 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
@@ -26047,6 +26139,9 @@ index 6d061cfca..a5f8e392d 100644
 +  std::optional<Segments> kotori_prepared_conversion_;
 +  std::string kotori_prepared_context_;
 +  bool kotori_prepared_history_ = true;
++  // Asteria: ライブ変換(docs/adr/0077)。AI が変換した読み(未確定の表示のまま)と、その結果。
++  std::string kotori_live_key_;
++  std::string kotori_live_value_;
  
    // Mutable values of |config_|.  These values may be changed temporarily per
    // session.
@@ -26094,7 +26189,7 @@ index f8e3b43ec..719704d9f 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..be317dfc9 100644
+index 808058c64..c739a68c2 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
 @@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
@@ -26160,10 +26255,76 @@ index 808058c64..be317dfc9 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4012,181 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4012,247 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
++// Asteria: ライブ変換(docs/adr/0077)。AI の変換結果を未確定の文字に出し、Enter で表示どおりに確定する。
++TEST_F(EngineConverterTest, KotoriLiveConversionShowsAndCommitsAiResult) {
++  for (const bool live : {false, true}) {
++    SCOPED_TRACE(live);
++    config_->set_kotori_lm_enabled(true);
++    config_->set_kotori_live_conversion(live);
++    auto mock = std::make_shared<MockConverter>();
++    EngineConverter converter(mock, request_, config_);
++    Segments ai;
++    AddSegmentWithSingleCandidate(&ai, "きょうは", "今日は");
++    ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++    ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++    EXPECT_CALL(*mock, StartConversion(_, _))
++        .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++    composer_->Reset();
++    composer_->InsertCharacterPreedit("きょうは");
++    converter.KotoriPreviewConversion(*composer_, commands::Context());
++    commands::Output output;
++    converter.FillOutput(*composer_, &output);
++    ASSERT_EQ(output.preedit().segment_size(), 1);
++    EXPECT_EQ(output.preedit().segment(0).value(), live ? "今日は" : "きょうは");
++    // 変換の後に打ち足した分は読みのままつなぐ。
++    composer_->InsertCharacterPreedit("あ");
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    EXPECT_EQ(output.preedit().segment(0).value(), live ? "今日はあ" : "きょうはあ");
++    // 読みの途中を編集しているときは読みのまま。
++    composer_->MoveCursorLeft();
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    EXPECT_EQ(output.preedit().segment(0).value(), "きょうはあ");
++    composer_->MoveCursorToEnd();
++    converter.CommitPreedit(*composer_, commands::Context());
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    ASSERT_TRUE(output.has_result());
++    EXPECT_EQ(output.result().value(), live ? "今日はあ" : "きょうはあ");
++    EXPECT_EQ(output.result().key(), "きょうはあ");
++  }
++}
++
++// 読みを消して変換した読みの先頭と合わなくなったら、読みのまま出す。保護された欄では使わない。
++TEST_F(EngineConverterTest, KotoriLiveConversionFallsBackToReading) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments ai;
++  AddSegmentWithSingleCandidate(&ai, "きょうは", "今日は");
++  ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++  composer_->InsertCharacterPreedit("きょうは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  composer_->Backspace();
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "きょう");
++  composer_->InsertCharacterPreedit("は");
++  composer_->SetInputFieldType(commands::Context::PASSWORD);
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_NE(output.preedit().segment(0).value(), "今日は");
++}
++
 +TEST_F(EngineConverterTest, CorrectedReadingAlternativesKeepTypoFixed) {
 +  config_->set_kotori_lm_enabled(true);
 +  auto mock = std::make_shared<MockConverter>();
@@ -26342,7 +26503,7 @@ index 808058c64..be317dfc9 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5039,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5105,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -26680,7 +26841,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..f2c2bbdec 100644
+index abbf55d68..9af9ed83c 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,55 @@
@@ -26840,8 +27001,8 @@ index abbf55d68..f2c2bbdec 100644
 +                   .arg(gb, 0, 'f', 0);
 +      } else {
 +        text = QString::fromUtf8(
-+                   "このPCのGPU: %1（VRAM %2 GB）。AIには使わず、どの品質を選んでも"
-+                   "Low（CPU）で動きます。")
++                   "このPCのGPU: %1（VRAM %2 GB）。どの品質を選んでもLowで動きます。"
++                   "下の「内蔵 GPU で AI を動かす」をオンにすると、CPU の代わりにこの GPU を使います。")
 +                   .arg(name)
 +                   .arg(gb, 0, 'f', 1);
 +      }
@@ -27231,7 +27392,7 @@ index abbf55d68..f2c2bbdec 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +657,475 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +657,508 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27349,6 +27510,33 @@ index abbf55d68..f2c2bbdec 100644
 +      correction_note->setWordWrap(true);
 +      correction_note->setProperty("kotoriNote", true);
 +      l->addWidget(correction_note);
++      // Asteria: ライブ変換(docs/adr/0077)。既定はオフ。
++      kotoriLiveConversionCheckBox_ = new QCheckBox(QString::fromUtf8("ライブ変換(入力中に変換した文字を表示する)"), page);
++      kotoriLiveConversionCheckBox_->setObjectName("kotoriLiveConversion");
++      kotoriLiveConversionCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriLiveConversionCheckBox_);
++      auto *live_note = new QLabel(QString::fromUtf8("手が止まると、AI が変換した文字に入れ替わります。Enter でそのまま確定し、Space で候補を選べます。オフにすると、今までどおり読みのまま表示します。"), page);
++      live_note->setWordWrap(true);
++      live_note->setProperty("kotoriNote", true);
++      l->addWidget(live_note);
++      // Asteria: 同音語のヒント(docs/adr/0079)。既定はオフ。
++      kotoriHomophoneHintsCheckBox_ = new QCheckBox(QString::fromUtf8("同音語のヒント(候補の横に見分ける手がかりを出す)"), page);
++      kotoriHomophoneHintsCheckBox_->setObjectName("kotoriHomophoneHints");
++      kotoriHomophoneHintsCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriHomophoneHintsCheckBox_);
++      auto *hint_note = new QLabel(QString::fromUtf8("「足」と「脚」のように同じ読みの語が並ぶとき、「靴・靴下」「椅子・机」のような手がかりの語を候補の横に出します。"), page);
++      hint_note->setWordWrap(true);
++      hint_note->setProperty("kotoriNote", true);
++      l->addWidget(hint_note);
++      // Asteria: 内蔵 GPU(docs/adr/0078)。既定はオフ。
++      kotoriIntegratedGpuCheckBox_ = new QCheckBox(QString::fromUtf8("内蔵 GPU で AI を動かす(試験的)"), page);
++      kotoriIntegratedGpuCheckBox_->setObjectName("kotoriIntegratedGpu");
++      kotoriIntegratedGpuCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriIntegratedGpuCheckBox_);
++      auto *igpu_note = new QLabel(QString::fromUtf8("専用の GPU がない PC で、CPU の代わりに内蔵 GPU を使います。品質は「軽い」で動きます。専用の GPU がある PC では変わりません。反映には PC の再起動が必要です。"), page);
++      igpu_note->setWordWrap(true);
++      igpu_note->setProperty("kotoriNote", true);
++      l->addWidget(igpu_note);
 +    }
 +
 +    // 3. 詳細設定
@@ -27481,6 +27669,12 @@ index abbf55d68..f2c2bbdec 100644
 +    QObject::connect(kotoriLmEnabledCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmPredictCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriLiveConversionCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriIntegratedGpuCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriHomophoneHintsCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmModelPathEdit_, SIGNAL(textChanged(QString)), this,
 +                     SLOT(EnableApplyButton()));
@@ -27707,7 +27901,7 @@ index abbf55d68..f2c2bbdec 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1191,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1224,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27722,7 +27916,7 @@ index abbf55d68..f2c2bbdec 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1232,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1265,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -27737,7 +27931,7 @@ index abbf55d68..f2c2bbdec 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1285,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1318,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -27787,7 +27981,7 @@ index abbf55d68..f2c2bbdec 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1353,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1386,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -27798,7 +27992,7 @@ index abbf55d68..f2c2bbdec 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1416,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1449,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -27826,7 +28020,7 @@ index abbf55d68..f2c2bbdec 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1459,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1492,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -27851,7 +28045,7 @@ index abbf55d68..f2c2bbdec 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1484,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1517,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -27861,7 +28055,7 @@ index abbf55d68..f2c2bbdec 100644
    return true;
  }
  
-@@ -524,6 +1581,22 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1614,25 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -27876,6 +28070,9 @@ index abbf55d68..f2c2bbdec 100644
 +  kotoriLmPredictCheckBox_->setChecked(config.kotori_lm_predict());
 +  kotoriShareInputModeCheckBox_->setChecked(config.kotori_share_input_mode());
 +  kotoriLmCorrectionCheckBox_->setChecked(config.kotori_lm_correction());
++  kotoriLiveConversionCheckBox_->setChecked(config.kotori_live_conversion());
++  kotoriIntegratedGpuCheckBox_->setChecked(config.kotori_use_integrated_gpu());
++  kotoriHomophoneHintsCheckBox_->setChecked(config.kotori_homophone_hints());
 +  kotoriLmQualityComboBox_->setEnabled(config.kotori_lm_enabled());
 +  kotoriLmModelPathEdit_->setText(
 +      QString::fromUtf8(config.kotori_lm_model_path().data(),
@@ -27884,7 +28081,7 @@ index abbf55d68..f2c2bbdec 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1685,19 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1721,22 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -27898,13 +28095,16 @@ index abbf55d68..f2c2bbdec 100644
 +  config->set_kotori_share_input_mode(
 +      kotoriShareInputModeCheckBox_->isChecked());
 +  config->set_kotori_lm_correction(kotoriLmCorrectionCheckBox_->isChecked());
++  config->set_kotori_live_conversion(kotoriLiveConversionCheckBox_->isChecked());
++  config->set_kotori_use_integrated_gpu(kotoriIntegratedGpuCheckBox_->isChecked());
++  config->set_kotori_homophone_hints(kotoriHomophoneHintsCheckBox_->isChecked());
 +  config->set_kotori_lm_model_path(
 +      kotoriLmModelPathEdit_->text().trimmed().toUtf8().toStdString());
 +
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1932,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1971,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -27917,7 +28117,7 @@ index abbf55d68..f2c2bbdec 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..4a17e767e 100644
+index 85e1c0075..2ec4fb974 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
 @@ -33,6 +33,11 @@
@@ -27932,7 +28132,7 @@ index 85e1c0075..4a17e767e 100644
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +53,19 @@ namespace gui {
+@@ -48,6 +53,23 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -27947,12 +28147,16 @@ index 85e1c0075..4a17e767e 100644
 +  // Asteria: GitHub での応援のお願い(通知)を表示するか。support-reminder.ini に保存する。
 +  QCheckBox *kotoriSupportReminderCheckBox_ = nullptr;
 +  QCheckBox *kotoriLmCorrectionCheckBox_ = nullptr;
++  // Asteria: ライブ変換と内蔵 GPU(docs/adr/0077、0078)。
++  QCheckBox *kotoriLiveConversionCheckBox_ = nullptr;
++  QCheckBox *kotoriIntegratedGpuCheckBox_ = nullptr;
++  QCheckBox *kotoriHomophoneHintsCheckBox_ = nullptr;
 +  QLabel *kotoriSettingsStatusLabel_ = nullptr;
 +
   public:
    ConfigDialog();
  
-@@ -80,6 +98,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +102,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -28763,7 +28967,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..e892a951e 100644
+index 7d735374e..9fe0d456e 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -28775,7 +28979,7 @@ index 7d735374e..e892a951e 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,36 @@ message Config {
+@@ -360,6 +360,44 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -28808,6 +29012,14 @@ index 7d735374e..e892a951e 100644
 +  // Kotori: 最後に使った入力モード(オン/オフと、ひらがな・カタカナ等)を全アプリで共有する
 +  // (カード 84)。パスワード欄などで入力の種類から強制された状態は共有しない。
 +  optional bool kotori_share_input_mode = 207 [default = true];
++  // Kotori: ライブ変換。入力中、AI の変換結果を未確定の文字として表示する(docs/adr/0077)。
++  // Enter で表示どおりに確定し、Space で候補を出す。既定はオフ。
++  optional bool kotori_live_conversion = 208 [default = false];
++  // Kotori: 専用 GPU がない PC で、内蔵 GPU に AI を載せる(docs/adr/0078)。既定はオフ(試験的)。
++  optional bool kotori_use_integrated_gpu = 209 [default = false];
++  // Asteria: 同音語のヒント。同じ読みの別の語が候補に並ぶとき、見分ける手がかりの語を説明に出す
++  // (docs/adr/0079)。既定はオフ。
++  optional bool kotori_homophone_hints = 210 [default = false];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -29319,7 +29531,7 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..722a99e8a 100644
+index 4bbcddeca..183ef2fe2 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -29363,16 +29575,17 @@ index 4bbcddeca..722a99e8a 100644
      ],
      alwayslink = 1,
  )
-@@ -1536,6 +1558,8 @@ mozc_cc_library(
+@@ -1536,6 +1558,9 @@ mozc_cc_library(
          ":fortune_rewriter",
          ":ivs_variants_rewriter",
          ":language_aware_rewriter",
 +        ":lm_rewriter",
++        ":kotori_homophone_hint_rewriter",
 +        ":kotori_nuance_rewriter",
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1767,209 @@ mozc_cc_test(
+@@ -1743,3 +1768,238 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -29395,6 +29608,35 @@ index 4bbcddeca..722a99e8a 100644
 +        "//base:util",
 +        "//converter:segments",
 +        "//request:conversion_request",
++    ],
++)
++
++mozc_cc_library(
++    name = "kotori_homophone_hint_rewriter",
++    srcs = ["kotori_homophone_hint_rewriter.cc"],
++    hdrs = ["kotori_homophone_hint_rewriter.h"],
++    textual_hdrs = ["kotori_context_defaults.inc"],
++    deps = [
++        ":rewriter_interface",
++        "//converter:segments",
++        "//protocol:config_cc_proto",
++        "//request:conversion_request",
++        "@com_google_absl//absl/container:flat_hash_map",
++        "@com_google_absl//absl/container:flat_hash_set",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_homophone_hint_rewriter_test",
++    size = "small",
++    srcs = ["kotori_homophone_hint_rewriter_test.cc"],
++    deps = [
++        ":kotori_homophone_hint_rewriter",
++        "//converter:segments",
++        "//protocol:config_cc_proto",
++        "//request:conversion_request",
++        "//testing:gunit_main",
 +    ],
 +)
 +
@@ -31725,6 +31967,188 @@ index 000000000..39b9cc2a0
 +}  // namespace
 +}  // namespace kotori
 +}  // namespace mozc
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter.cc b/src/rewriter/kotori_homophone_hint_rewriter.cc
+new file mode 100644
+index 000000000..bfbf588ad
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter.cc
+@@ -0,0 +1,88 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_homophone_hint_rewriter.h"
++
++#include <string>
++#include <vector>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/container/flat_hash_set.h"
++#include "absl/strings/str_cat.h"
++#include "absl/strings/str_join.h"
++#include "absl/strings/str_split.h"
++#include "absl/strings/string_view.h"
++#include "converter/candidate.h"
++#include "converter/segments.h"
++#include "protocol/config.pb.h"
++#include "request/conversion_request.h"
++
++namespace mozc {
++namespace {
++
++struct ContextDefault {
++  const char* reading;
++  const char* chosen;
++  const char* rejected;
++  const char* cues;
++};
++constexpr ContextDefault kContextDefaults[] = {
++#include "rewriter/kotori_context_defaults.inc"
++};
++
++// 説明に出す手がかりの語の数。候補の窓が広がりすぎないようにする。
++constexpr size_t kMaxCues = 2;
++
++struct Hint {
++  std::string rejected;  // 見分ける相手の語
++  std::string text;      // 説明に出す文字列
++};
++
++// 読みと語 → ヒント。同じ語に相手が複数あれば、それぞれの組を持つ。
++const absl::flat_hash_map<std::string, std::vector<Hint>>& Hints() {
++  static const auto* hints = [] {
++    auto* map = new absl::flat_hash_map<std::string, std::vector<Hint>>();
++    for (const ContextDefault& entry : kContextDefaults) {
++      std::vector<absl::string_view> cues =
++          absl::StrSplit(entry.cues, "、", absl::SkipEmpty());
++      if (cues.size() > kMaxCues) cues.resize(kMaxCues);
++      if (cues.empty()) continue;
++      (*map)[absl::StrCat(entry.reading, "\t", entry.chosen)].push_back(
++          Hint{entry.rejected, absl::StrJoin(cues, "・")});
++    }
++    return map;
++  }();
++  return *hints;
++}
++
++}  // namespace
++
++bool KotoriHomophoneHintRewriter::Rewrite(const ConversionRequest& request,
++                                          Segments* segments) const {
++  if (!request.config().kotori_homophone_hints()) return false;
++  const auto& hints = Hints();
++  bool changed = false;
++  for (Segment& segment : segments->conversion_segments()) {
++    absl::flat_hash_set<std::string> values;
++    for (size_t i = 0; i < segment.candidates_size(); ++i) {
++      values.insert(segment.candidate(i).content_value);
++    }
++    for (size_t i = 0; i < segment.candidates_size(); ++i) {
++      converter::Candidate* candidate = segment.mutable_candidate(i);
++      const auto it =
++          hints.find(absl::StrCat(candidate->content_key, "\t", candidate->content_value));
++      if (it == hints.end()) continue;
++      // 相手の語も候補に並んでいるときだけ出す(見分ける必要があるとき)。
++      for (const Hint& hint : it->second) {
++        if (!values.contains(hint.rejected)) continue;
++        if (candidate->description.find(hint.text) != std::string::npos) break;
++        candidate->description = candidate->description.empty()
++                                     ? hint.text
++                                     : absl::StrCat(candidate->description, " ", hint.text);
++        changed = true;
++        break;
++      }
++    }
++  }
++  return changed;
++}
++
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter.h b/src/rewriter/kotori_homophone_hint_rewriter.h
+new file mode 100644
+index 000000000..a15b24de2
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter.h
+@@ -0,0 +1,17 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#ifndef MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
++#define MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
++#include "rewriter/rewriter_interface.h"
++namespace mozc {
++// Asteria: 同音語のヒント(docs/adr/0079)。変換の候補に同じ読みの別の語が並んでいるとき、
++// 見分けるための手がかりの語(kotori_context_defaults.inc)を候補の説明に出す。
++// 候補の並びは変えない。設定 kotori_homophone_hints(既定オフ)のときだけ。
++class KotoriHomophoneHintRewriter : public RewriterInterface {
++ public:
++  int capability(const ConversionRequest& request) const override {
++    return RewriterInterface::CONVERSION;
++  }
++  bool Rewrite(const ConversionRequest& request, Segments* segments) const override;
++};
++}  // namespace mozc
++#endif  // MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter_test.cc b/src/rewriter/kotori_homophone_hint_rewriter_test.cc
+new file mode 100644
+index 000000000..778c9973f
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter_test.cc
+@@ -0,0 +1,59 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_homophone_hint_rewriter.h"
++
++#include "converter/candidate.h"
++#include "converter/segments.h"
++#include "protocol/config.pb.h"
++#include "request/conversion_request.h"
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace {
++
++void AddCandidate(Segment* segment, const char* value) {
++  converter::Candidate* candidate = segment->add_candidate();
++  candidate->key = candidate->content_key = segment->key();
++  candidate->value = candidate->content_value = value;
++}
++
++ConversionRequest Request(bool enabled) {
++  config::Config config;
++  config.set_kotori_homophone_hints(enabled);
++  return ConversionRequestBuilder().SetConfig(config).Build();
++}
++
++TEST(KotoriHomophoneHintRewriterTest, ShowsCuesOnlyWhenEnabledAndBothWordsAreListed) {
++  KotoriHomophoneHintRewriter rewriter;
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("あし");
++  AddCandidate(segment, "足");
++  AddCandidate(segment, "脚");
++  AddCandidate(segment, "葦");
++
++  EXPECT_FALSE(rewriter.Rewrite(Request(false), &segments));
++  EXPECT_TRUE(segment->candidate(0).description.empty());
++
++  EXPECT_TRUE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_EQ(segment->candidate(0).description, "靴・靴下");
++  EXPECT_EQ(segment->candidate(1).description, "椅子・机");
++  EXPECT_TRUE(segment->candidate(2).description.empty());
++  // 2 回目は重ねない。並びは変えない。
++  EXPECT_FALSE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_EQ(segment->candidate(0).value, "足");
++  EXPECT_EQ(segment->candidate(0).description, "靴・靴下");
++}
++
++TEST(KotoriHomophoneHintRewriterTest, SkipsWhenTheOtherWordIsNotListed) {
++  KotoriHomophoneHintRewriter rewriter;
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("あし");
++  AddCandidate(segment, "足");
++  AddCandidate(segment, "葦");
++  EXPECT_FALSE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_TRUE(segment->candidate(0).description.empty());
++}
++
++}  // namespace
++}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_identity.cc b/src/rewriter/kotori_model_identity.cc
 new file mode 100644
 index 000000000..4ca262269
@@ -33629,14 +34053,15 @@ index 000000000..574302502
 +}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..9e5c3f5d6
+index 000000000..1c0d7536e
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,316 @@
+@@ -0,0 +1,354 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
 +
++#include <atomic>
 +#include <cstdlib>
 +#include <cstring>
 +#include <string>
@@ -33655,21 +34080,30 @@ index 000000000..9e5c3f5d6
 +void QuietLog(ggml_log_level, const char*, void*) {}
 +
 +constexpr size_t kMinGpuMemory = size_t{3} << 30;  // 3 GiB
++// 内蔵 GPU はメインメモリを共有する。zenz(最大 333 MB)と作業域が載れば足りる。
++constexpr size_t kMinIntegratedMemory = size_t{2} << 30;  // 2 GiB
++
++// 内蔵 GPU を使ってよいか(設定の kotori_use_integrated_gpu。docs/adr/0078)。
++std::atomic<bool> g_allow_integrated{false};
 +
 +// 機器の一覧から AI を載せる GPU を選ぶ(LlamaGpuDevice)。関数は Windows では DLL から引いた
-+// もの、それ以外は静的にリンクしたもの。
++// もの、それ以外は静的にリンクしたもの。integrated なら内蔵 GPU から選ぶ。
 +template <typename Count, typename Get, typename Type, typename Memory>
-+ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory) {
++ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory,
++                             bool integrated) {
 +  const char* env = std::getenv("KOTORI_LM_DEVICE");
 +  if (env != nullptr && std::strcmp(env, "cpu") == 0) return nullptr;
++  const auto want =
++      integrated ? GGML_BACKEND_DEVICE_TYPE_IGPU : GGML_BACKEND_DEVICE_TYPE_GPU;
++  const size_t min_memory = integrated ? kMinIntegratedMemory : kMinGpuMemory;
 +  ggml_backend_dev_t best = nullptr;
 +  size_t best_total = 0;
 +  for (size_t i = 0; i < count(); ++i) {
 +    ggml_backend_dev_t dev = get(i);
-+    if (type(dev) != GGML_BACKEND_DEVICE_TYPE_GPU) continue;
++    if (type(dev) != want) continue;
 +    size_t free = 0, total = 0;
 +    memory(dev, &free, &total);
-+    if (total >= kMinGpuMemory && total > best_total) {
++    if (total >= min_memory && total > best_total) {
 +      best = dev;
 +      best_total = total;
 +    }
@@ -33677,7 +34111,21 @@ index 000000000..9e5c3f5d6
 +  return best;
 +}
 +
++// 専用 GPU があればそれを、なければ(許されていれば)内蔵 GPU を返す。
++template <typename Count, typename Get, typename Type, typename Memory>
++ggml_backend_dev_t PickGpu(Count count, Get get, Type type, Memory memory,
++                           bool* integrated) {
++  static ggml_backend_dev_t discrete = SelectGpu(count, get, type, memory, false);
++  *integrated = false;
++  if (discrete != nullptr || !g_allow_integrated.load()) return discrete;
++  static ggml_backend_dev_t igpu = SelectGpu(count, get, type, memory, true);
++  *integrated = igpu != nullptr;
++  return igpu;
++}
++
 +}  // namespace
++
++void LlamaAllowIntegratedGpu(bool allow) { g_allow_integrated.store(allow); }
 +
 +#ifndef _WIN32
 +
@@ -33691,10 +34139,16 @@ index 000000000..9e5c3f5d6
 +}
 +
 +ggml_backend_dev_t LlamaGpuDevice() {
-+  static ggml_backend_dev_t dev =
-+      SelectGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+                ggml_backend_dev_memory);
-+  return dev;
++  bool integrated = false;
++  return PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
++                 ggml_backend_dev_memory, &integrated);
++}
++
++bool LlamaGpuIsIntegrated() {
++  bool integrated = false;
++  PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
++          ggml_backend_dev_memory, &integrated);
++  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
@@ -33833,9 +34287,17 @@ index 000000000..9e5c3f5d6
 +
 +ggml_backend_dev_t LlamaGpuDevice() {
 +  if (!g_loaded) return nullptr;
-+  static ggml_backend_dev_t dev = SelectGpu(g_api.dev_count, g_api.dev_get,
-+                                            g_api.dev_type, g_api.dev_memory);
-+  return dev;
++  bool integrated = false;
++  return PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
++                 &integrated);
++}
++
++bool LlamaGpuIsIntegrated() {
++  if (!g_loaded) return false;
++  bool integrated = false;
++  PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
++          &integrated);
++  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
@@ -33951,10 +34413,10 @@ index 000000000..9e5c3f5d6
 +#endif  // _WIN32
 diff --git a/src/rewriter/llama_runtime.h b/src/rewriter/llama_runtime.h
 new file mode 100644
-index 000000000..cf2c801ea
+index 000000000..d946cb3a5
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,46 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: llama.cpp の実行時の準備(docs/adr/0016)。
@@ -33978,13 +34440,22 @@ index 000000000..cf2c801ea
 +
 +// AI を載せる GPU。専用の GPU(内蔵 GPU は除く)のうち VRAM が最も大きいもので、VRAM が
 +// 3 GiB 以上のものだけを使う(docs/adr/0024)。内蔵 GPU はメインメモリを共有し、LLM を載せると
-+// 変換で固まることがあるため使わない。なければ nullptr(CPU で動かす)。
++// 変換で固まることがあるため、既定では使わない。専用 GPU がなく LlamaAllowIntegratedGpu(true)
++// なら、共有メモリ 2 GiB 以上の内蔵 GPU を使う(docs/adr/0078)。なければ nullptr(CPU で動かす)。
 +// 環境変数 KOTORI_LM_DEVICE=cpu で GPU を使わない(評価用。ノート PC の再現)。
 +// EnsureLlamaRuntime の後に呼ぶ。
 +ggml_backend_dev_t LlamaGpuDevice();
 +
 +// LlamaGpuDevice() があるか。
 +bool LlamaHasGpu();
++
++// LlamaGpuDevice() が内蔵 GPU か(専用 GPU がなく、内蔵 GPU を許したとき。docs/adr/0078)。
++// 内蔵 GPU では、品質・時間の上限などは GPU のない PC と同じにして、計算だけを GPU で行う。
++bool LlamaGpuIsIntegrated();
++
++// 専用 GPU がないとき内蔵 GPU を使ってよいか。LlamaGpuDevice() を初めて呼ぶ前に決める
++// (選んだ機器は変えない。設定の変更は再起動で反映する)。
++void LlamaAllowIntegratedGpu(bool allow);
 +
 +// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。なければ空。
 +std::string LlamaGpuName();
@@ -34309,10 +34780,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..821f93d6d
+index 000000000..c5a583146
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4712 @@
+@@ -0,0 +1,4716 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -36344,6 +36815,7 @@ index 000000000..821f93d6d
 +                                   bool may_load, size_t reading_chars) const {
 +  *llm = nullptr;
 +  if (!config.kotori_lm_enabled()) return nullptr;
++  LlamaAllowIntegratedGpu(config.kotori_use_integrated_gpu());
 +  // GPU のない PC(内蔵 GPU だけの PC を含む)では、品質の設定に関係なく Low にする。LLM は
 +  // CPU では遅すぎ、Standard 以上の中身では変換が固まるため(docs/adr/0024)。
 +  const bool gpu = HasGpu();
@@ -36601,7 +37073,8 @@ index 000000000..821f93d6d
 +  // Kotori: 起動直後も打鍵でDLL/backendの初期化を待たない。
 +  // 評価専用の同期ロードだけは、従来どおり要求内で機器を調べる。
 +  if (!sync_load_) return gpu_available_.load();
-+  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu();
++  // 内蔵 GPU は計算を載せるだけで、品質や時間の上限は GPU のない PC と同じにする(docs/adr/0078)。
++  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu() && !LlamaGpuIsIntegrated();
 +}
 +
 +bool LmRewriter::UsesLlm(const config::Config& config) const {
@@ -38351,7 +38824,9 @@ index 000000000..821f93d6d
 +          // Kotori: PrepareForが品質/モデルを選ぶ前に非同期側でGPUを判定する。
 +          // 判定中の入力は未準備の結果を使い、モデルロードやDLL初期化を待たない。
 +          if (config.kotori_lm_enabled()) {
-+            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu());
++            LlamaAllowIntegratedGpu(config.kotori_use_integrated_gpu());
++            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu() &&
++                                 !LlamaGpuIsIntegrated());
 +          }
 +          WriteStatus(config, "loading");
 +          size_t k = 0, llm_top = 0;
@@ -41011,19 +41486,20 @@ index 000000000..f472d91f7
 +
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
-index d92e814fd..6c3ff56e2 100644
+index d92e814fd..ef9e772dd 100644
 --- a/src/rewriter/rewriter.cc
 +++ b/src/rewriter/rewriter.cc
-@@ -51,6 +51,8 @@
+@@ -51,6 +51,9 @@
  #include "rewriter/focus_candidate_rewriter.h"
  #include "rewriter/ivs_variants_rewriter.h"
  #include "rewriter/language_aware_rewriter.h"
 +#include "rewriter/lm_rewriter.h"
++#include "rewriter/kotori_homophone_hint_rewriter.h"
 +#include "rewriter/kotori_nuance_rewriter.h"
  #include "rewriter/number_rewriter.h"
  #include "rewriter/remove_redundant_candidate_rewriter.h"
  #include "rewriter/single_kanji_rewriter.h"
-@@ -136,6 +138,11 @@ Rewriter::Rewriter(const engine::Modules& modules) {
+@@ -136,6 +139,11 @@ Rewriter::Rewriter(const engine::Modules& modules) {
    const dictionary::SingleKanjiDictionary& single_kanji_dictionary =
        modules.GetSingleKanjiDictionary();
  
@@ -41035,11 +41511,13 @@ index d92e814fd..6c3ff56e2 100644
  #ifdef MOZC_USER_DICTIONARY_REWRITER
    AddRewriter(std::make_unique<UserDictionaryRewriter>());
  #endif  // MOZC_USER_DICTIONARY_REWRITER
-@@ -195,6 +202,7 @@ Rewriter::Rewriter(const engine::Modules& modules) {
+@@ -195,6 +203,9 @@ Rewriter::Rewriter(const engine::Modules& modules) {
    AddRewriter(make_unique_from_tuples<EnvironmentalFilterRewriter>(
        data_manager.GetEmojiRewriterData()));
    AddRewriter(std::make_unique<RemoveRedundantCandidateRewriter>());
 +  AddRewriter(std::make_unique<KotoriNuanceRewriter>());
++  // Asteria: 同音語のヒント(docs/adr/0079)。説明だけを足すので、並べ替えの後に置く。
++  AddRewriter(std::make_unique<KotoriHomophoneHintRewriter>());
    AddRewriter(make_unique_from_tuples<A11yDescriptionRewriter>(
        data_manager.GetA11yDescriptionRewriterData()));
  }
@@ -44754,7 +45232,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..c0ec8abd1 100644
+index ada11a64a..1a23f4cac 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -44767,7 +45245,7 @@ index ada11a64a..c0ec8abd1 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6459
++BUILD = 6460
  # Represent the platform and release channel.
  REVISION = 100
  
