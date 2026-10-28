@@ -26911,7 +26911,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..0ff9486e2 100644
+index abbf55d68..42ca9c268 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,55 @@
@@ -27462,7 +27462,7 @@ index abbf55d68..0ff9486e2 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +657,519 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +657,525 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27741,7 +27741,13 @@ index abbf55d68..0ff9486e2 100644
 +    }
 +    outer->addWidget(KotoriSupportButton(page), 0, Qt::AlignLeft);
 +    outer->addStretch();
-+    configDialogTabWidget->insertTab(0, page, QString::fromUtf8("AI 変換"));
++    // Asteria: 項目が増えて画面の高さを超えると、窓の下の「適用」「OK」が画面の外に出る(v4.0.0 で
++    // 利用者が報告)。ダッシュボードと同じく、タブの中身だけを縦にスクロールさせる。
++    auto *ai_scroll = new QScrollArea();
++    ai_scroll->setWidgetResizable(true);
++    ai_scroll->setFrameShape(QFrame::NoFrame);
++    ai_scroll->setWidget(page);
++    configDialogTabWidget->insertTab(0, ai_scroll, QString::fromUtf8("AI 変換"));
 +    configDialogTabWidget->setCurrentIndex(0);
 +    // Kotori: Fluent 2 風の見た目(Windows 11 の設定アプリに合わせる。docs/adr/0017)。
 +    if (!KotoriHighContrast()) setStyleSheet(QString::fromUtf8(kKotoriFluentStyle));
@@ -27982,7 +27988,7 @@ index abbf55d68..0ff9486e2 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1235,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1241,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27997,7 +28003,7 @@ index abbf55d68..0ff9486e2 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1276,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1282,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28012,7 +28018,7 @@ index abbf55d68..0ff9486e2 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1329,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1335,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28062,7 +28068,7 @@ index abbf55d68..0ff9486e2 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1397,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1403,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28073,7 +28079,7 @@ index abbf55d68..0ff9486e2 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1460,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1466,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28101,7 +28107,7 @@ index abbf55d68..0ff9486e2 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1503,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1509,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28126,7 +28132,7 @@ index abbf55d68..0ff9486e2 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1528,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1534,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28136,7 +28142,7 @@ index abbf55d68..0ff9486e2 100644
    return true;
  }
  
-@@ -524,6 +1625,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1631,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28163,7 +28169,7 @@ index abbf55d68..0ff9486e2 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1733,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1739,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28187,7 +28193,7 @@ index abbf55d68..0ff9486e2 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1984,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1990,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -35051,10 +35057,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..30e124f46
+index 000000000..2cde31e15
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4848 @@
+@@ -0,0 +1,4850 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -37688,7 +37694,8 @@ index 000000000..30e124f46
 +    if (!(cands.front()->attributes & converter::Attribute::USER_DICTIONARY) &&
 +        request.config().kotori_romaji_english() && llm != nullptr &&
 +        dictionary_ != nullptr && !over() &&
-+        FindEnglishWord(scorer, llm, context, reading, TypingKeys(request), values.front(),
++        FindEnglishWord(scorer, llm, context, reading,
++                        absl::AsciiStrToLower(TypingKeys(request)), values.front(),
 +                        over, &fixed)) {
 +      Best english{reading, context, {reading}, {fixed}};
 +      english.keep_ascii = true;
@@ -38030,7 +38037,8 @@ index 000000000..30e124f46
 +  const bool english_fixed =
 +      request.config().kotori_romaji_english() && llm != nullptr && dictionary_ != nullptr &&
 +      !over() && !reading.empty() &&
-+      FindEnglishWord(scorer, llm, context, reading, TypingKeys(request), values[top], over,
++      FindEnglishWord(scorer, llm, context, reading,
++                        absl::AsciiStrToLower(TypingKeys(request)), values[top], over,
 +                      &fixed);
 +  const bool llm_fixed =
 +      !english_fixed && llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
@@ -45651,7 +45659,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..1a23f4cac 100644
+index ada11a64a..a5ecf4910 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -45664,7 +45672,7 @@ index ada11a64a..1a23f4cac 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6460
++BUILD = 6463
  # Represent the platform and release channel.
  REVISION = 100
  
