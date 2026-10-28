@@ -560,10 +560,10 @@ index 000000000..3bcfec328
 +}  // namespace mozc
 diff --git a/src/base/kotori_live.h b/src/base/kotori_live.h
 new file mode 100644
-index 000000000..13cae7120
+index 000000000..998aa069f
 --- /dev/null
 +++ b/src/base/kotori_live.h
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,33 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +// Kotori: 入力中の候補を、手が止まった後に取り直すまでの時間(docs/adr/0039)。
@@ -584,6 +584,11 @@ index 000000000..13cae7120
 +inline std::atomic<int> g_live_next_ms{0};
 +// 1 回の打鍵の後に取り直す回数の上限。
 +inline constexpr int kMaxLiveRefreshes = 5;
++// ライブ変換(docs/adr/0077)がオンのときの上限。打ち間違いの補正は手が止まってから数百 ms 遅れて
++// できるので、未確定の表示がそれに追いつくまで取り直す(結果がそろえば計算はキャッシュから返す)。
++inline constexpr int kMaxLiveConversionRefreshes = 30;
++// ライブ変換のときの 2 回目以降の間隔(ms)。30 回で約 3 秒まで追う。
++inline constexpr int kLiveConversionNextMs = 100;
 +// AI の結果を待つ間に取り直す間隔(ms)。結果ができてから表示までの遅れを、この間隔以内にする。
 +// Windows のタイマーの細かさ(約 15.6 ms)より短くしても速くならない。KOTORI_AI_WAIT_POLL で変えられる。
 +inline std::atomic<int> g_ai_wait_poll_ms{15};
@@ -25170,7 +25175,7 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..69b6ece82 100644
+index fd03a6c0c..d369970db 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -44,8 +44,10 @@
@@ -25383,7 +25388,7 @@ index fd03a6c0c..69b6ece82 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +741,136 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +741,151 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25397,10 +25402,10 @@ index fd03a6c0c..69b6ece82 100644
 +      segments_.kotori_ai_status() == Segments::KotoriAiStatus::kPending &&
 +      !evaluated;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
-   InitializeSelectedCandidateIndices();
-   return true;
- }
- 
++  InitializeSelectedCandidateIndices();
++  return true;
++}
++
 +// Kotori: 入力中の候補の先頭に、Space と同じ変換の結果を置く(docs/adr/0039)。
 +// 変換は別の Segments で行い、今の状態(入力中の候補)は変えない。AI は覚えておいた結果を
 +// 使うので、続けて Space を押したときも同じ文が出る。
@@ -25422,6 +25427,26 @@ index fd03a6c0c..69b6ece82 100644
 +  kotori_awaiting_ai_ = status == KotoriAiStatus::kPending;
 +  if (confident_prediction) kotori_awaiting_ai_ = false;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
++  // Asteria: ライブ変換(docs/adr/0077)。AI の結果を待っている間は読みのまま出す。結果が出たら
++  // (AI がこの読みを採点しなかったときも)、Space を押したときに出る 1 番目と同じ文を出す。
++  if (live && status != KotoriAiStatus::kPending && kotori_prepared_conversion_ &&
++      kotori_prepared_context_ == context.SerializeAsString()) {
++    std::string shown, reading;
++    for (const Segment& seg : kotori_prepared_conversion_->conversion_segments()) {
++      if (seg.candidates_size() == 0) {
++        shown.clear();
++        break;
++      }
++      reading += seg.key();
++      shown += seg.candidate(0).value;
++    }
++    // 前の読みのために準備した結果は出さない。
++    if (!shown.empty() && reading == composer.GetQueryForConversion()) {
++      // 表示している読み(ローマ字の打ちかけを含む)と組にする。読みが変われば使わない。
++      kotori_live_key_ = composer.GetStringForPreedit();
++      kotori_live_value_ = shown;
++    }
++  }
 +  if (status != KotoriAiStatus::kReady || !kotori_prepared_conversion_) return false;
 +  const Segments& converted = *kotori_prepared_conversion_;
 +  std::string key, value;
@@ -25432,11 +25457,6 @@ index fd03a6c0c..69b6ece82 100644
 +    value += seg.candidate(0).value;
 +  }
 +  if (value.empty() || key != composer.GetQueryForConversion()) return false;
-+  if (live) {
-+    // 表示している読み(ローマ字の打ちかけを含む)と組にする。読みが変われば使わない。
-+    kotori_live_key_ = composer.GetStringForPreedit();
-+    kotori_live_value_ = value;
-+  }
 +  if (confident_prediction) return true;
 +  if (state_ != SUGGESTION || segments_.conversion_segments_size() != 1) {
 +    segments_.clear_conversion_segments();
@@ -25473,10 +25493,10 @@ index fd03a6c0c..69b6ece82 100644
 +  *suggestion->insert_candidate(0) = std::move(candidate);
 +  previous_suggestions_ = *suggestion;
 +  UpdateCandidateList();
-+  InitializeSelectedCandidateIndices();
-+  return true;
-+}
-+
+   InitializeSelectedCandidateIndices();
+   return true;
+ }
+ 
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversion(
 +    const composer::Composer& composer, const commands::Context& context,
 +    const ConversionPreferences& preferences) {
@@ -25521,7 +25541,7 @@ index fd03a6c0c..69b6ece82 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +879,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +894,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25536,7 +25556,7 @@ index fd03a6c0c..69b6ece82 100644
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +895,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +910,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25548,7 +25568,7 @@ index fd03a6c0c..69b6ece82 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +915,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +930,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25563,7 +25583,7 @@ index fd03a6c0c..69b6ece82 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +930,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +945,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25581,7 +25601,7 @@ index fd03a6c0c..69b6ece82 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +948,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +963,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25629,7 +25649,7 @@ index fd03a6c0c..69b6ece82 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +1013,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +1028,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25657,7 +25677,7 @@ index fd03a6c0c..69b6ece82 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1043,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1058,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25665,7 +25685,7 @@ index fd03a6c0c..69b6ece82 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1061,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1076,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25673,7 +25693,7 @@ index fd03a6c0c..69b6ece82 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1093,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1108,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25681,7 +25701,7 @@ index fd03a6c0c..69b6ece82 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1106,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1121,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25689,7 +25709,7 @@ index fd03a6c0c..69b6ece82 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1207,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1222,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25697,7 +25717,7 @@ index fd03a6c0c..69b6ece82 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,14 +1267,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,14 +1282,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25719,7 +25739,7 @@ index fd03a6c0c..69b6ece82 100644
    token->set_value(preedit);
  
    // Cursor offset needs to be calculated based on normalized text.
-@@ -956,6 +1309,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+@@ -956,6 +1324,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25727,7 +25747,7 @@ index fd03a6c0c..69b6ece82 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1095,6 +1449,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
+@@ -1095,6 +1464,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
      return;
    }
  
@@ -25735,7 +25755,7 @@ index fd03a6c0c..69b6ece82 100644
    UpdateCandidateList();
    // Clears selected index of a focused segment and trailing segments.
    // TODO(hsumita): Keep the indices if the segment type is FIXED_VALUE.
-@@ -1112,14 +1467,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1482,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25857,7 +25877,7 @@ index fd03a6c0c..69b6ece82 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1590,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1605,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25869,7 +25889,7 @@ index fd03a6c0c..69b6ece82 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1605,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1620,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25881,7 +25901,7 @@ index fd03a6c0c..69b6ece82 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1620,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1635,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25893,7 +25913,7 @@ index fd03a6c0c..69b6ece82 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1261,6 +1738,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
+@@ -1261,6 +1753,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
    output::FillPreedit(composer, preedit);
  }
  
@@ -25928,7 +25948,7 @@ index fd03a6c0c..69b6ece82 100644
  void EngineConverter::FillOutput(const composer::Composer& composer,
                                   commands::Output* output) const {
    if (!output) {
-@@ -1272,7 +1777,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1272,7 +1792,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
    }
    if (CheckState(COMPOSITION)) {
      if (!composer.Empty()) {
@@ -25937,7 +25957,7 @@ index fd03a6c0c..69b6ece82 100644
      }
    }
  
-@@ -1287,16 +1792,19 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1287,16 +1807,19 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
      // When the suggestion comes from zero query suggestion, the
      // composer is empty.  In that case, preedit is not rendered.
      if (!composer.Empty()) {
@@ -25958,7 +25978,7 @@ index fd03a6c0c..69b6ece82 100644
    }
  
    // All candidate words
-@@ -1319,6 +1827,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1842,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25969,7 +25989,7 @@ index fd03a6c0c..69b6ece82 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1845,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1860,10 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
@@ -25980,7 +26000,7 @@ index fd03a6c0c..69b6ece82 100644
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2228,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2243,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -26007,7 +26027,7 @@ index fd03a6c0c..69b6ece82 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2359,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2374,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -26026,7 +26046,7 @@ index fd03a6c0c..69b6ece82 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2378,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2393,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -26189,7 +26209,7 @@ index f8e3b43ec..719704d9f 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..c739a68c2 100644
+index 808058c64..0a1f4a805 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
 @@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
@@ -26255,7 +26275,7 @@ index 808058c64..c739a68c2 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4012,247 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4012,297 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
@@ -26298,6 +26318,56 @@ index 808058c64..c739a68c2 100644
 +    EXPECT_EQ(output.result().value(), live ? "今日はあ" : "きょうはあ");
 +    EXPECT_EQ(output.result().key(), "きょうはあ");
 +  }
++}
++
++// 打ち間違いを補正した結果(読みが打った読みと違う)も出し、Enter でそのまま確定する。
++TEST_F(EngineConverterTest, KotoriLiveConversionShowsTypoCorrectedResult) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments ai;
++  // 補正した結果も、文節の読みは打った読みのまま(LmRewriter の打ち間違いの補正と同じ)。
++  AddSegmentWithSingleCandidate(&ai, "きょは", "今日は");
++  ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++  composer_->InsertCharacterPreedit("きょは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "今日は");
++  converter.CommitPreedit(*composer_, commands::Context());
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.result().value(), "今日は");
++  EXPECT_EQ(output.result().key(), "きょは");
++}
++
++// AI がこの読みを採点しなかったとき(Mozc の綴りの補正など)も、Space の 1 番目と同じ文を出す。
++// AI の結果を待っている間は読みのまま出す。
++TEST_F(EngineConverterTest, KotoriLiveConversionFollowsSpaceResult) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments pending;
++  pending.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  Segments mozc;
++  AddSegmentWithSingleCandidate(&mozc, "こんいちは", "こんにちは");
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillOnce(DoAll(SetArgPointee<1>(pending), Return(true)))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(mozc), Return(true)));
++  composer_->InsertCharacterPreedit("こんいちは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "こんいちは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "こんにちは");
 +}
 +
 +// 読みを消して変換した読みの先頭と合わなくなったら、読みのまま出す。保護された欄では使わない。
@@ -26503,7 +26573,7 @@ index 808058c64..c739a68c2 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5105,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5155,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -43306,7 +43376,7 @@ index 000000000..344468822
 +}  // namespace
 +}  // namespace mozc::session
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..71119fdbd 100644
+index 8186b0a8d..89c522063 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -43391,7 +43461,7 @@ index 8186b0a8d..71119fdbd 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +578,151 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +578,158 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -43413,11 +43483,18 @@ index 8186b0a8d..71119fdbd 100644
 +      context_->composer().GetInputFieldType() == commands::Context::PASSWORD ||
 +      context_->composer().Empty() ||
 +      command->output().has_callback() ||
-+      (!waiting && count >= kotori::kMaxLiveRefreshes)) {
++      (!waiting && count >= (context_->GetConfig().kotori_live_conversion()
++                                 ? kotori::kMaxLiveConversionRefreshes
++                                 : kotori::kMaxLiveRefreshes))) {
 +    return;
 +  }
 +  int delay =
 +      count == 0 ? kotori::g_live_first_ms.load() : kotori::g_live_next_ms.load();
++  // Asteria: ライブ変換では、補正などで後から変わる結果に未確定の表示を追いつかせる(docs/adr/0077)。
++  if (count > 0 && context_->GetConfig().kotori_live_conversion() &&
++      kotori::g_live_first_ms.load() > 0) {
++    delay = kotori::kLiveConversionNextMs;
++  }
 +  // AI待機は回数制限で打ち切らない。結果ができたらすぐ出せるよう短い間隔で取り直す。
 +  if (waiting) delay = kotori::g_ai_wait_poll_ms.load();
 +  if (delay <= 0) return;
@@ -43543,7 +43620,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -604,7 +785,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
+@@ -604,7 +792,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
      case keymap::DirectInputState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::DirectInputState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -43554,7 +43631,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::DirectInputState::NONE:
        return EchoBackAndClearUndoContext(command);
      case keymap::DirectInputState::RECONVERT:
-@@ -648,7 +831,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -648,7 +838,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::INSERT_FULL_SPACE:
        return InsertSpaceFullWidth(command);
      case keymap::PrecompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -43565,7 +43642,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::PrecompositionState::REVERT:
        return Revert(command);
      case keymap::PrecompositionState::UNDO:
-@@ -667,7 +852,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -667,7 +859,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::PrecompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -43576,7 +43653,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::PrecompositionState::COMPOSITION_MODE_SWITCH_KANA_TYPE:
        return CompositionModeSwitchKanaType(command);
  
-@@ -717,6 +904,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +911,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -43606,7 +43683,7 @@ index 8186b0a8d..71119fdbd 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -821,7 +1031,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -821,7 +1038,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::CompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -43617,7 +43694,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::CompositionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -836,7 +1048,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -836,7 +1055,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return CompositionModeFullASCII(command);
  
      case keymap::CompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -43628,7 +43705,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::CompositionState::NONE:
        return DoNothing(command);
-@@ -966,7 +1180,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
+@@ -966,7 +1187,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::ConversionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -43639,7 +43716,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::ConversionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -1026,7 +1242,8 @@ bool Session::IMEOn(commands::Command* command) {
+@@ -1026,7 +1249,8 @@ bool Session::IMEOn(commands::Command* command) {
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
    if (command->input().has_key() && command->input().key().has_mode()) {
@@ -43649,7 +43726,7 @@ index 8186b0a8d..71119fdbd 100644
                           context_->mutable_composer());
    }
    OutputMode(command);
-@@ -1062,8 +1279,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
+@@ -1062,8 +1286,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -43662,7 +43739,7 @@ index 8186b0a8d..71119fdbd 100644
    }
    OutputMode(command);
    return true;
-@@ -1087,8 +1306,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
+@@ -1087,8 +1313,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -43675,7 +43752,7 @@ index 8186b0a8d..71119fdbd 100644
    }
    OutputMode(command);
    return true;
-@@ -1388,9 +1609,11 @@ bool Session::CommitCandidate(commands::Command* command) {
+@@ -1388,9 +1616,11 @@ bool Session::CommitCandidate(commands::Command* command) {
    } else {
      // No candidate is focused.
      size_t consumed_key_size = 0;
@@ -43687,7 +43764,7 @@ index 8186b0a8d..71119fdbd 100644
        if (consumed_key_size < context_->composer().GetLength()) {
          // partial suggestion was committed.
          context_->mutable_composer()->DeleteRange(0, consumed_key_size);
-@@ -1523,6 +1746,10 @@ bool Session::InsertCharacter(commands::Command* command) {
+@@ -1523,6 +1753,10 @@ bool Session::InsertCharacter(commands::Command* command) {
  
    const std::string composition = context_->composer().GetQueryForConversion();
    bool should_commit = (context_->state() == ImeContext::CONVERSION);
@@ -43698,7 +43775,7 @@ index 8186b0a8d..71119fdbd 100644
  
    if (context_->GetRequest().space_on_alphanumeric() ==
            commands::Request::SPACE_OR_CONVERT_COMMITTING_COMPOSITION &&
-@@ -1784,6 +2011,12 @@ bool Session::CommitInternal(commands::Command* command,
+@@ -1784,6 +2018,12 @@ bool Session::CommitInternal(commands::Command* command,
      context_->mutable_converter()->CommitPreedit(context_->composer(),
                                                   command->input().context());
    } else {  // ImeContext::CONVERSION
@@ -43711,7 +43788,7 @@ index 8186b0a8d..71119fdbd 100644
      context_->mutable_converter()->Commit(context_->composer(),
                                            command->input().context());
    }
-@@ -1827,6 +2060,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
+@@ -1827,6 +2067,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
    return true;
  }
  
@@ -43737,7 +43814,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::CommitFirstSuggestion(commands::Command* command) {
    if (!(context_->state() == ImeContext::COMPOSITION ||
          context_->state() == ImeContext::PRECOMPOSITION)) {
-@@ -1841,9 +2093,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
+@@ -1841,9 +2100,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
  
    constexpr int kFirstIndex = 0;
    size_t committed_key_size = 0;
@@ -43749,7 +43826,7 @@ index 8186b0a8d..71119fdbd 100644
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
  
-@@ -2158,6 +2412,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
+@@ -2158,6 +2419,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
    return true;
  }
  
@@ -43775,7 +43852,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::CompositionModeSwitchKanaType(commands::Command* command) {
    if (context_->state() != ImeContext::PRECOMPOSITION) {
      return DoNothing(command);
-@@ -2371,14 +2644,46 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,14 +2651,46 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -43826,7 +43903,7 @@ index 8186b0a8d..71119fdbd 100644
    Output(command);
    return true;
  }
-@@ -2389,16 +2694,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2701,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -43844,7 +43921,7 @@ index 8186b0a8d..71119fdbd 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2972,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2979,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -43853,7 +43930,7 @@ index 8186b0a8d..71119fdbd 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2987,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2994,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -43876,7 +43953,7 @@ index 8186b0a8d..71119fdbd 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +3046,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +3053,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -43890,7 +43967,7 @@ index 8186b0a8d..71119fdbd 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3182,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3189,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
