@@ -58,14 +58,29 @@ def main():
                     "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll",
                     "/out:" + str(exe), str(source)], check=True, capture_output=True)
     cases = args.out / "input.tsv"
-    cases.write_text("warm\tnihonngo\n" + "".join(f"{i}\t{r}\n" for i, r, _ in CASES), encoding="utf-8")
+    cases.write_text("first\tkakikukeko\n" + "".join(f"{i}\t{r}\n" for i, r, _ in CASES),
+                     encoding="utf-8")
+    warm = args.out / "warm.tsv"
+    # 準備の入力は確かめる語と別にする(読みのまま確定すると、その語の読みを学習するため)。
+    warm.write_text("warm\taiueo\n", encoding="utf-8")
     output = args.out / "output.tsv"
+    bench = [str(exe), "{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}", "{455A87E7-275F-4582-92CB-6600917A436D}"]
     try:
         config.write_bytes(backup.read_bytes() + LIVE_ON)
         restart_server()
-        subprocess.run([str(exe), "{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}",
-                        "{455A87E7-275F-4582-92CB-6600917A436D}", str(cases), str(output),
-                        str(args.wait), "live"], check=True, timeout=300)
+        # 起動し直した変換サーバーが AI を読み込むまで待つ(読み込み中は読みのまま確定するため)。
+        # 前の状態のファイルが残っていると判定を誤るので消してから、打って読み込みを促す。
+        status = profile / "kotori_ai_status.txt"
+        status.unlink(missing_ok=True)
+        deadline = time.monotonic() + 120
+        while True:
+            subprocess.run([*bench, str(warm), str(args.out / "warm-out.tsv"), "500", "live"],
+                           check=True, timeout=120)
+            text = status.read_text(encoding="utf-8", errors="replace") if status.exists() else ""
+            if "state=llm" in text or time.monotonic() > deadline:
+                break
+            time.sleep(3)
+        subprocess.run([*bench, str(cases), str(output), str(args.wait), "live"], check=True, timeout=300)
     finally:
         restart_server()
         for f in saved.iterdir():
