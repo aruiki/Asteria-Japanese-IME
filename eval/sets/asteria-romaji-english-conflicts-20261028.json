@@ -1,0 +1,194 @@
+[
+ {
+  "index": "j01",
+  "input": "sakewonomu",
+  "romaji": "sakewonomu",
+  "expected_output": [
+   "酒を飲む"
+  ]
+ },
+ {
+  "index": "j02",
+  "input": "kitekudasai",
+  "romaji": "kitekudasai",
+  "expected_output": [
+   "来てください"
+  ]
+ },
+ {
+  "index": "j03",
+  "input": "damedayo",
+  "romaji": "damedayo",
+  "expected_output": [
+   "だめだよ"
+  ]
+ },
+ {
+  "index": "j04",
+  "input": "nodeokureta",
+  "romaji": "nodeokureta",
+  "expected_output": [
+   "ので遅れた"
+  ]
+ },
+ {
+  "index": "j05",
+  "input": "karatewonaratteiru",
+  "romaji": "karatewonaratteiru",
+  "expected_output": [
+   "空手を習っている"
+  ]
+ },
+ {
+  "index": "j06",
+  "input": "sushiwotabeta",
+  "romaji": "sushiwotabeta",
+  "expected_output": [
+   "寿司を食べた"
+  ]
+ },
+ {
+  "index": "j07",
+  "input": "kimonowokiru",
+  "romaji": "kimonowokiru",
+  "expected_output": [
+   "着物を着る"
+  ]
+ },
+ {
+  "index": "j08",
+  "input": "mangawoyomu",
+  "romaji": "mangawoyomu",
+  "expected_output": [
+   "漫画を読む"
+  ]
+ },
+ {
+  "index": "j09",
+  "input": "animewomiru",
+  "romaji": "animewomiru",
+  "expected_output": [
+   "アニメを見る"
+  ]
+ },
+ {
+  "index": "j10",
+  "input": "tsunamigakita",
+  "romaji": "tsunamigakita",
+  "expected_output": [
+   "津波が来た"
+  ]
+ },
+ {
+  "index": "j11",
+  "input": "karehagakusei",
+  "romaji": "karehagakusei",
+  "expected_output": [
+   "彼は学生"
+  ]
+ },
+ {
+  "index": "j12",
+  "input": "hateshinaisora",
+  "romaji": "hateshinaisora",
+  "expected_output": [
+   "果てしない空"
+  ]
+ },
+ {
+  "index": "j13",
+  "input": "minenoyuki",
+  "romaji": "minenoyuki",
+  "expected_output": [
+   "峰の雪"
+  ]
+ },
+ {
+  "index": "j14",
+  "input": "tamagowoyaku",
+  "romaji": "tamagowoyaku",
+  "expected_output": [
+   "卵を焼く"
+  ]
+ },
+ {
+  "index": "j15",
+  "input": "sonohiwasurenai",
+  "romaji": "sonohiwasurenai",
+  "expected_output": [
+   "その日忘れない"
+  ]
+ },
+ {
+  "index": "j16",
+  "input": "macchawonomu",
+  "romaji": "macchawonomu",
+  "expected_output": [
+   "抹茶を飲む"
+  ]
+ },
+ {
+  "index": "j17",
+  "input": "emojiwotsukau",
+  "romaji": "emojiwotsukau",
+  "expected_output": [
+   "絵文字を使う"
+  ]
+ },
+ {
+  "index": "j18",
+  "input": "tofuwokau",
+  "romaji": "tofuwokau",
+  "expected_output": [
+   "豆腐を買う"
+  ]
+ },
+ {
+  "index": "j19",
+  "input": "ramenwotabetai",
+  "romaji": "ramenwotabetai",
+  "expected_output": [
+   "ラーメンを食べたい"
+  ]
+ },
+ {
+  "index": "j20",
+  "input": "bentouwotsukuru",
+  "romaji": "bentouwotsukuru",
+  "expected_output": [
+   "弁当を作る"
+  ]
+ },
+ {
+  "index": "j21",
+  "input": "sensei",
+  "romaji": "sensei",
+  "expected_output": [
+   "先生"
+  ]
+ },
+ {
+  "index": "j22",
+  "input": "kaizen",
+  "romaji": "kaizen",
+  "expected_output": [
+   "改善"
+  ]
+ },
+ {
+  "index": "j23",
+  "input": "origami",
+  "romaji": "origami",
+  "expected_output": [
+   "折り紙"
+  ]
+ },
+ {
+  "index": "j24",
+  "input": "karaoke",
+  "romaji": "karaoke",
+  "expected_output": [
+   "カラオケ"
+  ]
+ }
+]
