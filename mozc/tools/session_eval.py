@@ -47,6 +47,9 @@ def main():
                     help="打ち終わってすぐSpaceを押す(取り直しの予約を待たない。速く打つ人やimebenchと同じ)")
     ap.add_argument("--space-gap", type=float,
                     help="最後の打鍵からSpaceまでの時間(ms)。人が打つ速さの再現(例: 150)")
+    ap.add_argument("--live", action="store_true",
+                    help="ライブ変換(docs/adr/0077)。打った後に取り直しが止まるまで待ち、未確定の表示を記録する"
+                         "(kotori_live_conversion=true を一緒に渡す)。その後 Space で候補の1番目と比べる")
     ap.add_argument("--timeline", action="store_true",
                     help="KOTORI_LM_TIMELINEでサーバーの各段の時刻を取り、Space→候補の内訳を出す")
     args, extra = ap.parse_known_args()
@@ -136,7 +139,21 @@ def main():
             # 手を止める時間は回数ではなく時間で決める(取り直しの間隔を変えても同じ間だけ止まる)。
             # 0.7秒は6446までの「最初の取り直し200ms + 100ms×5回」と同じ。製品のTIPと同じく、
             # 取り直しのタイマーがSpaceより前に来るときだけ取り直す。
-            gap = 0 if args.immediate_space else (args.space_gap / 1000 if args.space_gap is not None else 0.7)
+            live = None
+            if args.live:
+                # 製品のTIPと同じく、サーバーが返す間隔で取り直しを送り、予約がなくなるまで待つ(上限5秒)。
+                waited_from = time.monotonic()
+                seen = [(0.0, preedit(text))]
+                while callback_ms(text) is not None and time.monotonic() - waited_from < 5:
+                    time.sleep(callback_ms(text) / 1000)
+                    text = send("KOTORI_REFRESH")
+                    seen.append(((time.monotonic() - waited_from) * 1000, preedit(text)))
+                final = seen[-1][1]
+                # 最後の表示に初めてなった時刻(その後の取り直しで変わらなかった分は含めない)。
+                first = next(t for i, (t, v) in enumerate(seen) if all(w == final for _, w in seen[i:]))
+                live = dict(text=final, ms=round(first, 1))
+            gap = 0 if args.immediate_space or args.live else (
+                args.space_gap / 1000 if args.space_gap is not None else 0.7)
             typed = time.monotonic()
             while True:
                 delay = callback_ms(text)
@@ -165,6 +182,9 @@ def main():
                              refreshes_after_space=waited, space_to_candidate_ms=round(space_to_candidate_ms, 1),
                              ms=round((time.monotonic() - started) * 1000, 1), space_us=space_us,
                              shown_us=shown_us, start_us=start_us))
+            if live is not None:
+                rows[-1].update(live=live["text"], live_ok=live["text"] in it["expected_output"],
+                                live_ms=live["ms"], live_same_as_space=live["text"] == top1)
             send("SEND_KEY\tESC")
             send("SEND_KEY\tESC")
         p.stdin.close()
@@ -180,6 +200,11 @@ def main():
     p95 = times[max(0, -(-len(times) * 95 // 100) - 1)] if times else 0
     print(f"{args.data}: {sum(r['ok'] for r in scored)}/{len(scored)} (skipped {len(rows) - len(scored)}) "
           f"Space→候補 中央値 {times[len(times) // 2] if times else 0:.0f}ms p95 {p95:.0f}ms 最大 {times[-1] if times else 0:.0f}ms")
+    if args.live:
+        lt = sorted(r["live_ms"] for r in scored)
+        print(f"ライブ変換: 表示が正解 {sum(r['live_ok'] for r in scored)}/{len(scored)}、"
+              f"Spaceの1番目と同じ {sum(r['live_same_as_space'] for r in scored)}/{len(scored)}、"
+              f"表示まで 中央値 {lt[len(lt) // 2] if lt else 0:.0f}ms")
     if args.timeline:
         print_breakdown(scored)
 

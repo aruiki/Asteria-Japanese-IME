@@ -229,7 +229,7 @@ jobs:
         working-directory: .\mozc-src\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:lm_rewriter_test //rewriter:kotori_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:kotori_usage_stats_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
+        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:kotori_homophone_hint_rewriter_test //rewriter:kotori_typo_model_test //rewriter:lm_rewriter_test //rewriter:kotori_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:kotori_usage_stats_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
       - name: 応援案内の保存と画面を確かめる
         shell: pwsh
         working-directory: .\mozc-src\src

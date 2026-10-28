@@ -44,6 +44,13 @@
 | Mozc | BSD-3-Clause | 同上(`LICENSE`) | 辞書ソースの取得元のライセンスとして同梱する |
 | VC ランタイム | Visual Studio のライセンス | MSVC(`/MT` で静的リンク) | 静的リンクの再配布は認められている |
 
+## 製品のコードに数値だけを使う研究(データは取得も同梱もしない)
+
+| 出典 | 使った数値 | 条件・扱い |
+| --- | --- | --- |
+| Dhakal, Feit, Kristensson, Oulasvirta. Observations on Typing from 136 Million Keystrokes. CHI 2018(doi:10.1145/3173574.3174220)の表 1 | 1 文字あたりの打ち違い 1.65%、抜け 0.80%、余分 0.67% | 打ち間違いの起こりやすさ(`rewriter/kotori_typo_model.cc`、docs/adr/0076)。論文の数値(事実)だけを使う。打鍵のデータ(研究・非営利の利用に限る)は取得も同梱もしない |
+| Grudin. Error Patterns in Novice and Skilled Transcription Typing. Cooper 編 Cognitive Aspects of Skilled Typewriting(Springer, 1983)6 章の表 6.1 と本文 | 入れ替えの割合(熟練者の平均 7.2%)、打ち違いの相手(同じ段の隣 31%、同じ指の上下 16%)、余分なキーの大半が隣のキー | 同上。本文の記述から置いた仮定(余分なキーの 8 割)と、データのないかなの段の誤り(ず/づ、拗音の抜け)の率(0.5%)は ADR0076 に明記 |
+
 ## 同梱しないもの
 
 | 構成要素 | ライセンス | 扱い |

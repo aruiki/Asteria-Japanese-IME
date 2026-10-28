@@ -560,10 +560,10 @@ index 000000000..3bcfec328
 +}  // namespace mozc
 diff --git a/src/base/kotori_live.h b/src/base/kotori_live.h
 new file mode 100644
-index 000000000..13cae7120
+index 000000000..998aa069f
 --- /dev/null
 +++ b/src/base/kotori_live.h
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,33 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +// Kotori: 入力中の候補を、手が止まった後に取り直すまでの時間(docs/adr/0039)。
@@ -584,6 +584,11 @@ index 000000000..13cae7120
 +inline std::atomic<int> g_live_next_ms{0};
 +// 1 回の打鍵の後に取り直す回数の上限。
 +inline constexpr int kMaxLiveRefreshes = 5;
++// ライブ変換(docs/adr/0077)がオンのときの上限。打ち間違いの補正は手が止まってから数百 ms 遅れて
++// できるので、未確定の表示がそれに追いつくまで取り直す(結果がそろえば計算はキャッシュから返す)。
++inline constexpr int kMaxLiveConversionRefreshes = 30;
++// ライブ変換のときの 2 回目以降の間隔(ms)。30 回で約 3 秒まで追う。
++inline constexpr int kLiveConversionNextMs = 100;
 +// AI の結果を待つ間に取り直す間隔(ms)。結果ができてから表示までの遅れを、この間隔以内にする。
 +// Windows のタイマーの細かさ(約 15.6 ms)より短くしても速くならない。KOTORI_AI_WAIT_POLL で変えられる。
 +inline std::atomic<int> g_ai_wait_poll_ms{15};
@@ -25170,18 +25175,21 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..b0b3cc18f 100644
+index fd03a6c0c..d369970db 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
-@@ -46,6 +46,7 @@
+@@ -44,8 +44,10 @@
+ 
+ #include "absl/log/check.h"
  #include "absl/log/log.h"
++#include "absl/strings/match.h"
  #include "absl/strings/str_cat.h"
  #include "absl/strings/string_view.h"
 +#include "base/strings/japanese.h"
  #include "base/text_normalizer.h"
  #include "base/util.h"
  #include "base/vlog.h"
-@@ -130,6 +131,42 @@ EngineConverter::EngineConverter(
+@@ -130,6 +132,42 @@ EngineConverter::EngineConverter(
    conversion_preferences_.request_suggestion = true;
    candidate_list_.set_page_size(request_->candidate_page_size());
    SetConfig(std::move(config));
@@ -25224,7 +25232,7 @@ index fd03a6c0c..b0b3cc18f 100644
  }
  
  bool EngineConverter::CheckState(
-@@ -145,9 +182,19 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
+@@ -145,9 +183,19 @@ const ConversionPreferences& EngineConverter::conversion_preferences() const {
    return conversion_preferences_;
  }
  
@@ -25244,7 +25252,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | CONVERSION));
  
    DCHECK(request_);
-@@ -157,6 +204,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -157,6 +205,7 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    SetRequestType(ConversionRequest::CONVERSION, options);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25252,7 +25260,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -164,12 +212,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -164,12 +213,24 @@ bool EngineConverter::Convert(const composer::Composer& composer,
            .SetOptions(std::move(options))
            .Build();
  
@@ -25278,7 +25286,7 @@ index fd03a6c0c..b0b3cc18f 100644
    segment_index_ = 0;
    state_ = CONVERSION;
    // If TalkBack is enabled, the candidate list should be always visible to
-@@ -181,6 +241,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
+@@ -181,6 +242,85 @@ bool EngineConverter::Convert(const composer::Composer& composer,
    return true;
  }
  
@@ -25364,7 +25372,7 @@ index fd03a6c0c..b0b3cc18f 100644
  bool EngineConverter::GetReadingText(absl::string_view source_text,
                                       std::string* reading) {
    DCHECK(reading);
-@@ -490,6 +629,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
+@@ -490,6 +630,7 @@ bool EngineConverter::SwitchKanaType(const composer::Composer& composer) {
  bool EngineConverter::Suggest(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25372,7 +25380,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION));
    candidate_list_visible_ = false;
  
-@@ -541,6 +681,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -541,6 +682,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    DCHECK(config_);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25380,7 +25388,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +740,127 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -599,11 +741,151 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25394,10 +25402,10 @@ index fd03a6c0c..b0b3cc18f 100644
 +      segments_.kotori_ai_status() == Segments::KotoriAiStatus::kPending &&
 +      !evaluated;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
-   InitializeSelectedCandidateIndices();
-   return true;
- }
- 
++  InitializeSelectedCandidateIndices();
++  return true;
++}
++
 +// Kotori: 入力中の候補の先頭に、Space と同じ変換の結果を置く(docs/adr/0039)。
 +// 変換は別の Segments で行い、今の状態(入力中の候補)は変えない。AI は覚えておいた結果を
 +// 使うので、続けて Space を押したときも同じ文が出る。
@@ -25406,16 +25414,39 @@ index fd03a6c0c..b0b3cc18f 100644
 +  const auto input_generation = KotoriObserveInput(composer);
 +  if (!CheckState(COMPOSITION | SUGGESTION)) return false;
 +  // Kotori: 強い続き予測を、短い通常変換で押し下げない。
-+  if (state_ == SUGGESTION && segments_.conversion_segments_size() == 1 &&
++  const bool confident_prediction =
++      state_ == SUGGESTION && segments_.conversion_segments_size() == 1 &&
 +      segments_.conversion_segment(0).candidates_size() > 0 &&
-+      segments_.conversion_segment(0).candidate(0).kotori_confident_prediction) {
-+    return true;
-+  }
++      segments_.conversion_segment(0).candidate(0).kotori_confident_prediction;
++  // Asteria: ライブ変換では、未確定の表示のために変換は続ける(候補の並びは変えない)。
++  const bool live = config_->kotori_live_conversion();
++  if (confident_prediction && !live) return true;
 +  // 入力中の取り直し(利用者はまだ待っていない)。
 +  const KotoriAiStatus status = KotoriPrepareConversionImpl(
 +      composer, context, conversion_preferences(), false, false);
 +  kotori_awaiting_ai_ = status == KotoriAiStatus::kPending;
++  if (confident_prediction) kotori_awaiting_ai_ = false;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
++  // Asteria: ライブ変換(docs/adr/0077)。AI の結果を待っている間は読みのまま出す。結果が出たら
++  // (AI がこの読みを採点しなかったときも)、Space を押したときに出る 1 番目と同じ文を出す。
++  if (live && status != KotoriAiStatus::kPending && kotori_prepared_conversion_ &&
++      kotori_prepared_context_ == context.SerializeAsString()) {
++    std::string shown, reading;
++    for (const Segment& seg : kotori_prepared_conversion_->conversion_segments()) {
++      if (seg.candidates_size() == 0) {
++        shown.clear();
++        break;
++      }
++      reading += seg.key();
++      shown += seg.candidate(0).value;
++    }
++    // 前の読みのために準備した結果は出さない。
++    if (!shown.empty() && reading == composer.GetQueryForConversion()) {
++      // 表示している読み(ローマ字の打ちかけを含む)と組にする。読みが変われば使わない。
++      kotori_live_key_ = composer.GetStringForPreedit();
++      kotori_live_value_ = shown;
++    }
++  }
 +  if (status != KotoriAiStatus::kReady || !kotori_prepared_conversion_) return false;
 +  const Segments& converted = *kotori_prepared_conversion_;
 +  std::string key, value;
@@ -25426,6 +25457,7 @@ index fd03a6c0c..b0b3cc18f 100644
 +    value += seg.candidate(0).value;
 +  }
 +  if (value.empty() || key != composer.GetQueryForConversion()) return false;
++  if (confident_prediction) return true;
 +  if (state_ != SUGGESTION || segments_.conversion_segments_size() != 1) {
 +    segments_.clear_conversion_segments();
 +    segments_.add_segment()->set_key(key);
@@ -25461,10 +25493,10 @@ index fd03a6c0c..b0b3cc18f 100644
 +  *suggestion->insert_candidate(0) = std::move(candidate);
 +  previous_suggestions_ = *suggestion;
 +  UpdateCandidateList();
-+  InitializeSelectedCandidateIndices();
-+  return true;
-+}
-+
+   InitializeSelectedCandidateIndices();
+   return true;
+ }
+ 
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversion(
 +    const composer::Composer& composer, const commands::Context& context,
 +    const ConversionPreferences& preferences) {
@@ -25509,7 +25541,7 @@ index fd03a6c0c..b0b3cc18f 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +869,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +894,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25524,7 +25556,7 @@ index fd03a6c0c..b0b3cc18f 100644
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +885,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +910,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25536,7 +25568,7 @@ index fd03a6c0c..b0b3cc18f 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +905,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +930,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25551,7 +25583,7 @@ index fd03a6c0c..b0b3cc18f 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +920,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +945,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25569,7 +25601,7 @@ index fd03a6c0c..b0b3cc18f 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +938,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +963,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25617,7 +25649,7 @@ index fd03a6c0c..b0b3cc18f 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +1003,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +1028,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25645,7 +25677,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1033,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1058,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25653,7 +25685,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1051,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1076,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25661,7 +25693,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1083,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1108,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25669,7 +25701,7 @@ index fd03a6c0c..b0b3cc18f 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1096,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1121,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25677,7 +25709,7 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1197,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1222,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25685,15 +25717,29 @@ index fd03a6c0c..b0b3cc18f 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,6 +1257,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,14 +1282,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
++  // Asteria: ライブ変換の表示があれば、表示どおりに確定する(docs/adr/0077)。
++  const std::string live = KotoriLiveText(composer);
 +  KotoriInvalidateInput();
    const std::string key = composer.GetQueryForConversion();
-   const std::string preedit = composer.GetStringForSubmission();
+-  const std::string preedit = composer.GetStringForSubmission();
++  const std::string reading = composer.GetStringForSubmission();
++  const std::string preedit = live.empty() ? reading : live;
    std::string normalized_preedit = TextNormalizer::NormalizeText(preedit);
-@@ -956,6 +1295,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+   output::FillPreeditResult(preedit, &result_);
++  if (!live.empty()) result_.set_key(reading);
+ 
+   // Add ResultToken
+   commands::ResultToken* token = result_.add_tokens();
+-  token->set_key(preedit);
++  token->set_key(live.empty() ? preedit : reading);
+   token->set_value(preedit);
+ 
+   // Cursor offset needs to be calculated based on normalized text.
+@@ -956,6 +1324,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25701,7 +25747,7 @@ index fd03a6c0c..b0b3cc18f 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1095,6 +1435,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
+@@ -1095,6 +1464,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
      return;
    }
  
@@ -25709,7 +25755,7 @@ index fd03a6c0c..b0b3cc18f 100644
    UpdateCandidateList();
    // Clears selected index of a focused segment and trailing segments.
    // TODO(hsumita): Keep the indices if the segment type is FIXED_VALUE.
-@@ -1112,14 +1453,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1482,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25831,7 +25877,7 @@ index fd03a6c0c..b0b3cc18f 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1576,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1605,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25843,7 +25889,7 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1591,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1620,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25855,7 +25901,7 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1606,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1635,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25867,7 +25913,58 @@ index fd03a6c0c..b0b3cc18f 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1293,10 +1756,13 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1261,6 +1753,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
+   output::FillPreedit(composer, preedit);
+ }
+ 
++std::string EngineConverter::KotoriLiveText(
++    const composer::Composer& composer) const {
++  if (!config_->kotori_live_conversion() || kotori_live_key_.empty()) return "";
++  if (composer.GetInputFieldType() == commands::Context::PASSWORD) return "";
++  // 読みの途中を編集しているときは、読みのまま出す。
++  if (composer.GetCursor() != composer.GetLength()) return "";
++  // 変換した後に打ち足した分は、読みのまま後ろにつなぐ。
++  const std::string preedit = composer.GetStringForPreedit();
++  if (!absl::StartsWith(preedit, kotori_live_key_)) return "";
++  return kotori_live_value_ + preedit.substr(kotori_live_key_.size());
++}
++
++void EngineConverter::KotoriFillPreedit(const composer::Composer& composer,
++                                        commands::Preedit* preedit) const {
++  const std::string live = KotoriLiveText(composer);
++  if (live.empty()) {
++    output::FillPreedit(composer, preedit);
++    return;
++  }
++  commands::Preedit::Segment* segment = preedit->add_segment();
++  segment->set_key(composer.GetStringForPreedit());
++  segment->set_value(live);
++  segment->set_value_length(Util::CharsLen(live));
++  segment->set_annotation(commands::Preedit::Segment::UNDERLINE);
++  preedit->set_cursor(static_cast<uint32_t>(Util::CharsLen(live)));
++  preedit->set_is_toggleable(false);
++}
++
+ void EngineConverter::FillOutput(const composer::Composer& composer,
+                                  commands::Output* output) const {
+   if (!output) {
+@@ -1272,7 +1792,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+   }
+   if (CheckState(COMPOSITION)) {
+     if (!composer.Empty()) {
+-      output::FillPreedit(composer, output->mutable_preedit());
++      KotoriFillPreedit(composer, output->mutable_preedit());
+     }
+   }
+ 
+@@ -1287,16 +1807,19 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+     // When the suggestion comes from zero query suggestion, the
+     // composer is empty.  In that case, preedit is not rendered.
+     if (!composer.Empty()) {
+-      output::FillPreedit(composer, output->mutable_preedit());
++      KotoriFillPreedit(composer, output->mutable_preedit());
+     }
+   } else if (CheckState(PREDICTION | CONVERSION)) {
      // Conversion on Prediction or Conversion
      FillConversion(output->mutable_preedit());
    }
@@ -25881,7 +25978,7 @@ index fd03a6c0c..b0b3cc18f 100644
    }
  
    // All candidate words
-@@ -1319,6 +1785,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1319,6 +1842,10 @@ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25892,16 +25989,18 @@ index fd03a6c0c..b0b3cc18f 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1803,8 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1860,10 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
 +  kotori_awaiting_ai_ = false;
 +  kotori_prepared_conversion_.reset();
++  kotori_live_key_.clear();
++  kotori_live_value_.clear();
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2184,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1712,6 +2243,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -25928,7 +26027,7 @@ index fd03a6c0c..b0b3cc18f 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2315,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2374,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -25947,7 +26046,7 @@ index fd03a6c0c..b0b3cc18f 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2334,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2393,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -25956,7 +26055,7 @@ index fd03a6c0c..b0b3cc18f 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..a5f8e392d 100644
+index 6d061cfca..98b88efd9 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -26002,7 +26101,20 @@ index 6d061cfca..a5f8e392d 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -274,6 +289,25 @@ class EngineConverter : public EngineConverterInterface {
+@@ -239,6 +254,12 @@ class EngineConverter : public EngineConverterInterface {
+                    commands::Preedit* preedit) const override;
+ 
+   // Fills protocol buffers
++  // Asteria: ライブ変換で、未確定の文字として出す文字列。使えなければ空(docs/adr/0077)。
++  std::string KotoriLiveText(const composer::Composer& composer) const;
++  // 未確定の文字を出す。ライブ変換の結果があればそれを、なければ読みを出す。
++  void KotoriFillPreedit(const composer::Composer& composer,
++                         commands::Preedit* preedit) const;
++
+   void FillOutput(const composer::Composer& composer,
+                   commands::Output* output) const override;
+ 
+@@ -274,6 +295,25 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -26028,7 +26140,7 @@ index 6d061cfca..a5f8e392d 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +378,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +384,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -26037,7 +26149,7 @@ index 6d061cfca..a5f8e392d 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +460,12 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +466,15 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
@@ -26047,6 +26159,9 @@ index 6d061cfca..a5f8e392d 100644
 +  std::optional<Segments> kotori_prepared_conversion_;
 +  std::string kotori_prepared_context_;
 +  bool kotori_prepared_history_ = true;
++  // Asteria: ライブ変換(docs/adr/0077)。AI が変換した読み(未確定の表示のまま)と、その結果。
++  std::string kotori_live_key_;
++  std::string kotori_live_value_;
  
    // Mutable values of |config_|.  These values may be changed temporarily per
    // session.
@@ -26094,7 +26209,7 @@ index f8e3b43ec..719704d9f 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..be317dfc9 100644
+index 808058c64..0a1f4a805 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
 @@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
@@ -26160,10 +26275,126 @@ index 808058c64..be317dfc9 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4012,181 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4012,297 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
++// Asteria: ライブ変換(docs/adr/0077)。AI の変換結果を未確定の文字に出し、Enter で表示どおりに確定する。
++TEST_F(EngineConverterTest, KotoriLiveConversionShowsAndCommitsAiResult) {
++  for (const bool live : {false, true}) {
++    SCOPED_TRACE(live);
++    config_->set_kotori_lm_enabled(true);
++    config_->set_kotori_live_conversion(live);
++    auto mock = std::make_shared<MockConverter>();
++    EngineConverter converter(mock, request_, config_);
++    Segments ai;
++    AddSegmentWithSingleCandidate(&ai, "きょうは", "今日は");
++    ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++    ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++    EXPECT_CALL(*mock, StartConversion(_, _))
++        .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++    composer_->Reset();
++    composer_->InsertCharacterPreedit("きょうは");
++    converter.KotoriPreviewConversion(*composer_, commands::Context());
++    commands::Output output;
++    converter.FillOutput(*composer_, &output);
++    ASSERT_EQ(output.preedit().segment_size(), 1);
++    EXPECT_EQ(output.preedit().segment(0).value(), live ? "今日は" : "きょうは");
++    // 変換の後に打ち足した分は読みのままつなぐ。
++    composer_->InsertCharacterPreedit("あ");
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    EXPECT_EQ(output.preedit().segment(0).value(), live ? "今日はあ" : "きょうはあ");
++    // 読みの途中を編集しているときは読みのまま。
++    composer_->MoveCursorLeft();
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    EXPECT_EQ(output.preedit().segment(0).value(), "きょうはあ");
++    composer_->MoveCursorToEnd();
++    converter.CommitPreedit(*composer_, commands::Context());
++    output.Clear();
++    converter.FillOutput(*composer_, &output);
++    ASSERT_TRUE(output.has_result());
++    EXPECT_EQ(output.result().value(), live ? "今日はあ" : "きょうはあ");
++    EXPECT_EQ(output.result().key(), "きょうはあ");
++  }
++}
++
++// 打ち間違いを補正した結果(読みが打った読みと違う)も出し、Enter でそのまま確定する。
++TEST_F(EngineConverterTest, KotoriLiveConversionShowsTypoCorrectedResult) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments ai;
++  // 補正した結果も、文節の読みは打った読みのまま(LmRewriter の打ち間違いの補正と同じ)。
++  AddSegmentWithSingleCandidate(&ai, "きょは", "今日は");
++  ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++  composer_->InsertCharacterPreedit("きょは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "今日は");
++  converter.CommitPreedit(*composer_, commands::Context());
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.result().value(), "今日は");
++  EXPECT_EQ(output.result().key(), "きょは");
++}
++
++// AI がこの読みを採点しなかったとき(Mozc の綴りの補正など)も、Space の 1 番目と同じ文を出す。
++// AI の結果を待っている間は読みのまま出す。
++TEST_F(EngineConverterTest, KotoriLiveConversionFollowsSpaceResult) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments pending;
++  pending.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++  Segments mozc;
++  AddSegmentWithSingleCandidate(&mozc, "こんいちは", "こんにちは");
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillOnce(DoAll(SetArgPointee<1>(pending), Return(true)))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(mozc), Return(true)));
++  composer_->InsertCharacterPreedit("こんいちは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "こんいちは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "こんにちは");
++}
++
++// 読みを消して変換した読みの先頭と合わなくなったら、読みのまま出す。保護された欄では使わない。
++TEST_F(EngineConverterTest, KotoriLiveConversionFallsBackToReading) {
++  config_->set_kotori_lm_enabled(true);
++  config_->set_kotori_live_conversion(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments ai;
++  AddSegmentWithSingleCandidate(&ai, "きょうは", "今日は");
++  ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++  composer_->InsertCharacterPreedit("きょうは");
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  composer_->Backspace();
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  EXPECT_EQ(output.preedit().segment(0).value(), "きょう");
++  composer_->InsertCharacterPreedit("は");
++  composer_->SetInputFieldType(commands::Context::PASSWORD);
++  output.Clear();
++  converter.FillOutput(*composer_, &output);
++  EXPECT_NE(output.preedit().segment(0).value(), "今日は");
++}
++
 +TEST_F(EngineConverterTest, CorrectedReadingAlternativesKeepTypoFixed) {
 +  config_->set_kotori_lm_enabled(true);
 +  auto mock = std::make_shared<MockConverter>();
@@ -26342,7 +26573,7 @@ index 808058c64..be317dfc9 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5039,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5155,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -26680,7 +26911,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..f2c2bbdec 100644
+index abbf55d68..9af9ed83c 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,55 @@
@@ -26840,8 +27071,8 @@ index abbf55d68..f2c2bbdec 100644
 +                   .arg(gb, 0, 'f', 0);
 +      } else {
 +        text = QString::fromUtf8(
-+                   "このPCのGPU: %1（VRAM %2 GB）。AIには使わず、どの品質を選んでも"
-+                   "Low（CPU）で動きます。")
++                   "このPCのGPU: %1（VRAM %2 GB）。どの品質を選んでもLowで動きます。"
++                   "下の「内蔵 GPU で AI を動かす」をオンにすると、CPU の代わりにこの GPU を使います。")
 +                   .arg(name)
 +                   .arg(gb, 0, 'f', 1);
 +      }
@@ -27231,7 +27462,7 @@ index abbf55d68..f2c2bbdec 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +657,475 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +657,508 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27349,6 +27580,33 @@ index abbf55d68..f2c2bbdec 100644
 +      correction_note->setWordWrap(true);
 +      correction_note->setProperty("kotoriNote", true);
 +      l->addWidget(correction_note);
++      // Asteria: ライブ変換(docs/adr/0077)。既定はオフ。
++      kotoriLiveConversionCheckBox_ = new QCheckBox(QString::fromUtf8("ライブ変換(入力中に変換した文字を表示する)"), page);
++      kotoriLiveConversionCheckBox_->setObjectName("kotoriLiveConversion");
++      kotoriLiveConversionCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriLiveConversionCheckBox_);
++      auto *live_note = new QLabel(QString::fromUtf8("手が止まると、AI が変換した文字に入れ替わります。Enter でそのまま確定し、Space で候補を選べます。オフにすると、今までどおり読みのまま表示します。"), page);
++      live_note->setWordWrap(true);
++      live_note->setProperty("kotoriNote", true);
++      l->addWidget(live_note);
++      // Asteria: 同音語のヒント(docs/adr/0079)。既定はオフ。
++      kotoriHomophoneHintsCheckBox_ = new QCheckBox(QString::fromUtf8("同音語のヒント(候補の横に見分ける手がかりを出す)"), page);
++      kotoriHomophoneHintsCheckBox_->setObjectName("kotoriHomophoneHints");
++      kotoriHomophoneHintsCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriHomophoneHintsCheckBox_);
++      auto *hint_note = new QLabel(QString::fromUtf8("「足」と「脚」のように同じ読みの語が並ぶとき、「靴・靴下」「椅子・机」のような手がかりの語を候補の横に出します。"), page);
++      hint_note->setWordWrap(true);
++      hint_note->setProperty("kotoriNote", true);
++      l->addWidget(hint_note);
++      // Asteria: 内蔵 GPU(docs/adr/0078)。既定はオフ。
++      kotoriIntegratedGpuCheckBox_ = new QCheckBox(QString::fromUtf8("内蔵 GPU で AI を動かす(試験的)"), page);
++      kotoriIntegratedGpuCheckBox_->setObjectName("kotoriIntegratedGpu");
++      kotoriIntegratedGpuCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriIntegratedGpuCheckBox_);
++      auto *igpu_note = new QLabel(QString::fromUtf8("専用の GPU がない PC で、CPU の代わりに内蔵 GPU を使います。品質は「軽い」で動きます。専用の GPU がある PC では変わりません。反映には PC の再起動が必要です。"), page);
++      igpu_note->setWordWrap(true);
++      igpu_note->setProperty("kotoriNote", true);
++      l->addWidget(igpu_note);
 +    }
 +
 +    // 3. 詳細設定
@@ -27481,6 +27739,12 @@ index abbf55d68..f2c2bbdec 100644
 +    QObject::connect(kotoriLmEnabledCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmPredictCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriLiveConversionCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriIntegratedGpuCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriHomophoneHintsCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmModelPathEdit_, SIGNAL(textChanged(QString)), this,
 +                     SLOT(EnableApplyButton()));
@@ -27707,7 +27971,7 @@ index abbf55d68..f2c2bbdec 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1191,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1224,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27722,7 +27986,7 @@ index abbf55d68..f2c2bbdec 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1232,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1265,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -27737,7 +28001,7 @@ index abbf55d68..f2c2bbdec 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1285,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1318,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -27787,7 +28051,7 @@ index abbf55d68..f2c2bbdec 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1353,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1386,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -27798,7 +28062,7 @@ index abbf55d68..f2c2bbdec 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1416,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1449,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -27826,7 +28090,7 @@ index abbf55d68..f2c2bbdec 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1459,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1492,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -27851,7 +28115,7 @@ index abbf55d68..f2c2bbdec 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1484,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1517,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -27861,7 +28125,7 @@ index abbf55d68..f2c2bbdec 100644
    return true;
  }
  
-@@ -524,6 +1581,22 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1614,25 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -27876,6 +28140,9 @@ index abbf55d68..f2c2bbdec 100644
 +  kotoriLmPredictCheckBox_->setChecked(config.kotori_lm_predict());
 +  kotoriShareInputModeCheckBox_->setChecked(config.kotori_share_input_mode());
 +  kotoriLmCorrectionCheckBox_->setChecked(config.kotori_lm_correction());
++  kotoriLiveConversionCheckBox_->setChecked(config.kotori_live_conversion());
++  kotoriIntegratedGpuCheckBox_->setChecked(config.kotori_use_integrated_gpu());
++  kotoriHomophoneHintsCheckBox_->setChecked(config.kotori_homophone_hints());
 +  kotoriLmQualityComboBox_->setEnabled(config.kotori_lm_enabled());
 +  kotoriLmModelPathEdit_->setText(
 +      QString::fromUtf8(config.kotori_lm_model_path().data(),
@@ -27884,7 +28151,7 @@ index abbf55d68..f2c2bbdec 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1685,19 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1721,22 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -27898,13 +28165,16 @@ index abbf55d68..f2c2bbdec 100644
 +  config->set_kotori_share_input_mode(
 +      kotoriShareInputModeCheckBox_->isChecked());
 +  config->set_kotori_lm_correction(kotoriLmCorrectionCheckBox_->isChecked());
++  config->set_kotori_live_conversion(kotoriLiveConversionCheckBox_->isChecked());
++  config->set_kotori_use_integrated_gpu(kotoriIntegratedGpuCheckBox_->isChecked());
++  config->set_kotori_homophone_hints(kotoriHomophoneHintsCheckBox_->isChecked());
 +  config->set_kotori_lm_model_path(
 +      kotoriLmModelPathEdit_->text().trimmed().toUtf8().toStdString());
 +
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1932,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1971,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -27917,7 +28187,7 @@ index abbf55d68..f2c2bbdec 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..4a17e767e 100644
+index 85e1c0075..2ec4fb974 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
 @@ -33,6 +33,11 @@
@@ -27932,7 +28202,7 @@ index 85e1c0075..4a17e767e 100644
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +53,19 @@ namespace gui {
+@@ -48,6 +53,23 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -27947,12 +28217,16 @@ index 85e1c0075..4a17e767e 100644
 +  // Asteria: GitHub での応援のお願い(通知)を表示するか。support-reminder.ini に保存する。
 +  QCheckBox *kotoriSupportReminderCheckBox_ = nullptr;
 +  QCheckBox *kotoriLmCorrectionCheckBox_ = nullptr;
++  // Asteria: ライブ変換と内蔵 GPU(docs/adr/0077、0078)。
++  QCheckBox *kotoriLiveConversionCheckBox_ = nullptr;
++  QCheckBox *kotoriIntegratedGpuCheckBox_ = nullptr;
++  QCheckBox *kotoriHomophoneHintsCheckBox_ = nullptr;
 +  QLabel *kotoriSettingsStatusLabel_ = nullptr;
 +
   public:
    ConfigDialog();
  
-@@ -80,6 +98,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +102,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -28763,7 +29037,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..e892a951e 100644
+index 7d735374e..9fe0d456e 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -28775,7 +29049,7 @@ index 7d735374e..e892a951e 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,36 @@ message Config {
+@@ -360,6 +360,44 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -28808,6 +29082,14 @@ index 7d735374e..e892a951e 100644
 +  // Kotori: 最後に使った入力モード(オン/オフと、ひらがな・カタカナ等)を全アプリで共有する
 +  // (カード 84)。パスワード欄などで入力の種類から強制された状態は共有しない。
 +  optional bool kotori_share_input_mode = 207 [default = true];
++  // Kotori: ライブ変換。入力中、AI の変換結果を未確定の文字として表示する(docs/adr/0077)。
++  // Enter で表示どおりに確定し、Space で候補を出す。既定はオフ。
++  optional bool kotori_live_conversion = 208 [default = false];
++  // Kotori: 専用 GPU がない PC で、内蔵 GPU に AI を載せる(docs/adr/0078)。既定はオフ(試験的)。
++  optional bool kotori_use_integrated_gpu = 209 [default = false];
++  // Asteria: 同音語のヒント。同じ読みの別の語が候補に並ぶとき、見分ける手がかりの語を説明に出す
++  // (docs/adr/0079)。既定はオフ。
++  optional bool kotori_homophone_hints = 210 [default = false];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -29319,7 +29601,7 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..f3aa3e705 100644
+index 4bbcddeca..183ef2fe2 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -29363,16 +29645,17 @@ index 4bbcddeca..f3aa3e705 100644
      ],
      alwayslink = 1,
  )
-@@ -1536,6 +1558,8 @@ mozc_cc_library(
+@@ -1536,6 +1558,9 @@ mozc_cc_library(
          ":fortune_rewriter",
          ":ivs_variants_rewriter",
          ":language_aware_rewriter",
 +        ":lm_rewriter",
++        ":kotori_homophone_hint_rewriter",
 +        ":kotori_nuance_rewriter",
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1767,187 @@ mozc_cc_test(
+@@ -1743,3 +1768,238 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -29395,6 +29678,35 @@ index 4bbcddeca..f3aa3e705 100644
 +        "//base:util",
 +        "//converter:segments",
 +        "//request:conversion_request",
++    ],
++)
++
++mozc_cc_library(
++    name = "kotori_homophone_hint_rewriter",
++    srcs = ["kotori_homophone_hint_rewriter.cc"],
++    hdrs = ["kotori_homophone_hint_rewriter.h"],
++    textual_hdrs = ["kotori_context_defaults.inc"],
++    deps = [
++        ":rewriter_interface",
++        "//converter:segments",
++        "//protocol:config_cc_proto",
++        "//request:conversion_request",
++        "@com_google_absl//absl/container:flat_hash_map",
++        "@com_google_absl//absl/container:flat_hash_set",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_homophone_hint_rewriter_test",
++    size = "small",
++    srcs = ["kotori_homophone_hint_rewriter_test.cc"],
++    deps = [
++        ":kotori_homophone_hint_rewriter",
++        "//converter:segments",
++        "//protocol:config_cc_proto",
++        "//request:conversion_request",
++        "//testing:gunit_main",
 +    ],
 +)
 +
@@ -29506,6 +29818,27 @@ index 4bbcddeca..f3aa3e705 100644
 +)
 +
 +mozc_cc_library(
++    name = "kotori_typo_model",
++    srcs = ["kotori_typo_model.cc"],
++    hdrs = ["kotori_typo_model.h"],
++    deps = [
++        "@com_google_absl//absl/container:flat_hash_map",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_typo_model_test",
++    size = "small",
++    srcs = ["kotori_typo_model_test.cc"],
++    deps = [
++        ":kotori_typo_model",
++        "//testing:gunit_main",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_library(
 +    name = "lm_rewriter",
 +    srcs = ["lm_rewriter.cc"],
 +    hdrs = ["lm_rewriter.h"],
@@ -29516,6 +29849,7 @@ index 4bbcddeca..f3aa3e705 100644
 +    visibility = ["//converter:__pkg__"],
 +    deps = [
 +        ":kotori_context_history",
++        ":kotori_typo_model",
 +        ":llama_runtime",
 +        ":rewriter_interface",
 +        ":zenz_scorer",
@@ -31703,6 +32037,188 @@ index 000000000..39b9cc2a0
 +}  // namespace
 +}  // namespace kotori
 +}  // namespace mozc
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter.cc b/src/rewriter/kotori_homophone_hint_rewriter.cc
+new file mode 100644
+index 000000000..bfbf588ad
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter.cc
+@@ -0,0 +1,88 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_homophone_hint_rewriter.h"
++
++#include <string>
++#include <vector>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/container/flat_hash_set.h"
++#include "absl/strings/str_cat.h"
++#include "absl/strings/str_join.h"
++#include "absl/strings/str_split.h"
++#include "absl/strings/string_view.h"
++#include "converter/candidate.h"
++#include "converter/segments.h"
++#include "protocol/config.pb.h"
++#include "request/conversion_request.h"
++
++namespace mozc {
++namespace {
++
++struct ContextDefault {
++  const char* reading;
++  const char* chosen;
++  const char* rejected;
++  const char* cues;
++};
++constexpr ContextDefault kContextDefaults[] = {
++#include "rewriter/kotori_context_defaults.inc"
++};
++
++// 説明に出す手がかりの語の数。候補の窓が広がりすぎないようにする。
++constexpr size_t kMaxCues = 2;
++
++struct Hint {
++  std::string rejected;  // 見分ける相手の語
++  std::string text;      // 説明に出す文字列
++};
++
++// 読みと語 → ヒント。同じ語に相手が複数あれば、それぞれの組を持つ。
++const absl::flat_hash_map<std::string, std::vector<Hint>>& Hints() {
++  static const auto* hints = [] {
++    auto* map = new absl::flat_hash_map<std::string, std::vector<Hint>>();
++    for (const ContextDefault& entry : kContextDefaults) {
++      std::vector<absl::string_view> cues =
++          absl::StrSplit(entry.cues, "、", absl::SkipEmpty());
++      if (cues.size() > kMaxCues) cues.resize(kMaxCues);
++      if (cues.empty()) continue;
++      (*map)[absl::StrCat(entry.reading, "\t", entry.chosen)].push_back(
++          Hint{entry.rejected, absl::StrJoin(cues, "・")});
++    }
++    return map;
++  }();
++  return *hints;
++}
++
++}  // namespace
++
++bool KotoriHomophoneHintRewriter::Rewrite(const ConversionRequest& request,
++                                          Segments* segments) const {
++  if (!request.config().kotori_homophone_hints()) return false;
++  const auto& hints = Hints();
++  bool changed = false;
++  for (Segment& segment : segments->conversion_segments()) {
++    absl::flat_hash_set<std::string> values;
++    for (size_t i = 0; i < segment.candidates_size(); ++i) {
++      values.insert(segment.candidate(i).content_value);
++    }
++    for (size_t i = 0; i < segment.candidates_size(); ++i) {
++      converter::Candidate* candidate = segment.mutable_candidate(i);
++      const auto it =
++          hints.find(absl::StrCat(candidate->content_key, "\t", candidate->content_value));
++      if (it == hints.end()) continue;
++      // 相手の語も候補に並んでいるときだけ出す(見分ける必要があるとき)。
++      for (const Hint& hint : it->second) {
++        if (!values.contains(hint.rejected)) continue;
++        if (candidate->description.find(hint.text) != std::string::npos) break;
++        candidate->description = candidate->description.empty()
++                                     ? hint.text
++                                     : absl::StrCat(candidate->description, " ", hint.text);
++        changed = true;
++        break;
++      }
++    }
++  }
++  return changed;
++}
++
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter.h b/src/rewriter/kotori_homophone_hint_rewriter.h
+new file mode 100644
+index 000000000..a15b24de2
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter.h
+@@ -0,0 +1,17 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#ifndef MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
++#define MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
++#include "rewriter/rewriter_interface.h"
++namespace mozc {
++// Asteria: 同音語のヒント(docs/adr/0079)。変換の候補に同じ読みの別の語が並んでいるとき、
++// 見分けるための手がかりの語(kotori_context_defaults.inc)を候補の説明に出す。
++// 候補の並びは変えない。設定 kotori_homophone_hints(既定オフ)のときだけ。
++class KotoriHomophoneHintRewriter : public RewriterInterface {
++ public:
++  int capability(const ConversionRequest& request) const override {
++    return RewriterInterface::CONVERSION;
++  }
++  bool Rewrite(const ConversionRequest& request, Segments* segments) const override;
++};
++}  // namespace mozc
++#endif  // MOZC_REWRITER_KOTORI_HOMOPHONE_HINT_REWRITER_H_
+diff --git a/src/rewriter/kotori_homophone_hint_rewriter_test.cc b/src/rewriter/kotori_homophone_hint_rewriter_test.cc
+new file mode 100644
+index 000000000..778c9973f
+--- /dev/null
++++ b/src/rewriter/kotori_homophone_hint_rewriter_test.cc
+@@ -0,0 +1,59 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_homophone_hint_rewriter.h"
++
++#include "converter/candidate.h"
++#include "converter/segments.h"
++#include "protocol/config.pb.h"
++#include "request/conversion_request.h"
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace {
++
++void AddCandidate(Segment* segment, const char* value) {
++  converter::Candidate* candidate = segment->add_candidate();
++  candidate->key = candidate->content_key = segment->key();
++  candidate->value = candidate->content_value = value;
++}
++
++ConversionRequest Request(bool enabled) {
++  config::Config config;
++  config.set_kotori_homophone_hints(enabled);
++  return ConversionRequestBuilder().SetConfig(config).Build();
++}
++
++TEST(KotoriHomophoneHintRewriterTest, ShowsCuesOnlyWhenEnabledAndBothWordsAreListed) {
++  KotoriHomophoneHintRewriter rewriter;
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("あし");
++  AddCandidate(segment, "足");
++  AddCandidate(segment, "脚");
++  AddCandidate(segment, "葦");
++
++  EXPECT_FALSE(rewriter.Rewrite(Request(false), &segments));
++  EXPECT_TRUE(segment->candidate(0).description.empty());
++
++  EXPECT_TRUE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_EQ(segment->candidate(0).description, "靴・靴下");
++  EXPECT_EQ(segment->candidate(1).description, "椅子・机");
++  EXPECT_TRUE(segment->candidate(2).description.empty());
++  // 2 回目は重ねない。並びは変えない。
++  EXPECT_FALSE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_EQ(segment->candidate(0).value, "足");
++  EXPECT_EQ(segment->candidate(0).description, "靴・靴下");
++}
++
++TEST(KotoriHomophoneHintRewriterTest, SkipsWhenTheOtherWordIsNotListed) {
++  KotoriHomophoneHintRewriter rewriter;
++  Segments segments;
++  Segment* segment = segments.add_segment();
++  segment->set_key("あし");
++  AddCandidate(segment, "足");
++  AddCandidate(segment, "葦");
++  EXPECT_FALSE(rewriter.Rewrite(Request(true), &segments));
++  EXPECT_TRUE(segment->candidate(0).description.empty());
++}
++
++}  // namespace
++}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_identity.cc b/src/rewriter/kotori_model_identity.cc
 new file mode 100644
 index 000000000..4ca262269
@@ -32859,16 +33375,763 @@ index 000000000..dc7e7466c
 +}
 +}  // namespace
 +}  // namespace mozc
+diff --git a/src/rewriter/kotori_typo_model.cc b/src/rewriter/kotori_typo_model.cc
+new file mode 100644
+index 000000000..2800783b7
+--- /dev/null
++++ b/src/rewriter/kotori_typo_model.cc
+@@ -0,0 +1,522 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
++
++#include "rewriter/kotori_typo_model.h"
++
++#include <algorithm>
++#include <array>
++#include <initializer_list>
++#include <cmath>
++#include <cstddef>
++#include <limits>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/strings/string_view.h"
++
++namespace mozc {
++namespace kotori_internal {
++namespace {
++
++constexpr double kNegInf = -std::numeric_limits<double>::infinity();
++constexpr const char* kRows[] = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
++constexpr int kLetters = 26;
++
++bool KeyPos(char c, int* row, int* col) {
++  for (int r = 0; r < 3; ++r) {
++    const absl::string_view keys = kRows[r];
++    const size_t x = keys.find(c);
++    if (x != absl::string_view::npos) {
++      *row = r;
++      *col = static_cast<int>(x);
++      return true;
++    }
++  }
++  return false;
++}
++
++char KeyAt(int row, int col) {
++  if (row < 0 || row > 2 || col < 0) return 0;
++  const absl::string_view keys = kRows[row];
++  return static_cast<size_t>(col) < keys.size() ? keys[col] : 0;
++}
++
++// 同じ段の隣(左右)。
++std::string ComputeRowNeighbors(char c) {
++  int r, x;
++  std::string out;
++  if (!KeyPos(c, &r, &x)) return out;
++  for (const char k : {KeyAt(r, x - 1), KeyAt(r, x + 1)}) {
++    if (k) out += k;
++  }
++  return out;
++}
++
++// 上下の段の隣。上下の段は右へ半キーずれて並ぶので、上の段は同じ列と右、下の段は左と同じ列。
++std::string ComputeColumnNeighbors(char c) {
++  int r, x;
++  std::string out;
++  if (!KeyPos(c, &r, &x)) return out;
++  for (const char k : {KeyAt(r - 1, x), KeyAt(r - 1, x + 1), KeyAt(r + 1, x - 1), KeyAt(r + 1, x)}) {
++    if (k) out += k;
++  }
++  return out;
++}
++
++bool Contains(absl::string_view s, char c) { return s.find(c) != absl::string_view::npos; }
++
++struct Neighbors {
++  std::array<std::string, 128> row, column;
++};
++const Neighbors& NeighborTable() {
++  static const Neighbors* const table = [] {
++    auto* t = new Neighbors();
++    for (int c = 0; c < 128; ++c) {
++      t->row[c] = ComputeRowNeighbors(static_cast<char>(c));
++      t->column[c] = ComputeColumnNeighbors(static_cast<char>(c));
++    }
++    return t;
++  }();
++  return *table;
++}
++absl::string_view RowNeighbors(char c) {
++  return static_cast<unsigned char>(c) < 128 ? NeighborTable().row[static_cast<unsigned char>(c)]
++                                             : absl::string_view();
++}
++absl::string_view ColumnNeighbors(char c) {
++  return static_cast<unsigned char>(c) < 128
++             ? NeighborTable().column[static_cast<unsigned char>(c)]
++             : absl::string_view();
++}
++
++// 意図したキー want(次のキー next)を打とうとして got を打った確率(打ち違いが起きたとき)。
++double SubstitutionLogProb(char got, char want, char next, const TypoChannel& ch) {
++  // ず/づ・じ/ぢ の書き分けの迷い(zu/du、zi・ji/di)。
++  const bool vowel_ui = next == 'u' || next == 'i';
++  if (vowel_ui && ((want == 'd' && (got == 'z' || got == 'j')) ||
++                   ((want == 'z' || want == 'j') && got == 'd'))) {
++    return std::log(ch.spelling);
++  }
++  const absl::string_view row = RowNeighbors(want), column = ColumnNeighbors(want);
++  double p;
++  if (!row.empty() && Contains(row, got)) {
++    p = ch.substitution_row / row.size();
++  } else if (!column.empty() && Contains(column, got)) {
++    p = ch.substitution_column / column.size();
++  } else {
++    const int others = std::max<int>(1, kLetters - 1 - row.size() - column.size());
++    p = (1.0 - ch.substitution_row - ch.substitution_column) / others;
++  }
++  return std::log(ch.substitution * p);
++}
++
++// prev と next の間に余分な got を打った確率。
++double InsertionLogProb(char got, char prev, char next, const TypoChannel& ch) {
++  std::string near;
++  for (const char k : {prev, next}) {
++    if (k == 0) continue;
++    near += k;
++    near.append(RowNeighbors(k));
++    near.append(ColumnNeighbors(k));
++  }
++  std::sort(near.begin(), near.end());
++  near.erase(std::unique(near.begin(), near.end()), near.end());
++  double p;
++  if (!near.empty() && Contains(near, got)) {
++    p = ch.insertion_adjacent / near.size();
++  } else {
++    p = (1.0 - ch.insertion_adjacent) / std::max<int>(1, kLetters - near.size());
++  }
++  return std::log(ch.insertion * p);
++}
++
++// かな 1 つ(拗音は 2 文字)の綴り。先頭が Mozc の既定の表で打つときのふつうの綴り。
++struct KanaSpelling {
++  const char* kana;
++  const char* spellings;  // '|' 区切り
++};
++constexpr KanaSpelling kSpellings[] = {
++    {"きゃ", "kya"}, {"きゅ", "kyu"}, {"きょ", "kyo"}, {"きぇ", "kye"},
++    {"ぎゃ", "gya"}, {"ぎゅ", "gyu"}, {"ぎょ", "gyo"}, {"ぎぇ", "gye"},
++    {"しゃ", "sya|sha"}, {"しゅ", "syu|shu"}, {"しょ", "syo|sho"}, {"しぇ", "sye|she"},
++    {"じゃ", "zya|ja|jya"}, {"じゅ", "zyu|ju|jyu"}, {"じょ", "zyo|jo|jyo"}, {"じぇ", "zye|je|jye"},
++    {"ちゃ", "tya|cha|cya"}, {"ちゅ", "tyu|chu|cyu"}, {"ちょ", "tyo|cho|cyo"}, {"ちぇ", "tye|che|cye"},
++    {"ぢゃ", "dya"}, {"ぢゅ", "dyu"}, {"ぢょ", "dyo"},
++    {"にゃ", "nya"}, {"にゅ", "nyu"}, {"にょ", "nyo"}, {"にぇ", "nye"},
++    {"ひゃ", "hya"}, {"ひゅ", "hyu"}, {"ひょ", "hyo"}, {"ひぇ", "hye"},
++    {"びゃ", "bya"}, {"びゅ", "byu"}, {"びょ", "byo"},
++    {"ぴゃ", "pya"}, {"ぴゅ", "pyu"}, {"ぴょ", "pyo"},
++    {"みゃ", "mya"}, {"みゅ", "myu"}, {"みょ", "myo"},
++    {"りゃ", "rya"}, {"りゅ", "ryu"}, {"りょ", "ryo"},
++    {"ふぁ", "fa"}, {"ふぃ", "fi"}, {"ふぇ", "fe"}, {"ふぉ", "fo"},
++    {"てぃ", "thi"}, {"でぃ", "dhi"}, {"でゅ", "dhu"}, {"とぅ", "twu"}, {"どぅ", "dwu"},
++    {"うぃ", "wi"}, {"うぇ", "we"}, {"ゔぁ", "va"}, {"ゔぃ", "vi"}, {"ゔぇ", "ve"}, {"ゔぉ", "vo"},
++    {"あ", "a"}, {"い", "i"}, {"う", "u"}, {"え", "e"}, {"お", "o"},
++    {"か", "ka"}, {"き", "ki"}, {"く", "ku"}, {"け", "ke"}, {"こ", "ko"},
++    {"さ", "sa"}, {"し", "si|shi"}, {"す", "su"}, {"せ", "se"}, {"そ", "so"},
++    {"た", "ta"}, {"ち", "ti|chi"}, {"つ", "tu|tsu"}, {"て", "te"}, {"と", "to"},
++    {"な", "na"}, {"に", "ni"}, {"ぬ", "nu"}, {"ね", "ne"}, {"の", "no"},
++    {"は", "ha"}, {"ひ", "hi"}, {"ふ", "hu|fu"}, {"へ", "he"}, {"ほ", "ho"},
++    {"ま", "ma"}, {"み", "mi"}, {"む", "mu"}, {"め", "me"}, {"も", "mo"},
++    {"や", "ya"}, {"ゆ", "yu"}, {"よ", "yo"},
++    {"ら", "ra"}, {"り", "ri"}, {"る", "ru"}, {"れ", "re"}, {"ろ", "ro"},
++    {"わ", "wa"}, {"を", "wo"}, {"ん", "nn|n"},
++    {"が", "ga"}, {"ぎ", "gi"}, {"ぐ", "gu"}, {"げ", "ge"}, {"ご", "go"},
++    {"ざ", "za"}, {"じ", "zi|ji"}, {"ず", "zu"}, {"ぜ", "ze"}, {"ぞ", "zo"},
++    {"だ", "da"}, {"ぢ", "di"}, {"づ", "du"}, {"で", "de"}, {"ど", "do"},
++    {"ば", "ba"}, {"び", "bi"}, {"ぶ", "bu"}, {"べ", "be"}, {"ぼ", "bo"},
++    {"ぱ", "pa"}, {"ぴ", "pi"}, {"ぷ", "pu"}, {"ぺ", "pe"}, {"ぽ", "po"},
++    {"ぁ", "xa|la"}, {"ぃ", "xi|li"}, {"ぅ", "xu|lu"}, {"ぇ", "xe|le"}, {"ぉ", "xo|lo"},
++    {"ゃ", "xya|lya"}, {"ゅ", "xyu|lyu"}, {"ょ", "xyo|lyo"}, {"ゎ", "xwa|lwa"},
++    {"ゔ", "vu"}, {"ー", "-"},
++    // っ は次の子音を重ねる(下で扱う)。単独のときの綴り。
++    {"っ", "xtu|ltu|xtsu"},
++};
++
++const absl::flat_hash_map<std::string, std::vector<std::string>>& SpellingTable() {
++  static const auto* const table = [] {
++    auto* t = new absl::flat_hash_map<std::string, std::vector<std::string>>();
++    for (const KanaSpelling& s : kSpellings) {
++      std::vector<std::string>& alts = (*t)[s.kana];
++      for (const char* c = s.spellings;; ++c) {
++        if (alts.empty() || *c == '|') alts.emplace_back();
++        if (*c == 0) break;
++        if (*c != '|') alts.back() += *c;
++      }
++    }
++    return t;
++  }();
++  return *table;
++}
++
++// UTF-8 の 1 文字の長さ。
++size_t CharBytes(unsigned char c) {
++  if (c < 0x80) return 1;
++  if (c < 0xE0) return 2;
++  if (c < 0xF0) return 3;
++  return 4;
++}
++
++// 読みを、綴りの表の単位(拗音は 2 文字)に分ける。表にない文字があれば空。
++std::vector<std::string> KanaUnits(absl::string_view reading) {
++  const auto& table = SpellingTable();
++  std::vector<std::string> chars;
++  for (size_t i = 0; i < reading.size();) {
++    const size_t n = std::min(CharBytes(reading[i]), reading.size() - i);
++    chars.emplace_back(reading.substr(i, n));
++    i += n;
++  }
++  std::vector<std::string> units;
++  for (size_t i = 0; i < chars.size();) {
++    if (i + 1 < chars.size() && table.contains(chars[i] + chars[i + 1])) {
++      units.push_back(chars[i] + chars[i + 1]);
++      i += 2;
++    } else if (table.contains(chars[i])) {
++      units.push_back(chars[i]);
++      ++i;
++    } else {
++      return {};
++    }
++  }
++  return units;
++}
++
++bool IsVowel(char c) { return Contains("aiueo", c); }
++
++// 選んだ綴りをつなぐ。pick[i] は綴りの番号で、っ の -1 は次の綴りの先頭の子音を重ねる。
++// ん の n は後ろが母音・y・n のときは使えない。使えない組み合わせなら空。after は後ろに続くキー。
++std::string Build(const std::vector<std::string>& units, const std::vector<int>& pick,
++                  absl::string_view after = "") {
++  const auto& table = SpellingTable();
++  std::vector<std::string> parts(units.size());
++  for (size_t i = 0; i < units.size(); ++i) {
++    if (pick[i] >= 0) parts[i] = table.at(units[i])[pick[i]];
++  }
++  std::string out;
++  for (size_t i = 0; i < units.size(); ++i) {
++    const std::string next = i + 1 < units.size() ? parts[i + 1] : std::string(after);
++    if (pick[i] < 0) {  // 重ねる っ
++      if (next.empty() || IsVowel(next[0]) || next[0] == 'n' || next[0] == '-') return std::string();
++      out += next[0];
++      continue;
++    }
++    if (units[i] == "ん" && parts[i] == "n" && !next.empty() &&
++        (IsVowel(next[0]) || next[0] == 'y' || next[0] == 'n')) {
++      return std::string();
++    }
++    out += parts[i];
++  }
++  return out;
++}
++
++}  // namespace
++
++double TypoLogProb(absl::string_view typed, absl::string_view intended, const TypoChannel& ch) {
++  const size_t n = typed.size(), m = intended.size();
++  const int e_max = std::max(0, ch.max_edits);
++  const double keep = std::log(1.0 - ch.substitution - ch.omission - ch.insertion - ch.transposition);
++  const double omit = std::log(ch.omission), swap = std::log(ch.transposition);
++  // dp[i][j][e]: 意図したキーの先頭 j 個から、打ったキーの先頭 i 個が e か所の打ち間違いで出る確率の log の最大。
++  const size_t stride_j = static_cast<size_t>(e_max + 1), stride_i = (m + 1) * stride_j;
++  std::vector<double> dp((n + 1) * stride_i, kNegInf);
++  auto at = [&](size_t i, size_t j, int e) -> double& { return dp[i * stride_i + j * stride_j + e]; };
++  at(0, 0, 0) = 0;
++  if ((n > m ? n - m : m - n) > static_cast<size_t>(e_max)) return kNegInf;
++  for (size_t i = 0; i <= n; ++i) {
++    const size_t j_lo = i > static_cast<size_t>(e_max) ? i - e_max : 0;
++    const size_t j_hi = std::min(m, i + e_max);
++    for (size_t j = j_lo; j <= j_hi; ++j) {
++      for (int e = 0; e <= e_max; ++e) {
++        const double v = at(i, j, e);
++        if (v == kNegInf) continue;
++        auto relax = [&](size_t i2, size_t j2, int e2, double add) {
++          if (e2 > e_max) return;
++          double& to = at(i2, j2, e2);
++          to = std::max(to, v + add);
++        };
++        const char want = j < m ? intended[j] : 0;
++        const char next = j + 1 < m ? intended[j + 1] : 0;
++        if (i < n && j < m) {
++          if (typed[i] == want) {
++            relax(i + 1, j + 1, e, keep);
++          } else {
++            relax(i + 1, j + 1, e + 1, SubstitutionLogProb(typed[i], want, next, ch));
++          }
++        }
++        if (j < m) relax(i, j + 1, e + 1, omit);  // 意図したキーを打たなかった
++        if (i < n) {  // 余分なキーを打った
++          relax(i + 1, j, e + 1,
++                InsertionLogProb(typed[i], j > 0 ? intended[j - 1] : 0, want, ch));
++        }
++        if (i + 1 < n && j + 1 < m && typed[i] == intended[j + 1] &&
++            typed[i + 1] == intended[j] && intended[j] != intended[j + 1]) {
++          relax(i + 2, j + 2, e + 1, swap);  // 隣どうしの入れ替え
++        }
++      }
++    }
++  }
++  double best = kNegInf;
++  for (int e = 0; e <= e_max; ++e) best = std::max(best, at(n, m, e));
++  return best;
++}
++
++double TypoLogRatio(absl::string_view typed, absl::string_view intended, const TypoChannel& ch) {
++  // 打った通りの確率は、すべてのキーが打ち間違いなく打たれる道(どの打ち間違いもそれより起こりにくい)。
++  const double base =
++      typed.size() * std::log(1.0 - ch.substitution - ch.omission - ch.insertion - ch.transposition);
++  const double p = TypoLogProb(typed, intended, ch);
++  return p == kNegInf ? kNegInf : p - base;
++}
++
++double KanaSlipLogRatio(absl::string_view typed_reading, absl::string_view intended_reading,
++                        const TypoChannel& ch) {
++  auto chars = [](absl::string_view s) {
++    std::vector<std::string> out;
++    for (size_t i = 0; i < s.size();) {
++      const size_t n = std::min(CharBytes(s[i]), s.size() - i);
++      out.emplace_back(s.substr(i, n));
++      i += n;
++    }
++    return out;
++  };
++  const std::vector<std::string> a = chars(typed_reading), b = chars(intended_reading);
++  size_t head = 0;
++  while (head < a.size() && head < b.size() && a[head] == b[head]) ++head;
++  size_t tail = 0;
++  while (tail < a.size() - head && tail < b.size() - head &&
++         a[a.size() - 1 - tail] == b[b.size() - 1 - tail]) {
++    ++tail;
++  }
++  const size_t na = a.size() - head - tail, nb = b.size() - head - tail;
++  const double slip = std::log(ch.spelling) -
++      std::log(1.0 - ch.substitution - ch.omission - ch.insertion - ch.transposition);
++  auto is = [](const std::string& c, std::initializer_list<const char*> set) {
++    for (const char* k : set) {
++      if (c == k) return true;
++    }
++    return false;
++  };
++  // ず/づ・じ/ぢ の書き分け。
++  if (na == 1 && nb == 1) {
++    const std::string& x = a[head];
++    const std::string& y = b[head];
++    if ((is(x, {"ず"}) && is(y, {"づ"})) || (is(x, {"づ"}) && is(y, {"ず"})) ||
++        (is(x, {"じ"}) && is(y, {"ぢ"})) || (is(x, {"ぢ"}) && is(y, {"じ"}))) {
++      return slip;
++    }
++  }
++  // い段のかなの後の ゃ・ゅ・ょ の抜け(意図した読みにあって、打った読みにない)。
++  if (na == 0 && nb == 1 && head > 0 && is(b[head], {"ゃ", "ゅ", "ょ"}) &&
++      is(b[head - 1], {"き", "し", "ち", "に", "ひ", "み", "り", "ぎ", "じ", "ぢ", "び", "ぴ"})) {
++    return slip;
++  }
++  // 隣どうしのかなの入れ替え(ござまいせん → ございません)。ローマ字で打つ人はかなを 1 つずつ打つので、
++  // かなの入れ替えを 1 回の入れ替え(Grudin 1983 の入れ替えの率)と見る。キーで見ると 2 か所以上になる。
++  if (na == 2 && nb == 2 && a[head] == b[head + 1] && a[head + 1] == b[head] &&
++      a[head] != a[head + 1]) {
++    return std::log(ch.transposition) -
++        std::log(1.0 - ch.substitution - ch.omission - ch.insertion - ch.transposition);
++  }
++  return kNegInf;
++}
++
++namespace {
++
++// 読みの綴り。nearest なら、打ったキー hint に後ろのキー after を続けたものに、綴りに after を続けた
++// ものがいちばん近い綴り(hint が空でも、キーの少ない綴り。抜けた ん は n 1 つの抜けと見る)。
++std::string Spell(absl::string_view reading, absl::string_view hint, absl::string_view after,
++                  bool nearest, const TypoChannel& ch) {
++  const std::vector<std::string> units = KanaUnits(reading);
++  if (units.empty()) return std::string();
++  const auto& table = SpellingTable();
++  // っ は「次の子音を重ねる(-1)」か、単独の綴り(0..)。
++  std::vector<int> lo(units.size(), 0), hi(units.size());
++  for (size_t i = 0; i < units.size(); ++i) {
++    hi[i] = static_cast<int>(table.at(units[i]).size()) - 1;
++    if (units[i] == "っ") lo[i] = -1;
++  }
++  // 打ったキーがなければ、ふつうの綴り(重ねる っ、nn)。
++  const absl::string_view next = after.substr(0, 1);
++  auto plain = [&] {
++    std::vector<int> pick(lo);
++    std::string s = Build(units, pick, next);
++    if (s.empty()) s = Build(units, std::vector<int>(units.size(), 0), next);
++    return s;
++  };
++  if (hint.empty() && !nearest) return plain();
++  // 綴りの選び方が少なければすべて試し、打ったキーにいちばん近いもの。
++  double combos = 1;
++  for (size_t i = 0; i < units.size(); ++i) combos *= hi[i] - lo[i] + 1;
++  if (combos <= 256) {
++    const std::string typed = std::string(hint) + std::string(next);
++    std::vector<int> cur(lo);
++    std::string best;
++    double best_lp = kNegInf;
++    while (true) {
++      const std::string s = Build(units, cur, next);
++      if (!s.empty()) {
++        const double lp = TypoLogProb(typed, s + std::string(next), ch);
++        if (best.empty() || lp > best_lp) {
++          best = s;
++          best_lp = lp;
++        }
++      }
++      size_t k = 0;
++      while (k < units.size() && cur[k] == hi[k]) {
++        cur[k] = lo[k];
++        ++k;
++      }
++      if (k == units.size()) break;
++      ++cur[k];
++    }
++    return best;
++  }
++  // 多ければ前から 1 つずつ、打ったキーの続きに先頭が合う綴り(長い方)を選ぶ。
++  std::vector<int> pick(lo);
++  size_t at = 0;
++  for (size_t i = 0; i < units.size(); ++i) {
++    const std::vector<std::string>& alts = table.at(units[i]);
++    const absl::string_view rest = hint.substr(std::min(at, hint.size()));
++    size_t best_len = 0;
++    for (size_t a = 0; a < alts.size(); ++a) {
++      if (alts[a].size() > best_len && rest.substr(0, alts[a].size()) == alts[a]) {
++        best_len = alts[a].size();
++        pick[i] = static_cast<int>(a);
++      }
++    }
++    at += best_len > 0 ? best_len : (pick[i] < 0 ? 1 : alts[pick[i]].size());
++  }
++  const std::string s = Build(units, pick, next);
++  return s.empty() ? plain() : s;
++}
++
++}  // namespace
++
++std::string ReadingToKeys(absl::string_view reading, absl::string_view hint,
++                          const TypoChannel& ch) {
++  return Spell(reading, hint, "", false, ch);
++}
++
++std::string IntendedKeys(absl::string_view typed_keys, absl::string_view typed_reading,
++                         absl::string_view intended_reading,
++                         const std::vector<std::string>& prefix_readings,
++                         const TypoChannel& ch) {
++  if (typed_reading == intended_reading) return std::string(typed_keys);
++  auto chars = [](absl::string_view s) {
++    std::vector<absl::string_view> out;
++    for (size_t i = 0; i < s.size();) {
++      const size_t n = std::min(CharBytes(s[i]), s.size() - i);
++      out.push_back(s.substr(i, n));
++      i += n;
++    }
++    return out;
++  };
++  const auto a = chars(typed_reading), b = chars(intended_reading);
++  size_t head = 0;
++  while (head < a.size() && head < b.size() && a[head] == b[head]) ++head;
++  size_t tail = 0;
++  while (tail < a.size() - head && tail < b.size() - head &&
++         a[a.size() - 1 - tail] == b[b.size() - 1 - tail]) {
++    ++tail;
++  }
++  auto join = [](const std::vector<absl::string_view>& v, size_t from, size_t to) {
++    std::string s;
++    for (size_t i = from; i < to; ++i) s.append(v[i].data(), v[i].size());
++    return s;
++  };
++  // キーの境目 k は、先頭 k 個の読みが打った読みの先頭にちょうどなり、かなの区切り(母音・nn・ー の
++  // 後)であるもの。っ の重ねや、後ろで変わる n の途中では区切らない。
++  const size_t n = typed_keys.size();
++  auto clean = [&](size_t k) {
++    if (k == 0 || k == n) return true;
++    const char c = typed_keys[k - 1];
++    return IsVowel(c) || c == '-' || (k >= 2 && c == 'n' && typed_keys[k - 2] == 'n');
++  };
++  if (prefix_readings.size() == n + 1 && prefix_readings[n] == typed_reading) {
++    // 先頭: 読みが先頭 head 文字に直る、いちばん長い境目。末尾: 先頭 k 個の読みが、末尾 tail 文字を
++    // 除いた読みになる、いちばん左の境目。見つからなければ、それぞれ 1 文字ずつ内へ戻す。
++    for (size_t h = head + 1; h-- > 0;) {
++      const std::string want_head = join(a, 0, h);
++      size_t p = std::string::npos;
++      for (size_t k = 0; k <= n; ++k) {
++        if (clean(k) && prefix_readings[k] == want_head) p = k;
++      }
++      if (p == std::string::npos) continue;
++      for (size_t t = tail + 1; t-- > 0;) {
++        const std::string want_rest = join(a, 0, a.size() - t);
++        size_t q = std::string::npos;
++        for (size_t k = n + 1; k-- > p;) {
++          if (clean(k) && prefix_readings[k] == want_rest) q = k;
++        }
++        if (q == std::string::npos) continue;
++        const std::string mid = join(b, h, b.size() - t);
++        const std::string keys_mid =
++            mid.empty() ? std::string()
++                        : Spell(mid, typed_keys.substr(p, q - p), typed_keys.substr(q), true, ch);
++        if (!mid.empty() && keys_mid.empty()) return std::string();
++        return std::string(typed_keys.substr(0, p)) + keys_mid + std::string(typed_keys.substr(q));
++      }
++      break;
++    }
++  }
++  return Spell(intended_reading, typed_keys, "", true, ch);
++}
++
++std::vector<double> Posteriors(const std::vector<double>& log_scores) {
++  double top = kNegInf;
++  for (const double s : log_scores) top = std::max(top, s);
++  std::vector<double> out(log_scores.size(), 0.0);
++  if (top == kNegInf) return out;
++  double sum = 0;
++  for (size_t i = 0; i < log_scores.size(); ++i) {
++    out[i] = std::isfinite(log_scores[i]) ? std::exp(log_scores[i] - top) : 0.0;
++    sum += out[i];
++  }
++  for (double& p : out) p /= sum;
++  return out;
++}
++
++}  // namespace kotori_internal
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_typo_model.h b/src/rewriter/kotori_typo_model.h
+new file mode 100644
+index 000000000..7fabbbc57
+--- /dev/null
++++ b/src/rewriter/kotori_typo_model.h
+@@ -0,0 +1,79 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。意図した読みのキーを打とうとして、実際に
++// 打ったキーになる確率 P(打ったキー | 意図したキー) を、キーの打ち違い・抜け・余分・入れ替えの
++// 率から求める。率は公開の打鍵の研究の数値(出典は docs/licenses.md と ADR)。補正の判定は、
++// この確率と、文の自然さ(LLM の P(文 | 前の文脈))を掛けた事後確率で行う。
++
++#ifndef MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
++#define MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
++
++#include <string>
++#include <vector>
++
++#include "absl/strings/string_view.h"
++
++namespace mozc {
++namespace kotori_internal {
++
++// 1 キーあたりの打ち間違いの率と、その内訳。
++struct TypoChannel {
++  // Dhakal ら(CHI 2018)の表 1、16.8 万人の全員の平均(打った文字に対する割合)。打っている間に
++  // 直した分も含む率(IME では、Space の前に読みを見直さないことが多いため。ADR0076)。
++  double substitution = 0.0165;
++  double omission = 0.0080;
++  double insertion = 0.0067;
++  // Grudin(1983)の表 6.1、熟練者 6 人の入れ替えの割合の平均(全誤りの 7.2%)を、上の 3 つの和に
++  // 対する比に直したもの(3.12% × 7.2 / 92.8)。
++  double transposition = 0.0024;
++  // 打ち違いの内訳(Grudin 1983、熟練者): 同じ段の隣のキー 31%、同じ指の上下(段違いの隣)16%。
++  // 残りはほかのキーに等しく割る。
++  double substitution_row = 0.31;
++  double substitution_column = 0.16;
++  // 余分なキーは、ほとんどが隣のキーを一緒に押したもの(Grudin 1983: misstrokes)。隣のキーと
++  // 同じキーの重ねに 8 割、残りをほかのキーに割る(8 割は本文の記述からの仮定)。
++  double insertion_adjacent = 0.8;
++  // かなの段の誤り(打つ前の、かなの思い違い): 書き分けの迷い(ず/づ、じ/ぢ)と、拗音の小さい
++  // ゃ・ゅ・ょ の抜け(しゅつ → しつ)。打鍵の誤りではなく、公開の打鍵データがない。隣のキーの
++  // 打ち違いと同じくらい(0.5%)と仮定する(ADR0076 に記す)。
++  double spelling = 0.005;
++  // これより多い箇所の打ち間違いは考えない。
++  int max_edits = 3;
++};
++
++// 意図したキー intended を打とうとして typed になる確率の log(自然対数)。打ち間違いの起きない
++// キーごとの (1 - 率の和) も掛ける。max_edits を超えるときは -inf。英小文字と '-' 以外は
++// そのまま一致かどうかだけを見る。
++double TypoLogProb(absl::string_view typed, absl::string_view intended,
++                   const TypoChannel& channel = TypoChannel());
++
++// 打ち間違いがないときとの比の log(TypoLogProb(typed, intended) - TypoLogProb(typed, typed))。
++double TypoLogRatio(absl::string_view typed, absl::string_view intended,
++                    const TypoChannel& channel = TypoChannel());
++
++// 打った読みが、意図した読みの 1 か所のかなの段の誤り(ず/づ・じ/ぢ の書き分け、い段のかなの後の
++// ゃ・ゅ・ょ の抜け)だけで違うときの log(spelling) - log P(打ち間違いのないキー)。隣どうしのかなの
++// 入れ替えだけで違うときは log(transposition) - log P(打ち間違いのないキー)。ほかは -inf。
++double KanaSlipLogRatio(absl::string_view typed_reading, absl::string_view intended_reading,
++                        const TypoChannel& channel = TypoChannel());
++
++// ひらがなの読みを、Mozc の既定のローマ字表で打てるキーに直す。綴りが複数あるかな(し=si/shi、
++// ん=nn/n など)は、hint(打ったキー)にいちばん近い綴りを選ぶ。直せないかながあれば空。
++std::string ReadingToKeys(absl::string_view reading, absl::string_view hint = "",
++                          const TypoChannel& channel = TypoChannel());
++
++// 打ったキー typed_keys(読み typed_reading に直るもの)のうち、意図した読み intended_reading と
++// 同じ先頭・末尾の部分はそのまま使い、違う所だけを綴りに直して、意図したキーを作る。
++// prefix_readings[k] は typed_keys の先頭 k キーを読みに直したもの(Mozc の表で。k = 0..キーの数)。
++// 打ったキーと読みの境目が見つからないときは、意図した読み全体を綴りに直す。直せなければ空。
++std::string IntendedKeys(absl::string_view typed_keys, absl::string_view typed_reading,
++                         absl::string_view intended_reading,
++                         const std::vector<std::string>& prefix_readings,
++                         const TypoChannel& channel = TypoChannel());
++
++// 打った通りを含む仮説の点(log P(打ち方 | 意図) + log P(文 | 前の文脈))から、各仮説の事後確率。
++std::vector<double> Posteriors(const std::vector<double>& log_scores);
++
++}  // namespace kotori_internal
++}  // namespace mozc
++
++#endif  // MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
+diff --git a/src/rewriter/kotori_typo_model_test.cc b/src/rewriter/kotori_typo_model_test.cc
+new file mode 100644
+index 000000000..574302502
+--- /dev/null
++++ b/src/rewriter/kotori_typo_model_test.cc
+@@ -0,0 +1,127 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
++
++#include "rewriter/kotori_typo_model.h"
++
++#include <cmath>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "absl/strings/string_view.h"
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace kotori_internal {
++namespace {
++
++TEST(TypoModelTest, NoErrorIsTheBase) {
++  EXPECT_DOUBLE_EQ(TypoLogRatio("arigatou", "arigatou"), 0.0);
++  EXPECT_LT(TypoLogProb("arigatou", "arigatou"), 0.0);
++}
++
++TEST(TypoModelTest, NearbyKeysAreMoreLikely) {
++  // s を打とうとして隣の a を打つ方が、遠い p を打つより起こりやすい。
++  EXPECT_GT(TypoLogRatio("aki", "ski"), TypoLogRatio("pki", "ski"));
++  // 同じ段の隣は、上下の段の隣より起こりやすい(Grudin 1983)。
++  EXPECT_GT(TypoLogRatio("aki", "ski"), TypoLogRatio("wki", "ski"));
++  // 余分なキーは、隣のキーの方が遠いキーより起こりやすい。
++  EXPECT_GT(TypoLogRatio("kasa", "kaa"), TypoLogRatio("kapa", "kaa"));
++}
++
++TEST(TypoModelTest, MoreEditsAreLessLikely) {
++  const double one = TypoLogRatio("gakku", "gakkou");
++  const double two = TypoLogRatio("gakku", "gakkouu");
++  EXPECT_LT(one, 0.0);
++  EXPECT_LT(two, one);
++  // 隣どうしの入れ替えは 1 か所の打ち間違い(2 つの打ち違いより起こりやすい)。
++  EXPECT_GT(TypoLogRatio("teh", "the"), 2 * TypoLogRatio("aki", "ski"));
++  // max_edits(3)を超える違いは考えない。
++  EXPECT_EQ(TypoLogRatio("ab", "wxyz"), -INFINITY);
++}
++
++TEST(TypoModelTest, SpellingConfusionOfZuDu) {
++  // つづき を tuzuki と打つ(ず/づ の迷い)は、遠いキーの打ち違い(tufuki)より起こりやすい。
++  EXPECT_GT(TypoLogRatio("tuzuki", "tuduki"), TypoLogRatio("tufuki", "tuduki"));
++  EXPECT_NEAR(TypoLogRatio("tuzuki", "tuduki"), std::log(0.005) - std::log(1 - 0.0336), 0.05);
++}
++
++TEST(TypoModelTest, KanaSlips) {
++  const double slip = KanaSlipLogRatio("つずき", "つづき");
++  EXPECT_NEAR(slip, std::log(0.005) - std::log(1 - 0.0336), 0.05);
++  // 拗音の小さい ゅ の抜け(ちゅうしゅつ を ちゅうしつ と打った)。
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ちゅうしつ", "ちゅうしゅつ"), slip);
++  // い段でないかなの後の ゅ、ほかの書き換え、2 か所の違いは、かなの段の誤りではない。
++  EXPECT_EQ(KanaSlipLogRatio("かつ", "かゅつ"), -INFINITY);
++  EXPECT_EQ(KanaSlipLogRatio("ご", "の"), -INFINITY);
++  EXPECT_EQ(KanaSlipLogRatio("しつずき", "しゅつづき"), -INFINITY);
++  // 隣どうしのかなの入れ替えは 1 回の入れ替え(ござまいせん → ございません)。
++  EXPECT_NEAR(KanaSlipLogRatio("ござまいせん", "ございません"),
++              std::log(0.0024) - std::log(1 - 0.0336), 0.05);
++}
++
++TEST(TypoModelTest, ReadingToKeys) {
++  EXPECT_EQ(ReadingToKeys("しゅつ"), "syutu");
++  EXPECT_EQ(ReadingToKeys("しゅつ", "shutsu"), "shutsu");
++  EXPECT_EQ(ReadingToKeys("がっこう"), "gakkou");
++  // ん の後ろが や なら n 1 つでは打てない(konya は こにゃ)。
++  EXPECT_EQ(ReadingToKeys("こんや", "konya"), "konnya");
++  EXPECT_EQ(ReadingToKeys("きんようび"), "kinnyoubi");
++  EXPECT_EQ(ReadingToKeys("ちゃん", "chan"), "chan");
++  EXPECT_EQ(ReadingToKeys("abc"), "");
++}
++
++// テスト用の、ごく小さいローマ字→かな(表にある綴りだけを前から直し、直らない所は英字のまま)。
++std::string FakeKeysToReading(absl::string_view keys) {
++  static const std::vector<std::pair<std::string, std::string>> kTable = {
++      {"tu", "つ"}, {"zu", "ず"}, {"du", "づ"}, {"ki", "き"}, {"wo", "を"},
++      {"su", "す"}, {"ru", "る"}, {"ga", "が"}, {"ko", "こ"}, {"u", "う"}};
++  std::string out;
++  for (size_t i = 0; i < keys.size();) {
++    bool hit = false;
++    for (const auto& [k, v] : kTable) {
++      if (keys.substr(i, k.size()) == k) {
++        out += v;
++        i += k.size();
++        hit = true;
++        break;
++      }
++    }
++    if (!hit) out += keys[i++];
++  }
++  return out;
++}
++
++std::vector<std::string> FakePrefixReadings(absl::string_view keys) {
++  std::vector<std::string> out;
++  for (size_t k = 0; k <= keys.size(); ++k) out.push_back(FakeKeysToReading(keys.substr(0, k)));
++  return out;
++}
++
++TEST(TypoModelTest, IntendedKeysKeepTypedSpelling) {
++  // 違う所(ず → づ)だけを綴りに直し、前後は打ったキーをそのまま使う。
++  EXPECT_EQ(IntendedKeys("tuzukiwosuru", "つずきをする", "つづきをする",
++                         FakePrefixReadings("tuzukiwosuru")),
++            "tudukiwosuru");
++  EXPECT_EQ(IntendedKeys("tuzuki", "つずき", "つずき", FakePrefixReadings("tuzuki")), "tuzuki");
++  // 抜けたかなを足す(がっこ → がっこう)。
++  EXPECT_EQ(IntendedKeys("gakko", "がっこ", "がっこう", FakePrefixReadings("gakko")), "gakkou");
++  // 境目がわからなければ、読み全体を綴りに直す。
++  EXPECT_EQ(IntendedKeys("tuzuki", "つずき", "つづき", {}), "tuduki");
++  // 抜けた ん は、後ろが で なら n 1 つで打てるので、n 1 つの抜け(nn の 2 つの抜けではない)。
++  EXPECT_EQ(IntendedKeys("sinnkannsede", "しんかんせで", "しんかんせんで", {}), "sinnkannsende");
++  EXPECT_NEAR(TypoLogRatio("sinnkannsede", "sinnkannsende"), std::log(0.008) - std::log(1 - 0.0336),
++              0.05);
++}
++
++TEST(TypoModelTest, Posteriors) {
++  const std::vector<double> p = Posteriors({-10.0, -10.0 - std::log(2.0), -INFINITY});
++  ASSERT_EQ(p.size(), 3u);
++  EXPECT_NEAR(p[0], 2.0 / 3.0, 1e-9);
++  EXPECT_NEAR(p[1], 1.0 / 3.0, 1e-9);
++  EXPECT_EQ(p[2], 0.0);
++}
++
++}  // namespace
++}  // namespace kotori_internal
++}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..9e5c3f5d6
+index 000000000..1c0d7536e
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,316 @@
+@@ -0,0 +1,354 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
 +
++#include <atomic>
 +#include <cstdlib>
 +#include <cstring>
 +#include <string>
@@ -32887,21 +34150,30 @@ index 000000000..9e5c3f5d6
 +void QuietLog(ggml_log_level, const char*, void*) {}
 +
 +constexpr size_t kMinGpuMemory = size_t{3} << 30;  // 3 GiB
++// 内蔵 GPU はメインメモリを共有する。zenz(最大 333 MB)と作業域が載れば足りる。
++constexpr size_t kMinIntegratedMemory = size_t{2} << 30;  // 2 GiB
++
++// 内蔵 GPU を使ってよいか(設定の kotori_use_integrated_gpu。docs/adr/0078)。
++std::atomic<bool> g_allow_integrated{false};
 +
 +// 機器の一覧から AI を載せる GPU を選ぶ(LlamaGpuDevice)。関数は Windows では DLL から引いた
-+// もの、それ以外は静的にリンクしたもの。
++// もの、それ以外は静的にリンクしたもの。integrated なら内蔵 GPU から選ぶ。
 +template <typename Count, typename Get, typename Type, typename Memory>
-+ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory) {
++ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory,
++                             bool integrated) {
 +  const char* env = std::getenv("KOTORI_LM_DEVICE");
 +  if (env != nullptr && std::strcmp(env, "cpu") == 0) return nullptr;
++  const auto want =
++      integrated ? GGML_BACKEND_DEVICE_TYPE_IGPU : GGML_BACKEND_DEVICE_TYPE_GPU;
++  const size_t min_memory = integrated ? kMinIntegratedMemory : kMinGpuMemory;
 +  ggml_backend_dev_t best = nullptr;
 +  size_t best_total = 0;
 +  for (size_t i = 0; i < count(); ++i) {
 +    ggml_backend_dev_t dev = get(i);
-+    if (type(dev) != GGML_BACKEND_DEVICE_TYPE_GPU) continue;
++    if (type(dev) != want) continue;
 +    size_t free = 0, total = 0;
 +    memory(dev, &free, &total);
-+    if (total >= kMinGpuMemory && total > best_total) {
++    if (total >= min_memory && total > best_total) {
 +      best = dev;
 +      best_total = total;
 +    }
@@ -32909,7 +34181,21 @@ index 000000000..9e5c3f5d6
 +  return best;
 +}
 +
++// 専用 GPU があればそれを、なければ(許されていれば)内蔵 GPU を返す。
++template <typename Count, typename Get, typename Type, typename Memory>
++ggml_backend_dev_t PickGpu(Count count, Get get, Type type, Memory memory,
++                           bool* integrated) {
++  static ggml_backend_dev_t discrete = SelectGpu(count, get, type, memory, false);
++  *integrated = false;
++  if (discrete != nullptr || !g_allow_integrated.load()) return discrete;
++  static ggml_backend_dev_t igpu = SelectGpu(count, get, type, memory, true);
++  *integrated = igpu != nullptr;
++  return igpu;
++}
++
 +}  // namespace
++
++void LlamaAllowIntegratedGpu(bool allow) { g_allow_integrated.store(allow); }
 +
 +#ifndef _WIN32
 +
@@ -32923,10 +34209,16 @@ index 000000000..9e5c3f5d6
 +}
 +
 +ggml_backend_dev_t LlamaGpuDevice() {
-+  static ggml_backend_dev_t dev =
-+      SelectGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+                ggml_backend_dev_memory);
-+  return dev;
++  bool integrated = false;
++  return PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
++                 ggml_backend_dev_memory, &integrated);
++}
++
++bool LlamaGpuIsIntegrated() {
++  bool integrated = false;
++  PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
++          ggml_backend_dev_memory, &integrated);
++  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
@@ -33065,9 +34357,17 @@ index 000000000..9e5c3f5d6
 +
 +ggml_backend_dev_t LlamaGpuDevice() {
 +  if (!g_loaded) return nullptr;
-+  static ggml_backend_dev_t dev = SelectGpu(g_api.dev_count, g_api.dev_get,
-+                                            g_api.dev_type, g_api.dev_memory);
-+  return dev;
++  bool integrated = false;
++  return PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
++                 &integrated);
++}
++
++bool LlamaGpuIsIntegrated() {
++  if (!g_loaded) return false;
++  bool integrated = false;
++  PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
++          &integrated);
++  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
@@ -33183,10 +34483,10 @@ index 000000000..9e5c3f5d6
 +#endif  // _WIN32
 diff --git a/src/rewriter/llama_runtime.h b/src/rewriter/llama_runtime.h
 new file mode 100644
-index 000000000..cf2c801ea
+index 000000000..d946cb3a5
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,46 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: llama.cpp の実行時の準備(docs/adr/0016)。
@@ -33210,13 +34510,22 @@ index 000000000..cf2c801ea
 +
 +// AI を載せる GPU。専用の GPU(内蔵 GPU は除く)のうち VRAM が最も大きいもので、VRAM が
 +// 3 GiB 以上のものだけを使う(docs/adr/0024)。内蔵 GPU はメインメモリを共有し、LLM を載せると
-+// 変換で固まることがあるため使わない。なければ nullptr(CPU で動かす)。
++// 変換で固まることがあるため、既定では使わない。専用 GPU がなく LlamaAllowIntegratedGpu(true)
++// なら、共有メモリ 2 GiB 以上の内蔵 GPU を使う(docs/adr/0078)。なければ nullptr(CPU で動かす)。
 +// 環境変数 KOTORI_LM_DEVICE=cpu で GPU を使わない(評価用。ノート PC の再現)。
 +// EnsureLlamaRuntime の後に呼ぶ。
 +ggml_backend_dev_t LlamaGpuDevice();
 +
 +// LlamaGpuDevice() があるか。
 +bool LlamaHasGpu();
++
++// LlamaGpuDevice() が内蔵 GPU か(専用 GPU がなく、内蔵 GPU を許したとき。docs/adr/0078)。
++// 内蔵 GPU では、品質・時間の上限などは GPU のない PC と同じにして、計算だけを GPU で行う。
++bool LlamaGpuIsIntegrated();
++
++// 専用 GPU がないとき内蔵 GPU を使ってよいか。LlamaGpuDevice() を初めて呼ぶ前に決める
++// (選んだ機器は変えない。設定の変更は再起動で反映する)。
++void LlamaAllowIntegratedGpu(bool allow);
 +
 +// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。なければ空。
 +std::string LlamaGpuName();
@@ -33541,10 +34850,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..c4501b154
+index 000000000..c5a583146
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4590 @@
+@@ -0,0 +1,4716 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -33596,6 +34905,7 @@ index 000000000..c4501b154
 +#include "protocol/commands.pb.h"
 +#include "protocol/config.pb.h"
 +#include "request/conversion_request.h"
++#include "rewriter/kotori_typo_model.h"
 +#include "rewriter/llama_runtime.h"
 +
 +#ifdef _WIN32
@@ -33617,10 +34927,6 @@ index 000000000..c4501b154
 +constexpr size_t kMaxCpuChars = 60;
 +// Kotori: 打ち間違いの補正を試す読みの長さの上限(docs/adr/0036)。
 +constexpr size_t kMaxTypoChars = 40;
-+// Kotori: 補正する読みの最小の文字数(v3.2.0)。1〜3 文字の読みは、打ち間違いかを見分ける材料がなく、
-+// 前の文脈に合う別の短い読みへ書き換えてしまう(前に「専門」がある「ご」が「の」になった。利用者の報告から)。
-+// 打ち間違いの評価セットの読みは 5 文字以上。
-+constexpr size_t kMinCorrectionChars = 4;
 +
 +// UTF-8 の文字を 1 つずつ(コードポイントで)返す。
 +std::vector<uint32_t> CodePoints(absl::string_view text) {
@@ -34074,32 +35380,36 @@ index 000000000..c4501b154
 +
 +bool IsVowelKey(char c) { return absl::StrContains("aiueo", c); }
 +
-+// 2 つの読みが、ず/づ・じ/ぢ の書き分けだけで違うか(同じ音で、打ち間違いというより書き方の違い)。
-+bool IsSameSoundSpelling(absl::string_view a, absl::string_view b) {
-+  const std::vector<std::string> x = Chars(a), y = Chars(b);
-+  if (x.size() != y.size() || a == b) return false;
-+  for (size_t i = 0; i < x.size(); ++i) {
-+    if (x[i] == y[i]) continue;
-+    const bool zu = (x[i] == "ず" && y[i] == "づ") || (x[i] == "づ" && y[i] == "ず");
-+    const bool ji = (x[i] == "じ" && y[i] == "ぢ") || (x[i] == "ぢ" && y[i] == "じ");
-+    if (!zu && !ji) return false;
-+  }
-+  return true;
-+}
-+
-+// ローマ字を、Mozc の既定のローマ字表でかなに直す(変換に渡す読みと同じ)。
-+std::string RomajiToReading(absl::string_view keys) {
-+  // Table::GetSharedDefaultTable() は空の表なので、既定の設定(ローマ字入力)の表を読み込む。
++// Mozc の既定のローマ字表。Table::GetSharedDefaultTable() は空の表なので、既定の設定(ローマ字入力)の
++// 表を読み込む。
++const std::shared_ptr<const composer::Table>& DefaultRomajiTable() {
 +  static const auto* const table = [] {
 +    auto t = std::make_shared<composer::Table>();
 +    t->InitializeWithRequestAndConfig(commands::Request::default_instance(),
 +                                      config::ConfigHandler::DefaultConfig());
 +    return new std::shared_ptr<const composer::Table>(std::move(t));
 +  }();
-+  composer::Composer composer(*table, commands::Request::default_instance(),
++  return *table;
++}
++
++// ローマ字を、Mozc の既定のローマ字表でかなに直す(変換に渡す読みと同じ)。
++std::string RomajiToReading(absl::string_view keys) {
++  composer::Composer composer(DefaultRomajiTable(), commands::Request::default_instance(),
 +                              config::ConfigHandler::DefaultConfig());
 +  for (const char c : keys) composer.InsertCharacter(std::string(1, c));
 +  return composer.GetQueryForConversion();
++}
++
++// キーの先頭 k 個を読みに直したもの(k = 0..キーの数)。1 キーずつ入れながら取る。
++std::vector<std::string> PrefixReadings(absl::string_view keys) {
++  composer::Composer composer(DefaultRomajiTable(), commands::Request::default_instance(),
++                              config::ConfigHandler::DefaultConfig());
++  std::vector<std::string> out = {std::string()};
++  for (const char c : keys) {
++    composer.InsertCharacter(std::string(1, c));
++    out.push_back(composer.GetQueryForConversion());
++  }
++  return out;
 +}
 +
 +bool IsTypoKeys(absl::string_view keys) {
@@ -34158,6 +35468,27 @@ index 000000000..c4501b154
 +    for (const char c : ins) add(s.substr(0, i) + c + s.substr(i));
 +  }
 +  return out;
++}
++
++// 打ったキー(読み reading に直るもの。わからなければ読みをふつうの綴りに直したもの)。
++std::string TypedKeysFor(absl::string_view raw_keys, absl::string_view reading) {
++  if (IsTypoKeys(raw_keys) && RomajiToReading(raw_keys) == reading) return std::string(raw_keys);
++  return kotori_internal::ReadingToKeys(reading);
++}
++
++// log P(打ったキー typed | 意図した読み intended) - log P(typed | 打った通り)(docs/adr/0076)。
++// 意図したキー intended_keys がわかっていればそれを、なければ読みの違う所を綴りに直して比べる。
++// かなの段の誤り(ず/づ、拗音の抜け)だけで違うときは、その起こりやすさとの大きい方。
++// typed_prefixes は PrefixReadings(typed)。
++double ChannelLogRatio(absl::string_view typed, const std::vector<std::string>& typed_prefixes,
++                       absl::string_view reading, absl::string_view intended,
++                       absl::string_view intended_keys = "") {
++  if (typed.empty()) return -std::numeric_limits<double>::infinity();
++  const std::string keys = !intended_keys.empty() ? std::string(intended_keys)
++      : kotori_internal::IntendedKeys(typed, reading, intended, typed_prefixes);
++  const double slip = kotori_internal::KanaSlipLogRatio(reading, intended);
++  if (keys.empty()) return slip;
++  return std::max(slip, kotori_internal::TypoLogRatio(typed, keys));
 +}
 +
 +// 読みの先頭から辞書の語でたどれる長さごとの、いちばん小さいコスト。
@@ -35148,6 +36479,10 @@ index 000000000..c4501b154
 +  }
 +  std::optional<std::string> best;
 +  double best_score = original_score;
++  // 読みを変える直し(docs/adr/0076): [0] は打った通りの文の log P(文 | 前の文脈)、続けて直した文の
++  // log P(打ったキー | 直した読み) + log P(文 | 前の文脈)。
++  std::vector<double> typo_scores;
++  std::vector<std::string> typo_values;
 +  for (const auto& generated_value : generated) {
 +    if (cancelled()) return std::nullopt;
 +    CorrectionMark("value");
@@ -35166,6 +36501,19 @@ index 000000000..c4501b154
 +    }
 +    CorrectionMark("safe");
 +    if (cancelled()) return std::nullopt;
++    if (candidate_reading != reading && options.channel) {
++      if (typo_scores.empty()) {
++        const auto lo = llm->Score(context, reading, {original});
++        if (!lo || lo->size() != 1 || !std::isfinite((*lo)[0]) || cancelled()) return std::nullopt;
++        typo_scores.push_back((*lo)[0]);
++      }
++      const auto l = llm->Score(context, reading, {value});
++      CorrectionMark("llm");
++      if (!l || l->size() != 1 || !std::isfinite((*l)[0]) || cancelled()) return std::nullopt;
++      typo_scores.push_back((*l)[0] + options.channel(candidate_reading));
++      typo_values.push_back(value);
++      continue;
++    }
 +    const auto z = scorer->Score(context, candidate_reading, {value});
 +    CorrectionMark("zenz");
 +    if (Env("KOTORI_LM_DEBUG") != nullptr) {
@@ -35199,7 +36547,19 @@ index 000000000..c4501b154
 +    }
 +  }
 +  if (cancelled()) return std::nullopt;
-+  return best;
++  // 読みを変えない直しがあれば、それを使う(打ち間違いの仮定を足さない)。
++  if (best || typo_values.empty()) return best;
++  const std::vector<double> post = Posteriors(typo_scores);
++  size_t top = 1;
++  for (size_t i = 2; i < post.size(); ++i) {
++    if (post[i] > post[top]) top = i;
++  }
++  if (Env("KOTORI_LM_DEBUG") != nullptr) {
++    std::fprintf(stderr, "[kotori] correction typo posterior=%.3f min=%.3f\n", post[top],
++                 options.min_posterior);
++  }
++  if (post[top] < options.min_posterior) return std::nullopt;
++  return typo_values[top - 1];
 +}
 +
 +std::vector<std::string> TypoCandidateReadings(const std::string& reading,
@@ -35265,7 +36625,7 @@ index 000000000..c4501b154
 +  if (const char* v = Env("KOTORI_LM_LIVE_NEXT")) live_next_ms_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_CPU_LONG")) cpu_long_chars_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO")) typo_correct_ = *v != '0';
-+  if (const char* v = Env("KOTORI_LM_TYPO_MARGIN")) typo_margin_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_TYPO_POSTERIOR")) typo_posterior_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_K")) typo_k_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_GAIN")) typo_gain_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_GATE")) typo_gate_ = std::atof(v);
@@ -35275,11 +36635,8 @@ index 000000000..c4501b154
 +  if (const char* v = Env("KOTORI_LM_TYPO_BEAM")) typo_beam_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_SLACK")) typo_slack_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_POOL")) typo_pool_ = std::max(1, std::atoi(v));
-+  if (const char* v = Env("KOTORI_LM_TYPO_LLM_GAIN")) typo_llm_gain_ = std::atof(v);
-+  if (const char* v = Env("KOTORI_LM_TYPO_WINDOW")) typo_window_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_POOL_NEXT")) typo_pool_next_ = std::max(1, std::atoi(v));
-+  if (const char* v = Env("KOTORI_LM_TYPO_STRONG_LP")) typo_strong_lp_ = std::atof(v);
-+  if (const char* v = Env("KOTORI_LM_TYPO_SOFT_MARGIN")) typo_soft_margin_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_TYPO_WINDOW")) typo_window_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_SEARCH_MS")) typo_search_ms_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_QUICK_K")) typo_quick_k_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_WAIT_MS")) typo_wait_ms_ = std::max(0, std::atoi(v));
@@ -35528,6 +36885,7 @@ index 000000000..c4501b154
 +                                   bool may_load, size_t reading_chars) const {
 +  *llm = nullptr;
 +  if (!config.kotori_lm_enabled()) return nullptr;
++  LlamaAllowIntegratedGpu(config.kotori_use_integrated_gpu());
 +  // GPU のない PC(内蔵 GPU だけの PC を含む)では、品質の設定に関係なく Low にする。LLM は
 +  // CPU では遅すぎ、Standard 以上の中身では変換が固まるため(docs/adr/0024)。
 +  const bool gpu = HasGpu();
@@ -35785,7 +37143,8 @@ index 000000000..c4501b154
 +  // Kotori: 起動直後も打鍵でDLL/backendの初期化を待たない。
 +  // 評価専用の同期ロードだけは、従来どおり要求内で機器を調べる。
 +  if (!sync_load_) return gpu_available_.load();
-+  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu();
++  // 内蔵 GPU は計算を載せるだけで、品質や時間の上限は GPU のない PC と同じにする(docs/adr/0078)。
++  return EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu() && !LlamaGpuIsIntegrated();
 +}
 +
 +bool LmRewriter::UsesLlm(const config::Config& config) const {
@@ -36448,9 +37807,9 @@ index 000000000..c4501b154
 +  const bool llm_fixed =
 +      llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !correction_over() &&
-+      Util::CharsLen(reading) >= kMinCorrectionChars &&
++      !reading.empty() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
-+      FindLlmCorrection(scorer, llm, context, reading, values[top],
++      FindLlmCorrection(scorer, llm, context, reading, TypingKeys(request), values[top],
 +                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                        correction_over, &fixed);
 +  // Kotori: 打ち間違いの補正だけは、Space を押してから変換を始めたとき(手を止めずにすぐ押した)も、
@@ -36474,7 +37833,7 @@ index 000000000..c4501b154
 +  const bool typo_fixed =
 +      !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !typo_over() &&
-+      Util::CharsLen(reading) >= kMinCorrectionChars &&
++      !reading.empty() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
 +      FindTypoCorrection(scorer, llm, context, reading, TypingKeys(request),
 +                         values[top],
@@ -37535,7 +38894,9 @@ index 000000000..c4501b154
 +          // Kotori: PrepareForが品質/モデルを選ぶ前に非同期側でGPUを判定する。
 +          // 判定中の入力は未準備の結果を使い、モデルロードやDLL初期化を待たない。
 +          if (config.kotori_lm_enabled()) {
-+            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu());
++            LlamaAllowIntegratedGpu(config.kotori_use_integrated_gpu());
++            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu() &&
++                                 !LlamaGpuIsIntegrated());
 +          }
 +          WriteStatus(config, "loading");
 +          size_t k = 0, llm_top = 0;
@@ -37785,6 +39146,7 @@ index 000000000..c4501b154
 +bool LmRewriter::FindLlmCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                                  const std::string& context,
 +                                  const std::string& reading,
++                                  const std::string& raw_keys,
 +                                  const std::string& chosen, double chosen_score,
 +                                  const std::function<bool()>& over,
 +                                  std::string* fixed) const {
@@ -37798,7 +39160,13 @@ index 000000000..c4501b154
 +  kotori_internal::CorrectionOptions options;
 +  options.zenz_weight = lambda_lm_;
 +  options.llm_weight = kCorrectionLlmWeight;
-+  options.margin = typo_margin_;
++  // 読みを変える直しは、打ち間違いの事後確率で決める(docs/adr/0076)。
++  const std::string typed = TypedKeysFor(raw_keys, reading);
++  const std::vector<std::string> typed_prefixes = PrefixReadings(typed);
++  options.channel = [&](const std::string& intended) {
++    return ChannelLogRatio(typed, typed_prefixes, reading, intended);
++  };
++  options.min_posterior = typo_posterior_;
 +  if (prompt != nullptr && std::string(prompt) == "chat") {
 +    options.prompt = ZenzScorer::CorrectionPrompt::kChat;
 +  } else if (prompt != nullptr && std::string(prompt) == "examples") {
@@ -37835,7 +39203,24 @@ index 000000000..c4501b154
 +  const int base = ReadingCost(*dictionary_, reading, &cache);
 +  std::vector<std::pair<int, std::string>> ranked;
 +  int best_cost = base;
-+  absl::flat_hash_map<std::string, double> reading_gain;  // 読み → かなのままの点の上がり
++  // 打ち間違いの起こりやすさ(docs/adr/0076)。打ったキーと、意図した読み(とそのキー)から。
++  const std::string typed_keys = TypedKeysFor(raw_keys, reading);
++  // キーの先頭 k 個の読み(打ったキーと、書き換えたキーごと。境目を探すのに使う)。
++  absl::flat_hash_map<std::string, std::vector<std::string>> prefixes;
++  auto prefixes_of = [&](const std::string& keys) -> const std::vector<std::string>& {
++    auto it = prefixes.find(keys);
++    if (it == prefixes.end()) it = prefixes.emplace(keys, PrefixReadings(keys)).first;
++    return it->second;
++  };
++  absl::flat_hash_map<std::string, double> channel;  // 読み → log P(打ったキー | その読み) の比
++  auto channel_of = [&](const std::string& intended, const std::string& keys) {
++    auto it = channel.find(intended);
++    if (it == channel.end()) {
++      it = channel.emplace(intended, ChannelLogRatio(typed_keys, prefixes_of(typed_keys), reading,
++                                                     intended, keys)).first;
++    }
++    return it->second;
++  };
 +  if (keys_mode) {
 +    // Kotori: 試すかどうかは、これまでどおりかなの 1 か所の書き換えだけで決める(docs/adr/0074)。
 +    // キーの書き換えまで含めると、どれか 1 つは辞書のコストが大きく下がり、自然な文
@@ -37866,25 +39251,27 @@ index 000000000..c4501b154
 +    // さらに次の 1 か所を直す(最大 typo_rounds_ か所。docs/adr/0074)。辞書で区切ったコストは、
 +    // 打ち間違いの読みも短い語で区切れて下がらないことが多い(ちゅう+しつ、つ+ずき)ので、
 +    // 語に区切れなくなる書き換えを捨てるだけに使う。打ったキーがわかり、それが読みと合うときだけ、
-+    // キーの単位でも書き換える(かなの単位で直した読みは、キーを持たない)。
++    // キーの単位でも書き換える(かなの単位で直した読みは、変わった所を綴りに直したキーを持つ)。
++    // 伸ばす読みと文を作る読みは、かなのままの点と打ち間違いの起こりやすさの和の高い順に、数で選ぶ
++    // (docs/adr/0076)。
 +    struct Step {
 +      std::string reading;
 +      std::string keys;
 +      int cost;
-+      double lp;           // 元の読みの文字数にそろえた、かなのままの log P
++      double lp;           // かなのままの log P(文 | 前の文脈)
 +      std::string parent;  // 1 か所前の読み
++      double score = 0;    // lp + log P(打ったキー | この読み)(打った通りとの比)
++      std::string parent_keys;  // 1 か所前の読みのキー
 +    };
 +    double llm_ms = 0;
 +    const bool use_keys = IsTypoKeys(raw_keys) && RomajiToReading(raw_keys) == reading;
 +    absl::flat_hash_map<std::string, bool> tried;
 +    tried[reading] = true;
 +    std::vector<Step> frontier;
-+    double best_lp = -std::numeric_limits<double>::infinity();
-+    double start_lp = 0;
++    double best_variant = -std::numeric_limits<double>::infinity();  // いちばんよい書き換えの点
 +    if (const std::optional<std::vector<float>> lp = llm->Score(context, "", {reading})) {
-+      frontier.push_back({reading, use_keys ? raw_keys : std::string(), base, (*lp)[0], reading});
-+      best_lp = (*lp)[0];
-+      start_lp = best_lp;
++      frontier.push_back({reading, use_keys ? raw_keys : std::string(), base, (*lp)[0], reading,
++                          (*lp)[0]});
 +      if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +        std::fprintf(stderr, "[typo]   start %s lp=%.2f keys=%s raw=%s(%s)\n", reading.c_str(),
 +                     (*lp)[0], use_keys ? raw_keys.c_str() : "-", raw_keys.c_str(),
@@ -37921,7 +39308,7 @@ index 000000000..c4501b154
 +                         keys.c_str(), c, from.cost);
 +          }
 +          if (c <= from.cost + typo_slack_) {
-+            pool.push_back({std::move(v), std::move(keys), c, from.lp, from.reading});
++            pool.push_back({std::move(v), std::move(keys), c, from.lp, from.reading, 0, from.keys});
 +          }
 +        }
 +      }
@@ -37930,6 +39317,14 @@ index 000000000..c4501b154
 +      // 2 か所目からは採点する数を減らす(1 か所目より時間が残っていないため)。
 +      const size_t pool_max = static_cast<size_t>(std::max(1, round == 0 ? typo_pool_ : typo_pool_next_));
 +      if (pool.size() > pool_max) pool.resize(pool_max);
++      // かなの単位の書き換えは、前の読みのキーのうち変わった所だけを綴りに直したキーを持つ
++      // (採点する読みだけで作る。数百の書き換えすべてで作ると、手を止めた間に探しきれない)。
++      for (Step& s : pool) {
++        if (s.keys.empty() && !s.parent_keys.empty()) {
++          s.keys = kotori_internal::IntendedKeys(s.parent_keys, s.parent, s.reading,
++                                                 prefixes_of(s.parent_keys));
++        }
++      }
 +      const auto t_llm = std::chrono::steady_clock::now();
 +      // 書き換えた所より後ろは元の読みと同じなので、書き換えた所の typo_tail_ 文字後ろまでで切り、
 +      // 同じ所で切った元の読みとの差を取る(文全体を採点するより、候補ごとの計算がずっと少ない)。
@@ -37993,23 +39388,27 @@ index 000000000..c4501b154
 +        if (!lp) break;
 +        for (const Pair& p : pairs) {
 +          const size_t k = p.step;
-+          // 文字が増えると log P は 1 文字分下がるので、元の読みの 1 文字あたりの点で埋め合わせる
-+          // (つづき→つき のように、かなを削るだけで点が上がるのを防ぐ)。
-+          const double per_char_lp =
-+              pool[k].lp / std::max<size_t>(1, Util::CharsLen(pool[k].parent));
-+          const double score =
-+              pool[k].lp + ((*lp)[p.variant] - (*lp)[p.parent]) - per_char_lp * cuts[k].added;
-+          // 2 か所目からは、それまでで一番よい読みより上がるものだけを残す(弱い読みの枝を伸ばさない)。
-+          if (score < std::max(pool[k].lp, best_lp) + typo_llm_gain_) continue;
++          // 切った後ろは同じ文字が続くので、切った所までの差を全体の差と見る。かなを削ると点が
++          // 上がりやすいが、削るには余分なキーを打ったことになり、打ち間違いの起こりやすさが受け持つ。
++          const double lp_k = pool[k].lp + ((*lp)[p.variant] - (*lp)[p.parent]);
++          const double score = lp_k + channel_of(pool[k].reading, pool[k].keys);
++          if (!std::isfinite(score)) continue;
 +          Step s = pool[k];
-+          s.lp = score;
++          s.lp = lp_k;
++          s.score = score;
 +          next.push_back(std::move(s));
 +        }
 +      }
 +      llm_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() -
 +                                                          t_llm).count();
 +      std::stable_sort(next.begin(), next.end(),
-+                       [](const Step& a, const Step& b) { return a.lp > b.lp; });
++                       [](const Step& a, const Step& b) { return a.score > b.score; });
++      // いちばんよい書き換え(これまでの回を含む)より typo_window_ 以上低い読みは、伸ばさず文も作らない。
++      // 基準は打った通りの読みではなく書き換えどうし(かなのままの点は、漢字の文にしたときの差を
++      // ずっと小さく見積もるので、打った通りと比べると正しい直しも落とす。誠に失礼しました: かなで
++      // 7.5、文で 19.7 上がった。ちゅうしゅつ は、かなでは打った通りより下がった)。
++      if (!next.empty()) best_variant = std::max(best_variant, next.front().score);
++      while (!next.empty() && next.back().score < best_variant - typo_window_) next.pop_back();
 +      if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +        std::fprintf(stderr, "[typo]   round%d pool=%zu next=%zu over=%d llm=%.0fms %.0fms\n",
 +                     round, pool.size(), next.size(), over() ? 1 : 0, llm_ms,
@@ -38017,14 +39416,12 @@ index 000000000..c4501b154
 +                         std::chrono::steady_clock::now() - t0).count());
 +      }
 +      for (const Step& s : next) {
-+        ranked.emplace_back(static_cast<int>(-s.lp * 1000), s.reading);
-+        reading_gain[s.reading] = s.lp - start_lp;
++        ranked.emplace_back(static_cast<int>(-s.score * 1000), s.reading);
 +        if (Env("KOTORI_LM_DEBUG") != nullptr) {
-+          std::fprintf(stderr, "[typo]   round%d %s lp=%.2f cost=%d\n", round,
-+                       s.reading.c_str(), s.lp, s.cost);
++          std::fprintf(stderr, "[typo]   round%d %s lp=%.2f ch=%.2f keys=%s cost=%d\n", round,
++                       s.reading.c_str(), s.lp, s.score - s.lp, s.keys.c_str(), s.cost);
 +        }
 +      }
-+      if (!next.empty()) best_lp = next.front().lp;
 +      if (next.size() > static_cast<size_t>(std::max(1, typo_beam_))) next.resize(typo_beam_);
 +      frontier = std::move(next);
 +    }
@@ -38059,20 +39456,27 @@ index 000000000..c4501b154
 +  }
 +  std::vector<std::string> readings;
 +  for (const auto& [c, v] : ranked) readings.push_back(v);
-+  // 1 回のビームサーチで扱える列の数に上限があるので、5 つずつ生成する。
++  // 1 回のビームサーチで扱える列の数に上限があるので、5 つずつ生成する。手が止まった間の深い補正では、
++  // 点の高い順に作り、2 組目からは探し始めて typo_search_ms_ を過ぎていたら作らない(ふつうの文でも
++  // 書き換えの候補が残るので、毎回 10 個作ると手を止めた間に終わらず、Space を待たせる。docs/adr/0076)。
 +  std::vector<std::vector<std::string>> gens;
 +  {
 +    CancelScope cancel(over);
 +    for (size_t i = 0; i < readings.size() && !over(); i += 5) {
++      if (keys_mode && i > 0 &&
++          std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0)
++                  .count() > typo_search_ms_) {
++        readings.resize(i);
++        break;
++      }
 +      const std::vector<std::string> part(
 +          readings.begin() + i, readings.begin() + std::min(readings.size(), i + 5));
 +      for (auto& g : scorer->GenerateMany(context, part, 2)) gens.push_back(std::move(g));
 +    }
 +  }
 +  if (over()) return false;
-+  // 書き換えた読みごとに、生成した文(辞書で読みに合うもの)の zenz の点を、その読みで取る。
++  // 書き換えた読みごとに、生成した文のうち辞書で読みに合う最初のもの。
 +  std::vector<std::string> texts;
-+  std::vector<double> zs;
 +  std::vector<std::string> text_readings;  // 文を作った読み
 +  for (size_t i = 0; i < gens.size() && i < readings.size(); ++i) {
 +    for (const std::string& g : gens[i]) {
@@ -38080,10 +39484,7 @@ index 000000000..c4501b154
 +          !MatchesReading(*dictionary_, single_kanji_, g, readings[i])) {
 +        continue;
 +      }
-+      const std::optional<std::vector<float>> z = scorer->Score(context, readings[i], {g});
-+      if (!z) continue;
 +      texts.push_back(g);
-+      zs.push_back((*z)[0]);
 +      text_readings.push_back(readings[i]);
 +      break;
 +    }
@@ -38100,32 +39501,66 @@ index 000000000..c4501b154
 +    }
 +    return false;
 +  }
-+  const std::optional<std::vector<float>> lp = llm->Score(context, reading, texts);
-+  if (!lp) return false;
-+  size_t top = 0;
-+  double top_score = -std::numeric_limits<double>::infinity();
-+  for (size_t i = 0; i < texts.size(); ++i) {
-+    const double s = lambda_lm_ * zs[i] + kCorrectionLlmWeight * (*lp)[i];
-+    if (s > top_score) {
-+      top = i;
-+      top_score = s;
++  // Kotori: 打った通りの読みも含めた読みの仮説ごとに、log P(打ったキー | 意図した読み) +
++  // log P(文 | 前の文脈) を取り、打ち間違いだった事後確率で決める(docs/adr/0076)。文の点は LLM が
++  // 前の文脈の後に文が続く確率(読みは使わない)で、その読みに合う文(かなのままの文も含む)の
++  // いちばん高いもの。打った通りの仮説の打ち間違いの項は 0(比の基準)。選んだ文 chosen は、
++  // 打った読みに合わなければ(変換がすでに読みを直していた)、合う読みの仮説の文として数える。
++  // 書き換えるときの表記は、読みを決めてから、その読みで作った文(texts)にする。
++  std::vector<std::string> hyp_readings = {reading};
++  hyp_readings.insert(hyp_readings.end(), text_readings.begin(), text_readings.end());
++  std::vector<std::string> scored;
++  std::vector<size_t> owner;  // scored の文が属する仮説
++  auto add_scored = [&](const std::string& text, size_t h) {
++    scored.push_back(text);
++    owner.push_back(h);
++  };
++  size_t chosen_owner = 0;
++  // ひらがなだけの文の読みはその文字のまま(辞書の照合は ず/づ などを同じと見るので使わない)。
++  if (IsKanaReading(chosen)) {
++    for (size_t h = 1; h < hyp_readings.size(); ++h) {
++      if (hyp_readings[h] == chosen) chosen_owner = h;
++    }
++  } else if (!MatchesReading(*dictionary_, single_kanji_, chosen, reading)) {
++    for (size_t h = 1; h < hyp_readings.size(); ++h) {
++      if (MatchesReading(*dictionary_, single_kanji_, chosen, hyp_readings[h])) {
++        chosen_owner = h;
++        break;
++      }
 +    }
 +  }
-+  const double base_lp = chosen_score;
-+  // Kotori: 同じ音の書き分け(ず/づ、じ/ぢ。つずき→つづき)だけを直す読みで、かなのまま採点した点が
-+  // 大きく上がったときは、文の点の差が typo_margin_ に届かなくても typo_soft_margin_ 以上なら直す
-+  // (docs/adr/0074)。ほかの書き換えまで緩めると、自然な語を別の語に変える(息が合う→息がある、
-+  // 請求書→京急小)ので、緩めない。
-+  const auto gain_it = reading_gain.find(text_readings[top]);
-+  const double read_gain = gain_it == reading_gain.end() ? 0.0 : gain_it->second;
-+  const bool apply = top_score - base_lp >= typo_margin_ ||
-+                     (keys_mode && read_gain >= typo_strong_lp_ &&
-+                      top_score - base_lp >= typo_soft_margin_ &&
-+                      IsSameSoundSpelling(reading, text_readings[top]));
++  add_scored(chosen, chosen_owner);
++  for (size_t h = 0; h < hyp_readings.size(); ++h) {
++    if (hyp_readings[h] != chosen) add_scored(hyp_readings[h], h);
++    if (h > 0 && texts[h - 1] != chosen) add_scored(texts[h - 1], h);
++  }
++  std::optional<std::vector<float>> lp;
++  {
++    CancelScope cancel(over);
++    lp = llm->Score(context, "", scored);
++  }
++  if (!lp || lp->size() != scored.size() || over()) return false;
++  std::vector<double> text_lp(hyp_readings.size(), -std::numeric_limits<double>::infinity());
++  for (size_t i = 0; i < scored.size(); ++i) {
++    text_lp[owner[i]] = std::max(text_lp[owner[i]], static_cast<double>((*lp)[i]));
++  }
++  std::vector<double> hyp = {text_lp[0]};
++  for (size_t h = 1; h < hyp_readings.size(); ++h) {
++    hyp.push_back(text_lp[h] + channel_of(hyp_readings[h], std::string()));
++  }
++  const std::vector<double> post = kotori_internal::Posteriors(hyp);
++  size_t top = 0;
++  for (size_t i = 1; i < texts.size(); ++i) {
++    if (post[i + 1] > post[top + 1]) top = i;
++  }
++  const bool apply = post[top + 1] >= typo_posterior_;
 +  if (Env("KOTORI_LM_DEBUG") != nullptr || Env("KOTORI_LM_TIME") != nullptr) {
-+    std::fprintf(stderr, "[typo] %s cost=%d variants=%zu gen=%zu best=%s %.2f vs %.2f %s %.0fms\n",
-+                 reading.c_str(), base, ranked.size(), texts.size(),
-+                 texts[top].c_str(), top_score, base_lp, apply ? "APPLY" : "keep",
++    std::fprintf(stderr,
++                 "[typo] %s cost=%d variants=%zu gen=%zu best=%s lp=%.2f ch=%.2f vs %s lp=%.2f "
++                 "(chosen in %zu) posterior=%.3f %s %.0fms\n",
++                 reading.c_str(), base, ranked.size(), texts.size(), texts[top].c_str(),
++                 text_lp[top + 1], hyp[top + 1] - text_lp[top + 1], chosen.c_str(), text_lp[0],
++                 chosen_owner, post[top + 1], apply ? "APPLY" : "keep",
 +                 std::chrono::duration<double, std::milli>(
 +                     std::chrono::steady_clock::now() - t0).count());
 +  }
@@ -38137,10 +39572,10 @@ index 000000000..c4501b154
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..d67da530e
+index 000000000..0b49989d1
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,640 @@
+@@ -0,0 +1,645 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -38256,9 +39691,15 @@ index 000000000..d67da530e
 +struct CorrectionOptions {
 +  double zenz_weight = 1.0;
 +  double llm_weight = 0.7;
++  // 読みを変えない直し(同じ読みの別の表記)は、並べ替えと同じ点(zenz と LLM)でこれ以上高いとき。
 +  double margin = 5.0;
 +  int beams = 2;
 +  ZenzScorer::CorrectionPrompt prompt = ZenzScorer::CorrectionPrompt::kTypingExamples;
++  // 読みを変える直し(打ち間違い)は、log P(打ったキー | 直した読み) を返す channel があれば、
++  // それと LLM の P(文 | 前の文脈) の積の事後確率が min_posterior 以上のとき(docs/adr/0076)。
++  // channel がなければ(開発用の評価)、読みを変える直しも margin で決める。
++  std::function<double(const std::string& reading)> channel;
++  double min_posterior = 2.0 / 3.0;
 +};
 +std::optional<std::string> GenerateSafeCorrection(
 +    const dictionary::DictionaryInterface& dictionary,
@@ -38385,9 +39826,10 @@ index 000000000..d67da530e
 +                         bool for_predict, bool may_load,
 +                         size_t reading_chars = 0) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-+  // 打ち間違いを補った読みの文が、選んだ文 chosen(点 chosen_score = λ_lm・zenz + λ_llm・LLM)より
-+  // typo_margin_ 以上高い点なら、その文を *fixed に入れて true(docs/adr/0036)。
-+  // raw_keys は打ったローマ字(わからなければ空)。キーの単位の書き換えに使う(docs/adr/0074)。
++  // 打ち間違いを補った読みの文を探し、打ち間違いだった事後確率(P(打ったキー | 意図した読み) ×
++  // P(文 | 前の文脈)を、打った通りの読みの選んだ文 chosen と比べたもの)が typo_posterior_ 以上なら、
++  // その文を *fixed に入れて true(docs/adr/0036、0074、0076)。chosen_score(λ_lm・zenz + λ_llm・LLM)は
++  // 試すかどうかの速さのための関所にだけ使う。raw_keys は打ったローマ字(わからなければ空)。
 +  bool FindTypoCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                          const std::string& context, const std::string& reading,
 +                          const std::string& raw_keys,
@@ -38397,6 +39839,7 @@ index 000000000..d67da530e
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  bool FindLlmCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                         const std::string& context, const std::string& reading,
++                         const std::string& raw_keys,
 +                         const std::string& chosen, double chosen_score,
 +                         const std::function<bool()>& over,
 +                         std::string* fixed) const
@@ -38584,10 +40027,12 @@ index 000000000..d67da530e
 +  mutable std::unique_ptr<ZenzScorer> long_scorer_ ABSL_GUARDED_BY(mutex_);
 +  // この文字数より長い読みに long_scorer_ を使う(KOTORI_LM_CPU_LONG。0 なら使わない)。
 +  int cpu_long_chars_ = 12;
-+  // Kotori: 打ち間違いの補正(docs/adr/0036)。KOTORI_LM_TYPO、KOTORI_LM_TYPO_MARGIN(LLM の log P の差)、
-+  // KOTORI_LM_TYPO_K(試す読みの数)、KOTORI_LM_TYPO_GAIN(辞書で区切ったコストが下がる量)。
++  // Kotori: 打ち間違いの補正(docs/adr/0036)。KOTORI_LM_TYPO、KOTORI_LM_TYPO_K(試す読みの数)、
++  // KOTORI_LM_TYPO_GAIN(辞書で区切ったコストが下がる量)。
 +  bool typo_correct_ = true;
-+  float typo_margin_ = 5.0f;
++  // 打ち間違いだった事後確率がこれ以上なら直す(KOTORI_LM_TYPO_POSTERIOR。docs/adr/0076)。
++  // 正しい読みを書き換える損を、直し損ねる損の 2 倍と見たときの境目(2 / (2 + 1))。
++  double typo_posterior_ = 2.0 / 3.0;
 +  // 選んだ文の点の読み 1 文字あたりがこれ以上なら試さない(KOTORI_LM_TYPO_GATE)。
 +  double typo_gate_ = -1.8;
 +  // 読みを書き換えた辞書のコストがこれ以上下がるなら、選んだ文が自然でも試す(KOTORI_LM_TYPO_STRONG)。
@@ -38601,20 +40046,15 @@ index 000000000..d67da530e
 +  int typo_rounds_ = 3;
 +  int typo_beam_ = 3;
 +  // 辞書で区切ったコストがこれより上がる書き換えは捨てる(KOTORI_LM_TYPO_SLACK)。1 か所ごとに LLM で
-+  // 採点する読みの数(KOTORI_LM_TYPO_POOL)と、かなのままの log P がこれ以上上がれば残す量
-+  // (KOTORI_LM_TYPO_LLM_GAIN)。
++  // 採点する読みの数(KOTORI_LM_TYPO_POOL)。
 +  int typo_slack_ = 2000;
 +  int typo_pool_ = 80;
 +  int typo_pool_next_ = 32;  // 2 か所目からの数(KOTORI_LM_TYPO_POOL_NEXT)
-+  double typo_llm_gain_ = 1.0;
-+  // 文を作る読みは、いちばんよい読みとの点の差がこれ以内のもの(KOTORI_LM_TYPO_WINDOW)。
++  // 探す幅(KOTORI_LM_TYPO_WINDOW)。かなのままの log P と打ち間違いの起こりやすさの和が、いちばんよい
++  // 書き換えよりこれ以上低い読みは、先へ伸ばさず、文も作らない(docs/adr/0074、0076)。
 +  double typo_window_ = 4.0;
 +  // かなのまま採点するとき、書き換えた所の何文字後ろまでで比べるか(KOTORI_LM_TYPO_TAIL)。
 +  size_t typo_tail_ = 4;
-+  // 読みのかなのままの点がこれ以上上がったら、文の点の差が typo_soft_margin_ 以上で直す
-+  // (KOTORI_LM_TYPO_STRONG_LP、KOTORI_LM_TYPO_SOFT_MARGIN)。
-+  double typo_strong_lp_ = 6.0;
-+  double typo_soft_margin_ = 1.0;
 +  // 2 か所目以降を探すのは、探し始めてからこの時間(ms)まで(KOTORI_LM_TYPO_SEARCH_MS)。
 +  double typo_search_ms_ = 200;
 +  // かなのまま採点するとき、1 回に入れる列の数(KOTORI_LM_TYPO_BATCH。32 まで)。
@@ -38746,7 +40186,7 @@ index 000000000..d67da530e
 +  double swap_llm_weight_ = 2.0;
 +  bool confidence_guard_ = true;
 +  // Candidate ranking and correction acceptance are calibrated separately.
-+  // Keep correction scores in the units used by typo_gate_/typo_margin_.
++  // Keep correction scores in the units used by typo_gate_ and same-reading LLM corrections.
 +  static constexpr double kCorrectionLlmWeight = 0.7;
 +  // 生成した文(ラティスにない文)の点数から引く値。LLM なし / あり。
 +  double gen_penalty_ = 0.5;
@@ -40116,19 +41556,20 @@ index 000000000..f472d91f7
 +
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
-index d92e814fd..6c3ff56e2 100644
+index d92e814fd..ef9e772dd 100644
 --- a/src/rewriter/rewriter.cc
 +++ b/src/rewriter/rewriter.cc
-@@ -51,6 +51,8 @@
+@@ -51,6 +51,9 @@
  #include "rewriter/focus_candidate_rewriter.h"
  #include "rewriter/ivs_variants_rewriter.h"
  #include "rewriter/language_aware_rewriter.h"
 +#include "rewriter/lm_rewriter.h"
++#include "rewriter/kotori_homophone_hint_rewriter.h"
 +#include "rewriter/kotori_nuance_rewriter.h"
  #include "rewriter/number_rewriter.h"
  #include "rewriter/remove_redundant_candidate_rewriter.h"
  #include "rewriter/single_kanji_rewriter.h"
-@@ -136,6 +138,11 @@ Rewriter::Rewriter(const engine::Modules& modules) {
+@@ -136,6 +139,11 @@ Rewriter::Rewriter(const engine::Modules& modules) {
    const dictionary::SingleKanjiDictionary& single_kanji_dictionary =
        modules.GetSingleKanjiDictionary();
  
@@ -40140,11 +41581,13 @@ index d92e814fd..6c3ff56e2 100644
  #ifdef MOZC_USER_DICTIONARY_REWRITER
    AddRewriter(std::make_unique<UserDictionaryRewriter>());
  #endif  // MOZC_USER_DICTIONARY_REWRITER
-@@ -195,6 +202,7 @@ Rewriter::Rewriter(const engine::Modules& modules) {
+@@ -195,6 +203,9 @@ Rewriter::Rewriter(const engine::Modules& modules) {
    AddRewriter(make_unique_from_tuples<EnvironmentalFilterRewriter>(
        data_manager.GetEmojiRewriterData()));
    AddRewriter(std::make_unique<RemoveRedundantCandidateRewriter>());
 +  AddRewriter(std::make_unique<KotoriNuanceRewriter>());
++  // Asteria: 同音語のヒント(docs/adr/0079)。説明だけを足すので、並べ替えの後に置く。
++  AddRewriter(std::make_unique<KotoriHomophoneHintRewriter>());
    AddRewriter(make_unique_from_tuples<A11yDescriptionRewriter>(
        data_manager.GetA11yDescriptionRewriterData()));
  }
@@ -41933,7 +43376,7 @@ index 000000000..344468822
 +}  // namespace
 +}  // namespace mozc::session
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..71119fdbd 100644
+index 8186b0a8d..89c522063 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -42018,7 +43461,7 @@ index 8186b0a8d..71119fdbd 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +578,151 @@ bool Session::SendKey(commands::Command* command) {
+@@ -538,10 +578,158 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -42040,11 +43483,18 @@ index 8186b0a8d..71119fdbd 100644
 +      context_->composer().GetInputFieldType() == commands::Context::PASSWORD ||
 +      context_->composer().Empty() ||
 +      command->output().has_callback() ||
-+      (!waiting && count >= kotori::kMaxLiveRefreshes)) {
++      (!waiting && count >= (context_->GetConfig().kotori_live_conversion()
++                                 ? kotori::kMaxLiveConversionRefreshes
++                                 : kotori::kMaxLiveRefreshes))) {
 +    return;
 +  }
 +  int delay =
 +      count == 0 ? kotori::g_live_first_ms.load() : kotori::g_live_next_ms.load();
++  // Asteria: ライブ変換では、補正などで後から変わる結果に未確定の表示を追いつかせる(docs/adr/0077)。
++  if (count > 0 && context_->GetConfig().kotori_live_conversion() &&
++      kotori::g_live_first_ms.load() > 0) {
++    delay = kotori::kLiveConversionNextMs;
++  }
 +  // AI待機は回数制限で打ち切らない。結果ができたらすぐ出せるよう短い間隔で取り直す。
 +  if (waiting) delay = kotori::g_ai_wait_poll_ms.load();
 +  if (delay <= 0) return;
@@ -42170,7 +43620,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -604,7 +785,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
+@@ -604,7 +792,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
      case keymap::DirectInputState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::DirectInputState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -42181,7 +43631,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::DirectInputState::NONE:
        return EchoBackAndClearUndoContext(command);
      case keymap::DirectInputState::RECONVERT:
-@@ -648,7 +831,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -648,7 +838,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::INSERT_FULL_SPACE:
        return InsertSpaceFullWidth(command);
      case keymap::PrecompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -42192,7 +43642,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::PrecompositionState::REVERT:
        return Revert(command);
      case keymap::PrecompositionState::UNDO:
-@@ -667,7 +852,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -667,7 +859,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::PrecompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -42203,7 +43653,7 @@ index 8186b0a8d..71119fdbd 100644
      case keymap::PrecompositionState::COMPOSITION_MODE_SWITCH_KANA_TYPE:
        return CompositionModeSwitchKanaType(command);
  
-@@ -717,6 +904,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +911,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -42233,7 +43683,7 @@ index 8186b0a8d..71119fdbd 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -821,7 +1031,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -821,7 +1038,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::CompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -42244,7 +43694,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::CompositionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -836,7 +1048,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -836,7 +1055,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return CompositionModeFullASCII(command);
  
      case keymap::CompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -42255,7 +43705,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::CompositionState::NONE:
        return DoNothing(command);
-@@ -966,7 +1180,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
+@@ -966,7 +1187,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::ConversionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -42266,7 +43716,7 @@ index 8186b0a8d..71119fdbd 100644
  
      case keymap::ConversionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -1026,7 +1242,8 @@ bool Session::IMEOn(commands::Command* command) {
+@@ -1026,7 +1249,8 @@ bool Session::IMEOn(commands::Command* command) {
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
    if (command->input().has_key() && command->input().key().has_mode()) {
@@ -42276,7 +43726,7 @@ index 8186b0a8d..71119fdbd 100644
                           context_->mutable_composer());
    }
    OutputMode(command);
-@@ -1062,8 +1279,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
+@@ -1062,8 +1286,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -42289,7 +43739,7 @@ index 8186b0a8d..71119fdbd 100644
    }
    OutputMode(command);
    return true;
-@@ -1087,8 +1306,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
+@@ -1087,8 +1313,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -42302,7 +43752,7 @@ index 8186b0a8d..71119fdbd 100644
    }
    OutputMode(command);
    return true;
-@@ -1388,9 +1609,11 @@ bool Session::CommitCandidate(commands::Command* command) {
+@@ -1388,9 +1616,11 @@ bool Session::CommitCandidate(commands::Command* command) {
    } else {
      // No candidate is focused.
      size_t consumed_key_size = 0;
@@ -42314,7 +43764,7 @@ index 8186b0a8d..71119fdbd 100644
        if (consumed_key_size < context_->composer().GetLength()) {
          // partial suggestion was committed.
          context_->mutable_composer()->DeleteRange(0, consumed_key_size);
-@@ -1523,6 +1746,10 @@ bool Session::InsertCharacter(commands::Command* command) {
+@@ -1523,6 +1753,10 @@ bool Session::InsertCharacter(commands::Command* command) {
  
    const std::string composition = context_->composer().GetQueryForConversion();
    bool should_commit = (context_->state() == ImeContext::CONVERSION);
@@ -42325,7 +43775,7 @@ index 8186b0a8d..71119fdbd 100644
  
    if (context_->GetRequest().space_on_alphanumeric() ==
            commands::Request::SPACE_OR_CONVERT_COMMITTING_COMPOSITION &&
-@@ -1784,6 +2011,12 @@ bool Session::CommitInternal(commands::Command* command,
+@@ -1784,6 +2018,12 @@ bool Session::CommitInternal(commands::Command* command,
      context_->mutable_converter()->CommitPreedit(context_->composer(),
                                                   command->input().context());
    } else {  // ImeContext::CONVERSION
@@ -42338,7 +43788,7 @@ index 8186b0a8d..71119fdbd 100644
      context_->mutable_converter()->Commit(context_->composer(),
                                            command->input().context());
    }
-@@ -1827,6 +2060,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
+@@ -1827,6 +2067,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
    return true;
  }
  
@@ -42364,7 +43814,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::CommitFirstSuggestion(commands::Command* command) {
    if (!(context_->state() == ImeContext::COMPOSITION ||
          context_->state() == ImeContext::PRECOMPOSITION)) {
-@@ -1841,9 +2093,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
+@@ -1841,9 +2100,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
  
    constexpr int kFirstIndex = 0;
    size_t committed_key_size = 0;
@@ -42376,7 +43826,7 @@ index 8186b0a8d..71119fdbd 100644
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
  
-@@ -2158,6 +2412,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
+@@ -2158,6 +2419,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
    return true;
  }
  
@@ -42402,7 +43852,7 @@ index 8186b0a8d..71119fdbd 100644
  bool Session::CompositionModeSwitchKanaType(commands::Command* command) {
    if (context_->state() != ImeContext::PRECOMPOSITION) {
      return DoNothing(command);
-@@ -2371,14 +2644,46 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,14 +2651,46 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -42453,7 +43903,7 @@ index 8186b0a8d..71119fdbd 100644
    Output(command);
    return true;
  }
-@@ -2389,16 +2694,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2701,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -42471,7 +43921,7 @@ index 8186b0a8d..71119fdbd 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2972,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2979,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -42480,7 +43930,7 @@ index 8186b0a8d..71119fdbd 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2987,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +2994,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -42503,7 +43953,7 @@ index 8186b0a8d..71119fdbd 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +3046,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +3053,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -42517,7 +43967,7 @@ index 8186b0a8d..71119fdbd 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3182,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3189,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -43859,7 +45309,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..c0ec8abd1 100644
+index ada11a64a..1a23f4cac 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -43872,7 +45322,7 @@ index ada11a64a..c0ec8abd1 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6459
++BUILD = 6460
  # Represent the platform and release channel.
  REVISION = 100
  

@@ -80,7 +80,7 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 - **MSI の版**: リリースごとに `version.bzl` の BUILD を上げている(カード 22、35)。同じ版の MSI を上書きしても
   ファイルは入れ替わらない。Mozc の `mozc_version.py` は `BUILD = <数>` の数しか読まない(足し算は無視される)。
   CI のログで書き換えが成功していても、**出来上がった MSI の ProductVersion で確かめる**(beta.5 で見落とした)。
-- **内蔵 GPU は AI に使わない**: 専用 GPU(VRAM 3 GiB 以上)だけを使う(docs/adr/0024)。
+- **内蔵 GPU は既定では AI に使わない**: 専用 GPU(VRAM 3 GiB 以上)だけを使う(docs/adr/0024)。設定「内蔵 GPU で AI を動かす(試験的)」がオンで専用 GPU がないときだけ、内蔵 GPU に zenz を載せ、品質や時間の上限は GPU のない PC と同じにする(docs/adr/0078)。
 - 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」。
 
 ## コーディング規約
