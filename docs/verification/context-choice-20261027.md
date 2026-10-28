@@ -138,3 +138,24 @@ v3.1.0 から外れた問は 0。同音語 38 → 39、調整用の文脈の選�
 `mozc/data/context_cues_20261027.json`(SHA-256 6ff7ef87e80a34e3…)から `kotori_context_defaults.inc` を作った
 (`mozc/tools/gen_context_defaults.py`)。Sonnet が書いた 473 組から、読みの合わない語・重複を除いて 325 組、
 1088 件。調整用のセットで 1 番目が変わったのは 1 問(繊維 → 線維)、同音語のセットで 38 → 39。
+
+## 公開と利用者の PC への導入(2026-10-28)
+
+- PR #199 → main 09a93ad。「Mozc (Windows)」を channel=stable で実行(run 40516283674)し、
+  [v3.2.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v3.2.0) を Latest で公開。MSI は 3.34.6460.100、
+  SHA-256 `afd6a3e47261f2e24d5541b6455f7c870ae381592b134735bc0e2295e3db7419`、未署名。`check_release.py v3.2.0` はすべて OK
+  (同梱モデルの SHA が評価対象と一致、mozc_server.exe の版 = ProductVersion)。
+- 利用者の PC(Windows 11 / RTX 3060)で v3.1.0(3.34.6459.100)から、公開と同じ MSI へ `local_install_check.py install --ui` で更新。
+  1 回目は画面の「インストール」が押されないまま道具の待ち時間(20 分)が切れた。2 回目で利用者が押し、終了コード 0・再起動不要。
+  画面は準備 → インストール → 進行 → 完了の 4 つで、「アプリを終了してください」は出ない。登録は 3.34.6460.100 の 1 件。
+- 実入力(`verify --skip-click`): 受入れ 8 項目・二重入力 26 回すべて合格、確定「日本語」「東京」。Edge(`browser --skip-click`):
+  12 件合格、クリック 2 件はこの PC で合成クリックが前面の窓を外すため未検証(v3.1.0 と同じ)。各段の後に学習履歴を戻した。
+  記録 `target/accuracy-guide/local-install-6460/`。
+
+## 利用者の手元の状態(2026-10-28、利用者の許可を得て件数だけを見た)
+
+- AI は GPU で LLM まで動いていた(`kotori_ai_status.txt` の state=llm)。
+- Mozc の学習: 選んだ候補の記録(segment.db)71 件、区切りの記録(boundary.db)502 件。語はハッシュで持つので、どの語の記録かは
+  分からない。予測の履歴(history.db)は暗号化されていて、開いていない。文脈つきの学習のファイルは v3.1.0 にはない。
+- AI が最後に 1 番目を選び直すので、Mozc の学習は結果にあまり効かない(選び直しても次に同じ外し方をした理由)。「日本語を開設」は
+  学習より前の文脈による可能性が高い(再現して直した)。
