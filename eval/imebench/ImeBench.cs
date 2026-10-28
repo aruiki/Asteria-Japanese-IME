@@ -117,13 +117,19 @@ class Bench : Form {
           Thread.Sleep(150);
           TypeKeys(f[1], 12);
           Thread.Sleep(250);
-          Press(0x20);  // Space(変換)
+          // Asteria: 第 6 引数が live なら、ライブ変換(docs/adr/0077)を確かめる。Space を押さずに待ち、
+          // Enter の前の未確定の表示を記録してから Enter で確定する。
+          bool live = args.Length > 5 && args[5] == "live";
+          string shown = "";
+          if (!live) Press(0x20);  // Space(変換)
           Thread.Sleep(afterSpace);
+          if (live) OnUi(() => { shown = box.Text; });
           Press(0x0D);  // Enter(確定)
           Thread.Sleep(250);
           string got = "";
           OnUi(() => { got = box.Text; });
-          w.WriteLine(f[0] + "\t" + got.Replace("\t", " ").Replace("\r", "").Replace("\n", ""));
+          w.WriteLine(f[0] + "\t" + got.Replace("\t", " ").Replace("\r", "").Replace("\n", "") +
+                      (live ? "\t" + shown.Replace("\t", " ").Replace("\r", "").Replace("\n", "") : ""));
           w.Flush();
         }
       }
