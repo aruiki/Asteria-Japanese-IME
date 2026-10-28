@@ -26911,7 +26911,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..9af9ed83c 100644
+index abbf55d68..42ca9c268 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,55 @@
@@ -27462,7 +27462,7 @@ index abbf55d68..9af9ed83c 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +657,508 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +657,525 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27598,6 +27598,15 @@ index abbf55d68..9af9ed83c 100644
 +      hint_note->setWordWrap(true);
 +      hint_note->setProperty("kotoriNote", true);
 +      l->addWidget(hint_note);
++      // Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。既定はオフ。
++      kotoriRomajiEnglishCheckBox_ = new QCheckBox(QString::fromUtf8("英語の名前をローマ字のまま打てる(github → GitHub)"), page);
++      kotoriRomajiEnglishCheckBox_->setObjectName("kotoriRomajiEnglish");
++      kotoriRomajiEnglishCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriRomajiEnglishCheckBox_);
++      auto *english_note = new QLabel(QString::fromUtf8("日本語のまま打ち続けて、github や linux のような英語の名前を、文に合えば GitHub・Linux と変換します。日本語の語として読める綴り(sake → 酒)は変えません。"), page);
++      english_note->setWordWrap(true);
++      english_note->setProperty("kotoriNote", true);
++      l->addWidget(english_note);
 +      // Asteria: 内蔵 GPU(docs/adr/0078)。既定はオフ。
 +      kotoriIntegratedGpuCheckBox_ = new QCheckBox(QString::fromUtf8("内蔵 GPU で AI を動かす(試験的)"), page);
 +      kotoriIntegratedGpuCheckBox_->setObjectName("kotoriIntegratedGpu");
@@ -27732,7 +27741,13 @@ index abbf55d68..9af9ed83c 100644
 +    }
 +    outer->addWidget(KotoriSupportButton(page), 0, Qt::AlignLeft);
 +    outer->addStretch();
-+    configDialogTabWidget->insertTab(0, page, QString::fromUtf8("AI 変換"));
++    // Asteria: 項目が増えて画面の高さを超えると、窓の下の「適用」「OK」が画面の外に出る(v4.0.0 で
++    // 利用者が報告)。ダッシュボードと同じく、タブの中身だけを縦にスクロールさせる。
++    auto *ai_scroll = new QScrollArea();
++    ai_scroll->setWidgetResizable(true);
++    ai_scroll->setFrameShape(QFrame::NoFrame);
++    ai_scroll->setWidget(page);
++    configDialogTabWidget->insertTab(0, ai_scroll, QString::fromUtf8("AI 変換"));
 +    configDialogTabWidget->setCurrentIndex(0);
 +    // Kotori: Fluent 2 風の見た目(Windows 11 の設定アプリに合わせる。docs/adr/0017)。
 +    if (!KotoriHighContrast()) setStyleSheet(QString::fromUtf8(kKotoriFluentStyle));
@@ -27745,6 +27760,8 @@ index abbf55d68..9af9ed83c 100644
 +    QObject::connect(kotoriIntegratedGpuCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriHomophoneHintsCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriRomajiEnglishCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmModelPathEdit_, SIGNAL(textChanged(QString)), this,
 +                     SLOT(EnableApplyButton()));
@@ -27971,7 +27988,7 @@ index abbf55d68..9af9ed83c 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1224,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1241,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -27986,7 +28003,7 @@ index abbf55d68..9af9ed83c 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1265,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1282,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28001,7 +28018,7 @@ index abbf55d68..9af9ed83c 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1318,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1335,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28051,7 +28068,7 @@ index abbf55d68..9af9ed83c 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1386,10 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1403,10 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28062,7 +28079,7 @@ index abbf55d68..9af9ed83c 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1449,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1466,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28090,7 +28107,7 @@ index abbf55d68..9af9ed83c 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1492,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1509,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28115,7 +28132,7 @@ index abbf55d68..9af9ed83c 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1517,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1534,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28125,7 +28142,7 @@ index abbf55d68..9af9ed83c 100644
    return true;
  }
  
-@@ -524,6 +1614,25 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1631,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28143,6 +28160,7 @@ index abbf55d68..9af9ed83c 100644
 +  kotoriLiveConversionCheckBox_->setChecked(config.kotori_live_conversion());
 +  kotoriIntegratedGpuCheckBox_->setChecked(config.kotori_use_integrated_gpu());
 +  kotoriHomophoneHintsCheckBox_->setChecked(config.kotori_homophone_hints());
++  kotoriRomajiEnglishCheckBox_->setChecked(config.kotori_romaji_english());
 +  kotoriLmQualityComboBox_->setEnabled(config.kotori_lm_enabled());
 +  kotoriLmModelPathEdit_->setText(
 +      QString::fromUtf8(config.kotori_lm_model_path().data(),
@@ -28151,7 +28169,7 @@ index abbf55d68..9af9ed83c 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1721,22 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1739,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28168,13 +28186,14 @@ index abbf55d68..9af9ed83c 100644
 +  config->set_kotori_live_conversion(kotoriLiveConversionCheckBox_->isChecked());
 +  config->set_kotori_use_integrated_gpu(kotoriIntegratedGpuCheckBox_->isChecked());
 +  config->set_kotori_homophone_hints(kotoriHomophoneHintsCheckBox_->isChecked());
++  config->set_kotori_romaji_english(kotoriRomajiEnglishCheckBox_->isChecked());
 +  config->set_kotori_lm_model_path(
 +      kotoriLmModelPathEdit_->text().trimmed().toUtf8().toStdString());
 +
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1971,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1990,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28187,7 +28206,7 @@ index abbf55d68..9af9ed83c 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..2ec4fb974 100644
+index 85e1c0075..fd6b4e8f4 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
 @@ -33,6 +33,11 @@
@@ -28202,7 +28221,7 @@ index 85e1c0075..2ec4fb974 100644
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +53,23 @@ namespace gui {
+@@ -48,6 +53,24 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -28221,12 +28240,13 @@ index 85e1c0075..2ec4fb974 100644
 +  QCheckBox *kotoriLiveConversionCheckBox_ = nullptr;
 +  QCheckBox *kotoriIntegratedGpuCheckBox_ = nullptr;
 +  QCheckBox *kotoriHomophoneHintsCheckBox_ = nullptr;
++  QCheckBox *kotoriRomajiEnglishCheckBox_ = nullptr;
 +  QLabel *kotoriSettingsStatusLabel_ = nullptr;
 +
   public:
    ConfigDialog();
  
-@@ -80,6 +102,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +103,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -29037,7 +29057,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..9fe0d456e 100644
+index 7d735374e..51d897175 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -29049,7 +29069,7 @@ index 7d735374e..9fe0d456e 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,44 @@ message Config {
+@@ -360,6 +360,47 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -29090,6 +29110,9 @@ index 7d735374e..9fe0d456e 100644
 +  // Asteria: 同音語のヒント。同じ読みの別の語が候補に並ぶとき、見分ける手がかりの語を説明に出す
 +  // (docs/adr/0079)。既定はオフ。
 +  optional bool kotori_homophone_hints = 210 [default = false];
++  // Asteria: ローマ字のまま打った英語の名前(github → GitHub)を、文脈に合えば 1 番目に出す
++  // (docs/adr/0080)。既定はオフ。
++  optional bool kotori_romaji_english = 211 [default = false];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -29601,7 +29624,7 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..183ef2fe2 100644
+index 4bbcddeca..d3c7eae1c 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -29655,7 +29678,7 @@ index 4bbcddeca..183ef2fe2 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1768,238 @@ mozc_cc_test(
+@@ -1743,3 +1768,261 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -29839,6 +29862,28 @@ index 4bbcddeca..183ef2fe2 100644
 +)
 +
 +mozc_cc_library(
++    name = "kotori_romaji_english",
++    srcs = ["kotori_romaji_english.cc"],
++    hdrs = ["kotori_romaji_english.h"],
++    textual_hdrs = ["kotori_english_dictionary.inc"],
++    deps = [
++        "@com_google_absl//absl/container:flat_hash_map",
++        "@com_google_absl//absl/container:flat_hash_set",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_romaji_english_test",
++    size = "small",
++    srcs = ["kotori_romaji_english_test.cc"],
++    deps = [
++        ":kotori_romaji_english",
++        "//testing:gunit_main",
++    ],
++)
++
++mozc_cc_library(
 +    name = "lm_rewriter",
 +    srcs = ["lm_rewriter.cc"],
 +    hdrs = ["lm_rewriter.h"],
@@ -29849,6 +29894,7 @@ index 4bbcddeca..183ef2fe2 100644
 +    visibility = ["//converter:__pkg__"],
 +    deps = [
 +        ":kotori_context_history",
++        ":kotori_romaji_english",
 +        ":kotori_typo_model",
 +        ":llama_runtime",
 +        ":rewriter_interface",
@@ -33375,6 +33421,167 @@ index 000000000..dc7e7466c
 +}
 +}  // namespace
 +}  // namespace mozc
+diff --git a/src/rewriter/kotori_romaji_english.cc b/src/rewriter/kotori_romaji_english.cc
+new file mode 100644
+index 000000000..97c957a18
+--- /dev/null
++++ b/src/rewriter/kotori_romaji_english.cc
+@@ -0,0 +1,93 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_romaji_english.h"
++
++#include <string>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/container/flat_hash_set.h"
++#include "absl/strings/ascii.h"
++#include "absl/strings/string_view.h"
++
++namespace mozc {
++namespace kotori {
++namespace {
++
++struct KatakanaEnglishEntry {
++  absl::string_view katakana;
++  const char* english;
++};
++#include "rewriter/kotori_english_dictionary.inc"
++
++// 製品名・サービス名・技術用語。カタカナ英語辞書にない、またはローマ字で打つことの多い表記。
++// 日本語の語として読める名前(toyota → とよた など)は入れない(日本語の変換を英語に変えないため)。
++constexpr const char* kNames[] = {
++    "GitHub", "GitLab", "Git", "Linux", "Ubuntu", "Debian", "Fedora", "Python", "JavaScript",
++    "TypeScript", "Java", "Rust", "Golang", "Kotlin", "Swift", "Ruby", "Perl", "PHP", "Node",
++    "React", "Vue", "Docker", "Kubernetes", "Nginx", "Apache", "MySQL", "PostgreSQL", "SQLite",
++    "Redis", "Slack", "Zoom", "Discord", "Teams", "Notion", "Figma", "Trello", "Jira", "Confluence",
++    "YouTube", "Twitter", "Instagram", "Facebook", "TikTok", "Twitch", "Reddit", "Netflix",
++    "Spotify", "Amazon", "Google", "Gmail", "Chrome", "Firefox", "Safari", "Edge", "Apple",
++    "iPhone", "iPad", "iPod", "Mac", "MacBook", "macOS", "iOS", "Android", "Windows", "Microsoft",
++    "Excel", "PowerPoint", "Outlook", "OneDrive", "Dropbox", "Steam", "Xbox", "PlayStation",
++    "Intel", "AMD", "NVIDIA", "Qualcomm", "Samsung", "OpenAI", "ChatGPT", "Claude", "Gemini",
++    "Copilot", "Bluetooth", "USB", "HDMI", "PDF", "HTML", "CSS", "JSON", "YAML", "XML", "API",
++    "SQL", "URL", "HTTP", "HTTPS", "DNS", "VPN", "CPU", "GPU", "SSD", "RAM", "AWS", "Azure",
++    "Vercel", "Netlify", "Cloudflare", "Unity", "Unreal", "Blender", "Photoshop", "Illustrator",
++    "Premiere", "Canva", "Zapier", "Stripe", "PayPal", "Uber", "Airbnb", "WordPress", "Shopify",
++    "LinkedIn", "WhatsApp", "Telegram", "Signal", "Tesla", "Wikipedia", "Markdown", "LaTeX",
++    "Vim", "Emacs", "VSCode", "Xcode", "npm", "pip", "Homebrew", "Ollama", "Mozc", "Asteria",
++};
++
++bool IsLetters(absl::string_view s) {
++  if (s.empty()) return false;
++  for (const char c : s) {
++    if (!absl::ascii_isalpha(static_cast<unsigned char>(c))) return false;
++  }
++  return true;
++}
++
++bool HasUpper(absl::string_view s) {
++  for (const char c : s) {
++    if (absl::ascii_isupper(static_cast<unsigned char>(c))) return true;
++  }
++  return false;
++}
++
++const absl::flat_hash_map<std::string, std::string>& Words() {
++  static const auto* words = [] {
++    auto* map = new absl::flat_hash_map<std::string, std::string>();
++    // 辞書の一般の語は 5 文字以上だけ(短い語は日本語のローマ字とぶつかりやすい)。
++    // 同じ綴りの表記が複数あれば、大文字を含む方(固有名詞)を選ぶ。
++    for (const KatakanaEnglishEntry& entry : kKatakanaEnglishEntries) {
++      const absl::string_view english = entry.english;
++      if (english.size() < 5 || english.size() > 24 || !IsLetters(english)) continue;
++      const std::string key = absl::AsciiStrToLower(english);
++      auto [it, inserted] = map->emplace(key, std::string(english));
++      if (!inserted && !HasUpper(it->second) && HasUpper(english)) {
++        it->second = std::string(english);
++      }
++    }
++    for (const char* name : kNames) {
++      (*map)[absl::AsciiStrToLower(name)] = name;
++    }
++    return map;
++  }();
++  return *words;
++}
++
++}  // namespace
++
++std::string RomajiEnglishWord(absl::string_view lower_keys, bool* name) {
++  static const auto* names = [] {
++    auto* set = new absl::flat_hash_set<std::string>();
++    for (const char* n : kNames) set->insert(absl::AsciiStrToLower(n));
++    return set;
++  }();
++  if (name != nullptr) *name = names->contains(lower_keys);
++  const auto& words = Words();
++  const auto it = words.find(lower_keys);
++  return it == words.end() ? std::string() : it->second;
++}
++
++}  // namespace kotori
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_romaji_english.h b/src/rewriter/kotori_romaji_english.h
+new file mode 100644
+index 000000000..d7da41b39
+--- /dev/null
++++ b/src/rewriter/kotori_romaji_english.h
+@@ -0,0 +1,22 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#ifndef MOZC_REWRITER_KOTORI_ROMAJI_ENGLISH_H_
++#define MOZC_REWRITER_KOTORI_ROMAJI_ENGLISH_H_
++
++#include <string>
++
++#include "absl/strings/string_view.h"
++
++namespace mozc {
++namespace kotori {
++
++// Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。小文字の英字の並び(github)が英単語の一覧に
++// あれば、その正しい表記(GitHub)を返す。なければ空。
++// 一覧は、製品名・サービス名・技術用語の一覧(3 文字以上)と、同梱のカタカナ英語辞書の英字だけの語
++// (5 文字以上。大文字を含む表記を優先)。
++// name には、製品名などの一覧(日本語の語として読めない名前だけを入れた一覧)の語なら true を入れる。
++std::string RomajiEnglishWord(absl::string_view lower_keys, bool* name = nullptr);
++
++}  // namespace kotori
++}  // namespace mozc
++
++#endif  // MOZC_REWRITER_KOTORI_ROMAJI_ENGLISH_H_
+diff --git a/src/rewriter/kotori_romaji_english_test.cc b/src/rewriter/kotori_romaji_english_test.cc
+new file mode 100644
+index 000000000..3f2d754ce
+--- /dev/null
++++ b/src/rewriter/kotori_romaji_english_test.cc
+@@ -0,0 +1,28 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++#include "rewriter/kotori_romaji_english.h"
++
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace kotori {
++namespace {
++
++TEST(KotoriRomajiEnglishTest, FindsNamesWithTheirSpelling) {
++  EXPECT_EQ(RomajiEnglishWord("github"), "GitHub");
++  EXPECT_EQ(RomajiEnglishWord("apple"), "Apple");
++  EXPECT_EQ(RomajiEnglishWord("linux"), "Linux");
++  EXPECT_EQ(RomajiEnglishWord("ubuntu"), "Ubuntu");
++  EXPECT_EQ(RomajiEnglishWord("iphone"), "iPhone");
++}
++
++TEST(KotoriRomajiEnglishTest, SkipsShortDictionaryWordsAndUnknownKeys) {
++  // 辞書の一般の語でも 4 文字以下は使わない(日本語のローマ字とぶつかりやすい)。
++  EXPECT_EQ(RomajiEnglishWord("sake"), "");
++  EXPECT_EQ(RomajiEnglishWord("kite"), "");
++  EXPECT_EQ(RomajiEnglishWord("nihongo"), "");
++  EXPECT_EQ(RomajiEnglishWord(""), "");
++}
++
++}  // namespace
++}  // namespace kotori
++}  // namespace mozc
 diff --git a/src/rewriter/kotori_typo_model.cc b/src/rewriter/kotori_typo_model.cc
 new file mode 100644
 index 000000000..2800783b7
@@ -34850,10 +35057,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..c5a583146
+index 000000000..2cde31e15
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4716 @@
+@@ -0,0 +1,4850 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -34883,6 +35090,7 @@ index 000000000..c5a583146
 +#include <vector>
 +
 +#include "absl/container/flat_hash_map.h"
++#include "absl/strings/ascii.h"
 +#include "absl/strings/match.h"
 +#include "absl/strings/str_cat.h"
 +#include "absl/strings/str_join.h"
@@ -34905,6 +35113,7 @@ index 000000000..c5a583146
 +#include "protocol/commands.pb.h"
 +#include "protocol/config.pb.h"
 +#include "request/conversion_request.h"
++#include "rewriter/kotori_romaji_english.h"
 +#include "rewriter/kotori_typo_model.h"
 +#include "rewriter/llama_runtime.h"
 +
@@ -36663,6 +36872,7 @@ index 000000000..c5a583146
 +  }
 +  if (const char* v = Env("KOTORI_LM_CONTEXT_WEIGHT")) context_weight_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_CONTEXT_MARGIN")) context_margin_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_ENGLISH_MARGIN")) english_margin_ = std::atof(v);
 +  // Kotori: 文脈つきの学習は利用者のプロファイルだけに置く(外へ送らない。docs/adr/0075)。
 +  if (const char* v = Env("KOTORI_LM_CONTEXT_HISTORY"); v == nullptr || *v != '0') {
 +    std::string path = FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
@@ -37477,6 +37687,24 @@ index 000000000..c5a583146
 +  if (!cands.empty() && cands.front() != nullptr &&
 +      (cands.front()->attributes & (converter::Attribute::USER_DICTIONARY |
 +                                   converter::Attribute::TYPING_CORRECTION))) {
++    // Asteria: Mozc の打ち間違いの補正(TYPING_CORRECTION)が 1 位でも、英語の名前は試す
++    // (notionnimemosuru は Mozc が「のちおんい…」を補正して 1 位にする。docs/adr/0080)。
++    // ユーザー辞書の語は変えない。
++    std::string fixed;
++    if (!(cands.front()->attributes & converter::Attribute::USER_DICTIONARY) &&
++        request.config().kotori_romaji_english() && llm != nullptr &&
++        dictionary_ != nullptr && !over() &&
++        FindEnglishWord(scorer, llm, context, reading,
++                        absl::AsciiStrToLower(TypingKeys(request)), values.front(),
++                        over, &fixed)) {
++      Best english{reading, context, {reading}, {fixed}};
++      english.keep_ascii = true;
++      if (!StoreMemo(MemoKey(request.config(), reading, context), english, background, over)) {
++        return std::nullopt;
++      }
++      best_ = english;
++      return ResizeFor(english, segments);
++    }
 +    return std::nullopt;
 +  }
 +  // ラティスの 1 位のひらがなの数。生成した文がこれより 4 文字以上多ければ、読みを漢字に変えずに
@@ -37804,8 +38032,16 @@ index 000000000..c5a583146
 +  const std::function<bool()> correction_over = [&] {
 +    return over() || UserWaitingFor(waiting_key);
 +  };
++  // Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。辞書を引くだけで、当たりがなければ
++  // LLM を呼ばないので、Space を押して待っているときも試す(時間の上限 over だけを見る)。
++  const bool english_fixed =
++      request.config().kotori_romaji_english() && llm != nullptr && dictionary_ != nullptr &&
++      !over() && !reading.empty() &&
++      FindEnglishWord(scorer, llm, context, reading,
++                        absl::AsciiStrToLower(TypingKeys(request)), values[top], over,
++                      &fixed);
 +  const bool llm_fixed =
-+      llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
++      !english_fixed && llm_correction && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !correction_over() &&
 +      !reading.empty() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
@@ -37831,7 +38067,7 @@ index 000000000..c5a583146
 +  };
 +  g_typo_quick = waiting_at_start;
 +  const bool typo_fixed =
-+      !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
++      !english_fixed && !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !typo_over() &&
 +      !reading.empty() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
@@ -37850,9 +38086,10 @@ index 000000000..c5a583146
 +      best.corrected_reading = kotori_internal::MechanicalCorrectionReading(
 +          *dictionary_, reading, fixed);
 +    }
-+  } else if (typo_fixed) {
++  } else if (typo_fixed || english_fixed) {
 +    best.keys = {reading};
 +    best.values = {fixed};
++    best.keep_ascii = english_fixed;
 +  } else if (cands[top] == nullptr) {
 +    // 生成した文は区切りを持たないので、表記と読みの対応で文節に分ける(一語だけ直しやすく
 +    // するため)。対応が取れないときや分割を切ったときは、全体を 1 つの文節にする。
@@ -37965,6 +38202,7 @@ index 000000000..c5a583146
 +  auto mark_top = [&](converter::Candidate* candidate) {
 +    candidate->kotori_ai_evaluated = true;
 +    candidate->kotori_corrected_reading = best.corrected_reading;
++    if (best.keep_ascii) candidate->attributes |= converter::Attribute::NO_VARIANTS_EXPANSION;
 +    if (!best.corrected_reading.empty()) {
 +      candidate->attributes |= converter::Attribute::SPELLING_CORRECTION |
 +                               converter::Attribute::NO_LEARNING;
@@ -39184,6 +39422,109 @@ index 000000000..c5a583146
 +  return true;
 +}
 +
++// Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。打ったキーのうち、英単語の一覧にある綴り
++// (github)で、かなの区切りと合う所を英語(GitHub)にした文を作り、前の文脈の後に続く文として LLM が
++// 今の 1 番目より english_margin_ 以上自然と見たときだけ選ぶ。英語にする所のかなが日本語の語として
++// 辞書にあるとき(sake → さけ)は試さない。
++bool LmRewriter::FindEnglishWord(ZenzScorer* scorer, ZenzScorer* llm,
++                                 const std::string& context, const std::string& reading,
++                                 const std::string& raw_keys, const std::string& chosen,
++                                 const std::function<bool()>& over, std::string* fixed) const {
++  // 打ったキーが読みに合うかは、英語にする所ごとに前の部分で確かめる(読みが打ったキーの直訳と
++  // 違うことがある: chrome は Mozc が chr を英字のまま残し「chromeがおもい」になる)。
++  if (!IsTypoKeys(raw_keys)) return false;
++  constexpr size_t kMaxHits = 4;
++  constexpr size_t kMinLetters = 3;
++  constexpr size_t kMaxLetters = 24;
++  struct Span {
++    size_t begin, end;  // 打ったキーの範囲
++    std::string word;   // 英語の表記
++  };
++  // 左から、重ならないように、その位置でいちばん長い語を取る。
++  std::vector<Span> spans;
++  const size_t n = raw_keys.size();
++  for (size_t i = 0; i + kMinLetters <= n && spans.size() < kMaxHits; ++i) {
++    for (size_t len = std::min(kMaxLetters, n - i); len >= kMinLetters; --len) {
++      bool name = false;
++      const std::string word = kotori::RomajiEnglishWord(raw_keys.substr(i, len), &name);
++      if (word.empty()) continue;
++      // 前の部分は、打った読みの先頭とそのまま合うこと(日本語の語の途中から英語にしない)。
++      // 後ろの部分は合わなくてよい(linux の x の後の n は、続けて打つと「ん」になる)。
++      if (!absl::StartsWith(reading, RomajiToReading(raw_keys.substr(0, i)))) continue;
++      // 一般の語は、かなにしても日本語の語になる綴り(sake → さけ)なら試さない。製品名などの一覧の語は、
++      // 辞書にカタカナの読み(うぶんつ → ウブンツ)があっても試す。
++      if (!name && dictionary_->HasKey(RomajiToReading(raw_keys.substr(i, len)))) continue;
++      spans.push_back({i, i + len, word});
++      i += len - 1;
++      break;
++    }
++  }
++  if (spans.empty()) return false;
++  // 試す組み合わせ: 1 語ずつと、すべての語(2 語以上のとき)。
++  std::vector<std::vector<Span>> hypotheses;
++  for (const Span& span : spans) hypotheses.push_back({span});
++  if (spans.size() > 1) hypotheses.push_back(spans);
++  // 日本語の部分は zenz で作る(前の文脈と、それまでに作った文の後に続く文として)。
++  auto generate = [&](const std::string& before, const std::string& part,
++                      std::string* out) -> bool {
++    if (part.empty()) return true;
++    CancelScope cancel(over);
++    const auto gens = scorer->GenerateMany(before, {part}, 2);
++    if (gens.empty()) return false;
++    for (const std::string& g : gens[0]) {
++      if (MatchesReading(*dictionary_, single_kanji_, g, part)) {
++        *out = g;
++        return true;
++      }
++    }
++    return false;
++  };
++  std::vector<std::string> texts;
++  for (const std::vector<Span>& hypothesis : hypotheses) {
++    if (over()) return false;
++    std::string text;
++    size_t at = 0;
++    bool ok = true;
++    for (size_t k = 0; k <= hypothesis.size() && ok; ++k) {
++      const size_t end = k < hypothesis.size() ? hypothesis[k].begin : n;
++      std::string part;
++      ok = generate(absl::StrCat(context, text), RomajiToReading(raw_keys.substr(at, end - at)),
++                    &part);
++      text += part;
++      if (k < hypothesis.size()) {
++        text += hypothesis[k].word;
++        at = hypothesis[k].end;
++      }
++    }
++    if (ok && text != chosen && std::find(texts.begin(), texts.end(), text) == texts.end()) {
++      texts.push_back(text);
++    }
++  }
++  if (texts.empty() || over()) return false;
++  std::vector<std::string> all = texts;
++  all.push_back(chosen);
++  std::optional<std::vector<float>> lp;
++  {
++    CancelScope cancel(over);
++    lp = llm->Score(context, "", all);
++  }
++  if (!lp || lp->size() != all.size()) return false;
++  size_t best = 0;
++  for (size_t i = 1; i < texts.size(); ++i) {
++    if ((*lp)[i] > (*lp)[best]) best = i;
++  }
++  const double gain = (*lp)[best] - lp->back();
++  if (Env("KOTORI_LM_DEBUG") != nullptr) {
++    std::fprintf(stderr, "[english] %s keys=%s best=%s gain=%.2f chosen=%s\n", reading.c_str(),
++                 raw_keys.c_str(), texts[best].c_str(), gain, chosen.c_str());
++  }
++  // 英字の大文字と小文字だけが違う(chrome → Chrome)なら、点の差を問わず正しい表記にする。
++  const bool case_only = absl::AsciiStrToLower(texts[best]) == absl::AsciiStrToLower(chosen);
++  if (gain < english_margin_ && !case_only) return false;
++  *fixed = texts[best];
++  return true;
++}
++
 +bool LmRewriter::FindTypoCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                                    const std::string& context,
 +                                    const std::string& reading,
@@ -39572,10 +39913,10 @@ index 000000000..c5a583146
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..0b49989d1
+index 000000000..6dcd66ff5
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,645 @@
+@@ -0,0 +1,654 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -39809,6 +40150,8 @@ index 000000000..0b49989d1
 +    std::string corrected_reading;
 +    // Kotori: 同じ文節keyへ対応する、採点済みの代替文。
 +    std::vector<std::vector<std::string>> alternatives;
++    // Asteria: 英語の名前の文(docs/adr/0080)。英字を打った通りの半角のまま出す(全角にしない)。
++    bool keep_ascii = false;
 +  };
 +
 +  // 設定に合わせてモデルを用意する。zenz を返し(使えなければ nullptr)、*llm に LLM
@@ -39830,6 +40173,11 @@ index 000000000..0b49989d1
 +  // P(文 | 前の文脈)を、打った通りの読みの選んだ文 chosen と比べたもの)が typo_posterior_ 以上なら、
 +  // その文を *fixed に入れて true(docs/adr/0036、0074、0076)。chosen_score(λ_lm・zenz + λ_llm・LLM)は
 +  // 試すかどうかの速さのための関所にだけ使う。raw_keys は打ったローマ字(わからなければ空)。
++  // Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。
++  bool FindEnglishWord(ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
++                       const std::string& reading, const std::string& raw_keys,
++                       const std::string& chosen, const std::function<bool()>& over,
++                       std::string* fixed) const;
 +  bool FindTypoCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                          const std::string& context, const std::string& reading,
 +                          const std::string& raw_keys,
@@ -40204,6 +40552,8 @@ index 000000000..0b49989d1
 +  double context_default_weight_ = 1.0;
 +  double context_weight_ = 3.5;
 +  double context_margin_ = 8.0;
++  // Asteria: 英語の名前の文を選ぶ、LLM の点の差の下限(docs/adr/0080)。KOTORI_LM_ENGLISH_MARGIN。
++  double english_margin_ = 2.0;
 +  // 直前の Finish で覚えた組(Revert で戻す)。
 +  struct Learned {
 +    std::string reading, chosen, rejected;
@@ -45309,7 +45659,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..1a23f4cac 100644
+index ada11a64a..a5ecf4910 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -45322,7 +45672,7 @@ index ada11a64a..1a23f4cac 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6460
++BUILD = 6463
  # Represent the platform and release channel.
  REVISION = 100
  

@@ -1,0 +1,162 @@
+[
+ {
+  "index": "e01",
+  "input": "github",
+  "romaji": "github",
+  "expected_output": [
+   "GitHub"
+  ]
+ },
+ {
+  "index": "e02",
+  "input": "apple",
+  "romaji": "apple",
+  "expected_output": [
+   "Apple"
+  ]
+ },
+ {
+  "index": "e03",
+  "input": "linux",
+  "romaji": "linux",
+  "expected_output": [
+   "Linux"
+  ]
+ },
+ {
+  "index": "e04",
+  "input": "ubuntu",
+  "romaji": "ubuntu",
+  "expected_output": [
+   "Ubuntu"
+  ]
+ },
+ {
+  "index": "e05",
+  "input": "githubnipusshusuru",
+  "romaji": "githubnipusshusuru",
+  "expected_output": [
+   "GitHubにプッシュする"
+  ]
+ },
+ {
+  "index": "e06",
+  "input": "linuxnoinsuto-ru",
+  "romaji": "linuxnoinsuto-ru",
+  "expected_output": [
+   "Linuxのインストール"
+  ]
+ },
+ {
+  "index": "e07",
+  "input": "ubuntuwoirete",
+  "romaji": "ubuntuwoirete",
+  "expected_output": [
+   "Ubuntuを入れて"
+  ]
+ },
+ {
+  "index": "e08",
+  "input": "zoomdekaigisuru",
+  "romaji": "zoomdekaigisuru",
+  "expected_output": [
+   "Zoomで会議する"
+  ]
+ },
+ {
+  "index": "e09",
+  "input": "pythonnobenkyou",
+  "romaji": "pythonnobenkyou",
+  "expected_output": [
+   "Pythonの勉強"
+  ]
+ },
+ {
+  "index": "e10",
+  "input": "slacknirenrakusuru",
+  "romaji": "slacknirenrakusuru",
+  "expected_output": [
+   "Slackに連絡する"
+  ]
+ },
+ {
+  "index": "e11",
+  "input": "dockerwotsukau",
+  "romaji": "dockerwotsukau",
+  "expected_output": [
+   "Dockerを使う"
+  ]
+ },
+ {
+  "index": "e12",
+  "input": "iphonewokaikaeta",
+  "romaji": "iphonewokaikaeta",
+  "expected_output": [
+   "iPhoneを買い替えた"
+  ]
+ },
+ {
+  "index": "e13",
+  "input": "applenoseihin",
+  "romaji": "applenoseihin",
+  "expected_output": [
+   "Appleの製品"
+  ]
+ },
+ {
+  "index": "e14",
+  "input": "chromegaomoi",
+  "romaji": "chromegaomoi",
+  "expected_output": [
+   "Chromeが重い"
+  ]
+ },
+ {
+  "index": "e15",
+  "input": "excelnohyou",
+  "romaji": "excelnohyou",
+  "expected_output": [
+   "Excelの表"
+  ]
+ },
+ {
+  "index": "e16",
+  "input": "youtubedemita",
+  "romaji": "youtubedemita",
+  "expected_output": [
+   "YouTubeで見た"
+  ]
+ },
+ {
+  "index": "e17",
+  "input": "windowsnokoushin",
+  "romaji": "windowsnokoushin",
+  "expected_output": [
+   "Windowsの更新"
+  ]
+ },
+ {
+  "index": "e18",
+  "input": "discordnisanka",
+  "romaji": "discordnisanka",
+  "expected_output": [
+   "Discordに参加"
+  ]
+ },
+ {
+  "index": "e19",
+  "input": "notionnimemosuru",
+  "romaji": "notionnimemosuru",
+  "expected_output": [
+   "Notionにメモする"
+  ]
+ },
+ {
+  "index": "e20",
+  "input": "githubtolinux",
+  "romaji": "githubtolinux",
+  "expected_output": [
+   "GitHubとLinux"
+  ]
+ }
+]
