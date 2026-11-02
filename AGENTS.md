@@ -71,8 +71,10 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   写して 13 個を空にした。今は 1 行ずつ確かめて止まる。`~/mz` 以外の所で Bazel を動かしたら `bazelisk shutdown` してから
   作り直す。壊れたときは、素の Mozc に main のパッチを当てた木から写して戻す(`git worktree add`)。
 - **作業ツリー ~/ag16 でのテスト**: `--repo_env=BAZEL_LLVM=C:/Users/aruik/mz/src/third_party/llvm` を付けないと、
-  「absolute path inclusion(s) found」で止まる。Qt を使うテスト(`//gui/tool:kotori_support_reminder_test` など)は、bazel から
-  動かすと Qt の DLL が見つからず `Exit -1073741515` になる。exe をインストール先の Qt6*.dll と同じフォルダーに写して動かす。
+  「absolute path inclusion(s) found」で止まる。Qt を使うテスト(`//gui/tool:kotori_support_reminder_test`・`//gui/config_dialog:kotori_dashboard_test`)は、
+  CI と同じく PowerShell で `$env:PATH` に `third_party/qt/bin`、`QT_PLUGIN_PATH` に `third_party/qt/plugins` を入れ、
+  `--test_env=PATH=… --test_env=QT_PLUGIN_PATH=… --test_env=QT_QPA_PLATFORM=offscreen` を付けて bazel で動かす
+  (付けないと Qt の DLL が見つからず `Exit -1073741515`、設定画面のテストは止まったままになる)。
 - **Windows の通知は結果を残す**: 一度も通知を出したことがない AUMID では `ToastNotifier.Setting` が 0x80070490 を返す。
   これを失敗として扱っていたため、応援のお願いは一度も出ていなかった(2026-11-02 に発見)。`qInfo` は製品では
   どこにも残らないので、見えない処理の結果はファイル(support-reminder.ini の `last_result` など)に書く。
