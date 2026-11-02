@@ -43211,7 +43211,7 @@ index eda5d517e..2c99a39c7 100644
    if (run_level == mozc::RunLevel::RESTRICTED) {
      MOZC_VLOG(1) << "Mozc server starts with timeout mode";
 diff --git a/src/session/BUILD.bazel b/src/session/BUILD.bazel
-index 2da5b8d46..a0315a9f4 100644
+index 2da5b8d46..e28c88def 100644
 --- a/src/session/BUILD.bazel
 +++ b/src/session/BUILD.bazel
 @@ -44,6 +44,31 @@ load("//bazel:run_build_tool.bzl", "mozc_run_build_tool")
@@ -43279,7 +43279,19 @@ index 2da5b8d46..a0315a9f4 100644
      shard_count = 8,
      tags = [
          "noandroid",  # TODO(b/73698251): disabled due to errors
-@@ -678,3 +713,18 @@ mozc_cc_test(
+@@ -540,9 +575,11 @@ mozc_cc_test(
+         ":session_handler_tool",
+         "//base:file_stream",
+         "//base:file_util",
++        "//config:config_handler",
+         "//engine:engine_interface",
+         "//engine:mock_data_engine_factory",
+         "//protocol:commands_cc_proto",
++        "//protocol:config_cc_proto",
+         "//request:request_test_util",
+         "//testing:gunit_main",
+         "//testing:mozctest",
+@@ -678,3 +715,18 @@ mozc_cc_test(
          "@com_google_absl//absl/strings",
      ],
  )
@@ -44634,10 +44646,30 @@ index 4718077e2..9532e7021 100644
        if (is_passed) {
          std::cout << "[ PASSED ] " << filepath << std::endl;
 diff --git a/src/session/session_handler_scenario_test.cc b/src/session/session_handler_scenario_test.cc
-index 1bce7497e..ffd4b8fd7 100644
+index 1bce7497e..f889a8f77 100644
 --- a/src/session/session_handler_scenario_test.cc
 +++ b/src/session/session_handler_scenario_test.cc
-@@ -74,6 +74,7 @@ class SessionHandlerScenarioTestBase : public SessionHandlerTestBase {
+@@ -44,9 +44,11 @@
+ #include "absl/strings/str_replace.h"
+ #include "base/file_stream.h"
+ #include "base/file_util.h"
++#include "config/config_handler.h"
+ #include "engine/engine_interface.h"
+ #include "engine/mock_data_engine_factory.h"
+ #include "protocol/commands.pb.h"
++#include "protocol/config.pb.h"
+ #include "request/request_test_util.h"
+ #include "session/session_handler_test_util.h"
+ #include "session/session_handler_tool.h"
+@@ -71,9 +73,15 @@ class SessionHandlerScenarioTestBase : public SessionHandlerTestBase {
+     // Note that singleton Config instance is backed up and restored
+     // by SessionHandlerTestBase's SetUp and TearDown methods.
+     SessionHandlerTestBase::SetUp();
++    // Asteria: シナリオは Mozc の入力中の候補を確かめるので、窓を出す設定にする(既定は出さない。
++    // docs/adr/0081)。
++    config::Config config = config::ConfigHandler::DefaultConfig();
++    config.set_kotori_hide_suggestion_window(false);
++    config::ConfigHandler::SetConfig(config);
      std::unique_ptr<EngineInterface> engine =
          MockDataEngineFactory::Create().value();
      handler_ = std::make_unique<SessionHandlerInterpreter>(std::move(engine));
@@ -44645,7 +44677,7 @@ index 1bce7497e..ffd4b8fd7 100644
  
    }
  
-@@ -217,6 +218,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
+@@ -217,6 +225,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
    }
  }
  

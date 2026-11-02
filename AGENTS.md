@@ -76,6 +76,9 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 - **Windows の通知は結果を残す**: 一度も通知を出したことがない AUMID では `ToastNotifier.Setting` が 0x80070490 を返す。
   これを失敗として扱っていたため、応援のお願いは一度も出ていなかった(2026-11-02 に発見)。`qInfo` は製品では
   どこにも残らないので、見えない処理の結果はファイル(support-reminder.ini の `last_result` など)に書く。
+- **CI と同じテストを全部回す**: Mozc の単体テストは `.github/workflows/mozc-windows.yml` の「テストする」の一覧を
+  そのまま手元で回す。設定の既定値を変えたとき `session_handler_scenario_test` だけ回し忘れ、CI の MSI が作れなかった
+  (2026-11-02)。
 - **入力中の候補を作るのを止めると Space の結果が変わる**: 打鍵ごとの候補作り(`EngineConverter::Suggest` →
   `LmRewriter::RewriteSuggestion`)は、AI の先回りの変換と打ち間違いの補正を始めさせる役も持つ。窓を隠すだけなら
   出力(`FillOutput`)で隠す(docs/adr/0081)。見た目だけの変更でも、`session_eval.py` で前後の 1 番目を比べる。
