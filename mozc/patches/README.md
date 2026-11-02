@@ -20,7 +20,7 @@ Mozc や llama.cpp を上げるときは、この表で「何を守る変更か�
 | --- | --- | --- |
 | `MODULE.bazel`、`bazel/BUILD.llama_cpp.bazel` | llama.cpp のヘッダーと、Windows の公式ビルド(DLL、SHA-256 固定)の取得 | 0013、0016 |
 | `rewriter/llama_runtime.*` | llama.cpp の DLL を実行時に読む。AI を載せる GPU を選ぶ(専用 GPU、VRAM 3 GiB 以上。設定がオンなら内蔵 GPU) | 0016、0024、0078 |
-| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定) | 0067、0077 |
+| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定)、入力中に候補の窓を出さない設定 | 0067、0077、0081 |
 | `rewriter/kotori_homophone_hint_rewriter.*` | 同音語のヒント(見分ける手がかりの語を候補の説明に出す) | 0079 |
 | `rewriter/kotori_romaji_english.*`、`rewriter/lm_rewriter.*` の `FindEnglishWord` | 英語の名前をローマ字のまま打てる(github → GitHub。文脈で 1 番目を決める) | 0080 |
 | `rewriter/zenz_scorer.*` | zenz / LLM の採点(前置きの使い回し、候補の木)、ビームサーチ(複数の根をまとめる)、計算量の累計 | 0013、0016、0024 |
