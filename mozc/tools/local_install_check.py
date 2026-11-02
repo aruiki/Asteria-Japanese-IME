@@ -10,6 +10,7 @@ rollbackで同じ版へ戻す。導入中のTIPは各アプリが読み込んで
   python -X utf8 mozc/tools/local_install_check.py precheck --candidate C.msi --rollback R.msi --expected-dir D --out O
   python -X utf8 mozc/tools/local_install_check.py install  --out O
   python -X utf8 mozc/tools/local_install_check.py verify   --out O   # 実入力。キーボード/マウスに触らない
+  python -X utf8 mozc/tools/local_install_check.py word     --out O   # Word の白紙の文書で実入力(5 文)
   python -X utf8 mozc/tools/local_install_check.py rollback --out O
   python -X utf8 mozc/tools/local_install_check.py restored --out O   # 復帰後の版/ファイル/プロファイル確認
 """
@@ -342,6 +343,43 @@ def browser(args):
         raise RuntimeError("Edgeの二重入力試験が未完了: " + str(report.get("error")))
 
 
+# Word の白紙の文書で打つ文(番号・ローマ字・期待する確定文字)。読みだけで決まる、迷いのない文にする。
+WORD_CASES = [
+    ("w1", "nihongo", "日本語"),
+    ("w2", "toukyou", "東京"),
+    ("w3", "arigatougozaimasu", "ありがとうございます"),
+    ("w4", "kaiginoshiryouwookurimasu", "会議の資料を送ります"),
+    ("w5", "kyouhaiitenkidesune", "今日はいい天気ですね"),
+]
+
+
+def word(args):
+    """Wordの文書へ実SendInputで打って確定し、本文に1回ずつ入ったかを確かめる(5文)。"""
+    r = Run(args.out)
+    r.require("install")
+    compiler = Path(os.environ["WINDIR"]) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
+    source = Path(__file__).resolve().parents[2] / "eval" / "imebench"
+    exe, output, shots = r.out / "WordInputProbe.exe", r.out / "word-input.json", r.out / "word-shots"
+    smoke.run([str(compiler), "/nologo", "/target:winexe", "/platform:x64",
+               "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll",
+               "/reference:System.Web.Extensions.dll", "/reference:Microsoft.CSharp.dll",
+               "/out:" + str(exe), str(source / "WordInputProbe.cs")])
+    cases = r.out / "word-cases.tsv"
+    cases.write_text("".join(f"{i}\t{romaji}\t{expected}\n" for i, romaji, expected in WORD_CASES), encoding="utf-8")
+    os.environ["KOTORI_LOCAL_ACCEPTANCE"] = "owner-approved"
+    with profile_restored_after(r, "word"):
+        process = subprocess.run([str(exe), str(cases), str(output), str(shots)], timeout=300)
+    report = json.loads(output.read_text(encoding="utf-8")) if output.is_file() else {}
+    trials = report.get("trials", [])
+    ok = (process.returncode == 0 and report.get("complete") is True and
+          report.get("passed") == len(WORD_CASES) == len(trials))
+    r.save("word" if ok else "word_failed", word_passed=report.get("passed"), word_trials=trials,
+           word_version=report.get("word_version"), word_error=report.get("error"),
+           word_scope="Microsoft Word, new blank document, real SendInput")
+    if not ok:
+        raise RuntimeError("Wordの実入力が未完了: " + str(report.get("error") or report.get("body")))
+
+
 def rollback(args):
     r = Run(args.out)
     r.require("precheck")
@@ -390,7 +428,7 @@ def restored(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["precheck", "install", "verify", "clickprobe", "browser", "rollback", "restored"])
+    ap.add_argument("stage", choices=["precheck", "install", "verify", "clickprobe", "browser", "word", "rollback", "restored"])
     ap.add_argument("--out", required=True)
     ap.add_argument("--candidate")
     ap.add_argument("--rollback")

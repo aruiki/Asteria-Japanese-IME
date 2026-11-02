@@ -208,4 +208,12 @@ posterior 0.4 でも 手を止めて 23 → 26、0.15 秒 15 → 16 にとどま
 ### Edge での実入力(3.34.6467.100)
 
 `local_install_check.py browser --skip-click`: Edge の textarea・contenteditable で 14 件中 12 件合格(クリック 2 件は環境の都合で
-未検証、前と同じ)、学習履歴を戻して SHA 一致。Word での実入力は、自動で打つ道具が文書に文字を届けられず未確認。
+未検証、前と同じ)、学習履歴を戻して SHA 一致。
+
+### Word での実入力(未確認: この PC の Office のライセンス)
+
+`local_install_check.py word`(新しく足した段階。`eval/imebench/WordInputProbe.cs`): Word を COM で白紙の文書として開き、
+実際のキー入力で 5 文を打って確定し、本文を読む。この PC では、Word が文書の上に「5 日間のパスが終了しました」という
+Office のライセンスの案内(NUIDialog)を出し、キーボードが本文(`_WwG`)に届かない(Esc でも閉じない)。前回「文字が届かない」
+とした原因もこれだった。道具は本文にキーボードが来たことを確かめてから打ち、来なければこの理由を記録して止まる。
+学習履歴は戻して SHA 一致。ライセンスのある Word で `word` 段階を回せば確かめられる。
