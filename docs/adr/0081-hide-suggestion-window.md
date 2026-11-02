@@ -1,4 +1,4 @@
-# 0081. 入力中に候補の窓を出さない設定(既定オフ)
+# 0081. 入力中に候補の窓を出さない設定(既定オン)
 
 - 状態: 採用
 - 日付: 2026-11-02
@@ -14,7 +14,11 @@ Google 日本語入力はサジェストを、Microsoft IME は予測入力を�
 
 ## 決めたこと
 
-- 設定 `kotori_hide_suggestion_window`(既定 false)。設定画面の「AI 変換」に「入力中に候補の窓を出さない」。
+- 設定 `kotori_hide_suggestion_window`(既定 true)。設定画面の「AI 変換」に「入力中に候補の窓を出さない」。
+  最初は既定オフで作ったが、利用者の指示(2026-11-02「デフォルトで表示されないようにしてほしい」)で既定をオンにした。
+  既存の利用者も、設定を保存していなければ(proto の既定値が使われるので)次の版から窓が出なくなる。
+- 既定がオンなので、「サジェスト」タブの入力履歴・システム辞書の候補も入力中には出ない。入力中の候補がほしい人は
+  この項目を外す。
 - オンのとき、`EngineConverter::Suggest` は Mozc のサジェストを切ったときと同じく入力中の候補を作らない(打鍵ごとの候補も出ない)。
 - 取り直しは続ける。`KotoriPreviewConversion` は AI の変換(補正を含む)を用意して覚えるが、入力中の候補には入れない。
   Space を押すと、用意した結果をそのまま出す。
@@ -24,5 +28,9 @@ Google 日本語入力はサジェストを、Microsoft IME は予測入力を�
 
 ## 確認
 
+- Mozc の既存のテスト(engine_converter_test・session_test)は入力中の候補を確かめるものなので、テストの初期化でこの項目を
+  外して今までどおり確かめる(文字種メニューを隠す設定 `kotori_hide_character_types` と同じ扱い)。
+- `//session:session_test` の `KotoriDefaultHidesSuggestionWindowButKeepsAiForSpace`: 既定の設定のまま、打鍵・取り直しで
+  窓が出ず(Mozc のサジェストも呼ばない)、未確定の文字は読みのまま、Space で AI の結果を出す。
 - `//engine:engine_converter_test` の `KotoriHideSuggestionWindowKeepsAiForSpace`: オフでは入力中の窓の 1 番目が AI の結果、
   オンでは入力中の窓がなく(Mozc のサジェストも呼ばない)、Space の 1 番目は同じ AI の結果。

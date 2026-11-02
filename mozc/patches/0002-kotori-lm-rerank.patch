@@ -26227,18 +26227,20 @@ index f8e3b43ec..719704d9f 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..6ff944eef 100644
+index 808058c64..80fd97231 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
-@@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
+@@ -111,6 +111,9 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
    void SetUp() override {
      config_ = std::make_shared<Config>();
      config_->set_use_cascading_window(true);
 +    config_->set_kotori_hide_character_types(false);
++    // Asteria: Mozc の入力中の候補を確かめるため、窓を出す設定にする(既定は出さない。docs/adr/0081)。
++    config_->set_kotori_hide_suggestion_window(false);
      request_ = std::make_shared<Request>();
  
      table_ = std::make_shared<composer::Table>();
-@@ -124,6 +125,22 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
+@@ -124,6 +127,22 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
      composer_.reset();
    }
  
@@ -26261,7 +26263,7 @@ index 808058c64..6ff944eef 100644
    static void GetSegments(const EngineConverter& converter, Segments* dest) {
      CHECK(dest);
      *dest = converter.segments_;
-@@ -2472,6 +2489,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
+@@ -2472,6 +2491,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
    }
  }
  
@@ -26293,7 +26295,7 @@ index 808058c64..6ff944eef 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4012,338 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4014,338 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
@@ -26632,7 +26634,7 @@ index 808058c64..6ff944eef 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5196,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5198,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -26970,7 +26972,7 @@ index 335639ca8..1295e38c7 100644
 +    ],
 +)
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..911411719 100644
+index abbf55d68..d2c9c52c2 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,55 @@
@@ -27648,7 +27650,7 @@ index abbf55d68..911411719 100644
 +      live_note->setWordWrap(true);
 +      live_note->setProperty("kotoriNote", true);
 +      l->addWidget(live_note);
-+      // Asteria: 入力中の候補の窓を出さない(Issue #205、docs/adr/0081)。既定はオフ。
++      // Asteria: 入力中の候補の窓を出さない(Issue #205、docs/adr/0081)。既定はオン。
 +      kotoriHideSuggestionWindowCheckBox_ = new QCheckBox(QString::fromUtf8("入力中に候補の窓を出さない"), page);
 +      kotoriHideSuggestionWindowCheckBox_->setObjectName("kotoriHideSuggestionWindow");
 +      kotoriHideSuggestionWindowCheckBox_->setStyleSheet("font-weight: 600;");
@@ -28749,10 +28751,10 @@ index 1c4726b0c..ba7b4dd48 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..c364b21e2
+index 000000000..dc066f47a
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,209 @@
 +// Kotori: Windowsの通知センターに届く応援のお願い(3日ごと。kotori_support_reminder.h)。
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QApplication>
@@ -28789,6 +28791,14 @@ index 000000000..c364b21e2
 +}
 +bool SupportReminderState::Defer(qint64 now, qint64 seconds) {
 +  settings_.setValue("next_prompt_utc", now + seconds);
++  settings_.sync();
++  return settings_.status() == QSettings::NoError;
++}
++bool SupportReminderState::RecordAttempt(qint64 now, qint32 result) {
++  settings_.setValue("last_attempt_utc", now);
++  settings_.setValue("last_result",
++      QStringLiteral("0x%1").arg(static_cast<quint32>(result), 8, 16, QLatin1Char('0')));
++  if (result < 0) settings_.setValue("next_prompt_utc", now + kSupportRetrySeconds);
 +  settings_.sync();
 +  return settings_.status() == QSettings::NoError;
 +}
@@ -28870,9 +28880,13 @@ index 000000000..c364b21e2
 +  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), IID_PPV_ARGS(&manager)))) return hr;
 +  ComPtr<IToastNotifier> notifier;
 +  if (FAILED(hr = manager->CreateToastNotifierWithId(HStringReference(kAumid).Get(), &notifier))) return hr;
-+  NotificationSetting setting;
-+  if (FAILED(hr = notifier->get_Setting(&setting))) return hr;
-+  if (setting != NotificationSetting_Enabled) return S_FALSE;
++  // 一度も通知を出したことがないアプリでは、Windows は設定を「見つからない」(0x80070490)と返す。
++  // これを失敗として扱うと最初の通知を永久に出せない(Issue: 3日たっても届かない)。設定が取れて、
++  // 利用者が止めているときだけ出さない。
++  NotificationSetting setting = NotificationSetting_Enabled;
++  if (SUCCEEDED(notifier->get_Setting(&setting)) && setting != NotificationSetting_Enabled) {
++    return S_FALSE;
++  }
 +  ComPtr<IToastNotificationFactory> factory;
 +  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), IID_PPV_ARGS(&factory)))) return hr;
 +  ComPtr<IToastNotification> toast;
@@ -28939,6 +28953,7 @@ index 000000000..c364b21e2
 +    if (!state.Due(now) || !state.Defer(now)) { app.quit(); return; }
 +    const HRESULT hr = ShowSupportToast();
 +    qInfo("Asteria support toast HRESULT=0x%08lx", static_cast<unsigned long>(hr));
++    state.RecordAttempt(now, static_cast<qint32>(hr));
 +#endif
 +    idle.setInterval(60 * 60 * 1000);
 +  });
@@ -28951,10 +28966,10 @@ index 000000000..c364b21e2
 +}
 diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
 new file mode 100644
-index 000000000..557acffa0
+index 000000000..be03eba76
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.h
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,36 @@
 +#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#include <QSettings>
@@ -28968,6 +28983,8 @@ index 000000000..557acffa0
 +inline constexpr qint64 kSupportFirstDelaySeconds = 3 * 24 * 60 * 60;
 +inline constexpr qint64 kSupportIntervalSeconds = 3 * 24 * 60 * 60;
 +inline constexpr qint64 kSupportAfterGithubSeconds = 30 * 24 * 60 * 60;
++// 通知を出せなかった(Windows の通知の失敗)ときは、3日待たずに1時間後に出し直す。
++inline constexpr qint64 kSupportRetrySeconds = 60 * 60;
 +class SupportReminderState {
 + public:
 +  explicit SupportReminderState(const QString &path) : settings_(path, QSettings::IniFormat) {}
@@ -28975,6 +28992,9 @@ index 000000000..557acffa0
 +  bool Due(qint64 now);
 +  bool Defer(qint64 now, qint64 seconds = kSupportIntervalSeconds);
 +  bool Disable();
++  // 通知を出した結果(HRESULT)を残す。失敗なら1時間後に出し直す。原因を後から追えるよう、
++  // 最後に試した時刻と結果を support-reminder.ini に書く。
++  bool RecordAttempt(qint64 now, qint32 result);
 + private:
 +  QSettings settings_;
 +};
@@ -28988,10 +29008,10 @@ index 000000000..557acffa0
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..f17be3a13
+index 000000000..f4850c326
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,110 @@
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QTemporaryDir>
 +#include "testing/gunit.h"
@@ -29071,6 +29091,26 @@ index 000000000..f17be3a13
 +  EXPECT_FALSE(HandleSupportAction(state, "later", 100, open));
 +  EXPECT_EQ(opened, 0);
 +}
++// 通知を出せなかったときは3日待たずに出し直し、結果を残す。出せたとき・利用者が Windows で
++// 止めているとき(S_FALSE)は3日後のまま。
++TEST_F(SupportReminderTest, FailedToastRetriesWithinAnHourAndIsRecorded) {
++  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Defer(1000));
++  ASSERT_TRUE(state.RecordAttempt(1000, static_cast<qint32>(0x80070490u)));
++  EXPECT_FALSE(state.Due(1000 + kSupportRetrySeconds - 1));
++  EXPECT_TRUE(state.Due(1000 + kSupportRetrySeconds));
++  QSettings ini(Path(), QSettings::IniFormat);
++  EXPECT_EQ(ini.value("last_result").toString(), QStringLiteral("0x80070490"));
++  EXPECT_EQ(ini.value("last_attempt_utc").toLongLong(), 1000);
++  for (const qint32 ok : {0, 1}) {
++    SupportReminderState shown(Path());
++    ASSERT_TRUE(shown.Defer(5000));
++    ASSERT_TRUE(shown.RecordAttempt(5000, ok));
++    EXPECT_FALSE(shown.Due(5000 + kSupportIntervalSeconds - 1));
++    EXPECT_TRUE(shown.Due(5000 + kSupportIntervalSeconds));
++  }
++  EXPECT_EQ(kSupportRetrySeconds, 60 * 60);
++}
 +TEST_F(SupportReminderTest, ToastHasNativeActionsAndSilentAudio) {
 +  const QString xml = SupportToastXml();
 +  EXPECT_TRUE(xml.contains("ToastGeneric"));
@@ -29131,7 +29171,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..25e2170a5 100644
+index 7d735374e..1d5764399 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -29188,8 +29228,8 @@ index 7d735374e..25e2170a5 100644
 +  // (docs/adr/0080)。既定はオフ。
 +  optional bool kotori_romaji_english = 211 [default = false];
 +  // Asteria: 入力中(Space を押す前)の候補の窓を出さない(Issue #205、docs/adr/0081)。
-+  // 裏での AI の変換と補正は続け、Space で用意した結果を出す。既定はオフ。
-+  optional bool kotori_hide_suggestion_window = 212 [default = false];
++  // 裏での AI の変換と補正は続け、Space で用意した結果を出す。既定はオン(利用者の指示、2026-11-02)。
++  optional bool kotori_hide_suggestion_window = 212 [default = true];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -44756,7 +44796,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..12ef7809a 100644
+index 012d822a5..edeee169e 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -27,6 +27,8 @@
@@ -44776,7 +44816,19 @@ index 012d822a5..12ef7809a 100644
  #include "base/strings/assign.h"
  #include "base/strings/unicode.h"
  #include "base/vlog.h"
-@@ -1225,6 +1228,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
+@@ -552,6 +555,11 @@ class SessionTest : public testing::TestWithTempUserProfile {
+   void InitSessionWithRequest(Session* session,
+                               const commands::Request& request) {
+     session->SetRequest(request);
++    // Asteria: Mozc の入力中の候補を確かめるため、窓を出す設定にする(既定は出さない。docs/adr/0081)。
++    // テストが先に入れた設定は引き継ぐ。
++    config::Config config = session->context().GetConfig();
++    config.set_kotori_hide_suggestion_window(false);
++    session->SetConfig(config);
+     auto table = std::make_shared<composer::Table>();
+     table->InitializeWithRequestAndConfig(
+         request, config::ConfigHandler::DefaultConfig());
+@@ -1225,6 +1233,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44786,7 +44838,7 @@ index 012d822a5..12ef7809a 100644
  
    commands::Command command;
    InsertCharacterChars("watasinonamaehanakanodesu", &session, &command);
-@@ -2098,6 +2104,9 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2098,6 +2109,9 @@ TEST_F(SessionTest, UpdatePreferences) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44796,7 +44848,7 @@ index 012d822a5..12ef7809a 100644
    commands::Command command;
    InsertCharacterChars("aiueo", &session, &command);
    Segments segments;
-@@ -2109,6 +2118,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2109,6 +2123,7 @@ TEST_F(SessionTest, UpdatePreferences) {
        .WillRepeatedly(DoAll(SetArgPointee<1>(segments), Return(true)));
  
    SetSendKeyCommand("SPACE", &command);
@@ -44804,7 +44856,7 @@ index 012d822a5..12ef7809a 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(false);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2121,6 +2131,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2121,6 +2136,7 @@ TEST_F(SessionTest, UpdatePreferences) {
    session.ConvertCancel(&command);
  
    SetSendKeyCommand("SPACE", &command);
@@ -44812,7 +44864,7 @@ index 012d822a5..12ef7809a 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(true);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2138,13 +2149,12 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2138,13 +2154,12 @@ TEST_F(SessionTest, UpdatePreferences) {
    command.Clear();
    session.ConvertCancel(&command);
  
@@ -44828,7 +44880,7 @@ index 012d822a5..12ef7809a 100644
  
    // On KOTOERI keymap, EISU key does "ToggleAlphanumericMode".
    SetSendKeyCommand("EISU", &command);
-@@ -2291,6 +2301,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
+@@ -2291,6 +2306,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44838,7 +44890,7 @@ index 012d822a5..12ef7809a 100644
    commands::Command command;
  
    Segments segments;
-@@ -3799,6 +3812,9 @@ TEST_F(SessionTest, Issue1816861) {
+@@ -3799,6 +3817,9 @@ TEST_F(SessionTest, Issue1816861) {
    candidate = segment->add_candidate();
    candidate->value = "陰謀説";
  
@@ -44848,7 +44900,7 @@ index 012d822a5..12ef7809a 100644
    EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
        .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
  
-@@ -6218,6 +6234,8 @@ TEST_F(SessionTest, Issue2223762) {
+@@ -6218,6 +6239,8 @@ TEST_F(SessionTest, Issue2223762) {
  }
  
  TEST_F(SessionTest, Issue2223755) {
@@ -44857,7 +44909,7 @@ index 012d822a5..12ef7809a 100644
    // This is a unittest against http://b/2223755.
    // - F6 and F7 convert space to half-width.
  
-@@ -6230,9 +6248,11 @@ TEST_F(SessionTest, Issue2223755) {
+@@ -6230,9 +6253,11 @@ TEST_F(SessionTest, Issue2223755) {
      commands::Command command;
  
      EXPECT_TRUE(SendKey("a", &session, &command));
@@ -44871,7 +44923,7 @@ index 012d822a5..12ef7809a 100644
      EXPECT_TRUE(SendKey("i", &session, &command));
  
      EXPECT_EQ(GetComposition(command), "あ い");
-@@ -6249,9 +6269,11 @@ TEST_F(SessionTest, Issue2223755) {
+@@ -6249,9 +6274,11 @@ TEST_F(SessionTest, Issue2223755) {
      commands::Command command;
  
      EXPECT_TRUE(SendKey("a", &session, &command));
@@ -44885,7 +44937,7 @@ index 012d822a5..12ef7809a 100644
      EXPECT_TRUE(SendKey("i", &session, &command));
  
      EXPECT_EQ(GetComposition(command), "あ い");
-@@ -6708,9 +6730,10 @@ TEST_F(SessionTest, IMEOnWithModeTest) {
+@@ -6708,9 +6735,10 @@ TEST_F(SessionTest, IMEOnWithModeTest) {
      command.mutable_input()->mutable_key()->set_mode(commands::HALF_ASCII);
      EXPECT_TRUE(session.IMEOn(&command));
      EXPECT_TRUE(command.output().has_mode());
@@ -44898,7 +44950,7 @@ index 012d822a5..12ef7809a 100644
    }
  }
  
-@@ -7165,7 +7188,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -7165,7 +7193,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterChars("123.", &session, &command);
  
@@ -44908,7 +44960,7 @@ index 012d822a5..12ef7809a 100644
    }
  
    // Don't trigger auto conversion for the ".."
-@@ -7190,7 +7214,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -7190,7 +7219,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterString("１２３。", "123.", &session, &command);
  
@@ -44918,7 +44970,7 @@ index 012d822a5..12ef7809a 100644
    }
  
    // Don't trigger auto conversion for "." only.
-@@ -7878,6 +7903,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -7878,6 +7908,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -44928,7 +44980,7 @@ index 012d822a5..12ef7809a 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9172,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9177,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -44966,18 +45018,19 @@ index 012d822a5..12ef7809a 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9864,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9869,11 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
 +  // 通常候補の抑制を検証する。AI の非同期反映と通常候補維持は KotoriRefreshSuggestion で検証。
 +  config::Config config;
 +  config.set_kotori_lm_enabled(false);
++  config.set_kotori_hide_suggestion_window(false);
 +  session.SetConfig(config);
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10557,757 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10563,800 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -45139,6 +45192,48 @@ index 012d822a5..12ef7809a 100644
 +  kotori::g_live_next_ms = 0;
 +}
 +
++// Asteria: 既定では入力中の候補の窓を出さない(Issue #205、docs/adr/0081)。手が止まった後の取り直しは
++// 続けて AI の変換を用意し、Space でその結果を出す。
++TEST_F(SessionTest, KotoriDefaultHidesSuggestionWindowButKeepsAiForSpace) {
++  ASSERT_TRUE(config::ConfigHandler::DefaultConfig().kotori_hide_suggestion_window());
++  MockEngine engine;
++  auto converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  session.SetConfig(config::ConfigHandler::DefaultConfig());
++  EXPECT_CALL(*converter, StartPrediction(_, _)).Times(0);
++  Segments converted;
++  AddCandidate("あいうえお", "阿伊宇江於", converted.add_segment());
++  converted.mutable_segment(0)->set_key("あいうえお");
++  converted.mutable_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  converted.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(converted), Return(true)));
++  kotori::g_live_first_ms = 200;
++  kotori::g_live_next_ms = 0;
++  commands::Command command;
++  InsertCharacterChars("aiueo", &session, &command);
++  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_callback());
++  EXPECT_EQ(command.output().callback().session_command().type(),
++            commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
++  command.Clear();
++  command.mutable_input()->set_type(commands::Input::SEND_COMMAND);
++  command.mutable_input()->mutable_command()->set_type(
++      commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
++  ASSERT_TRUE(session.SendCommand(&command));
++  EXPECT_TRUE(command.output().consumed());
++  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_preedit());
++  EXPECT_EQ(command.output().preedit().segment(0).value(), "あいうえお");
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  command.Clear();
++  ASSERT_TRUE(session.Convert(&command));
++  EXPECT_EQ(command.output().preedit().segment(0).value(), "阿伊宇江於");
++  kotori::g_live_first_ms = 0;
++  kotori::g_live_next_ms = 0;
++}
++
 +TEST_F(SessionTest, KotoriRefreshDisabledOrPrivate) {
 +  // 別セッションの AI が有効でも、このセッションの設定を優先する。
 +  kotori::g_live_first_ms = 200;
@@ -45151,6 +45246,7 @@ index 012d822a5..12ef7809a 100644
 +    config::Config config;
 +    config.set_kotori_lm_enabled(incognito);
 +    config.set_incognito_mode(incognito);
++    config.set_kotori_hide_suggestion_window(false);
 +    session.SetConfig(config);
 +    Segments suggestion;
 +    Segment* segment = suggestion.add_segment();
