@@ -204,3 +204,8 @@ posterior 0.4 でも 手を止めて 23 → 26、0.15 秒 15 → 16 にとどま
   同じ結果、Space の待ちも同じくらい。判定用も 117/120 で同じ。Unreal は打ち間違いが 25 → 22(手を止めて)と減り、待ちが延びる
   (すぐ Space の p95 208 → 314 ms)。既定の品質は変えない。
 - 同梱のモデル(zenz small・medium・生成器・TinySwallow 1.5B)の組み合わせでは、これ以上の精度の伸びは測れなかった。
+
+### Edge での実入力(3.34.6467.100)
+
+`local_install_check.py browser --skip-click`: Edge の textarea・contenteditable で 14 件中 12 件合格(クリック 2 件は環境の都合で
+未検証、前と同じ)、学習履歴を戻して SHA 一致。Word での実入力は、自動で打つ道具が文書に文字を届けられず未確認。
