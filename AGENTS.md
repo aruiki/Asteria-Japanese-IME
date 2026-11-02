@@ -76,6 +76,9 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 - **Windows の通知は結果を残す**: 一度も通知を出したことがない AUMID では `ToastNotifier.Setting` が 0x80070490 を返す。
   これを失敗として扱っていたため、応援のお願いは一度も出ていなかった(2026-11-02 に発見)。`qInfo` は製品では
   どこにも残らないので、見えない処理の結果はファイル(support-reminder.ini の `last_result` など)に書く。
+- **入力中の候補を作るのを止めると Space の結果が変わる**: 打鍵ごとの候補作り(`EngineConverter::Suggest` →
+  `LmRewriter::RewriteSuggestion`)は、AI の先回りの変換と打ち間違いの補正を始めさせる役も持つ。窓を隠すだけなら
+  出力(`FillOutput`)で隠す(docs/adr/0081)。見た目だけの変更でも、`session_eval.py` で前後の 1 番目を比べる。
 - **Bazel の出力は読み取り専用**: `bazel-bin` からコピーしたファイルを上書きするときは `chmod u+w` してから。
 - **積み重ねた PR のマージ**: 下の PR を `--delete-branch` でマージすると、上の PR が付け替えられずに閉じることが
   ある。先に上の PR の base を main に変えてからマージするか、一番上のブランチからまとめて出し直す。

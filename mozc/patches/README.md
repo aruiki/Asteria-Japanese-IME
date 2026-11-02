@@ -20,10 +20,10 @@ Mozc や llama.cpp を上げるときは、この表で「何を守る変更か�
 | --- | --- | --- |
 | `MODULE.bazel`、`bazel/BUILD.llama_cpp.bazel` | llama.cpp のヘッダーと、Windows の公式ビルド(DLL、SHA-256 固定)の取得 | 0013、0016 |
 | `rewriter/llama_runtime.*` | llama.cpp の DLL を実行時に読む。AI を載せる GPU を選ぶ(専用 GPU、VRAM 3 GiB 以上。設定がオンなら内蔵 GPU) | 0016、0024、0078 |
-| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定)、入力中に候補の窓を出さない設定 | 0067、0077、0081 |
+| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定)、入力中に候補の窓を出さない設定(候補は作り、出力とキーの扱いだけ変える。`session/session.*` の `KotoriShowsSuggestion`) | 0067、0077、0081 |
 | `rewriter/kotori_homophone_hint_rewriter.*` | 同音語のヒント(見分ける手がかりの語を候補の説明に出す) | 0079 |
 | `rewriter/kotori_romaji_english.*`、`rewriter/lm_rewriter.*` の `FindEnglishWord` | 英語の名前をローマ字のまま打てる(github → GitHub。文脈で 1 番目を決める) | 0080 |
-| `gui/tool/kotori_support_reminder.*` | 応援のお願いの通知(3日ごと)。一度も通知を出していないアプリで Windows が設定を「見つからない」と返しても出す。出せなかったら1時間後に出し直し、結果を support-reminder.ini に残す | — |
+| `gui/tool/kotori_support_reminder.*` | 応援のお願いの通知(3日ごと)。一度も通知を出していないアプリで Windows が設定を「見つからない」と返しても出す。出せなかったら1時間後に出し直し、結果を support-reminder.ini に残す。AppContainer・パッケージのアプリから起動されたらすぐ終わる | — |
 | `rewriter/zenz_scorer.*` | zenz / LLM の採点(前置きの使い回し、候補の木)、ビームサーチ(複数の根をまとめる)、計算量の累計 | 0013、0016、0024 |
 | `rewriter/lm_rewriter.*` | 文全体の選択(生成 + 採点)、文節ごとの並べ替え、入力中の予測と Tab、先回りの変換、時間の上限、モデルの裏での読み込み、AI の状態、生成した文の文節分け、ユーザー辞書の保護 | 0015〜0027 |
 | `rewriter/lm_rewriter_test.cc` | 生成した文の文節分けのテスト(`bazelisk test //rewriter:lm_rewriter_test`) | 0027 |
