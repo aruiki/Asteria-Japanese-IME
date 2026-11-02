@@ -29,7 +29,8 @@ def violation(text):
         return "予測の元を切っているのに窓が出た"
     if count > max_count:
         return f"候補数 {count} > {max_count}"
-    if len(preedit) < min_chars:
+    # ライブ変換では未確定の文字が変換した表記(初日)なので、読みの文字数とは比べられない。
+    if opts.get("kotori_live_conversion") != "true" and len(preedit) < min_chars:
         return f"読み {preedit} が {min_chars} 文字より短いのに窓が出た"
     return None
 rnd = random.Random(seed)
