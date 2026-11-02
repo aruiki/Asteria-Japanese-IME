@@ -34483,10 +34483,10 @@ index 000000000..3f2d754ce
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_typo_model.cc b/src/rewriter/kotori_typo_model.cc
 new file mode 100644
-index 000000000..2800783b7
+index 000000000..8db0fbcf8
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model.cc
-@@ -0,0 +1,522 @@
+@@ -0,0 +1,532 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -34503,6 +34503,7 @@ index 000000000..2800783b7
 +#include <vector>
 +
 +#include "absl/container/flat_hash_map.h"
++#include "absl/strings/match.h"
 +#include "absl/strings/string_view.h"
 +
 +namespace mozc {
@@ -34835,6 +34836,15 @@ index 000000000..2800783b7
 +        (is(x, {"じ"}) && is(y, {"ぢ"})) || (is(x, {"ぢ"}) && is(y, {"じ"}))) {
 +      return slip;
 +    }
++    // Asteria: 濁点・半濁点の付け忘れ・付けすぎ(ごさいます → ございます、はんこう → ばんこう)。書き分けの迷いと
++    // 同じ率と見る(docs/adr/0082)。
++    static const char* const kVoiced[] = {"かが", "きぎ", "くぐ", "けげ", "こご", "さざ", "しじ", "すず",
++                                          "せぜ", "そぞ", "ただ", "ちぢ", "つづ", "てで", "とど", "はばぱ",
++                                          "ひびぴ", "ふぶぷ", "へべぺ", "ほぼぽ"};
++    for (const char* group : kVoiced) {
++      const absl::string_view g(group);
++      if (x != y && absl::StrContains(g, x) && absl::StrContains(g, y)) return slip;
++    }
 +  }
 +  // い段のかなの後の ゃ・ゅ・ょ の抜け(意図した読みにあって、打った読みにない)。
 +  if (na == 0 && nb == 1 && head > 0 && is(b[head], {"ゃ", "ゅ", "ょ"}) &&
@@ -35096,10 +35106,10 @@ index 000000000..7fabbbc57
 +#endif  // MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
 diff --git a/src/rewriter/kotori_typo_model_test.cc b/src/rewriter/kotori_typo_model_test.cc
 new file mode 100644
-index 000000000..574302502
+index 000000000..6d0878e23
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model_test.cc
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,133 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -35160,6 +35170,12 @@ index 000000000..574302502
 +  // 隣どうしのかなの入れ替えは 1 回の入れ替え(ござまいせん → ございません)。
 +  EXPECT_NEAR(KanaSlipLogRatio("ござまいせん", "ございません"),
 +              std::log(0.0024) - std::log(1 - 0.0336), 0.05);
++  // Asteria: 濁点・半濁点の付け忘れ・付けすぎ(docs/adr/0082)。
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ありがとうごさいます", "ありがとうございます"), slip);
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("はんこう", "ばんこう"), slip);
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ぱん", "はん"), slip);
++  EXPECT_EQ(KanaSlipLogRatio("さいます", "ざいもす"), -INFINITY);  // 2 か所
++  EXPECT_EQ(KanaSlipLogRatio("さ", "た"), -INFINITY);  // 濁点の違いではない
 +}
 +
 +TEST(TypoModelTest, ReadingToKeys) {
