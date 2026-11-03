@@ -1,3 +1,20 @@
+# 現在の引き継ぎ（2026-11-03、v5.0.0 genmai・新しい設定画面・Eco・追加の AI）
+
+利用者の依頼は「すべてまとめて 5.0.0 を作る」。要件は利用者と決めた(docs/adr/0085、0086、カード 86・87)。
+
+- 変換の中心の zenz を genmai-310M にした(判定用: 普段使い 116 → 118/120、文脈の選択 214 → 225/297)。打ち間違いの
+  補正は zenz-small で判定し、genmai のときは Space の後の補正を 100 ms までにした(重い文の待ちを抑える)。
+- 段階: Eco(zenz-small だけ、LLM なし)・Standard(genmai と TinySwallow)。High・Unreal は設定画面からダウンロードする
+  追加の AI で採点する形にしたが、候補(Qwen3-4B・Qwen3-8B・sarashina2.2-3b)がどれも Standard を上回らなかったので
+  表は空(選べない)。仕様に「設定画面のダウンロードだけは通信してよい」例外を足した。
+- 設定画面は HTML(WebView2、docs/adr/0084)。記録: docs/verification/v5-models-20261103.md、web-settings-20261103.md。
+- Hugging Face の CLI(hf)でアカウント aruiki にログイン済み(OAuth、2026-12-03 まで)。追加の AI を置くときに使う。
+- 残り: 上回る大きい AI を探す、Word の実入力(この PC の Office はライセンス切れ)。
+
+---
+
+以下は過去の引き継ぎ（履歴）。
+
 # 現在の引き継ぎ（2026-11-03、HTML の設定画面）
 
 利用者の依頼「設定ソフトの質を格違いに」に、設定画面を HTML で作り Edge の表示部品(WebView2)で開く形にした

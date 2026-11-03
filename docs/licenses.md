@@ -23,11 +23,12 @@
 | Mozc | BSD-3-Clause(Copyright Google Inc.) | google/mozc(`MOZC_COMMIT` で固定)+ `mozc/patches/` | Google の名前を推奨の表示に使わない(第 3 項) |
 | 短文の追加語彙（配布準備候補） | SudachiDict Apache-2.0、UniDic/NEologd等の全帰属。頻度由来の選択・加工TSVはCC BY-SA 4.0 | SudachiDict 20261015/commit830bf9e、zenz-v2.5-dataset Wikipedia全量/7d9c9ea。training/lexicon/package.jsonで固定 | 名詞の読み/品詞/コストをMozcへ対応し、全量頻度で選択。既存語は上書きしない。short_lexicon.tsv/jsonとNOTICE-short-lexicon.txtを同梱。原生成時のproduct_adopted=falseは生成記録として保持 |
 | Qt 6.9.1 | LGPL-3.0 | Mozc のビルド手順(`build_qt.py`) | 動的リンク(Qt6*.dll)。差し替えられる。差し替え方とソースの入手先は `NOTICE-third-party.txt`、LGPL-3.0 が取り込む GPL-3.0 の全文は `LICENSE-GPL-3.0.txt`(Qt のソースの `LICENSES/GPL-3.0-only.txt`) |
+| Qwen3-4B・Qwen3-8B(追加の AI) | Apache-2.0(Qwen) | Hugging Face の Qwen/Qwen3-4B-GGUF・Qwen3-8B-GGUF(版と SHA-256 を `rewriter/kotori_model_catalog.cc` で固定) | MSI に同梱しない。設定画面から利用者が受け取る(docs/adr/0086) |
 | Microsoft Edge WebView2 SDK 1.0.3179.45 | BSD-3-Clause 相当(Copyright Microsoft Corporation) | NuGet `Microsoft.Web.WebView2`(Mozc パッチの `MODULE.bazel` で SHA-256 固定) | `WebView2LoaderStatic.lib` を `mozc_tool.exe` に静的リンク(HTML の設定画面、docs/adr/0084)。WebView2 の実行環境は同梱しない。全文は `NOTICE-third-party.txt` |
 | llama.cpp / ggml | MIT | Windowsビルドb11259(Vulkan、固定SHA)。ggml-base.dllだけ同じ固定ソースにメモリ確保失敗の修正を加えてBazelで再構築 | 実行時に読み込むDLL。変更はMozcパッチ内`src/bazel/llama_oom.patch`。`ggml-rpc.dll`は入れない(REQ-15-1、作業カード41) |
 | LLVM OpenMP ランタイム(`libomp.dll`) | Apache-2.0 WITH LLVM-exception | llama.cpp の公式 Windows ビルドに含まれる | 全文は `LICENSE-llvm-openmp.txt`(llvm-project llvmorg-20.1.0 の `openmp/LICENSE.TXT`) |
 | zenz-v2.5-small | CC BY-SA 4.0(Keita Miwa。元は ku-nlp/gpt2-small-japanese-char) | `training/zenz/fetch.sh`(版と SHA-256 を固定) | q8_0 に量子化して同梱。`NOTICE-zenz.txt` |
-| zenz-v2.5-medium | CC BY-SA 4.0(Keita Miwa。元は ku-nlp/gpt2-medium-japanese-char) | 同上 | q8_0 に量子化して同梱。GPU のない PC の Low と Unreal で使う(docs/adr/0024) |
+| genmai-310M | CC BY-SA 4.0(subdiox。zenz-v2.5-medium © Keita Miwa の追加学習。元は ku-nlp/gpt2-medium-japanese-char) | `training/genmai/fetch.sh`(版 143e574c と SHA-256 を固定)、`training/genmai/convert.py` | q8_0 に量子化して同梱。変換の中心(docs/adr/0085)。`NOTICE-zenz.txt` |
 | zenz-v2.5-native-generator-20261017 | CC BY-SA 4.0 | zenz-v2.5-smallを追加学習。training/contrastive/native_generator.jsonでSHAを固定 | Q8_0、追加候補生成専用。NOTICE-zenz.txtに元モデル・変更点を表示 |
 | TinySwallow-1.5B | Apache-2.0(Sakana AI) | `training/llm/make.sh`(版を固定) | Q5_K_M に量子化して同梱。`NOTICE-tinyswallow.txt` |
 | カタカナ語英字辞典 / Kotoriカタカナ英語辞書 | CC-BY-SA-3.0 | KEINOS/google-ime-user-dictionary-ja-en、7d241dafcf6ee1f9eafefc0ae7a929c095860246。Mozc MODULE.bazelで各ファイルのSHA-256を固定 | カタカナ語英字辞典コミュニティ・KEINOS・EDICT/EDRDGへ帰属。正規化・読み検査・説明部分除去・重複除去・表記補完・最大4表記へ加工。MSIにKotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txtを同梱。加工後もCC-BY-SA-3.0 |
