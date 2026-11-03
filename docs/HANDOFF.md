@@ -1,3 +1,36 @@
+# 現在の引き継ぎ（2026-11-03、v5.0.0 genmai・新しい設定画面・Eco・追加の AI）
+
+利用者の依頼は「すべてまとめて 5.0.0 を作る」。要件は利用者と決めた(docs/adr/0085、0086、カード 86・87)。
+
+- 変換の中心の zenz を genmai-310M にした(判定用: 普段使い 116 → 118/120、文脈の選択 214 → 225/297)。打ち間違いの
+  補正は zenz-small で判定し、genmai のときは Space の後の補正を 100 ms までにした(重い文の待ちを抑える)。
+- 段階: Eco(zenz-small だけ、LLM なし)・Standard(genmai と TinySwallow)。High・Unreal は設定画面からダウンロードする
+  追加の AI で採点する形にしたが、候補(Qwen3-4B・Qwen3-8B・sarashina2.2-3b)がどれも Standard を上回らなかったので
+  表は空(選べない)。仕様に「設定画面のダウンロードだけは通信してよい」例外を足した。
+- 設定画面は HTML(WebView2、docs/adr/0084)。記録: docs/verification/v5-models-20261103.md、web-settings-20261103.md。
+- Hugging Face の CLI(hf)でアカウント aruiki にログイン済み(OAuth、2026-12-03 まで)。追加の AI を置くときに使う。
+- 残り: 上回る大きい AI を探す、Word の実入力(この PC の Office はライセンス切れ)。
+
+---
+
+以下は過去の引き継ぎ（履歴）。
+
+# 現在の引き継ぎ（2026-11-03、HTML の設定画面）
+
+利用者の依頼「設定ソフトの質を格違いに」に、設定画面を HTML で作り Edge の表示部品(WebView2)で開く形にした
+([ADR0084](adr/0084-web-settings.md)、カード 86)。v4.2.0 の公開の後の枝 `feat/web-settings`。
+
+- 設定は変えたらすぐ保存。画面と mozc_tool の間は JSON(`KotoriSettingsBridge`、載せた項目だけ・型と範囲を確かめる)。
+  WebView2 がない PC と `ASTERIA_CLASSIC_SETTINGS=1` では今までの Qt の画面。キーの割り当て・ローマ字の表・ユーザー辞書は
+  Qt のまま濃紺の Fluent の見た目にそろえた。WebView2 SDK 1.0.3179.45(BSD 相当)を静的リンク(使用許諾に追加)。
+- 検証: [記録](verification/web-settings-20261103.md)。テスト 14 件、実機で開く・保存が届く・戻せる。
+- 見本のデータで画面を見る: `python -m http.server --directory ~/ag16/src/gui/config_dialog/web` を開く(WebView2 の外では見本で動く)。
+- 残り: WebView2 のない PC・ハイコントラストの実機。Mozc の作業ツリーは `~/ag16` の枝 `asteria/web-settings`。
+
+---
+
+以下は過去の引き継ぎ（履歴）。
+
 # 現在の引き継ぎ（2026-11-03、v4.2.0 入力中の窓・同じ間違いを二度しない・設定画面）
 
 利用者の依頼は Issue #205(手を止めるたびに候補の窓が出る)への対応と、「使用感が自然で、普段使いの精度を上げる」目標、

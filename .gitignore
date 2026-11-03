@@ -6,6 +6,7 @@ __pycache__/
 /eval/results-lm/
 /eval/results-mozc/
 /training/zenz/models/
+/training/genmai/models/
 
 # ほかの AI ツールの作業フォルダ
 /.codex/

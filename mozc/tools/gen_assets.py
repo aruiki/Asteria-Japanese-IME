@@ -88,10 +88,11 @@ Asteria日本語入力(以下 Asteria)は Mozc(Copyright 2010-2026 Google Inc.�
 同梱している部品とライセンス:
 ・Mozc: BSD-3-Clause(Google Inc.)
 ・Qt 6: LGPL-3.0(動的リンク。差し替え方とソースの入手先は NOTICE-third-party.txt)
+・Microsoft Edge WebView2 SDK(ローダー): BSD-3-Clause 相当(Copyright Microsoft Corporation)。設定画面が使う。全文は NOTICE-third-party.txt
 ・llama.cpp / ggml: MIT(Copyright The ggml authors)
 ・LLVM OpenMP ランタイム(libomp.dll): Apache-2.0 WITH LLVM-exception
 ・zenz-v2.5-small: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-small-japanese-char)。8 bit に量子化して同梱
-・zenz-v2.5-medium: CC BY-SA 4.0(© Keita Miwa。元は ku-nlp/gpt2-medium-japanese-char)。8 bit に量子化して同梱
+・genmai-310M: CC BY-SA 4.0(subdiox。zenz-v2.5-medium © Keita Miwa を変換用に追加学習したもの。元は ku-nlp/gpt2-medium-japanese-char)。8 bit に量子化して同梱
 ・zenz-v2.5-native-generator-20261017: zenz-v2.5-smallの追加学習モデル、CC BY-SA 4.0。追加生成に使用
 ・TinySwallow-1.5B: Apache-2.0(Sakana AI)。5 bit に量子化して同梱
 ・カタカナ英語辞書: CC BY-SA 3.0(カタカナ語英字辞典コミュニティ、KEINOS、EDICT/EDRDG)。加工済みデータと出所は KotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txt
@@ -142,6 +143,33 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
     "  - 差し替え方: 同じ版(6.9.x)で、同じ設定でビルドした DLL を、インストール先の同じ名前のファイルと\n"
     "    置き換えると、その Qt で動きます。\n"
     "  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。\n\n"
+    "■ Microsoft Edge WebView2 SDK 1.0.3179.45(WebView2LoaderStatic.lib を mozc_tool.exe に静的リンク)\n"
+    "  設定画面を Edge の表示部品(WebView2)で開くために使います。WebView2 の実行環境は同梱しません\n"
+    "  (Windows に入っているものを使い、なければ以前の設定画面を開きます)。\n"
+    "  Copyright (C) Microsoft Corporation. All rights reserved.\n\n"
+    "  Redistribution and use in source and binary forms, with or without\n"
+    "  modification, are permitted provided that the following conditions are\n"
+    "  met:\n\n"
+    "     * Redistributions of source code must retain the above copyright\n"
+    "  notice, this list of conditions and the following disclaimer.\n"
+    "     * Redistributions in binary form must reproduce the above\n"
+    "  copyright notice, this list of conditions and the following disclaimer\n"
+    "  in the documentation and/or other materials provided with the\n"
+    "  distribution.\n"
+    "     * The name of Microsoft Corporation, or the names of its contributors\n"
+    "  may not be used to endorse or promote products derived from this\n"
+    "  software without specific prior written permission.\n\n"
+    "  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n"
+    "  \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n"
+    "  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n"
+    "  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\n"
+    "  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n"
+    "  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\n"
+    "  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n"
+    "  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n"
+    "  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n"
+    "  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n"
+    "  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n"
     "■ llama.cpp / ggml b11259(llama.dll、ggml*.dll)\n"
     "  MIT License、Copyright The ggml authors。全文は LICENSE-llama.cpp.txt。\n"
     "  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドを使用しています。\n"
@@ -173,4 +201,4 @@ rtf = ("{\\rtf1\\ansi\\ansicpg932\\deff0{\\fonttbl{\\f0\\fnil\\fcharset128 Yu Go
 print("ok", sorted(p.name for p in out.iterdir()))
 
 # 追加学習した派生モデルの表示も生成元へ保持する。
-(out / "NOTICE-zenz.txt").write_text('Kotori IME に同梱している言語モデル\n\nzenz-v2.5-small (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-small-japanese-char (CC BY-SA 4.0)\n\nzenz-v2.5-medium (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-medium\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-medium-japanese-char (CC BY-SA 4.0)\n\n変更点: 公開されている重みを llama.cpp の convert_hf_to_gguf.py で GGUF にし、\n8 bit(q8_0)に量子化した。語彙と学習した内容は変えていない。\nこれらのファイル(zenz-v2.5-small-q8_0.gguf、zenz-v2.5-medium-q8_0.gguf)は同じ CC BY-SA 4.0 で\n利用できる。\n\nllama.cpp (MIT): https://github.com/ggml-org/llama.cpp\n\n\n追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf\n  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。\n  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。\n  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。\n  SHA-256と学習原票識別: native_generator.json\n  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive\n  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。\n', encoding="utf-8")
+(out / "NOTICE-zenz.txt").write_text('Kotori IME に同梱している言語モデル\n\nzenz-v2.5-small (c) Keita Miwa\n  https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: ku-nlp/gpt2-small-japanese-char (CC BY-SA 4.0)\n\ngenmai-310M (c) subdiox\n  https://huggingface.co/subdiox/genmai-310M\n  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元にしたモデル: zenz-v2.5-medium (c) Keita Miwa (CC BY-SA 4.0)、ku-nlp/gpt2-medium-japanese-char (CC BY-SA 4.0)\n\n変更点: 公開されている重みを llama.cpp の convert_hf_to_gguf.py で GGUF にし、\n8 bit(q8_0)に量子化した。語彙と学習した内容は変えていない。\nこれらのファイル(zenz-v2.5-small-q8_0.gguf、genmai-310M-q8_0.gguf)は同じ CC BY-SA 4.0 で\n利用できる。\n\nllama.cpp (MIT): https://github.com/ggml-org/llama.cpp\n\n\n追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf\n  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。\n  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/\n  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small\n  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。\n  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。\n  SHA-256と学習原票識別: native_generator.json\n  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive\n  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。\n', encoding="utf-8")
