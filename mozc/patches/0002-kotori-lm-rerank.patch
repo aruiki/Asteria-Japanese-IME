@@ -27091,6 +27091,116 @@ index 808058c64..08dcb5365 100644
 +
  }  // namespace engine
  }  // namespace mozc
+diff --git a/src/gui/base/BUILD.bazel b/src/gui/base/BUILD.bazel
+index 3a077cc45..aab1332ce 100644
+--- a/src/gui/base/BUILD.bazel
++++ b/src/gui/base/BUILD.bazel
+@@ -103,6 +103,7 @@ mozc_cc_qt_library(
+     ],
+     hdrs = [
+         "debug_util.h",
++        "kotori_style.h",
+         "table_util.h",
+         "util.h",
+         "window_title_modifier.h",
+diff --git a/src/gui/base/kotori_style.h b/src/gui/base/kotori_style.h
+new file mode 100644
+index 000000000..4c64d56b7
+--- /dev/null
++++ b/src/gui/base/kotori_style.h
+@@ -0,0 +1,92 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// Asteria の Qt の画面(以前の設定画面・キーの割り当て・ローマ字の表・ユーザー辞書)に共通の見た目。
++// HTML の設定画面(docs/adr/0084)と同じ配色・形にそろえる。ハイコントラストでは当てない。
++
++#ifndef MOZC_GUI_BASE_KOTORI_STYLE_H_
++#define MOZC_GUI_BASE_KOTORI_STYLE_H_
++
++#include <QApplication>
++#include <QString>
++
++#ifdef _WIN32
++#include <windows.h>
++#endif  // _WIN32
++
++namespace mozc {
++namespace gui {
++
++// Fluent 2(Windows 11)の配色と形。ブランド色 #1F3B63、角丸 4px/8px、Segoe UI Variable。
++inline constexpr char kKotoriFluentStyle[] = R"(
++QDialog { background: #F3F3F3; font-size: 10pt; color: #1A1A1A; }
++QTabWidget::pane { border: 1px solid #E5E5E5; border-radius: 8px; background: #FBFBFB; top: -1px; }
++QTabBar::tab { background: transparent; color: #5C5C5C; padding: 8px 14px; margin-right: 2px; border: none; }
++QTabBar::tab:hover { color: #1A1A1A; background: #EAEAEA; border-radius: 4px; }
++QTabBar::tab:selected { color: #1A1A1A; font-weight: 600; border-bottom: 3px solid #1F3B63; }
++QGroupBox { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; margin-top: 18px; padding: 12px 10px 8px 10px; font-weight: 600; }
++QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: #1A1A1A; }
++QPushButton { background: #FFFFFF; color: #1A1A1A; border: 1px solid #D1D1D1; border-bottom-color: #B3B3B3; border-radius: 4px; padding: 5px 14px; min-height: 20px; }
++QPushButton:hover { background: #F6F6F6; color: #1A1A1A; }
++QPushButton:pressed { background: #EBEBEB; color: #5C5C5C; }
++QPushButton:default { background: #1F3B63; color: #FFFFFF; border: 1px solid #2A4C7C; }
++QPushButton:default:hover { background: #2A4C7C; }
++QPushButton:disabled { background: #F0F0F0; color: #A0A0A0; border-color: #E0E0E0; }
++QPushButton:focus { border: 2px solid #1F3B63; }
++QPushButton:default:focus { border: 2px solid #1A1A1A; }
++QCheckBox:focus, QRadioButton:focus { background: #EBF3FC; border-radius: 4px; }
++QTabBar::tab:focus { border: 1px solid #1F3B63; border-radius: 4px; }
++QComboBox, QLineEdit, QSpinBox { background: #FFFFFF; color: #1A1A1A; border: 1px solid #D1D1D1; border-bottom: 1px solid #8A8A8A; border-radius: 4px; padding: 4px 8px; min-height: 20px; }
++QComboBox:focus, QLineEdit:focus, QSpinBox:focus { border-bottom: 2px solid #1F3B63; }
++QComboBox QAbstractItemView { background: #FFFFFF; border: 1px solid #E5E5E5; selection-background-color: #EBF3FC; selection-color: #1A1A1A; }
++QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled { background: #F5F5F5; color: #A0A0A0; }
++QCheckBox, QRadioButton { spacing: 8px; color: #1A1A1A; }
++QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled { color: #A0A0A0; }
++QLabel { color: #1A1A1A; }
++QLabel#kotoriNote, QLabel[kotoriNote="true"] { color: #5C5C5C; font-size: 9pt; }
++QFrame#kotoriCard { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; }
++QFrame[class="setting-group-layout"] { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; padding: 6px 10px; }
++QFrame[class="setting-group-header"] QLabel { font-size: 11pt; font-weight: 600; color: #1A1A1A; }
++QListWidget#kotoriNav { background: transparent; border: none; outline: none; font-size: 10pt; }
++QListWidget#kotoriNav::item { padding: 9px 12px; margin: 1px 0; border-radius: 4px; color: #1A1A1A; }
++QListWidget#kotoriNav::item:hover { background: #EAEAEA; }
++QListWidget#kotoriNav::item:selected { background: #E5E5E5; color: #1A1A1A; border-left: 3px solid #1F3B63; }
++QLineEdit#kotoriSearch { padding: 6px 10px; }
++QLabel#kotoriPageTitle { font-size: 18pt; font-weight: 600; color: #1A1A1A; }
++QLabel#kotoriSearchEmpty { color: #5C5C5C; padding: 8px 12px; }
++QCheckBox[kotoriMatch="true"], QLabel[kotoriMatch="true"], QPushButton[kotoriMatch="true"] { background: #FFF4CE; border-radius: 4px; }
++)";
++
++// 表と見出しの形(ユーザー辞書・キーの割り当ての表)。
++inline constexpr char kKotoriFluentTableStyle[] = R"(
++QTableView, QTableWidget { background: #FFFFFF; alternate-background-color: #FAF9F6; gridline-color: #E5E5E5; border: 1px solid #E5E5E5; border-radius: 8px; selection-background-color: #DCE6F2; selection-color: #1A1A1A; }
++QHeaderView::section { background: #F3F3F3; color: #5C5C5C; border: none; border-bottom: 1px solid #E5E5E5; padding: 6px 8px; font-weight: 600; }
++QMainWindow, QWidget#centralwidget { background: #F3F3F3; }
++QToolBar { background: #F3F3F3; border: none; spacing: 6px; padding: 4px; }
++QToolButton { background: #FFFFFF; border: 1px solid #D1D1D1; border-radius: 4px; padding: 4px 10px; }
++QToolButton:hover { background: #F6F6F6; }
++QMenu { background: #FFFFFF; border: 1px solid #E5E5E5; }
++QMenu::item:selected { background: #EBF3FC; color: #1A1A1A; }
++QListWidget { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; }
++)";
++
++// Windows のハイコントラストが有効か(docs/adr/0028)。
++inline bool KotoriHighContrastActive() {
++#ifdef _WIN32
++  HIGHCONTRASTW hc = {sizeof(hc)};
++  return ::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
++         (hc.dwFlags & HCF_HIGHCONTRASTON);
++#else
++  return false;
++#endif  // _WIN32
++}
++
++// アプリ全体(その窓から開く編集の画面を含む)に Asteria の見た目を当てる。
++inline void KotoriApplyFluentStyle(QApplication *app) {
++  if (app == nullptr || KotoriHighContrastActive()) return;
++  app->setStyleSheet(QString::fromUtf8(kKotoriFluentStyle) +
++                     QString::fromUtf8(kKotoriFluentTableStyle));
++}
++
++}  // namespace gui
++}  // namespace mozc
++
++#endif  // MOZC_GUI_BASE_KOTORI_STYLE_H_
 diff --git a/src/gui/base/util.cc b/src/gui/base/util.cc
 index b1af98c8a..99bc7718b 100644
 --- a/src/gui/base/util.cc
@@ -27345,13 +27455,14 @@ index ec0faf7e7..a75b28272 100644
  
    std::unique_ptr<config::Config> default_config;
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..174b45205 100644
+index abbf55d68..27ccef6a4 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
-@@ -30,12 +30,62 @@
+@@ -30,12 +30,63 @@
  // Qt component of configure dialog for Mozc
  #include "gui/config_dialog/config_dialog.h"
  
++#include "gui/base/kotori_style.h"
 +#include "gui/config_dialog/kotori_settings_data.h"
 +
 +#include <array>
@@ -27411,7 +27522,7 @@ index abbf55d68..174b45205 100644
  #include <sstream>
  #include <string>
  
-@@ -43,6 +93,10 @@
+@@ -43,6 +94,10 @@
  #include "absl/log/log.h"
  #include "absl/strings/string_view.h"
  #include "base/config_file_stream.h"
@@ -27422,51 +27533,12 @@ index abbf55d68..174b45205 100644
  #include "client/client.h"
  #include "config/config_handler.h"
  #include "config/stats_config_util.h"
-@@ -83,6 +137,86 @@ void Connect(const QList<T *> &objects, const char *signal,
+@@ -83,6 +138,47 @@ void Connect(const QList<T *> &objects, const char *signal,
  
  namespace mozc {
  namespace gui {
 +namespace {
 +
-+// Fluent 2(Windows 11)の配色と形。ブランド色 #0F6CBD、角丸 4px/8px、Segoe UI Variable。
-+constexpr char kKotoriFluentStyle[] = R"(
-+QDialog { background: #F3F3F3; font-size: 10pt; color: #1A1A1A; }
-+QTabWidget::pane { border: 1px solid #E5E5E5; border-radius: 8px; background: #FBFBFB; top: -1px; }
-+QTabBar::tab { background: transparent; color: #5C5C5C; padding: 8px 14px; margin-right: 2px; border: none; }
-+QTabBar::tab:hover { color: #1A1A1A; background: #EAEAEA; border-radius: 4px; }
-+QTabBar::tab:selected { color: #1A1A1A; font-weight: 600; border-bottom: 3px solid #0F6CBD; }
-+QGroupBox { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; margin-top: 18px; padding: 12px 10px 8px 10px; font-weight: 600; }
-+QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: #1A1A1A; }
-+QPushButton { background: #FFFFFF; color: #1A1A1A; border: 1px solid #D1D1D1; border-bottom-color: #B3B3B3; border-radius: 4px; padding: 5px 14px; min-height: 20px; }
-+QPushButton:hover { background: #F6F6F6; color: #1A1A1A; }
-+QPushButton:pressed { background: #EBEBEB; color: #5C5C5C; }
-+QPushButton:default { background: #0F6CBD; color: #FFFFFF; border: 1px solid #115EA3; }
-+QPushButton:default:hover { background: #115EA3; }
-+QPushButton:disabled { background: #F0F0F0; color: #A0A0A0; border-color: #E0E0E0; }
-+QPushButton:focus { border: 2px solid #0F6CBD; }
-+QPushButton:default:focus { border: 2px solid #1A1A1A; }
-+QCheckBox:focus, QRadioButton:focus { background: #EBF3FC; border-radius: 4px; }
-+QTabBar::tab:focus { border: 1px solid #0F6CBD; border-radius: 4px; }
-+QComboBox, QLineEdit, QSpinBox { background: #FFFFFF; color: #1A1A1A; border: 1px solid #D1D1D1; border-bottom: 1px solid #8A8A8A; border-radius: 4px; padding: 4px 8px; min-height: 20px; }
-+QComboBox:focus, QLineEdit:focus, QSpinBox:focus { border-bottom: 2px solid #0F6CBD; }
-+QComboBox QAbstractItemView { background: #FFFFFF; border: 1px solid #E5E5E5; selection-background-color: #EBF3FC; selection-color: #1A1A1A; }
-+QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled { background: #F5F5F5; color: #A0A0A0; }
-+QCheckBox, QRadioButton { spacing: 8px; color: #1A1A1A; }
-+QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled { color: #A0A0A0; }
-+QLabel { color: #1A1A1A; }
-+QLabel#kotoriNote, QLabel[kotoriNote="true"] { color: #5C5C5C; font-size: 9pt; }
-+QFrame#kotoriCard { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; }
-+QFrame[class="setting-group-layout"] { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; padding: 6px 10px; }
-+QFrame[class="setting-group-header"] QLabel { font-size: 11pt; font-weight: 600; color: #1A1A1A; }
-+QListWidget#kotoriNav { background: transparent; border: none; outline: none; font-size: 10pt; }
-+QListWidget#kotoriNav::item { padding: 9px 12px; margin: 1px 0; border-radius: 4px; color: #1A1A1A; }
-+QListWidget#kotoriNav::item:hover { background: #EAEAEA; }
-+QListWidget#kotoriNav::item:selected { background: #E5E5E5; color: #1A1A1A; border-left: 3px solid #0F6CBD; }
-+QLineEdit#kotoriSearch { padding: 6px 10px; }
-+QLabel#kotoriPageTitle { font-size: 18pt; font-weight: 600; color: #1A1A1A; }
-+QLabel#kotoriSearchEmpty { color: #5C5C5C; padding: 8px 12px; }
-+QCheckBox[kotoriMatch="true"], QLabel[kotoriMatch="true"], QPushButton[kotoriMatch="true"] { background: #FFF4CE; border-radius: 4px; }
-+)";
 +
 +// 大きな数字の札の文: 数字は大きく、単位(回・ms・%・分・秒など)は小さく。
 +QString KotoriBigNumberHtml(const QString &plain) {
@@ -27509,7 +27581,7 @@ index abbf55d68..174b45205 100644
  
  using ::mozc::config::StatsConfigUtil;
  
-@@ -104,6 +238,14 @@ ConfigDialog::ConfigDialog()
+@@ -104,6 +200,14 @@ ConfigDialog::ConfigDialog()
        initial_use_keyboard_to_change_preedit_method_(false),
        initial_use_mode_indicator_(true) {
    setupUi(this);
@@ -27524,7 +27596,7 @@ index abbf55d68..174b45205 100644
    setStyleSheet(QString::fromUtf8(kQss.data(), kQss.size()));
  
    // Remove the context help button (question mark button) from the window.
-@@ -120,7 +262,6 @@ ConfigDialog::ConfigDialog()
+@@ -120,7 +224,6 @@ ConfigDialog::ConfigDialog()
  #ifdef __APPLE__
    miscDefaultIMEWidget->setVisible(false);
    miscAdministrationWidget->setVisible(false);
@@ -27532,7 +27604,7 @@ index abbf55d68..174b45205 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -141,6 +282,26 @@ ConfigDialog::ConfigDialog()
+@@ -141,6 +244,26 @@ ConfigDialog::ConfigDialog()
  #endif  // NDEBUG
  
    suggestionsSizeSpinBox->setRange(1, 9);
@@ -27559,7 +27631,7 @@ index abbf55d68..174b45205 100644
  
    punctuationsSettingComboBox->addItem(QString::fromUtf8("、。"));
    punctuationsSettingComboBox->addItem(QString::fromUtf8("，．"));
-@@ -152,6 +313,525 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +275,525 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -28085,7 +28157,7 @@ index abbf55d68..174b45205 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +897,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +859,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -28100,7 +28172,7 @@ index abbf55d68..174b45205 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +938,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +900,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28115,7 +28187,7 @@ index abbf55d68..174b45205 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +991,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +953,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28165,7 +28237,7 @@ index abbf55d68..174b45205 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -312,6 +1047,7 @@ ConfigDialog::ConfigDialog()
+@@ -312,6 +1009,7 @@ ConfigDialog::ConfigDialog()
  #endif  // __linux__
  
    GuiUtil::ReplaceWidgetLabels(this);
@@ -28173,7 +28245,7 @@ index abbf55d68..174b45205 100644
  
    Reload();
  
-@@ -324,6 +1060,278 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1022,278 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28261,7 +28333,7 @@ index abbf55d68..174b45205 100644
 +  KotoriSetText(symbolConversionCheckBox, "記号(例: やじるし → →・⇒)");
 +  KotoriSetText(emoticonConversionCheckBox, "顔文字(例: かおもじ → (^_^))");
 +  KotoriSetText(t13nConversionCheckBox, "カタカナ語を英語に(例: こんぴゅーたー → computer)");
-+  KotoriSetText(zipcodeConversionCheckBox, "郵便番号から住所(例: 1000001 → 東京都千代田区千代田)");
++  KotoriSetText(zipcodeConversionCheckBox, "郵便番号から住所(例: 100-0001 → 東京都千代田区千代田)");
 +  KotoriSetText(spellingCorrectionCheckBox, "読みの覚え違いを候補に出す(「もしかして」)");
 +  KotoriSetText(calculatorCheckBox, "計算(例: 1+2= → 3)");
 +  KotoriSetText(numberConversionCheckBox, "数字の書き方(例: 12 → 十二・Ⅻ)");
@@ -28452,7 +28524,7 @@ index abbf55d68..174b45205 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1391,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1353,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28480,7 +28552,7 @@ index abbf55d68..174b45205 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1434,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1396,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28505,7 +28577,7 @@ index abbf55d68..174b45205 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1459,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1421,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28515,7 +28587,7 @@ index abbf55d68..174b45205 100644
    return true;
  }
  
-@@ -524,6 +1556,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1518,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28542,7 +28614,7 @@ index abbf55d68..174b45205 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -571,6 +1623,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -571,6 +1585,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
  
    suggestionsSizeSpinBox->setValue(
        std::clamp<int>(config.suggestions_size(), 1, 9));
@@ -28551,7 +28623,7 @@ index abbf55d68..174b45205 100644
  
    // tab5
    SetSendStatsCheckBox();
-@@ -612,6 +1666,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1628,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28575,7 +28647,7 @@ index abbf55d68..174b45205 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -664,6 +1735,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -664,6 +1697,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
  
    config->set_suggestions_size(
        static_cast<uint32_t>(suggestionsSizeSpinBox->value()));
@@ -28584,7 +28656,7 @@ index abbf55d68..174b45205 100644
  
    // tab5
    GetSendStatsCheckBox();
-@@ -846,6 +1919,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1881,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28654,10 +28726,10 @@ index 85e1c0075..222e5bc8e 100644
    bool SetConfig(const config::Config &config);
    // Set/GetSendStatsChechBox read/write registry or file directly
 diff --git a/src/gui/config_dialog/config_dialog_libmain.cc b/src/gui/config_dialog/config_dialog_libmain.cc
-index 115c7c46b..314838685 100644
+index 115c7c46b..289f7b205 100644
 --- a/src/gui/config_dialog/config_dialog_libmain.cc
 +++ b/src/gui/config_dialog/config_dialog_libmain.cc
-@@ -33,12 +33,14 @@
+@@ -33,12 +33,15 @@
  #include <QDialog>
  #include <QStringList>
  #include <QtGui>
@@ -28665,6 +28737,7 @@ index 115c7c46b..314838685 100644
  #include <string>
  
  #include "base/system_util.h"
++#include "gui/base/kotori_style.h"
  #include "gui/base/singleton_window_helper.h"
  #include "gui/base/util.h"
  #include "gui/config_dialog/config_dialog.h"
@@ -28672,7 +28745,7 @@ index 115c7c46b..314838685 100644
  
  int RunConfigDialog(int argc, char *argv[]) {
    Q_INIT_RESOURCE(qrc_config_dialog);
-@@ -55,9 +57,28 @@ int RunConfigDialog(int argc, char *argv[]) {
+@@ -55,9 +58,30 @@ int RunConfigDialog(int argc, char *argv[]) {
  
    mozc::gui::GuiUtil::InstallTranslator("config_dialog");
    mozc::gui::GuiUtil::InstallTranslator("keymap");
@@ -28692,6 +28765,8 @@ index 115c7c46b..314838685 100644
 +  std::unique_ptr<mozc::gui::KotoriWebSettingsWindow> web;
 +  if (mozc::gui::KotoriWebSettingsWindow::Available()) {
 +    Q_INIT_RESOURCE(qrc_kotori_web_settings);
++    // HTML の画面から開くキーの割り当て・ローマ字の表を、同じ配色にそろえる。
++    mozc::gui::KotoriApplyFluentStyle(app.get());
 +    web = std::make_unique<mozc::gui::KotoriWebSettingsWindow>(open_classic);
 +    web->show();
 +    web->raise();
@@ -31142,7 +31217,7 @@ index 000000000..df333ac86
 +</RCC>
 diff --git a/src/gui/config_dialog/web/index.html b/src/gui/config_dialog/web/index.html
 new file mode 100644
-index 000000000..5f39f996f
+index 000000000..61f5a28bb
 --- /dev/null
 +++ b/src/gui/config_dialog/web/index.html
 @@ -0,0 +1,66 @@
@@ -31165,7 +31240,7 @@ index 000000000..5f39f996f
 +    <aside class="sidebar">
 +      <div class="brand">
 +        <div class="brand-mark" aria-hidden="true">
-+          <svg viewBox="0 0 32 32"><path fill="#d9c59e" d="M20.5 4.6A12 12 0 1 0 27.4 22a10 10 0 0 1-6.9-17.4z"/></svg>
++          <svg viewBox="0 0 32 32"><path fill="#d9c59e" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>
 +        </div>
 +        <div>
 +          <div class="brand-name">Asteria</div>
@@ -32030,7 +32105,7 @@ index 000000000..13696027c
 +}
 diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
 new file mode 100644
-index 000000000..6cd155a80
+index 000000000..c7bd4f72b
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.js
 @@ -0,0 +1,1179 @@
@@ -32294,7 +32369,7 @@ index 000000000..6cd155a80
 +            { type: 'switch', key: 'use_emoticon_conversion', label: '顔文字', example: 'かおもじ → (^_^)' },
 +            { type: 'switch', key: 'use_emoji_conversion', label: '絵文字', example: 'はーと → ❤' },
 +            { type: 'switch', key: 'use_t13n_conversion', label: 'カタカナ語を英語に', example: 'こんぴゅーたー → computer' },
-+            { type: 'switch', key: 'use_zip_code_conversion', label: '郵便番号から住所', example: '1000001 → 東京都千代田区千代田' },
++            { type: 'switch', key: 'use_zip_code_conversion', label: '郵便番号から住所', example: '100-0001 → 東京都千代田区千代田', desc: 'ハイフンを入れて 7 桁で打ちます。' },
 +            { type: 'switch', key: 'use_date_conversion', label: '日付と時刻', example: 'きょう → 今日の日付' },
 +            { type: 'switch', key: 'use_number_conversion', label: '数字の書き方', example: '12 → 十二・Ⅻ' },
 +            { type: 'switch', key: 'use_calculator', label: '計算', example: '1+2= → 3' },
@@ -32980,7 +33055,7 @@ index 000000000..6cd155a80
 +    const hero = h('section', { class: 'hero', 'aria-label': 'AI の状態' });
 +    hero.append(h('span', {
 +      class: 'hero-moon', 'aria-hidden': 'true',
-+      html: '<svg viewBox="0 0 120 120"><path fill="currentColor" d="M74 14A48 48 0 1 0 106 86 40 40 0 0 1 74 14z"/></svg>',
++      html: '<svg viewBox="0 0 32 32"><path fill="currentColor" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>',
 +    }));
 +    homeEls.dot = h('span', { class: 'dot', 'aria-hidden': 'true' });
 +    homeEls.state = h('span', { text: 'AI の状態を確かめています' });
@@ -33007,7 +33082,7 @@ index 000000000..6cd155a80
 +      h('div', { class: 'card support' },
 +        h('span', {
 +          'aria-hidden': 'true',
-+          html: '<svg class="moon" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#111c2d"/><path fill="#d9c59e" d="M24.6 9.5A11 11 0 1 0 31 25.4a9 9 0 0 1-6.4-15.9z"/></svg>',
++          html: '<svg class="moon" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111c2d"/><path fill="#d9c59e" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>',
 +        }),
 +        h('p', { text: 'Asteria は無料のオープンソースです。気に入ったら、開発の応援をお願いします。' }),
 +        h('button', { class: 'btn', type: 'button', text: '開発を支援(Stripe)', onclick: () => call('open', { target: 'support' }) }))));
@@ -33213,6 +33288,27 @@ index 000000000..6cd155a80
 +
 +  start();
 +})();
+diff --git a/src/gui/dictionary_tool/dictionary_tool_libmain.cc b/src/gui/dictionary_tool/dictionary_tool_libmain.cc
+index 389e999bc..253e207ae 100644
+--- a/src/gui/dictionary_tool/dictionary_tool_libmain.cc
++++ b/src/gui/dictionary_tool/dictionary_tool_libmain.cc
+@@ -33,6 +33,7 @@
+ 
+ #include "absl/log/log.h"
+ #include "base/system_util.h"
++#include "gui/base/kotori_style.h"
+ #include "gui/base/singleton_window_helper.h"
+ #include "gui/base/util.h"
+ #include "gui/dictionary_tool/dictionary_tool.h"
+@@ -60,6 +61,8 @@ int RunDictionaryTool(int argc, char *argv[]) {
+   }
+ 
+   mozc::gui::GuiUtil::InstallTranslator("dictionary_tool");
++  // Asteria: 設定画面と同じ配色にそろえる(docs/adr/0084)。
++  mozc::gui::KotoriApplyFluentStyle(app.get());
+   mozc::gui::DictionaryTool window;
+ 
+   if (!window.IsAvailable()) {
 diff --git a/src/gui/tool/BUILD.bazel b/src/gui/tool/BUILD.bazel
 index 1c4726b0c..ba7b4dd48 100644
 --- a/src/gui/tool/BUILD.bazel
