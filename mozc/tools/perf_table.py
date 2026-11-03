@@ -83,7 +83,7 @@ def main() -> None:
     exe = os.environ.get("KOTORI_CONVERTER_MAIN",
                          r"C:\Users\aruik\mz\src\bazel-bin\converter\converter_main.exe")
     inst = os.environ.get("KOTORI_INSTALL_DIR", (r"C:\Program Files (x86)\Asteria" if os.path.isdir(r"C:\Program Files (x86)\Asteria") else r"C:\Program Files (x86)\Kotori"))
-    low_zenz = os.environ.get("KOTORI_LOW_ZENZ", os.path.join(inst, "zenz-v2.5-medium-q8_0.gguf"))
+    low_zenz = os.environ.get("KOTORI_LOW_ZENZ", os.path.join(inst, "genmai-310M-q8_0.gguf"))
     readings = [kata_to_hira(it["input"]) for it in
                 json.load(open(args.data, encoding="utf-8"))[: args.n]]
     print("| 機器 | 品質 | 最初の変換(読み込みを含む) | 変換 中央値 / p95 / 最大 | メモリ(最大) | VRAM の増分 |")
