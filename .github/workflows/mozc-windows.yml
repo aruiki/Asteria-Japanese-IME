@@ -237,7 +237,7 @@ jobs:
           $taskQtRoot = Join-Path (Get-Location).Path 'third_party/qt'
           $env:PATH = "$taskQtRoot/bin;$env:PATH"
           $env:QT_PLUGIN_PATH = "$taskQtRoot/plugins"
-          bazelisk test //gui/tool:kotori_support_reminder_test //gui/config_dialog:kotori_dashboard_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
+          bazelisk test //gui/tool:kotori_support_reminder_test //gui/config_dialog:kotori_dashboard_test //gui/config_dialog:kotori_settings_bridge_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # 同じrunの新MSIで候補8項目・再導入・入力・削除まで確認する。
       # 開発者のPCではなく、この使い捨てWindowsランナーだけを変更する。

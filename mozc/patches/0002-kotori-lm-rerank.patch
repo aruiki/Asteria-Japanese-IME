@@ -1,11 +1,20 @@
 diff --git a/src/MODULE.bazel b/src/MODULE.bazel
-index eb74e536e..418fc13c3 100644
+index eb74e536e..b092ca48c 100644
 --- a/src/MODULE.bazel
 +++ b/src/MODULE.bazel
-@@ -366,6 +366,41 @@ http_archive(
+@@ -366,6 +366,50 @@ http_archive(
      ],
  )
  
++# Microsoft Edge WebView2 SDK(BSD-3-Clause 相当)。Asteria の HTML の設定画面(docs/adr/0084)。
++http_archive(
++    name = "com_microsoft_webview2",
++    build_file = "@//bazel:BUILD.webview2.bazel",
++    sha256 = "70bd381c5d67f97a6a80294001cde125ab5b24b6d36098ad901d8e15efd752d0",
++    type = "zip",
++    url = "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3179.45/microsoft.web.webview2.1.0.3179.45.nupkg",
++)
++
 +# llama.cpp(MIT)。Kotori の LM リランク用(mozc/patches/0002)。third_party/llama.cpp と同じコミット。
 +http_archive(
 +    name = "llama_cpp",
@@ -44,7 +53,7 @@ index eb74e536e..418fc13c3 100644
  # Japanese Usage Dictionary (2025-01-25)
  JA_USAGE_DICT_TAG = "2025-01-25"
  
-@@ -395,3 +430,41 @@ http_archive(
+@@ -395,3 +439,41 @@ http_archive(
      sha256 = "3adc97d8e19e1168a6cdcb2fce759d0e9e613a9a3b630cc180aecfd56ae81eaf",
      url = "https://github.com/hiroyuki-komatsu/japanpost_zipcode/raw/621d059fbcbfae17bfca15b439692bae934268c3/ken_all.zip",
  )
@@ -904,6 +913,45 @@ index 000000000..81408a09c
 +        "//conditions:default": ":llama_static",
 +    }),
 +)
+diff --git a/src/bazel/BUILD.webview2.bazel b/src/bazel/BUILD.webview2.bazel
+new file mode 100644
+index 000000000..7c130f1bc
+--- /dev/null
++++ b/src/bazel/BUILD.webview2.bazel
+@@ -0,0 +1,33 @@
++# Microsoft Edge WebView2 SDK(BSD-3-Clause 相当、LICENSE.txt)。Asteria の設定画面(docs/adr/0084)。
++# NuGet の Microsoft.Web.WebView2 をそのまま展開したもの。ヘッダーと、実行環境を探す静的な
++# ローダー(WebView2LoaderStatic.lib)だけを使う。WebView2Loader.dll は同梱しない。
++
++load("@rules_cc//cc:cc_library.bzl", "cc_library")
++
++package(default_visibility = ["//visibility:public"])
++
++cc_library(
++    name = "webview2",
++    srcs = select({
++        "@platforms//cpu:x86_32": ["build/native/x86/WebView2LoaderStatic.lib"],
++        "@platforms//cpu:arm64": ["build/native/arm64/WebView2LoaderStatic.lib"],
++        "//conditions:default": ["build/native/x64/WebView2LoaderStatic.lib"],
++    }),
++    hdrs = [
++        "build/native/include/WebView2.h",
++        "build/native/include/WebView2EnvironmentOptions.h",
++    ],
++    includes = ["build/native/include"],
++    linkopts = [
++        "advapi32.lib",
++        "ole32.lib",
++        "oleaut32.lib",
++        "shell32.lib",
++        "shlwapi.lib",
++        "user32.lib",
++        "version.lib",
++    ],
++    linkstatic = True,
++)
++
++exports_files(["LICENSE.txt"])
 diff --git a/src/bazel/llama_oom.patch b/src/bazel/llama_oom.patch
 new file mode 100644
 index 000000000..4e542dcbd
@@ -27139,7 +27187,7 @@ index b1af98c8a..99bc7718b 100644
    return name;
  }
 diff --git a/src/gui/config_dialog/BUILD.bazel b/src/gui/config_dialog/BUILD.bazel
-index 335639ca8..1295e38c7 100644
+index 335639ca8..840fd2a1f 100644
 --- a/src/gui/config_dialog/BUILD.bazel
 +++ b/src/gui/config_dialog/BUILD.bazel
 @@ -29,6 +29,7 @@
@@ -27150,7 +27198,55 @@ index 335639ca8..1295e38c7 100644
      "mozc_infoplist_strings",
      "mozc_select",
  )
-@@ -201,6 +202,7 @@ mozc_cc_qt_library(
+@@ -147,6 +148,19 @@ mozc_qt_rcc(
+     qrc_name = "qrc_config_dialog",
+ )
+ 
++# Asteria: HTML の設定画面(docs/adr/0084)。mozc_tool に埋め込み、WebView2 の中だけに出す。
++mozc_qt_rcc(
++    name = "qrc_kotori_web_settings",
++    srcs = [
++        "web/index.html",
++        "web/settings.css",
++        "web/settings.js",
++    ],
++    outs = ["qrc_kotori_web_settings.cc"],
++    qrc_file = "kotori_web_settings.qrc",
++    qrc_name = "qrc_kotori_web_settings",
++)
++
+ mozc_cc_qt_library(
+     name = "combobox_delegate",
+     srcs = [
+@@ -168,6 +182,9 @@ mozc_cc_qt_library(
+         "keybinding_editor.cc",
+         "keybinding_editor_delegate.cc",
+         "keymap_editor.cc",
++        "kotori_settings_bridge.cc",
++        "kotori_settings_data.cc",
++        "kotori_web_settings.cc",
+         "roman_table_editor.cc",
+         ":moc_character_form_editor",
+         ":moc_config_dialog",
+@@ -177,6 +194,7 @@ mozc_cc_qt_library(
+         ":moc_keymap_editor",
+         ":moc_roman_table_editor",
+         ":qrc_config_dialog",
++        ":qrc_kotori_web_settings",
+     ],
+     hdrs = [
+         "character_form_editor.h",
+@@ -185,6 +203,9 @@ mozc_cc_qt_library(
+         "keybinding_editor.h",
+         "keybinding_editor_delegate.h",
+         "keymap_editor.h",
++        "kotori_settings_bridge.h",
++        "kotori_settings_data.h",
++        "kotori_web_settings.h",
+         "roman_table_editor.h",
+         ":uic_config_dialog",
+         ":uic_generic_table_editor",
+@@ -201,6 +222,7 @@ mozc_cc_qt_library(
          "//base:config_file_stream",
          "//base:file_stream",
          "//base:file_util",
@@ -27158,7 +27254,19 @@ index 335639ca8..1295e38c7 100644
          "//base:port",
          "//base:process",
          "//base:run_level",
-@@ -277,3 +279,21 @@ mozc_macos_qt_application(
+@@ -233,8 +255,11 @@ mozc_cc_qt_library(
+         ],
+         windows = [
+             "//gui/base:win_util",
++            "@com_microsoft_webview2//:webview2",
+         ],
+     ),
++    # Asteria: 設定画面の題名の帯を Windows の配色に合わせる(DwmSetWindowAttribute)。
++    linkopts = mozc_select(windows = ["dwmapi.lib"]),
+ )
+ 
+ mozc_cc_qt_library(
+@@ -277,3 +302,36 @@ mozc_macos_qt_application(
      ],
      deps = [":config_dialog_main_lib"],
  )
@@ -27175,6 +27283,21 @@ index 335639ca8..1295e38c7 100644
 +        "//client",
 +        "//client:client_mock",
 +        "//gui/base:gui_base",
++        "//protocol:config_cc_proto",
++        "//testing:gunit_main",
++        "//testing:mozctest",
++    ],
++)
++
++# Asteria: HTML の設定画面と変換サーバーの橋渡し(docs/adr/0084)。
++mozc_cc_test(
++    name = "kotori_settings_bridge_test",
++    size = "small",
++    srcs = ["kotori_settings_bridge_test.cc"],
++    deps = [
++        ":config_dialog",
++        "//client:client_mock",
++        "//config:config_handler",
 +        "//protocol:config_cc_proto",
 +        "//testing:gunit_main",
 +        "//testing:mozctest",
@@ -27222,13 +27345,15 @@ index ec0faf7e7..a75b28272 100644
  
    std::unique_ptr<config::Config> default_config;
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..87e4a90b4 100644
+index abbf55d68..174b45205 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
-@@ -30,12 +30,60 @@
+@@ -30,12 +30,62 @@
  // Qt component of configure dialog for Mozc
  #include "gui/config_dialog/config_dialog.h"
  
++#include "gui/config_dialog/kotori_settings_data.h"
++
 +#include <array>
 +#include <QAbstractButton>
 +#include <QCheckBox>
@@ -27286,7 +27411,7 @@ index abbf55d68..87e4a90b4 100644
  #include <sstream>
  #include <string>
  
-@@ -43,6 +91,10 @@
+@@ -43,6 +93,10 @@
  #include "absl/log/log.h"
  #include "absl/strings/string_view.h"
  #include "base/config_file_stream.h"
@@ -27297,7 +27422,7 @@ index abbf55d68..87e4a90b4 100644
  #include "client/client.h"
  #include "config/config_handler.h"
  #include "config/stats_config_util.h"
-@@ -83,6 +135,467 @@ void Connect(const QList<T *> &objects, const char *signal,
+@@ -83,6 +137,86 @@ void Connect(const QList<T *> &objects, const char *signal,
  
  namespace mozc {
  namespace gui {
@@ -27343,362 +27468,6 @@ index abbf55d68..87e4a90b4 100644
 +QCheckBox[kotoriMatch="true"], QLabel[kotoriMatch="true"], QPushButton[kotoriMatch="true"] { background: #FFF4CE; border-radius: 4px; }
 +)";
 +
-+#ifdef _WIN32
-+// Kotori: Windows のハイコントラストが有効か。有効なら Kotori の配色とスタイルを当てず、Windows の
-+// 配色に従う(docs/adr/0028、改善案 14)。
-+bool KotoriHighContrast() {
-+  HIGHCONTRASTW hc = {sizeof(hc)};
-+  return ::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
-+         (hc.dwFlags & HCF_HIGHCONTRASTON);
-+}
-+#else
-+bool KotoriHighContrast() { return false; }
-+#endif  // _WIN32
-+
-+// Kotori: この PC の GPU の名前と VRAM を 1 行で(設定画面に出す)。DXGI で調べ、
-+// ソフトウェアの描画(Microsoft Basic Render Driver)は除く。
-+std::string KotoriGpuSummary() {
-+#ifdef _WIN32
-+  using CreateFactory = HRESULT(WINAPI *)(REFIID, void **);
-+  HMODULE dxgi = ::LoadLibraryExW(L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-+  if (dxgi != nullptr) {
-+    auto create = reinterpret_cast<CreateFactory>(
-+        ::GetProcAddress(dxgi, "CreateDXGIFactory1"));
-+    IDXGIFactory1 *factory = nullptr;
-+    std::wstring best_name;
-+    SIZE_T best_vram = 0;
-+    if (create != nullptr &&
-+        SUCCEEDED(create(__uuidof(IDXGIFactory1),
-+                         reinterpret_cast<void **>(&factory)))) {
-+      IDXGIAdapter1 *adapter = nullptr;
-+      for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND;
-+           ++i) {
-+        DXGI_ADAPTER_DESC1 desc = {};
-+        if (SUCCEEDED(adapter->GetDesc1(&desc)) &&
-+            !(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) &&
-+            desc.DedicatedVideoMemory > best_vram) {
-+          best_vram = desc.DedicatedVideoMemory;
-+          best_name = desc.Description;
-+        }
-+        adapter->Release();
-+      }
-+      factory->Release();
-+    }
-+    ::FreeLibrary(dxgi);
-+    if (!best_name.empty()) {
-+      const double gb = static_cast<double>(best_vram) / (1024.0 * 1024 * 1024);
-+      const QString name = QString::fromWCharArray(best_name.c_str());
-+      QString text;
-+      // AI を載せるのは専用 GPU で VRAM が 3 GB 以上のときだけ(rewriter/llama_runtime.h)。
-+      // 内蔵 GPU(専用の VRAM が少ない)では、どの品質を選んでも Low で動く。
-+      if (gb >= 3.0) {
-+        text = QString::fromUtf8("このPCのGPU: %1（VRAM %2 GB）。Standard以上を使えます。")
-+                   .arg(name)
-+                   .arg(gb, 0, 'f', 0);
-+      } else {
-+        text = QString::fromUtf8(
-+                   "このPCのGPU: %1（VRAM %2 GB）。どの品質を選んでもLowで動きます。"
-+                   "下の「内蔵 GPU で AI を動かす」をオンにすると、CPU の代わりにこの GPU を使います。")
-+                   .arg(name)
-+                   .arg(gb, 0, 'f', 1);
-+      }
-+      return text.toUtf8().toStdString();
-+    }
-+  }
-+#endif  // _WIN32
-+  return "AIに使えるGPUが見つかりません。どの品質を選んでもLow（CPU）で動きます。";
-+}
-+
-+// Kotori: 実際に動いている AI の状態(変換サーバーがユーザーのプロファイルの
-+// kotori_ai_status.txt に書く。rewriter/lm_rewriter.cc の WriteStatus、docs/adr/0026)。
-+using KotoriStatus = std::map<std::string, std::string>;
-+constexpr char kKotoriSupportUrl[] =
-+    "https://buy.stripe.com/cNi14m7jRdq005f0781ZS08";
-+
-+KotoriStatus ReadKotoriStatus() {
-+  QFile file(QString::fromUtf8(
-+      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
-+                         "kotori_ai_status.txt")
-+          .c_str()));
-+  KotoriStatus status;
-+  if (!file.open(QIODevice::ReadOnly) || file.size() > 8192) return status;
-+  for (const QByteArray &raw : file.readAll().split('\n')) {
-+    const QByteArray line = raw.trimmed();
-+    const qsizetype equals = line.indexOf('=');
-+    if (equals > 0)
-+      status[line.left(equals).toStdString()] =
-+          line.mid(equals + 1).toStdString();
-+  }
-+  return status;
-+}
-+
-+std::string FormatKotoriAiStatus(KotoriStatus kv) {
-+  const std::string &state = kv["state"];
-+  const std::string &device = kv["device"];
-+  const std::string where = device == "CPU" ? "CPU で動作" : "GPU: " + device;
-+  if (state == "llm") {
-+    return "AI の状態: 動いています(変換用の AI と日本語 LLM、" + where + ")。";
-+  } else if (state == "zenz") {
-+    return "AI の状態: 動いています(変換用の AI " + kv["zenz"] + "、" + where +
-+           ")。";
-+  } else if (state == "loading") {
-+    return "AI の状態: モデルを読み込んでいます。終わるまで、変換は AI の結果を待ちます"
-+           "(文字の入力と編集はそのまま続けられます)。";
-+  } else if (state == "sleep") {
-+    return "AI の状態: 休んでいます(GPU のメモリを空けています。"
-+           "次に入力すると読み込みます)。";
-+  } else if (state == "error") {
-+    return "AI の状態: 動いていません(" + kv["message"] +
-+           " を読み込めません)。AI なしの変換で入力を続けます。入れ直すと直ることがあります。";
-+  } else if (state == "off") {
-+    return "AI の状態: AI 変換は切れています。";
-+  }
-+  return "AI の状態: まだ分かりません(日本語を一度入力すると表示されます)。";
-+}
-+
-+std::string KotoriAiStatus();
-+
-+QString MemoryText(quint64 bytes) {
-+  return QString::fromUtf8("%1 MiB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 1);
-+}
-+
-+// Kotori: GUIが開いている間だけ、実際の変換サーバーを2秒間隔で測る。
-+// 状態ファイルのPID・起動時刻・実行ファイルを照合し、古い記録は動作中と表示しない。
-+class KotoriDashboardSample {
-+ public:
-+  QString ai, models, inference, server_memory, server_cpu, pc_memory, pc_cpu;
-+  QString ai_state;
-+  std::optional<double> pc_cpu_load, pc_memory_load, server_cpu_load,
-+      server_ram_mib, ai_seconds;
-+  std::optional<quint64> ai_calls;
-+
-+  void Update() {
-+    pc_cpu_load.reset();
-+    pc_memory_load.reset();
-+    server_cpu_load.reset();
-+    server_ram_mib.reset();
-+    ai_seconds.reset();
-+    ai_calls.reset();
-+    ai_state = "unknown";
-+    const KotoriStatus status = ReadKotoriStatus();
-+    const auto value = [&](const char *key) {
-+      const auto found = status.find(key);
-+      return found == status.end() ? QString()
-+                                   : QString::fromUtf8(found->second.c_str());
-+    };
-+    ai = QString::fromUtf8(
-+        "AIの状態はまだ取得できません。日本語を入力すると更新されます。");
-+    models = QString::fromUtf8("実行中のモデル: 未確認");
-+    inference = QString::fromUtf8("AI計算時間: まだ計測データがありません");
-+    server_memory = QString::fromUtf8("Asteriaのメモリ: 取得できません");
-+    server_cpu = QString::fromUtf8("AsteriaのCPU: 取得できません");
-+    pc_memory = QString::fromUtf8("PCのメモリ: 取得できません");
-+    pc_cpu = QString::fromUtf8("PCのCPU: 計測中");
-+#ifdef _WIN32
-+    MEMORYSTATUSEX memory = {sizeof(memory)};
-+    if (::GlobalMemoryStatusEx(&memory)) {
-+      pc_memory_load = memory.dwMemoryLoad;
-+      pc_memory =
-+          QString::fromUtf8("PCのメモリ: %1 / %2 GiB（%3%）")
-+              .arg((memory.ullTotalPhys - memory.ullAvailPhys) /
-+                       (1024.0 * 1024 * 1024),
-+                   0, 'f', 1)
-+              .arg(memory.ullTotalPhys / (1024.0 * 1024 * 1024), 0, 'f', 1)
-+              .arg(memory.dwMemoryLoad);
-+    }
-+    FILETIME idle, kernel, user;
-+    if (::GetSystemTimes(&idle, &kernel, &user)) {
-+      const quint64 total = Ticks(kernel) + Ticks(user), idle_now = Ticks(idle);
-+      if (system_total_ != 0 && total > system_total_ &&
-+          idle_now >= system_idle_) {
-+        const double busy = 1.0 - static_cast<double>(idle_now - system_idle_) /
-+                                      (total - system_total_);
-+        pc_cpu_load = std::clamp(busy * 100.0, 0.0, 100.0);
-+        pc_cpu = QString::fromUtf8("PCのCPU: %1%")
-+                     .arg(std::clamp(busy * 100.0, 0.0, 100.0), 0, 'f', 1);
-+      }
-+      system_total_ = total;
-+      system_idle_ = idle_now;
-+    }
-+    bool pid_ok = false, creation_ok = false;
-+    const DWORD pid = value("pid").toUInt(&pid_ok);
-+    const quint64 start = value("process_started").toULongLong(&creation_ok);
-+    HANDLE process =
-+        pid_ok && creation_ok && pid != 0
-+            ? ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)
-+            : nullptr;
-+    FILETIME created, exited, process_kernel, process_user;
-+    wchar_t image[32768];
-+    DWORD image_size = std::size(image);
-+    DWORD exit_code = 0;
-+    const QString expected =
-+        QDir::cleanPath(QString::fromUtf8(SystemUtil::GetServerPath().c_str()));
-+    const bool active =
-+        process && ::GetExitCodeProcess(process, &exit_code) &&
-+        exit_code == STILL_ACTIVE &&
-+        ::GetProcessTimes(process, &created, &exited, &process_kernel,
-+                          &process_user) &&
-+        Ticks(created) == start &&
-+        ::QueryFullProcessImageNameW(process, 0, image, &image_size) &&
-+        QDir::cleanPath(QString::fromWCharArray(image, image_size))
-+                .compare(expected, Qt::CaseInsensitive) == 0;
-+    if (active) {
-+      ai = QString::fromUtf8(FormatKotoriAiStatus(status).c_str());
-+      ai_state = value("state");
-+      QStringList names;
-+      if (!value("zenz").isEmpty()) names << value("zenz");
-+      if (!value("llm").isEmpty()) names << value("llm");
-+      models = QString::fromUtf8("実行中のモデル: %1")
-+                   .arg(names.isEmpty() ? QString::fromUtf8("なし")
-+                                        : names.join(" / "));
-+      const QRegularExpression counters(
-+          "zenz work=([0-9]+)ms decode=([0-9]+)ms calls=([0-9]+) "
-+          "tokens=([0-9]+) \\| llm work=([0-9]+)ms decode=([0-9]+)ms "
-+          "calls=([0-9]+) tokens=([0-9]+)");
-+      const auto match = counters.match(value("stats"));
-+      if (match.hasMatch()) {
-+        ai_seconds =
-+            (match.captured(1).toDouble() + match.captured(5).toDouble()) /
-+            1000.0;
-+        ai_calls = match.captured(3).toULongLong() +
-+                   match.captured(7).toULongLong();
-+        inference = QString::fromUtf8("AI計算の累計: %1秒　モデル計算: %2回")
-+                        .arg((match.captured(1).toDouble() +
-+                              match.captured(5).toDouble()) /
-+                                 1000.0,
-+                             0, 'f', 2)
-+                        .arg(match.captured(3).toULongLong() +
-+                             match.captured(7).toULongLong());
-+      }
-+      using MemoryInfo =
-+          BOOL(WINAPI *)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
-+      const auto get_memory = reinterpret_cast<MemoryInfo>(::GetProcAddress(
-+          ::GetModuleHandleW(L"kernel32.dll"), "K32GetProcessMemoryInfo"));
-+      PROCESS_MEMORY_COUNTERS_EX counters_memory = {};
-+      counters_memory.cb = sizeof(counters_memory);
-+      if (get_memory && get_memory(process,
-+                                   reinterpret_cast<PPROCESS_MEMORY_COUNTERS>(
-+                                       &counters_memory),
-+                                   sizeof(counters_memory))) {
-+        server_ram_mib = counters_memory.WorkingSetSize / (1024.0 * 1024.0);
-+        server_memory =
-+            QString::fromUtf8(
-+                "Asteriaのメモリ（常駐RAM）: %1\nプライベート確保量: %2")
-+                .arg(MemoryText(counters_memory.WorkingSetSize),
-+                     MemoryText(counters_memory.PrivateUsage));
-+      }
-+      const quint64 now = ::GetTickCount64(),
-+                    cpu = Ticks(process_kernel) + Ticks(process_user);
-+      if (last_pid_ == pid && last_start_ == start && now > last_wall_ &&
-+          cpu >= last_cpu_) {
-+        SYSTEM_INFO info;
-+        ::GetNativeSystemInfo(&info);
-+        const double usage =
-+            (cpu - last_cpu_) / (10000.0 * (now - last_wall_) *
-+                                 std::max<DWORD>(1, info.dwNumberOfProcessors));
-+        server_cpu_load = std::clamp(usage * 100.0, 0.0, 100.0);
-+        server_cpu = QString::fromUtf8("AsteriaのCPU: %1%")
-+                         .arg(std::clamp(usage * 100.0, 0.0, 100.0), 0, 'f', 1);
-+      } else {
-+        server_cpu = QString::fromUtf8("AsteriaのCPU: 計測中");
-+      }
-+      last_pid_ = pid;
-+      last_start_ = start;
-+      last_wall_ = now;
-+      last_cpu_ = cpu;
-+    } else {
-+      last_pid_ = 0;
-+      if (!value("state").isEmpty())
-+        ai = QString::fromUtf8(
-+            "AIの現在の状態は未確認です。変換サーバーの起動後に更新されます。");
-+    }
-+    if (process) ::CloseHandle(process);
-+#else
-+    ai = QString::fromUtf8(FormatKotoriAiStatus(status).c_str());
-+#endif
-+  }
-+
-+ private:
-+#ifdef _WIN32
-+  static quint64 Ticks(FILETIME time) {
-+    return (static_cast<quint64>(time.dwHighDateTime) << 32) |
-+           time.dwLowDateTime;
-+  }
-+  quint64 system_total_ = 0, system_idle_ = 0, last_start_ = 0, last_wall_ = 0,
-+          last_cpu_ = 0;
-+  DWORD last_pid_ = 0;
-+#endif
-+};
-+
-+// Asteria: ダッシュボードの数字の札(題・今日の値・累計)。数字はサーバーが asteria_usage.txt に
-+// 回数と時間だけを書く(session/kotori_usage_stats)。文章は保存しない。
-+struct KotoriUsageTile {
-+  QString title, value, total;
-+};
-+
-+QString KotoriDuration(qint64 ms) {
-+  const qint64 seconds = (ms + 500) / 1000;
-+  if (seconds < 60) return QString::fromUtf8("%1秒").arg(seconds);
-+  const qint64 minutes = seconds / 60;
-+  if (minutes < 60)
-+    return QString::fromUtf8("%1分%2秒").arg(minutes).arg(seconds % 60);
-+  return QString::fromUtf8("%1時間%2分").arg(minutes / 60).arg(minutes % 60);
-+}
-+
-+std::array<KotoriUsageTile, 4> KotoriUsageTiles(const QByteArray &file,
-+                                                const QString &today) {
-+  std::map<QByteArray, qint64> v;
-+  QByteArray date;
-+  for (const QByteArray &raw : file.split('\n')) {
-+    const QByteArray line = raw.trimmed();
-+    const qsizetype equals = line.indexOf('=');
-+    if (equals <= 0) continue;
-+    if (line.left(equals) == "date") {
-+      date = line.mid(equals + 1);
-+      continue;
-+    }
-+    bool ok = false;
-+    const qint64 number = line.mid(equals + 1).toLongLong(&ok);
-+    if (ok && number >= 0) v[line.left(equals)] = number;
-+  }
-+  // 日付が変わってからまだ書かれていなければ、今日の分は 0。
-+  const bool is_today = QString::fromUtf8(date) == today;
-+  const auto get = [&](const char *prefix, const char *key) -> qint64 {
-+    if (QByteArray(prefix) == "today_" && !is_today) return 0;
-+    const auto found = v.find(QByteArray(prefix) + key);
-+    return found == v.end() ? 0 : found->second;
-+  };
-+  const QLocale locale(QLocale::Japanese);
-+  const auto count = [&](const char *p) {
-+    return QString::fromUtf8("%1回").arg(locale.toString(get(p, "conversions")));
-+  };
-+  const auto wait = [&](const char *p) {
-+    const qint64 n = get(p, "wait_count");
-+    return n == 0 ? QString::fromUtf8("—")
-+                  : QString::fromUtf8("%1 ms").arg((get(p, "wait_ms") + n / 2) / n);
-+  };
-+  const auto rate = [&](const char *p) {
-+    const qint64 n = get(p, "conversions");
-+    return n == 0 ? QString::fromUtf8("—")
-+                  : QString::fromUtf8("%1%").arg((get(p, "first_kept") * 100 + n / 2) / n);
-+  };
-+  const bool knows_speed = v["ms_per_char"] > 0;
-+  const auto saved = [&](const char *p) {
-+    if (!knows_speed) return QString::fromUtf8("測っています");
-+    return KotoriDuration(get(p, "saved_ms"));
-+  };
-+  return {{
-+      {QString::fromUtf8("変換した回数"), count("today_"),
-+       QString::fromUtf8("累計 %1").arg(count("total_"))},
-+      {QString::fromUtf8("考える時間（Spaceから候補まで）"), wait("today_"),
-+       QString::fromUtf8("累計の平均 %1").arg(wait("total_"))},
-+      {QString::fromUtf8("正答率（1番目の候補で確定）"), rate("today_"),
-+       QString::fromUtf8("累計 %1").arg(rate("total_"))},
-+      {QString::fromUtf8("予測で節約できた時間"), saved("today_"),
-+       QString::fromUtf8("累計 %1").arg(saved("total_"))},
-+  }};
-+}
-+
 +// 大きな数字の札の文: 数字は大きく、単位(回・ms・%・分・秒など)は小さく。
 +QString KotoriBigNumberHtml(const QString &plain) {
 +  QString html;
@@ -27723,31 +27492,6 @@ index abbf55d68..87e4a90b4 100644
 +  return html;
 +}
 +
-+std::array<KotoriUsageTile, 4> ReadKotoriUsageTiles() {
-+  QFile file(QString::fromUtf8(
-+      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
-+                         "asteria_usage.txt")
-+          .c_str()));
-+  QByteArray content;
-+  if (file.open(QIODevice::ReadOnly) && file.size() <= 8192)
-+    content = file.readAll();
-+  return KotoriUsageTiles(content,
-+                          QDate::currentDate().toString(Qt::ISODate));
-+}
-+
-+std::string KotoriAiStatus() {
-+  KotoriDashboardSample sample;
-+  sample.Update();
-+  return sample.ai.toUtf8().toStdString();
-+}
-+
-+// Asteria: 応援のお願い(gui/tool/kotori_support_reminder)の設定ファイル。「disabled」が true なら出さない。
-+// 設定画面は mozc_tool のライブラリに依存できないので、同じファイルと項目を直接読み書きする。
-+QString KotoriSupportReminderPath() {
-+  return QString::fromStdString(SystemUtil::GetUserProfileDirectory()) +
-+         QStringLiteral("/support-reminder.ini");
-+}
-+
 +QPushButton *KotoriSupportButton(QWidget *parent) {
 +  auto *button =
 +      new QPushButton(QString::fromUtf8("開発を支援（Stripe）"), parent);
@@ -27765,7 +27509,7 @@ index abbf55d68..87e4a90b4 100644
  
  using ::mozc::config::StatsConfigUtil;
  
-@@ -104,6 +617,14 @@ ConfigDialog::ConfigDialog()
+@@ -104,6 +238,14 @@ ConfigDialog::ConfigDialog()
        initial_use_keyboard_to_change_preedit_method_(false),
        initial_use_mode_indicator_(true) {
    setupUi(this);
@@ -27780,7 +27524,7 @@ index abbf55d68..87e4a90b4 100644
    setStyleSheet(QString::fromUtf8(kQss.data(), kQss.size()));
  
    // Remove the context help button (question mark button) from the window.
-@@ -120,7 +641,6 @@ ConfigDialog::ConfigDialog()
+@@ -120,7 +262,6 @@ ConfigDialog::ConfigDialog()
  #ifdef __APPLE__
    miscDefaultIMEWidget->setVisible(false);
    miscAdministrationWidget->setVisible(false);
@@ -27788,7 +27532,7 @@ index abbf55d68..87e4a90b4 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -141,6 +661,26 @@ ConfigDialog::ConfigDialog()
+@@ -141,6 +282,26 @@ ConfigDialog::ConfigDialog()
  #endif  // NDEBUG
  
    suggestionsSizeSpinBox->setRange(1, 9);
@@ -27815,7 +27559,7 @@ index abbf55d68..87e4a90b4 100644
  
    punctuationsSettingComboBox->addItem(QString::fromUtf8("、。"));
    punctuationsSettingComboBox->addItem(QString::fromUtf8("，．"));
-@@ -152,6 +692,525 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +313,525 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -28341,7 +28085,7 @@ index abbf55d68..87e4a90b4 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1276,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +897,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -28356,7 +28100,7 @@ index abbf55d68..87e4a90b4 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1317,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +938,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28371,7 +28115,7 @@ index abbf55d68..87e4a90b4 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1370,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +991,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28421,7 +28165,7 @@ index abbf55d68..87e4a90b4 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -312,6 +1426,7 @@ ConfigDialog::ConfigDialog()
+@@ -312,6 +1047,7 @@ ConfigDialog::ConfigDialog()
  #endif  // __linux__
  
    GuiUtil::ReplaceWidgetLabels(this);
@@ -28429,7 +28173,7 @@ index abbf55d68..87e4a90b4 100644
  
    Reload();
  
-@@ -324,6 +1439,278 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1060,278 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28708,7 +28452,7 @@ index abbf55d68..87e4a90b4 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1770,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1391,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28736,7 +28480,7 @@ index abbf55d68..87e4a90b4 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1813,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1434,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28761,7 +28505,7 @@ index abbf55d68..87e4a90b4 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1838,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1459,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28771,7 +28515,7 @@ index abbf55d68..87e4a90b4 100644
    return true;
  }
  
-@@ -524,6 +1935,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1556,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28798,7 +28542,7 @@ index abbf55d68..87e4a90b4 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -571,6 +2002,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -571,6 +1623,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
  
    suggestionsSizeSpinBox->setValue(
        std::clamp<int>(config.suggestions_size(), 1, 9));
@@ -28807,7 +28551,7 @@ index abbf55d68..87e4a90b4 100644
  
    // tab5
    SetSendStatsCheckBox();
-@@ -612,6 +2045,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1666,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28831,7 +28575,7 @@ index abbf55d68..87e4a90b4 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -664,6 +2114,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -664,6 +1735,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
  
    config->set_suggestions_size(
        static_cast<uint32_t>(suggestionsSizeSpinBox->value()));
@@ -28840,7 +28584,7 @@ index abbf55d68..87e4a90b4 100644
  
    // tab5
    GetSendStatsCheckBox();
-@@ -846,6 +2298,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1919,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28909,6 +28653,57 @@ index 85e1c0075..222e5bc8e 100644
    bool GetConfig(config::Config *config);
    bool SetConfig(const config::Config &config);
    // Set/GetSendStatsChechBox read/write registry or file directly
+diff --git a/src/gui/config_dialog/config_dialog_libmain.cc b/src/gui/config_dialog/config_dialog_libmain.cc
+index 115c7c46b..314838685 100644
+--- a/src/gui/config_dialog/config_dialog_libmain.cc
++++ b/src/gui/config_dialog/config_dialog_libmain.cc
+@@ -33,12 +33,14 @@
+ #include <QDialog>
+ #include <QStringList>
+ #include <QtGui>
++#include <memory>
+ #include <string>
+ 
+ #include "base/system_util.h"
+ #include "gui/base/singleton_window_helper.h"
+ #include "gui/base/util.h"
+ #include "gui/config_dialog/config_dialog.h"
++#include "gui/config_dialog/kotori_web_settings.h"
+ 
+ int RunConfigDialog(int argc, char *argv[]) {
+   Q_INIT_RESOURCE(qrc_config_dialog);
+@@ -55,9 +57,28 @@ int RunConfigDialog(int argc, char *argv[]) {
+ 
+   mozc::gui::GuiUtil::InstallTranslator("config_dialog");
+   mozc::gui::GuiUtil::InstallTranslator("keymap");
+-  mozc::gui::ConfigDialog mozc_config;
+ 
+-  mozc_config.show();
+-  mozc_config.raise();
++  // Asteria: Edge の表示部品(WebView2)があれば、HTML で作った設定画面を開く。なければ、または
++  // 作れなかったときは、今までの設定画面を開く(docs/adr/0084)。
++  std::unique_ptr<mozc::gui::ConfigDialog> classic;
++  const auto open_classic = [&classic] {
++    if (classic != nullptr) return;
++    classic = std::make_unique<mozc::gui::ConfigDialog>();
++    classic->show();
++    classic->raise();
++  };
++  std::unique_ptr<mozc::gui::KotoriWebSettingsWindow> web;
++  if (mozc::gui::KotoriWebSettingsWindow::Available()) {
++    Q_INIT_RESOURCE(qrc_kotori_web_settings);
++    web = std::make_unique<mozc::gui::KotoriWebSettingsWindow>(open_classic);
++    web->show();
++    web->raise();
++    if (!web->Start()) {
++      web->hide();
++      open_classic();
++    }
++  } else {
++    open_classic();
++  }
+   return app->exec();
+ }
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
 index 000000000..00acc896c
@@ -29327,6 +29122,4097 @@ index 000000000..00acc896c
 +#endif
 +}  // namespace
 +}  // namespace mozc::gui
+diff --git a/src/gui/config_dialog/kotori_settings_bridge.cc b/src/gui/config_dialog/kotori_settings_bridge.cc
+new file mode 100644
+index 000000000..6e95d5102
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_settings_bridge.cc
+@@ -0,0 +1,531 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// HTML の設定画面と変換サーバーの間で、設定と状態を JSON でやり取りする(docs/adr/0084)。
++
++#include "gui/config_dialog/kotori_settings_bridge.h"
++
++#include <QJsonArray>
++#include <QJsonValue>
++#include <QSettings>
++#include <QSysInfo>
++#include <cmath>
++#include <memory>
++#include <string>
++#include <utility>
++
++#include "absl/log/log.h"
++#include "base/file_util.h"
++#include "base/kotori_diagnostics.h"
++#include "base/system_util.h"
++#include "base/version.h"
++#include "config/config_handler.h"
++#include "gui/config_dialog/kotori_settings_data.h"
++#include "google/protobuf/descriptor.h"
++#include "google/protobuf/message.h"
++
++namespace mozc {
++namespace gui {
++namespace {
++
++using ::google::protobuf::FieldDescriptor;
++
++// 画面が読み書きできる設定の項目。数の項目は範囲も決める(列挙は値の番号、uint32 は値)。
++struct Field {
++  const char *name;
++  int min;
++  int max;
++};
++
++constexpr Field kFields[] = {
++    // 入力
++    {"preedit_method", 0, 1},
++    {"use_keyboard_to_change_preedit_method", 0, 0},
++    {"punctuation_method", 0, 3},
++    {"symbol_method", 0, 3},
++    {"space_character_form", 0, 2},
++    {"selection_shortcut", 0, 2},
++    {"numpad_character_form", 0, 3},
++    // -1 は「既定」(Windows では MS-IME と同じ)。0 は自分で変えた割り当て。
++    {"session_keymap", -1, 3},
++    // 変換と辞書
++    {"history_learning_level", 0, 2},
++    {"use_single_kanji_conversion", 0, 0},
++    {"use_symbol_conversion", 0, 0},
++    {"use_emoticon_conversion", 0, 0},
++    {"use_date_conversion", 0, 0},
++    {"use_emoji_conversion", 0, 0},
++    {"use_number_conversion", 0, 0},
++    {"use_calculator", 0, 0},
++    {"use_t13n_conversion", 0, 0},
++    {"use_zip_code_conversion", 0, 0},
++    {"use_spelling_correction", 0, 0},
++    // 入力の補助
++    {"auto_switch_composition_mode", 0, 0},
++    {"use_auto_conversion", 0, 0},
++    {"auto_conversion_key", 0, 15},
++    {"shift_key_mode_switch", 0, 2},
++    {"use_mode_indicator", 0, 0},
++    {"kotori_share_input_mode", 0, 0},
++    // 予測
++    {"use_history_suggest", 0, 0},
++    {"use_dictionary_suggest", 0, 0},
++    {"suggestions_size", 1, 9},
++    {"kotori_suggest_min_chars", 1, 5},
++    // プライバシー
++    {"incognito_mode", 0, 0},
++    {"presentation_mode", 0, 0},
++    // その他
++    {"check_default", 0, 0},
++    // AI 変換
++    {"kotori_lm_enabled", 0, 0},
++    {"kotori_lm_quality", 0, 3},
++    {"kotori_lm_model", 0, 2},
++    {"kotori_lm_correction", 0, 0},
++    {"kotori_live_conversion", 0, 0},
++    {"kotori_homophone_hints", 0, 0},
++    {"kotori_romaji_english", 0, 0},
++    {"kotori_use_integrated_gpu", 0, 0},
++    {"kotori_lm_model_path", 0, 1024},  // 文字列の長さの上限
++};
++
++constexpr char kLocalUsageDictionary[] = "use_local_usage_dictionary";
++constexpr char kCharacterFormRules[] = "character_form_rules";
++// 全角・半角の表の文字の種類。カタカナの「打っている間」は全角のまま(Mozc と同じ)。
++constexpr char kKatakanaGroup[] = "ア";
++
++const Field *FindField(const QString &name) {
++  for (const Field &field : kFields) {
++    if (name == QLatin1String(field.name)) return &field;
++  }
++  return nullptr;
++}
++
++// JSON の数が整数で、範囲の中か。
++bool IntegerIn(const QJsonValue &value, int min, int max, int *out) {
++  if (!value.isDouble()) return false;
++  const double d = value.toDouble();
++  if (std::floor(d) != d || d < min || d > max) return false;
++  *out = static_cast<int>(d);
++  return true;
++}
++
++bool ValidForm(int form) {
++  return form == config::Config::HALF_WIDTH ||
++         form == config::Config::FULL_WIDTH ||
++         form == config::Config::LAST_FORM;
++}
++
++QJsonObject Fail(const QString &message) {
++  return QJsonObject{{"ok", false}, {"message", message}};
++}
++
++QJsonObject Ok() { return QJsonObject{{"ok", true}}; }
++
++}  // namespace
++
++KotoriSettingsBridge::KotoriSettingsBridge(client::ClientInterface *client,
++                                           Host *host,
++                                           QString support_reminder_path)
++    : client_(client),
++      host_(host),
++      support_reminder_path_(std::move(support_reminder_path)),
++      sample_(std::make_unique<KotoriDashboardSample>()) {}
++
++KotoriSettingsBridge::~KotoriSettingsBridge() = default;
++
++QJsonObject KotoriSettingsBridge::ConfigToJson(const config::Config &config) {
++  QJsonObject json;
++  const auto *descriptor = config::Config::descriptor();
++  const auto *reflection = config.GetReflection();
++  for (const Field &field : kFields) {
++    const FieldDescriptor *f = descriptor->FindFieldByName(field.name);
++    if (f == nullptr) continue;
++    switch (f->cpp_type()) {
++      case FieldDescriptor::CPPTYPE_BOOL:
++        json[field.name] = reflection->GetBool(config, f);
++        break;
++      case FieldDescriptor::CPPTYPE_ENUM:
++        json[field.name] = reflection->GetEnumValue(config, f);
++        break;
++      case FieldDescriptor::CPPTYPE_UINT32:
++        json[field.name] = static_cast<int>(reflection->GetUInt32(config, f));
++        break;
++      case FieldDescriptor::CPPTYPE_STRING:
++        json[field.name] = QString::fromStdString(reflection->GetString(config, f));
++        break;
++      default:
++        break;
++    }
++  }
++  json[kLocalUsageDictionary] =
++      config.information_list_config().use_local_usage_dictionary();
++  // 表が空なら、既定の表を見せる(Qt の画面と同じ)。
++  const config::Config &rules_source =
++      config.character_form_rules_size() > 0
++          ? config
++          : config::ConfigHandler::DefaultConfig();
++  QJsonArray rules;
++  for (const auto &rule : rules_source.character_form_rules()) {
++    rules.append(QJsonObject{
++        {"group", QString::fromStdString(rule.group())},
++        {"preedit", static_cast<int>(rule.preedit_character_form())},
++        {"conversion", static_cast<int>(rule.conversion_character_form())}});
++  }
++  json[kCharacterFormRules] = rules;
++  return json;
++}
++
++bool KotoriSettingsBridge::JsonToConfig(const QJsonObject &json,
++                                        config::Config *base, QString *error) {
++  // 値が変わった項目だけを書く(同じ値を書くと、既定のままの項目が「設定した」ことになり、
++  // 変更がないのに保存し直すことになる)。
++  config::Config config = *base;
++  const auto *descriptor = config::Config::descriptor();
++  const auto *reflection = config.GetReflection();
++  for (auto it = json.begin(); it != json.end(); ++it) {
++    const QString &name = it.key();
++    const QJsonValue &value = it.value();
++    *error = name;
++    if (name == QLatin1String(kLocalUsageDictionary)) {
++      if (!value.isBool()) return false;
++      if (value.toBool() !=
++          config.information_list_config().use_local_usage_dictionary()) {
++        config.mutable_information_list_config()->set_use_local_usage_dictionary(
++            value.toBool());
++      }
++      continue;
++    }
++    if (name == QLatin1String(kCharacterFormRules)) {
++      if (!value.isArray() || value.toArray().isEmpty() ||
++          value.toArray().size() > 16) {
++        return false;
++      }
++      config::Config rules;
++      for (const QJsonValue &item : value.toArray()) {
++        const QJsonObject rule = item.toObject();
++        const QString group = rule.value("group").toString();
++        int preedit = 0, conversion = 0;
++        if (group.isEmpty() || group.size() > 32 ||
++            !IntegerIn(rule.value("preedit"), 0, 2, &preedit) ||
++            !IntegerIn(rule.value("conversion"), 0, 2, &conversion) ||
++            !ValidForm(preedit) || !ValidForm(conversion)) {
++          return false;
++        }
++        if (group == QString::fromUtf8(kKatakanaGroup)) {
++          preedit = config::Config::FULL_WIDTH;
++        }
++        auto *added = rules.add_character_form_rules();
++        added->set_group(group.toStdString());
++        added->set_preedit_character_form(
++            static_cast<config::Config::CharacterForm>(preedit));
++        added->set_conversion_character_form(
++            static_cast<config::Config::CharacterForm>(conversion));
++      }
++      // 表が空のときは既定の表を見せているので、既定の表と比べる。
++      const config::Config &current =
++          config.character_form_rules_size() > 0
++              ? config
++              : config::ConfigHandler::DefaultConfig();
++      // 行の数と各行の中身を比べる(1 行ずつの直列化を長さ付きで並べる)。
++      std::string before, after;
++      for (const auto &rule : current.character_form_rules()) {
++        const std::string bytes = rule.SerializeAsString();
++        before += std::to_string(bytes.size()) + ":" + bytes;
++      }
++      for (const auto &rule : rules.character_form_rules()) {
++        const std::string bytes = rule.SerializeAsString();
++        after += std::to_string(bytes.size()) + ":" + bytes;
++      }
++      if (before != after) {
++        *config.mutable_character_form_rules() = rules.character_form_rules();
++      }
++      continue;
++    }
++    const Field *field = FindField(name);
++    const FieldDescriptor *f =
++        field == nullptr ? nullptr : descriptor->FindFieldByName(field->name);
++    if (f == nullptr) return false;
++    int number = 0;
++    switch (f->cpp_type()) {
++      case FieldDescriptor::CPPTYPE_BOOL:
++        if (!value.isBool()) return false;
++        if (value.toBool() != reflection->GetBool(config, f)) {
++          reflection->SetBool(&config, f, value.toBool());
++        }
++        break;
++      case FieldDescriptor::CPPTYPE_ENUM:
++        if (!IntegerIn(value, field->min, field->max, &number) ||
++            f->enum_type()->FindValueByNumber(number) == nullptr) {
++          return false;
++        }
++        if (number != reflection->GetEnumValue(config, f)) {
++          reflection->SetEnumValue(&config, f, number);
++        }
++        break;
++      case FieldDescriptor::CPPTYPE_UINT32:
++        if (!IntegerIn(value, field->min, field->max, &number)) return false;
++        if (static_cast<uint32_t>(number) != reflection->GetUInt32(config, f)) {
++          reflection->SetUInt32(&config, f, static_cast<uint32_t>(number));
++        }
++        break;
++      case FieldDescriptor::CPPTYPE_STRING: {
++        if (!value.isString()) return false;
++        const std::string text = value.toString().trimmed().toStdString();
++        if (text.size() > static_cast<size_t>(field->max)) return false;
++        if (text != reflection->GetString(config, f)) {
++          reflection->SetString(&config, f, text);
++        }
++        break;
++      }
++      default:
++        return false;
++    }
++  }
++  error->clear();
++  *base = std::move(config);
++  return true;
++}
++
++QJsonObject KotoriSettingsBridge::Handle(const QJsonObject &request) {
++  const QString op = request.value("op").toString();
++  if (op == "load") return Load();
++  if (op == "save") return Save(request);
++  if (op == "defaults") return Defaults();
++  if (op == "status") return Status();
++  if (op == "clear") return Clear(request.value("what").toString());
++  if (op == "open") return Open(request.value("target").toString());
++  if (op == "diagnostics") return Diagnostics();
++  if (op == "saveDiagnostics") {
++    // 保存する中身は画面から受け取らず、ここで作り直す(画面が書き換えた文を保存しない)。
++    const QString text = Diagnostics().value("text").toString();
++    return QJsonObject{{"ok", true}, {"saved", host_->SaveDiagnostics(text)}};
++  }
++  LOG(WARNING) << "Unknown settings request: " << op.toStdString();
++  return Fail(QString::fromUtf8("知らない操作です: ") + op);
++}
++
++QJsonObject KotoriSettingsBridge::Environment() {
++  QSettings reminder(support_reminder_path_, QSettings::IniFormat);
++  return QJsonObject{
++      {"version", QString::fromStdString(Version::GetMozcVersion())},
++      {"gpu", QString::fromStdString(KotoriGpuSummary())},
++      {"imeHotKeyDisabled", host_->GetImeHotKeyDisabled()},
++      {"supportReminder", !reminder.value("disabled", false).toBool()},
++      {"keymapCustomized", !base_.custom_keymap_table().empty()},
++      {"romanTableCustomized", !base_.custom_roman_table().empty()},
++      {"highContrast", KotoriHighContrast()},
++  };
++}
++
++QJsonObject KotoriSettingsBridge::Load() {
++  config::Config config;
++  if (!client_->CheckVersionOrRestartServer() || !client_->GetConfig(&config)) {
++    return Fail(QString::fromUtf8(
++        "今の設定を読み込めませんでした。変換エンジンを起動し直してから、もう一度開いてください。"));
++  }
++  base_ = config;
++  QJsonObject result = Ok();
++  result["config"] = ConfigToJson(base_);
++  result["env"] = Environment();
++  return result;
++}
++
++bool KotoriSettingsBridge::StoreConfig(const config::Config &config,
++                                       QString *message) {
++  if (!client_->CheckVersionOrRestartServer() || !client_->SetConfig(config)) {
++    *message = QString::fromUtf8(
++        "設定を保存できませんでした。変更は画面に残っています。もう一度お試しください。");
++    return false;
++  }
++  base_ = config;
++  return true;
++}
++
++QJsonObject KotoriSettingsBridge::Save(const QJsonObject &request) {
++  config::Config config = base_;
++  QString error;
++  if (!JsonToConfig(request.value("config").toObject(), &config, &error)) {
++    return Fail(QString::fromUtf8("設定の値が正しくありません(") + error +
++                QString::fromUtf8(")。"));
++  }
++  if (config.session_keymap() == config::Config::CUSTOM &&
++      config.custom_keymap_table().empty()) {
++    return Fail(QString::fromUtf8(
++        "自分で変えたキーの割り当てがまだありません。「カスタマイズ」で作ってから選んでください。"));
++  }
++  // 次に開いたアプリから効く項目は、そのことを知らせる。
++  QJsonArray notices;
++  if (config.preedit_method() != base_.preedit_method() ||
++      config.use_keyboard_to_change_preedit_method() !=
++          base_.use_keyboard_to_change_preedit_method()) {
++    notices.append(QString::fromUtf8("ローマ字入力・かな入力の設定は、新しく開いたアプリから有効になります。"));
++  }
++  if (config.use_mode_indicator() != base_.use_mode_indicator()) {
++    notices.append(QString::fromUtf8("入力モードの表示は、新しく開いたアプリから有効になります。"));
++  }
++  if (config.kotori_use_integrated_gpu() != base_.kotori_use_integrated_gpu()) {
++    notices.append(QString::fromUtf8("内蔵 GPU の設定は、PC を再起動すると有効になります。"));
++  }
++  QString message;
++  if (config.SerializeAsString() != base_.SerializeAsString() &&
++      !StoreConfig(config, &message)) {
++    return Fail(message);
++  }
++  // Windows の設定と応援のお願いは、変わったときだけ書く(部分的な失敗を成功と見せない)。
++  const QJsonObject env = request.value("env").toObject();
++  if (env.contains("imeHotKeyDisabled")) {
++    const bool disabled = env.value("imeHotKeyDisabled").toBool();
++    if (disabled != host_->GetImeHotKeyDisabled() &&
++        !host_->SetImeHotKeyDisabled(disabled)) {
++      return Fail(QString::fromUtf8("Ctrl+Shift の設定を保存できませんでした。もう一度お試しください。"));
++    }
++  }
++  if (env.contains("supportReminder")) {
++    QSettings reminder(support_reminder_path_, QSettings::IniFormat);
++    reminder.setValue("disabled", !env.value("supportReminder").toBool());
++    reminder.sync();
++  }
++  QJsonObject result = Ok();
++  result["config"] = ConfigToJson(base_);
++  result["env"] = Environment();
++  result["notices"] = notices;
++  return result;
++}
++
++QJsonObject KotoriSettingsBridge::Defaults() {
++  QJsonObject result = Ok();
++  result["config"] = ConfigToJson(config::ConfigHandler::DefaultConfig());
++  return result;
++}
++
++QJsonObject KotoriSettingsBridge::Status() {
++  sample_->Update();
++  const auto tiles = ReadKotoriUsageTiles();
++  QJsonArray usage;
++  for (const KotoriUsageTile &tile : tiles) {
++    usage.append(QJsonObject{
++        {"title", tile.title}, {"value", tile.value}, {"total", tile.total}});
++  }
++  QJsonObject result = Ok();
++  result["state"] = sample_->ai_state;
++  result["ai"] = sample_->ai;
++  result["models"] = sample_->models;
++  if (sample_->server_ram_mib) {
++    result["memoryGb"] = *sample_->server_ram_mib / 1024.0;
++  }
++  result["usage"] = usage;
++  return result;
++}
++
++QJsonObject KotoriSettingsBridge::Clear(const QString &what) {
++  client_->CheckVersionOrRestartServer();
++  bool done = false;
++  if (what == "history") {
++    done = client_->ClearUserHistory();
++  } else if (what == "prediction") {
++    done = client_->ClearUserPrediction();
++  } else if (what == "unusedPrediction") {
++    done = client_->ClearUnusedUserPrediction();
++  } else {
++    return Fail(QString::fromUtf8("知らない消し方です: ") + what);
++  }
++  if (!done) {
++    return Fail(QString::fromUtf8("変換エンジンが動いていないため、消せませんでした。"));
++  }
++  return Ok();
++}
++
++QJsonObject KotoriSettingsBridge::Open(const QString &target) {
++  if (target == "dictionary") {
++    client_->LaunchTool("dictionary_tool", "");
++    return Ok();
++  }
++  if (target == "administration") {
++    client_->LaunchTool("administration_dialog", "");
++    return Ok();
++  }
++  if (target == "support") {
++    host_->OpenSupportPage();
++    return Ok();
++  }
++  if (target == "browseModel") {
++    QString path;
++    QJsonObject result = Ok();
++    if (host_->BrowseModel(
++            QString::fromStdString(base_.kotori_lm_model_path()), &path)) {
++      result["path"] = path;
++    }
++    return result;
++  }
++  if (target == "keymap" || target == "romanTable") {
++    const bool keymap = target == "keymap";
++    std::string input;
++    if (keymap) {
++      input = base_.session_keymap() == config::Config::CUSTOM
++                  ? base_.custom_keymap_table()
++                  : host_->PresetKeymap(base_.session_keymap());
++    } else {
++      input = base_.custom_roman_table();
++    }
++    std::string output;
++    const bool changed = keymap ? host_->EditKeymap(input, &output)
++                                : host_->EditRomanTable(input, &output);
++    QJsonObject result = Ok();
++    result["changed"] = changed;
++    if (changed) {
++      config::Config config = base_;
++      if (keymap) {
++        config.set_custom_keymap_table(output);
++        config.set_session_keymap(config::Config::CUSTOM);
++      } else if (output.empty()) {
++        config.clear_custom_roman_table();
++      } else {
++        config.set_custom_roman_table(output);
++      }
++      QString message;
++      if (!StoreConfig(config, &message)) return Fail(message);
++      result["config"] = ConfigToJson(base_);
++      result["env"] = Environment();
++    }
++    return result;
++  }
++  return Fail(QString::fromUtf8("知らない画面です: ") + target);
++}
++
++QJsonObject KotoriSettingsBridge::Diagnostics() {
++  kotori::DiagnosticsInput in;
++  in.version = Version::GetMozcVersion();
++  // SystemUtil::GetOSVersionString は互換モードの版(10.0.0.0)を返すので、Qt から取る。
++  in.os_version = (QSysInfo::prettyProductName() + " (" +
++                   QSysInfo::kernelVersion() + ")")
++                      .toUtf8()
++                      .toStdString();
++  in.gpu_summary = KotoriGpuSummary();
++  in.ai_status_text = KotoriAiStatus();
++  in.ai_status_file =
++      FileUtil::GetContents(FileUtil::JoinPath(
++                                SystemUtil::GetUserProfileDirectory(),
++                                "kotori_ai_status.txt"))
++          .value_or("");
++  in.lm_enabled = base_.kotori_lm_enabled();
++  in.predict_enabled = base_.kotori_lm_predict();
++  static constexpr const char *kQuality[] = {"Low", "Standard", "High",
++                                             "Unreal"};
++  static constexpr const char *kModel[] = {"自動(おすすめ)", "zenz のみ(軽い)",
++                                           "zenz + LLM(GPU 向け)"};
++  const int q = base_.kotori_lm_quality();
++  const int m = base_.kotori_lm_model();
++  in.quality = q >= 0 && q < 4 ? kQuality[q] : "?";
++  in.model = m >= 0 && m < 3 ? kModel[m] : "?";
++  in.custom_model_path = !base_.kotori_lm_model_path().empty();
++  for (const std::string &path :
++       kotori::PruneCrashLogs(kotori::CrashLogDir(), kotori::kMaxCrashLogs)) {
++    in.crash_logs.emplace_back(FileUtil::Basename(path),
++                               FileUtil::GetContents(path).value_or(""));
++  }
++  QJsonObject result = Ok();
++  result["text"] = QString::fromUtf8(kotori::FormatDiagnostics(in));
++  return result;
++}
++
++}  // namespace gui
++}  // namespace mozc
+diff --git a/src/gui/config_dialog/kotori_settings_bridge.h b/src/gui/config_dialog/kotori_settings_bridge.h
+new file mode 100644
+index 000000000..28cb250b1
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_settings_bridge.h
+@@ -0,0 +1,79 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// HTML の設定画面と変換サーバーの間で、設定と状態を JSON でやり取りする(docs/adr/0084)。
++//
++// 画面から届く要求は {"op": 名前, ...}、返す答えは {"ok": true/false, ...}。画面が読み書きできる
++// 設定は、下の表(kFields)に載せた項目だけ。キーの割り当て・ローマ字の表のような大きな値は画面に
++// 渡さず、ここで持っている設定(base_)に残して保存のたびに書き戻す。
++
++#ifndef MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
++#define MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
++
++#include <QJsonObject>
++#include <QString>
++#include <memory>
++#include <string>
++
++#include "client/client_interface.h"
++#include "protocol/config.pb.h"
++
++namespace mozc {
++namespace gui {
++
++class KotoriDashboardSample;
++
++class KotoriSettingsBridge {
++ public:
++  // 画面の外の操作(Qt の窓・Windows の設定)。テストでは差し替える。
++  class Host {
++   public:
++    virtual ~Host() = default;
++    // キーの割り当ての編集画面。input は今の表。変えたら true で output に新しい表。
++    virtual bool EditKeymap(const std::string &input, std::string *output) = 0;
++    virtual bool EditRomanTable(const std::string &input, std::string *output) = 0;
++    // LLM のファイルを選ぶ。選ばなければ false。
++    virtual bool BrowseModel(const QString &current, QString *path) = 0;
++    // 診断情報を保存する(保存先は利用者が選ぶ)。保存したら true。
++    virtual bool SaveDiagnostics(const QString &text) = 0;
++    // 応援のページを既定のブラウザーで開く(このブリッジは kKotoriSupportUrl だけを渡す)。
++    virtual void OpenSupportPage() = 0;
++    virtual bool GetImeHotKeyDisabled() = 0;
++    virtual bool SetImeHotKeyDisabled(bool disabled) = 0;
++    // 選べる既定のキーの割り当て(ATOK など)の表の中身。
++    virtual std::string PresetKeymap(config::Config::SessionKeymap keymap) = 0;
++  };
++
++  KotoriSettingsBridge(client::ClientInterface *client, Host *host,
++                       QString support_reminder_path);
++  ~KotoriSettingsBridge();
++
++  // 画面からの要求を 1 つ処理する。
++  QJsonObject Handle(const QJsonObject &request);
++
++  // 設定のうち画面が扱う項目を JSON にする / JSON の値を base に書く。値の型・範囲が合わなければ
++  // false と error(項目の名前)。base のほかの項目は変えない。
++  static QJsonObject ConfigToJson(const config::Config &config);
++  static bool JsonToConfig(const QJsonObject &json, config::Config *base,
++                           QString *error);
++
++ private:
++  QJsonObject Load();
++  QJsonObject Save(const QJsonObject &request);
++  QJsonObject Defaults();
++  QJsonObject Status();
++  QJsonObject Clear(const QString &what);
++  QJsonObject Open(const QString &target);
++  QJsonObject Diagnostics();
++  bool StoreConfig(const config::Config &config, QString *message);
++  QJsonObject Environment();
++
++  client::ClientInterface *client_;
++  Host *host_;
++  const QString support_reminder_path_;
++  config::Config base_;
++  std::unique_ptr<KotoriDashboardSample> sample_;
++};
++
++}  // namespace gui
++}  // namespace mozc
++
++#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
+diff --git a/src/gui/config_dialog/kotori_settings_bridge_test.cc b/src/gui/config_dialog/kotori_settings_bridge_test.cc
+new file mode 100644
+index 000000000..adde5e6a2
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_settings_bridge_test.cc
+@@ -0,0 +1,308 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// HTML の設定画面と変換サーバーの橋渡し(docs/adr/0084)。
++
++#include "gui/config_dialog/kotori_settings_bridge.h"
++
++#include <QCoreApplication>
++#include <QDir>
++#include <QJsonArray>
++#include <QJsonObject>
++#include <QSettings>
++#include <QTemporaryDir>
++#include <string>
++
++#include "client/client_mock.h"
++#include "config/config_handler.h"
++#include "protocol/config.pb.h"
++#include "testing/gmock.h"
++#include "testing/gunit.h"
++#include "testing/mozctest.h"
++
++namespace mozc {
++namespace gui {
++namespace {
++
++using ::testing::_;
++using ::testing::DoAll;
++using ::testing::Return;
++using ::testing::SaveArg;
++
++class FakeHost : public KotoriSettingsBridge::Host {
++ public:
++  bool EditKeymap(const std::string &input, std::string *output) override {
++    keymap_input = input;
++    *output = keymap_output;
++    return !keymap_output.empty();
++  }
++  bool EditRomanTable(const std::string &input, std::string *output) override {
++    *output = roman_output;
++    return edit_roman;
++  }
++  bool BrowseModel(const QString &, QString *path) override {
++    *path = "C:/models/a.gguf";
++    return true;
++  }
++  bool SaveDiagnostics(const QString &text) override {
++    saved_diagnostics = text;
++    return true;
++  }
++  void OpenSupportPage() override { ++support_opened; }
++  bool GetImeHotKeyDisabled() override { return hotkey_disabled; }
++  bool SetImeHotKeyDisabled(bool disabled) override {
++    hotkey_disabled = disabled;
++    return hotkey_writable;
++  }
++  std::string PresetKeymap(config::Config::SessionKeymap keymap) override {
++    return "preset " + std::to_string(keymap);
++  }
++
++  std::string keymap_input, keymap_output, roman_output;
++  bool edit_roman = false;
++  QString saved_diagnostics;
++  int support_opened = 0;
++  bool hotkey_disabled = false;
++  bool hotkey_writable = true;
++};
++
++class KotoriSettingsBridgeTest : public testing::TestWithTempUserProfile {
++ protected:
++  void SetUp() override {
++    config::ConfigHandler::GetDefaultConfig(&config_);
++    config_.set_custom_keymap_table("keep this keymap");
++    ASSERT_TRUE(dir_.isValid());
++    reminder_ = dir_.filePath("support-reminder.ini");
++    ON_CALL(client_, CheckVersionOrRestartServer()).WillByDefault(Return(true));
++    // 各テストが SetUp の後に config_ を変えても、読み込むときの値を返す。
++    ON_CALL(client_, GetConfig(_)).WillByDefault([this](config::Config *config) {
++      *config = config_;
++      return true;
++    });
++  }
++
++  QJsonObject Load(KotoriSettingsBridge &bridge) {
++    return bridge.Handle(QJsonObject{{"op", "load"}});
++  }
++
++  client::ClientMock client_;
++  FakeHost host_;
++  config::Config config_;
++  QTemporaryDir dir_;
++  QString reminder_;
++};
++
++TEST_F(KotoriSettingsBridgeTest, LoadShowsOnlyListedFieldsAndEnvironment) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  const QJsonObject result = Load(bridge);
++  ASSERT_TRUE(result.value("ok").toBool());
++  const QJsonObject config = result.value("config").toObject();
++  EXPECT_EQ(config.value("kotori_suggest_min_chars").toInt(), 3);
++  EXPECT_EQ(config.value("kotori_lm_quality").toInt(), 1);
++  EXPECT_TRUE(config.value("kotori_lm_enabled").toBool());
++  // 大きな値(キーの割り当ての表)は画面に渡さない。
++  EXPECT_FALSE(config.contains("custom_keymap_table"));
++  EXPECT_FALSE(config.contains("custom_roman_table"));
++  EXPECT_FALSE(config.value("character_form_rules").toArray().isEmpty());
++  const QJsonObject env = result.value("env").toObject();
++  EXPECT_TRUE(env.value("keymapCustomized").toBool());
++  EXPECT_TRUE(env.value("supportReminder").toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, DefaultConfigRoundTripsUnchanged) {
++  // 画面に出した値をそのまま戻すと、元の設定と同じになる(既定の全角・半角の表を含む)。
++  config::Config base;
++  config::ConfigHandler::GetDefaultConfig(&base);
++  config::Config round = base;
++  QString error;
++  ASSERT_TRUE(KotoriSettingsBridge::JsonToConfig(
++      KotoriSettingsBridge::ConfigToJson(base), &round, &error))
++      << error.toStdString();
++  EXPECT_EQ(round.SerializeAsString(), base.SerializeAsString());
++}
++
++TEST_F(KotoriSettingsBridgeTest, SaveWritesChangesAndKeepsHiddenFields) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  Load(bridge);
++  QJsonObject config = Load(bridge).value("config").toObject();
++  config["kotori_suggest_min_chars"] = 2;
++  config["kotori_live_conversion"] = true;
++  config["punctuation_method"] = 1;
++  config::Config stored;
++  EXPECT_CALL(client_, SetConfig(_)).WillOnce(DoAll(SaveArg<0>(&stored), Return(true)));
++  const QJsonObject result =
++      bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}});
++  ASSERT_TRUE(result.value("ok").toBool()) << result.value("message").toString().toStdString();
++  EXPECT_EQ(stored.kotori_suggest_min_chars(), 2);
++  EXPECT_TRUE(stored.kotori_live_conversion());
++  EXPECT_EQ(stored.punctuation_method(), config::Config::COMMA_PERIOD);
++  EXPECT_EQ(stored.custom_keymap_table(), "keep this keymap");
++}
++
++TEST_F(KotoriSettingsBridgeTest, SaveWithoutChangesDoesNotWrite) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  const QJsonObject config = Load(bridge).value("config").toObject();
++  EXPECT_CALL(client_, SetConfig(_)).Times(0);
++  EXPECT_TRUE(bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}})
++                  .value("ok")
++                  .toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, RejectsUnknownFieldsAndValuesOutOfRange) {
++  config::Config base;
++  config::ConfigHandler::GetDefaultConfig(&base);
++  const config::Config before = base;
++  QString error;
++  // 載せていない項目は書かない。
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"custom_keymap_table", "x"}}, &base, &error));
++  EXPECT_EQ(error, "custom_keymap_table");
++  // 範囲の外・型の違い・小数。
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"kotori_suggest_min_chars", 6}}, &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"suggestions_size", 0}}, &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"kotori_lm_quality", 1.5}}, &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"kotori_lm_enabled", 1}}, &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"session_keymap", 100}}, &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"kotori_lm_model_path", QString(2000, 'a')}}, &base, &error));
++  // 失敗したときは base を変えない(途中まで書かない)。
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"kotori_live_conversion", true}, {"kotori_lm_quality", 9}},
++      &base, &error));
++  EXPECT_EQ(base.SerializeAsString(), before.SerializeAsString());
++}
++
++TEST_F(KotoriSettingsBridgeTest, CharacterFormsKeepKatakanaPreeditFullWidth) {
++  config::Config base;
++  config::ConfigHandler::GetDefaultConfig(&base);
++  QString error;
++  const QJsonArray rules{
++      QJsonObject{{"group", "ア"}, {"preedit", 0}, {"conversion", 0}},
++      QJsonObject{{"group", "A"}, {"preedit", 0}, {"conversion", 2}}};
++  ASSERT_TRUE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"character_form_rules", rules}}, &base, &error));
++  ASSERT_EQ(base.character_form_rules_size(), 2);
++  EXPECT_EQ(base.character_form_rules(0).preedit_character_form(),
++            config::Config::FULL_WIDTH);
++  EXPECT_EQ(base.character_form_rules(0).conversion_character_form(),
++            config::Config::HALF_WIDTH);
++  EXPECT_EQ(base.character_form_rules(1).conversion_character_form(),
++            config::Config::LAST_FORM);
++  // 「変換しない」(3)は選べない。空の表も受け付けない。
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"character_form_rules",
++                   QJsonArray{QJsonObject{{"group", "0"}, {"preedit", 3}, {"conversion", 0}}}}},
++      &base, &error));
++  EXPECT_FALSE(KotoriSettingsBridge::JsonToConfig(
++      QJsonObject{{"character_form_rules", QJsonArray{}}}, &base, &error));
++}
++
++TEST_F(KotoriSettingsBridgeTest, CustomKeymapNeedsATable) {
++  config_.clear_custom_keymap_table();
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  QJsonObject config = Load(bridge).value("config").toObject();
++  config["session_keymap"] = 0;
++  EXPECT_CALL(client_, SetConfig(_)).Times(0);
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}})
++                   .value("ok")
++                   .toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, NoticesForSettingsThatNeedNewAppsOrRestart) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  QJsonObject config = Load(bridge).value("config").toObject();
++  config["preedit_method"] = 1;
++  config["kotori_use_integrated_gpu"] = true;
++  EXPECT_CALL(client_, SetConfig(_)).WillOnce(Return(true));
++  const QJsonArray notices =
++      bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}})
++          .value("notices")
++          .toArray();
++  EXPECT_EQ(notices.size(), 2);
++}
++
++TEST_F(KotoriSettingsBridgeTest, FailedSaveIsReportedAndNotRemembered) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  QJsonObject config = Load(bridge).value("config").toObject();
++  config["incognito_mode"] = true;
++  EXPECT_CALL(client_, SetConfig(_)).WillOnce(Return(false)).WillOnce(Return(true));
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}})
++                   .value("ok")
++                   .toBool());
++  // 失敗した変更は覚えていないので、同じ変更をもう一度送ると書きに行く。
++  EXPECT_TRUE(bridge.Handle(QJsonObject{{"op", "save"}, {"config", config}})
++                  .value("ok")
++                  .toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, EnvironmentSettingsAreWrittenOnlyWhenChanged) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  const QJsonObject config = Load(bridge).value("config").toObject();
++  QJsonObject result = bridge.Handle(QJsonObject{
++      {"op", "save"},
++      {"config", config},
++      {"env", QJsonObject{{"imeHotKeyDisabled", true}, {"supportReminder", false}}}});
++  ASSERT_TRUE(result.value("ok").toBool());
++  EXPECT_TRUE(host_.hotkey_disabled);
++  EXPECT_TRUE(QSettings(reminder_, QSettings::IniFormat).value("disabled").toBool());
++  EXPECT_FALSE(result.value("env").toObject().value("supportReminder").toBool());
++  // Windows の設定が書けなければ、成功と見せない。
++  host_.hotkey_writable = false;
++  result = bridge.Handle(QJsonObject{
++      {"op", "save"}, {"config", config}, {"env", QJsonObject{{"imeHotKeyDisabled", false}}}});
++  EXPECT_FALSE(result.value("ok").toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, KeymapEditorStartsFromPresetAndSavesCustom) {
++  config_.clear_custom_keymap_table();
++  config_.set_session_keymap(config::Config::ATOK);
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  Load(bridge);
++  host_.keymap_output = "edited keymap";
++  config::Config stored;
++  EXPECT_CALL(client_, SetConfig(_)).WillOnce(DoAll(SaveArg<0>(&stored), Return(true)));
++  const QJsonObject result = bridge.Handle(QJsonObject{{"op", "open"}, {"target", "keymap"}});
++  ASSERT_TRUE(result.value("ok").toBool());
++  EXPECT_TRUE(result.value("changed").toBool());
++  EXPECT_EQ(host_.keymap_input, "preset 1");
++  EXPECT_EQ(stored.session_keymap(), config::Config::CUSTOM);
++  EXPECT_EQ(stored.custom_keymap_table(), "edited keymap");
++  EXPECT_EQ(result.value("config").toObject().value("session_keymap").toInt(), 0);
++}
++
++TEST_F(KotoriSettingsBridgeTest, ClearAndToolsGoToTheServer) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  EXPECT_CALL(client_, ClearUserHistory()).WillOnce(Return(true));
++  EXPECT_CALL(client_, ClearUserPrediction()).WillOnce(Return(false));
++  EXPECT_CALL(client_, LaunchTool("dictionary_tool", _)).WillOnce(Return(true));
++  EXPECT_TRUE(bridge.Handle(QJsonObject{{"op", "clear"}, {"what", "history"}})
++                  .value("ok").toBool());
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "clear"}, {"what", "prediction"}})
++                   .value("ok").toBool());
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "clear"}, {"what", "everything"}})
++                   .value("ok").toBool());
++  EXPECT_TRUE(bridge.Handle(QJsonObject{{"op", "open"}, {"target", "dictionary"}})
++                  .value("ok").toBool());
++  bridge.Handle(QJsonObject{{"op", "open"}, {"target", "support"}});
++  EXPECT_EQ(host_.support_opened, 1);
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "open"}, {"target", "https://example.com"}})
++                   .value("ok").toBool());
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "nonsense"}}).value("ok").toBool());
++}
++
++TEST_F(KotoriSettingsBridgeTest, DiagnosticsAreRebuiltNotTakenFromThePage) {
++  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
++  Load(bridge);
++  const QJsonObject result = bridge.Handle(
++      QJsonObject{{"op", "saveDiagnostics"}, {"text", "page supplied text"}});
++  EXPECT_TRUE(result.value("saved").toBool());
++  EXPECT_FALSE(host_.saved_diagnostics.contains("page supplied text"));
++  EXPECT_FALSE(host_.saved_diagnostics.isEmpty());
++}
++
++}  // namespace
++}  // namespace gui
++}  // namespace mozc
+diff --git a/src/gui/config_dialog/kotori_settings_data.cc b/src/gui/config_dialog/kotori_settings_data.cc
+new file mode 100644
+index 000000000..1a8611b58
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_settings_data.cc
+@@ -0,0 +1,383 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// 設定画面(Qt の画面と HTML の画面)が共有する、AI の状態・GPU・使い方の数字(docs/adr/0084)。
++
++#include "gui/config_dialog/kotori_settings_data.h"
++
++#include <QDate>
++#include <QDir>
++#include <QFile>
++#include <QLocale>
++#include <QRegularExpression>
++#include <QString>
++#include <QStringList>
++#include <algorithm>
++#include <array>
++#include <map>
++#include <string>
++
++#ifdef _WIN32
++#include <windows.h>
++#include <dxgi.h>
++#include <psapi.h>
++#endif  // _WIN32
++
++#include "base/file_util.h"
++#include "base/system_util.h"
++
++namespace mozc {
++namespace gui {
++
++#ifdef _WIN32
++// Kotori: Windows のハイコントラストが有効か。有効なら Kotori の配色とスタイルを当てず、Windows の
++// 配色に従う(docs/adr/0028、改善案 14)。
++bool KotoriHighContrast() {
++  HIGHCONTRASTW hc = {sizeof(hc)};
++  return ::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
++         (hc.dwFlags & HCF_HIGHCONTRASTON);
++}
++#else
++bool KotoriHighContrast() { return false; }
++#endif  // _WIN32
++
++// Kotori: この PC の GPU の名前と VRAM を 1 行で(設定画面に出す)。DXGI で調べ、
++// ソフトウェアの描画(Microsoft Basic Render Driver)は除く。
++std::string KotoriGpuSummary() {
++#ifdef _WIN32
++  using CreateFactory = HRESULT(WINAPI *)(REFIID, void **);
++  HMODULE dxgi = ::LoadLibraryExW(L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
++  if (dxgi != nullptr) {
++    auto create = reinterpret_cast<CreateFactory>(
++        ::GetProcAddress(dxgi, "CreateDXGIFactory1"));
++    IDXGIFactory1 *factory = nullptr;
++    std::wstring best_name;
++    SIZE_T best_vram = 0;
++    if (create != nullptr &&
++        SUCCEEDED(create(__uuidof(IDXGIFactory1),
++                         reinterpret_cast<void **>(&factory)))) {
++      IDXGIAdapter1 *adapter = nullptr;
++      for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND;
++           ++i) {
++        DXGI_ADAPTER_DESC1 desc = {};
++        if (SUCCEEDED(adapter->GetDesc1(&desc)) &&
++            !(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) &&
++            desc.DedicatedVideoMemory > best_vram) {
++          best_vram = desc.DedicatedVideoMemory;
++          best_name = desc.Description;
++        }
++        adapter->Release();
++      }
++      factory->Release();
++    }
++    ::FreeLibrary(dxgi);
++    if (!best_name.empty()) {
++      const double gb = static_cast<double>(best_vram) / (1024.0 * 1024 * 1024);
++      const QString name = QString::fromWCharArray(best_name.c_str());
++      QString text;
++      // AI を載せるのは専用 GPU で VRAM が 3 GB 以上のときだけ(rewriter/llama_runtime.h)。
++      // 内蔵 GPU(専用の VRAM が少ない)では、どの品質を選んでも Low で動く。
++      if (gb >= 3.0) {
++        text = QString::fromUtf8("このPCのGPU: %1（VRAM %2 GB）。Standard以上を使えます。")
++                   .arg(name)
++                   .arg(gb, 0, 'f', 0);
++      } else {
++        text = QString::fromUtf8(
++                   "このPCのGPU: %1（VRAM %2 GB）。どの品質を選んでもLowで動きます。"
++                   "下の「内蔵 GPU で AI を動かす」をオンにすると、CPU の代わりにこの GPU を使います。")
++                   .arg(name)
++                   .arg(gb, 0, 'f', 1);
++      }
++      return text.toUtf8().toStdString();
++    }
++  }
++#endif  // _WIN32
++  return "AIに使えるGPUが見つかりません。どの品質を選んでもLow（CPU）で動きます。";
++}
++
++// Kotori: 実際に動いている AI の状態(変換サーバーがユーザーのプロファイルの
++// kotori_ai_status.txt に書く。rewriter/lm_rewriter.cc の WriteStatus、docs/adr/0026)。
++
++KotoriStatus ReadKotoriStatus() {
++  QFile file(QString::fromUtf8(
++      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
++                         "kotori_ai_status.txt")
++          .c_str()));
++  KotoriStatus status;
++  if (!file.open(QIODevice::ReadOnly) || file.size() > 8192) return status;
++  for (const QByteArray &raw : file.readAll().split('\n')) {
++    const QByteArray line = raw.trimmed();
++    const qsizetype equals = line.indexOf('=');
++    if (equals > 0)
++      status[line.left(equals).toStdString()] =
++          line.mid(equals + 1).toStdString();
++  }
++  return status;
++}
++
++std::string FormatKotoriAiStatus(KotoriStatus kv) {
++  const std::string &state = kv["state"];
++  const std::string &device = kv["device"];
++  const std::string where = device == "CPU" ? "CPU で動作" : "GPU: " + device;
++  if (state == "llm") {
++    return "AI の状態: 動いています(変換用の AI と日本語 LLM、" + where + ")。";
++  } else if (state == "zenz") {
++    return "AI の状態: 動いています(変換用の AI " + kv["zenz"] + "、" + where +
++           ")。";
++  } else if (state == "loading") {
++    return "AI の状態: モデルを読み込んでいます。終わるまで、変換は AI の結果を待ちます"
++           "(文字の入力と編集はそのまま続けられます)。";
++  } else if (state == "sleep") {
++    return "AI の状態: 休んでいます(GPU のメモリを空けています。"
++           "次に入力すると読み込みます)。";
++  } else if (state == "error") {
++    return "AI の状態: 動いていません(" + kv["message"] +
++           " を読み込めません)。AI なしの変換で入力を続けます。入れ直すと直ることがあります。";
++  } else if (state == "off") {
++    return "AI の状態: AI 変換は切れています。";
++  }
++  return "AI の状態: まだ分かりません(日本語を一度入力すると表示されます)。";
++}
++
++namespace {
++
++QString MemoryText(quint64 bytes) {
++  return QString::fromUtf8("%1 MiB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 1);
++}
++
++}  // namespace
++
++void KotoriDashboardSample::Update() {
++  pc_cpu_load.reset();
++  pc_memory_load.reset();
++  server_cpu_load.reset();
++  server_ram_mib.reset();
++  ai_seconds.reset();
++  ai_calls.reset();
++  ai_state = "unknown";
++  const KotoriStatus status = ReadKotoriStatus();
++  const auto value = [&](const char *key) {
++    const auto found = status.find(key);
++    return found == status.end() ? QString()
++                                 : QString::fromUtf8(found->second.c_str());
++  };
++  ai = QString::fromUtf8(
++      "AIの状態はまだ取得できません。日本語を入力すると更新されます。");
++  models = QString::fromUtf8("実行中のモデル: 未確認");
++  inference = QString::fromUtf8("AI計算時間: まだ計測データがありません");
++  server_memory = QString::fromUtf8("Asteriaのメモリ: 取得できません");
++  server_cpu = QString::fromUtf8("AsteriaのCPU: 取得できません");
++  pc_memory = QString::fromUtf8("PCのメモリ: 取得できません");
++  pc_cpu = QString::fromUtf8("PCのCPU: 計測中");
++#ifdef _WIN32
++  MEMORYSTATUSEX memory = {sizeof(memory)};
++  if (::GlobalMemoryStatusEx(&memory)) {
++    pc_memory_load = memory.dwMemoryLoad;
++    pc_memory =
++        QString::fromUtf8("PCのメモリ: %1 / %2 GiB（%3%）")
++            .arg((memory.ullTotalPhys - memory.ullAvailPhys) /
++                     (1024.0 * 1024 * 1024),
++                 0, 'f', 1)
++            .arg(memory.ullTotalPhys / (1024.0 * 1024 * 1024), 0, 'f', 1)
++            .arg(memory.dwMemoryLoad);
++  }
++  FILETIME idle, kernel, user;
++  if (::GetSystemTimes(&idle, &kernel, &user)) {
++    const quint64 total = Ticks(kernel) + Ticks(user), idle_now = Ticks(idle);
++    if (system_total_ != 0 && total > system_total_ &&
++        idle_now >= system_idle_) {
++      const double busy = 1.0 - static_cast<double>(idle_now - system_idle_) /
++                                    (total - system_total_);
++      pc_cpu_load = std::clamp(busy * 100.0, 0.0, 100.0);
++      pc_cpu = QString::fromUtf8("PCのCPU: %1%")
++                   .arg(std::clamp(busy * 100.0, 0.0, 100.0), 0, 'f', 1);
++    }
++    system_total_ = total;
++    system_idle_ = idle_now;
++  }
++  bool pid_ok = false, creation_ok = false;
++  const DWORD pid = value("pid").toUInt(&pid_ok);
++  const quint64 start = value("process_started").toULongLong(&creation_ok);
++  HANDLE process =
++      pid_ok && creation_ok && pid != 0
++          ? ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)
++          : nullptr;
++  FILETIME created, exited, process_kernel, process_user;
++  wchar_t image[32768];
++  DWORD image_size = std::size(image);
++  DWORD exit_code = 0;
++  const QString expected =
++      QDir::cleanPath(QString::fromUtf8(SystemUtil::GetServerPath().c_str()));
++  const bool active =
++      process && ::GetExitCodeProcess(process, &exit_code) &&
++      exit_code == STILL_ACTIVE &&
++      ::GetProcessTimes(process, &created, &exited, &process_kernel,
++                        &process_user) &&
++      Ticks(created) == start &&
++      ::QueryFullProcessImageNameW(process, 0, image, &image_size) &&
++      QDir::cleanPath(QString::fromWCharArray(image, image_size))
++              .compare(expected, Qt::CaseInsensitive) == 0;
++  if (active) {
++    ai = QString::fromUtf8(FormatKotoriAiStatus(status).c_str());
++    ai_state = value("state");
++    QStringList names;
++    if (!value("zenz").isEmpty()) names << value("zenz");
++    if (!value("llm").isEmpty()) names << value("llm");
++    models = QString::fromUtf8("実行中のモデル: %1")
++                 .arg(names.isEmpty() ? QString::fromUtf8("なし")
++                                      : names.join(" / "));
++    const QRegularExpression counters(
++        "zenz work=([0-9]+)ms decode=([0-9]+)ms calls=([0-9]+) "
++        "tokens=([0-9]+) \\| llm work=([0-9]+)ms decode=([0-9]+)ms "
++        "calls=([0-9]+) tokens=([0-9]+)");
++    const auto match = counters.match(value("stats"));
++    if (match.hasMatch()) {
++      ai_seconds =
++          (match.captured(1).toDouble() + match.captured(5).toDouble()) /
++          1000.0;
++      ai_calls = match.captured(3).toULongLong() +
++                 match.captured(7).toULongLong();
++      inference = QString::fromUtf8("AI計算の累計: %1秒　モデル計算: %2回")
++                      .arg((match.captured(1).toDouble() +
++                            match.captured(5).toDouble()) /
++                               1000.0,
++                           0, 'f', 2)
++                      .arg(match.captured(3).toULongLong() +
++                           match.captured(7).toULongLong());
++    }
++    using MemoryInfo =
++        BOOL(WINAPI *)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
++    const auto get_memory = reinterpret_cast<MemoryInfo>(::GetProcAddress(
++        ::GetModuleHandleW(L"kernel32.dll"), "K32GetProcessMemoryInfo"));
++    PROCESS_MEMORY_COUNTERS_EX counters_memory = {};
++    counters_memory.cb = sizeof(counters_memory);
++    if (get_memory && get_memory(process,
++                                 reinterpret_cast<PPROCESS_MEMORY_COUNTERS>(
++                                     &counters_memory),
++                                 sizeof(counters_memory))) {
++      server_ram_mib = counters_memory.WorkingSetSize / (1024.0 * 1024.0);
++      server_memory =
++          QString::fromUtf8(
++              "Asteriaのメモリ（常駐RAM）: %1\nプライベート確保量: %2")
++              .arg(MemoryText(counters_memory.WorkingSetSize),
++                   MemoryText(counters_memory.PrivateUsage));
++    }
++    const quint64 now = ::GetTickCount64(),
++                  cpu = Ticks(process_kernel) + Ticks(process_user);
++    if (last_pid_ == pid && last_start_ == start && now > last_wall_ &&
++        cpu >= last_cpu_) {
++      SYSTEM_INFO info;
++      ::GetNativeSystemInfo(&info);
++      const double usage =
++          (cpu - last_cpu_) / (10000.0 * (now - last_wall_) *
++                               std::max<DWORD>(1, info.dwNumberOfProcessors));
++      server_cpu_load = std::clamp(usage * 100.0, 0.0, 100.0);
++      server_cpu = QString::fromUtf8("AsteriaのCPU: %1%")
++                       .arg(std::clamp(usage * 100.0, 0.0, 100.0), 0, 'f', 1);
++    } else {
++      server_cpu = QString::fromUtf8("AsteriaのCPU: 計測中");
++    }
++    last_pid_ = pid;
++    last_start_ = start;
++    last_wall_ = now;
++    last_cpu_ = cpu;
++  } else {
++    last_pid_ = 0;
++    if (!value("state").isEmpty())
++      ai = QString::fromUtf8(
++          "AIの現在の状態は未確認です。変換サーバーの起動後に更新されます。");
++  }
++  if (process) ::CloseHandle(process);
++#else
++  ai = QString::fromUtf8(FormatKotoriAiStatus(status).c_str());
++#endif
++}
++
++QString KotoriDuration(qint64 ms) {
++  const qint64 seconds = (ms + 500) / 1000;
++  if (seconds < 60) return QString::fromUtf8("%1秒").arg(seconds);
++  const qint64 minutes = seconds / 60;
++  if (minutes < 60)
++    return QString::fromUtf8("%1分%2秒").arg(minutes).arg(seconds % 60);
++  return QString::fromUtf8("%1時間%2分").arg(minutes / 60).arg(minutes % 60);
++}
++
++std::array<KotoriUsageTile, 4> KotoriUsageTiles(const QByteArray &file,
++                                                const QString &today) {
++  std::map<QByteArray, qint64> v;
++  QByteArray date;
++  for (const QByteArray &raw : file.split('\n')) {
++    const QByteArray line = raw.trimmed();
++    const qsizetype equals = line.indexOf('=');
++    if (equals <= 0) continue;
++    if (line.left(equals) == "date") {
++      date = line.mid(equals + 1);
++      continue;
++    }
++    bool ok = false;
++    const qint64 number = line.mid(equals + 1).toLongLong(&ok);
++    if (ok && number >= 0) v[line.left(equals)] = number;
++  }
++  // 日付が変わってからまだ書かれていなければ、今日の分は 0。
++  const bool is_today = QString::fromUtf8(date) == today;
++  const auto get = [&](const char *prefix, const char *key) -> qint64 {
++    if (QByteArray(prefix) == "today_" && !is_today) return 0;
++    const auto found = v.find(QByteArray(prefix) + key);
++    return found == v.end() ? 0 : found->second;
++  };
++  const QLocale locale(QLocale::Japanese);
++  const auto count = [&](const char *p) {
++    return QString::fromUtf8("%1回").arg(locale.toString(get(p, "conversions")));
++  };
++  const auto wait = [&](const char *p) {
++    const qint64 n = get(p, "wait_count");
++    return n == 0 ? QString::fromUtf8("—")
++                  : QString::fromUtf8("%1 ms").arg((get(p, "wait_ms") + n / 2) / n);
++  };
++  const auto rate = [&](const char *p) {
++    const qint64 n = get(p, "conversions");
++    return n == 0 ? QString::fromUtf8("—")
++                  : QString::fromUtf8("%1%").arg((get(p, "first_kept") * 100 + n / 2) / n);
++  };
++  const bool knows_speed = v["ms_per_char"] > 0;
++  const auto saved = [&](const char *p) {
++    if (!knows_speed) return QString::fromUtf8("測っています");
++    return KotoriDuration(get(p, "saved_ms"));
++  };
++  return {{
++      {QString::fromUtf8("変換した回数"), count("today_"),
++       QString::fromUtf8("累計 %1").arg(count("total_"))},
++      {QString::fromUtf8("考える時間（Spaceから候補まで）"), wait("today_"),
++       QString::fromUtf8("累計の平均 %1").arg(wait("total_"))},
++      {QString::fromUtf8("正答率（1番目の候補で確定）"), rate("today_"),
++       QString::fromUtf8("累計 %1").arg(rate("total_"))},
++      {QString::fromUtf8("予測で節約できた時間"), saved("today_"),
++       QString::fromUtf8("累計 %1").arg(saved("total_"))},
++  }};
++}
++
++std::array<KotoriUsageTile, 4> ReadKotoriUsageTiles() {
++  QFile file(QString::fromUtf8(
++      FileUtil::JoinPath(SystemUtil::GetUserProfileDirectory(),
++                         "asteria_usage.txt")
++          .c_str()));
++  QByteArray content;
++  if (file.open(QIODevice::ReadOnly) && file.size() <= 8192)
++    content = file.readAll();
++  return KotoriUsageTiles(content,
++                          QDate::currentDate().toString(Qt::ISODate));
++}
++
++std::string KotoriAiStatus() {
++  KotoriDashboardSample sample;
++  sample.Update();
++  return sample.ai.toUtf8().toStdString();
++}
++
++// Asteria: 応援のお願い(gui/tool/kotori_support_reminder)の設定ファイル。「disabled」が true なら出さない。
++// 設定画面は mozc_tool のライブラリに依存できないので、同じファイルと項目を直接読み書きする。
++QString KotoriSupportReminderPath() {
++  return QString::fromStdString(SystemUtil::GetUserProfileDirectory()) +
++         QStringLiteral("/support-reminder.ini");
++}
++
++}  // namespace gui
++}  // namespace mozc
+diff --git a/src/gui/config_dialog/kotori_settings_data.h b/src/gui/config_dialog/kotori_settings_data.h
+new file mode 100644
+index 000000000..6dde17636
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_settings_data.h
+@@ -0,0 +1,82 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// 設定画面(Qt の画面と HTML の画面)が共有する、AI の状態・GPU・使い方の数字(docs/adr/0084)。
++
++#ifndef MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_DATA_H_
++#define MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_DATA_H_
++
++#include <QByteArray>
++#include <QString>
++#include <QtGlobal>
++#include <array>
++#include <map>
++#include <optional>
++#include <string>
++
++#ifdef _WIN32
++#include <windows.h>
++#endif  // _WIN32
++
++namespace mozc {
++namespace gui {
++
++// 応援のページ(設定画面のボタン・応援のお願いの通知から開く)。
++inline constexpr char kKotoriSupportUrl[] =
++    "https://buy.stripe.com/cNi14m7jRdq005f0781ZS08";
++
++// Windows のハイコントラストが有効か。有効なら Asteria の配色を当てず、Windows の配色に従う
++// (docs/adr/0028、改善案 14)。
++bool KotoriHighContrast();
++
++// この PC の GPU の名前と VRAM を 1 行で(設定画面に出す)。
++std::string KotoriGpuSummary();
++
++// 実際に動いている AI の状態(変換サーバーがユーザーのプロファイルの kotori_ai_status.txt に書く。
++// rewriter/lm_rewriter.cc の WriteStatus、docs/adr/0026)。
++using KotoriStatus = std::map<std::string, std::string>;
++KotoriStatus ReadKotoriStatus();
++std::string FormatKotoriAiStatus(KotoriStatus kv);
++// 今の AI の状態の 1 文(変換サーバーが動いていることを確かめてから)。
++std::string KotoriAiStatus();
++
++// Kotori: GUIが開いている間だけ、実際の変換サーバーを2秒間隔で測る。
++// 状態ファイルのPID・起動時刻・実行ファイルを照合し、古い記録は動作中と表示しない。
++class KotoriDashboardSample {
++ public:
++  QString ai, models, inference, server_memory, server_cpu, pc_memory, pc_cpu;
++  QString ai_state;
++  std::optional<double> pc_cpu_load, pc_memory_load, server_cpu_load,
++      server_ram_mib, ai_seconds;
++  std::optional<quint64> ai_calls;
++
++  void Update();
++
++ private:
++#ifdef _WIN32
++  static quint64 Ticks(FILETIME time) {
++    return (static_cast<quint64>(time.dwHighDateTime) << 32) |
++           time.dwLowDateTime;
++  }
++  quint64 system_total_ = 0, system_idle_ = 0, last_start_ = 0, last_wall_ = 0,
++          last_cpu_ = 0;
++  DWORD last_pid_ = 0;
++#endif
++};
++
++// Asteria: ダッシュボードの数字の札(題・今日の値・累計)。数字はサーバーが asteria_usage.txt に
++// 回数と時間だけを書く(session/kotori_usage_stats)。文章は保存しない。
++struct KotoriUsageTile {
++  QString title, value, total;
++};
++QString KotoriDuration(qint64 ms);
++std::array<KotoriUsageTile, 4> KotoriUsageTiles(const QByteArray &file,
++                                                const QString &today);
++std::array<KotoriUsageTile, 4> ReadKotoriUsageTiles();
++
++// Asteria: 応援のお願い(gui/tool/kotori_support_reminder)の設定ファイル。「disabled」が true なら出さない。
++// 設定画面は mozc_tool のライブラリに依存できないので、同じファイルと項目を直接読み書きする。
++QString KotoriSupportReminderPath();
++
++}  // namespace gui
++}  // namespace mozc
++
++#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_DATA_H_
+diff --git a/src/gui/config_dialog/kotori_web_settings.cc b/src/gui/config_dialog/kotori_web_settings.cc
+new file mode 100644
+index 000000000..eb8c5fe9f
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_web_settings.cc
+@@ -0,0 +1,503 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// HTML で作った設定画面を、Edge の表示部品(WebView2)で開く窓(docs/adr/0084)。
++
++#include "gui/config_dialog/kotori_web_settings.h"
++
++#include <QDesktopServices>
++#include <QEvent>
++#include <QFile>
++#include <QFileDialog>
++#include <QGuiApplication>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QMessageBox>
++#include <QResizeEvent>
++#include <QScreen>
++#include <QStandardPaths>
++#include <QDateTime>
++#include <QTimer>
++#include <QUrl>
++#include <istream>
++#include <memory>
++#include <sstream>
++#include <string>
++#include <utility>
++
++#include "absl/log/log.h"
++#include "base/config_file_stream.h"
++#include "base/file_util.h"
++#include "base/system_util.h"
++#include "client/client.h"
++#include "gui/config_dialog/keymap_editor.h"
++#include "gui/config_dialog/kotori_settings_data.h"
++#include "gui/config_dialog/roman_table_editor.h"
++#include "session/keymap.h"
++
++#ifdef _WIN32
++#include <windows.h>
++#include <dwmapi.h>
++#include <shlwapi.h>
++#include <wrl.h>
++
++#include "WebView2.h"
++#include "gui/base/win_util.h"
++#endif  // _WIN32
++
++namespace mozc {
++namespace gui {
++namespace {
++
++// 設定画面だけに使う名前(.invalid は実在しない名前と決まっている。外へは問い合わせない)。
++constexpr char kOrigin[] = "https://settings.asteria.invalid";
++constexpr char kStartPage[] = "https://settings.asteria.invalid/index.html";
++// 埋め込んだ HTML などの置き場(kotori_web_settings.qrc)。
++constexpr char kResourceRoot[] = ":/kotori_settings/";
++
++// 埋め込んだファイルの種類。ここにない拡張子のファイルは出さない。
++const char *ContentType(const QString &path) {
++  if (path.endsWith(".html")) return "text/html; charset=utf-8";
++  if (path.endsWith(".css")) return "text/css; charset=utf-8";
++  if (path.endsWith(".js")) return "text/javascript; charset=utf-8";
++  if (path.endsWith(".svg")) return "image/svg+xml";
++  return nullptr;
++}
++
++// 名前の部分が英数字と . - _ / だけで、上の階層へ出ないか。
++bool SafeResourcePath(const QString &path) {
++  if (path.isEmpty() || path.contains("..") || path.startsWith('/')) return false;
++  for (const QChar c : path) {
++    if (!(c.isLetterOrNumber() && c.unicode() < 128) && c != '.' && c != '-' &&
++        c != '_' && c != '/') {
++      return false;
++    }
++  }
++  return true;
++}
++
++#ifdef _WIN32
++using Microsoft::WRL::Callback;
++using Microsoft::WRL::ComPtr;
++
++std::wstring Wide(const QString &text) { return text.toStdWString(); }
++
++QString FromWide(LPCWSTR text) {
++  return text == nullptr ? QString() : QString::fromWCharArray(text);
++}
++
++// Windows のアプリの配色が暗いか(設定 > 個人用設定 > 色)。
++bool AppsUseDarkTheme() {
++  DWORD value = 1, size = sizeof(value);
++  if (::RegGetValueW(HKEY_CURRENT_USER,
++                     L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
++                     L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &value,
++                     &size) != ERROR_SUCCESS) {
++    return false;
++  }
++  return value == 0;
++}
++#endif  // _WIN32
++
++}  // namespace
++
++#ifdef _WIN32
++struct KotoriWebSettingsWindow::WebView {
++  ComPtr<ICoreWebView2Environment> environment;
++  ComPtr<ICoreWebView2Controller> controller;
++  ComPtr<ICoreWebView2> view;
++};
++#else
++struct KotoriWebSettingsWindow::WebView {};
++#endif  // _WIN32
++
++bool KotoriWebSettingsWindow::Available() {
++#ifdef _WIN32
++  if (qEnvironmentVariableIsSet("ASTERIA_CLASSIC_SETTINGS")) return false;
++  LPWSTR version = nullptr;
++  const HRESULT hr =
++      ::GetAvailableCoreWebView2BrowserVersionString(nullptr, &version);
++  const bool available = SUCCEEDED(hr) && version != nullptr;
++  if (version != nullptr) ::CoTaskMemFree(version);
++  return available;
++#else
++  return false;
++#endif  // _WIN32
++}
++
++KotoriWebSettingsWindow::KotoriWebSettingsWindow(std::function<void()> on_failure)
++    : on_failure_(std::move(on_failure)),
++      client_(client::ClientFactory::NewClient()),
++      web_(std::make_unique<WebView>()) {
++  bridge_ = std::make_unique<KotoriSettingsBridge>(client_.get(), this,
++                                                   KotoriSupportReminderPath());
++  setWindowTitle(QString::fromUtf8("Asteria の設定"));
++  setAttribute(Qt::WA_NativeWindow);
++  setFocusPolicy(Qt::StrongFocus);
++  setMinimumSize(720, 520);
++  const QScreen *screen = QGuiApplication::primaryScreen();
++  const QSize available = screen ? screen->availableGeometry().size() : QSize(1280, 900);
++  resize(std::max(720, std::min(1120, available.width() - 64)),
++         std::max(520, std::min(780, available.height() - 80)));
++  ApplyTheme();
++}
++
++KotoriWebSettingsWindow::~KotoriWebSettingsWindow() {
++#ifdef _WIN32
++  if (web_->controller) web_->controller->Close();
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::Fail(const char *where, long hr) {
++  LOG(ERROR) << "WebView2 settings failed at " << where << ": 0x" << std::hex
++             << static_cast<unsigned long>(hr);
++  if (failed_) return;
++  failed_ = true;
++  hide();
++  if (on_failure_) on_failure_();
++}
++
++bool KotoriWebSettingsWindow::Start() {
++#ifdef _WIN32
++  const HWND hwnd = reinterpret_cast<HWND>(winId());
++  const QString data = QString::fromStdString(FileUtil::JoinPath(
++      SystemUtil::GetUserProfileDirectory(), "webview2"));
++  const HRESULT hr = ::CreateCoreWebView2EnvironmentWithOptions(
++      nullptr, Wide(data).c_str(), nullptr,
++      Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
++          [this, hwnd](HRESULT result, ICoreWebView2Environment *environment)
++              -> HRESULT {
++            if (FAILED(result) || environment == nullptr) {
++              Fail("environment", result);
++              return S_OK;
++            }
++            web_->environment = environment;
++            const HRESULT created = environment->CreateCoreWebView2Controller(
++                hwnd,
++                Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
++                    [this](HRESULT result, ICoreWebView2Controller *controller)
++                        -> HRESULT {
++                      if (FAILED(result) || controller == nullptr) {
++                        Fail("controller", result);
++                        return S_OK;
++                      }
++                      web_->controller = controller;
++                      controller->get_CoreWebView2(&web_->view);
++                      if (!web_->view) {
++                        Fail("view", E_FAIL);
++                        return S_OK;
++                      }
++                      ComPtr<ICoreWebView2Settings> settings;
++                      web_->view->get_Settings(&settings);
++                      const bool devtools =
++                          qEnvironmentVariableIsSet("ASTERIA_SETTINGS_DEVTOOLS");
++                      settings->put_AreDevToolsEnabled(devtools ? TRUE : FALSE);
++                      settings->put_AreDefaultContextMenusEnabled(devtools ? TRUE : FALSE);
++                      settings->put_IsStatusBarEnabled(FALSE);
++                      settings->put_AreHostObjectsAllowed(FALSE);
++                      settings->put_IsWebMessageEnabled(TRUE);
++                      settings->put_AreDefaultScriptDialogsEnabled(FALSE);
++                      ComPtr<ICoreWebView2Settings3> settings3;
++                      if (SUCCEEDED(settings.As(&settings3))) {
++                        // F5 の再読み込み・Ctrl+P の印刷などを止める。検索(Ctrl+F)は画面が持つ。
++                        settings3->put_AreBrowserAcceleratorKeysEnabled(devtools ? TRUE : FALSE);
++                      }
++                      ComPtr<ICoreWebView2Settings4> settings4;
++                      if (SUCCEEDED(settings.As(&settings4))) {
++                        settings4->put_IsGeneralAutofillEnabled(FALSE);
++                        settings4->put_IsPasswordAutosaveEnabled(FALSE);
++                      }
++                      ComPtr<ICoreWebView2Controller2> controller2;
++                      if (SUCCEEDED(controller->QueryInterface(IID_PPV_ARGS(&controller2)))) {
++                        // 読み込みまでの一瞬に白く光らないよう、画面の地の色にしておく。
++                        const COREWEBVIEW2_COLOR color =
++                            AppsUseDarkTheme() ? COREWEBVIEW2_COLOR{255, 32, 32, 32}
++                                               : COREWEBVIEW2_COLOR{255, 243, 243, 243};
++                        controller2->put_DefaultBackgroundColor(color);
++                      }
++
++                      // 埋め込んだファイルだけを出す。
++                      const std::wstring filter = Wide(QString::fromUtf8(kOrigin) + "/*");
++                      web_->view->AddWebResourceRequestedFilter(
++                          filter.c_str(), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
++                      EventRegistrationToken token;
++                      web_->view->add_WebResourceRequested(
++                          Callback<ICoreWebView2WebResourceRequestedEventHandler>(
++                              [this](ICoreWebView2 *,
++                                     ICoreWebView2WebResourceRequestedEventArgs *args)
++                                  -> HRESULT {
++                                ComPtr<ICoreWebView2WebResourceRequest> request;
++                                args->get_Request(&request);
++                                LPWSTR raw = nullptr;
++                                request->get_Uri(&raw);
++                                QUrl url(FromWide(raw));
++                                ::CoTaskMemFree(raw);
++                                const QString path = url.path().mid(1);
++                                const char *type = ContentType(path);
++                                QFile file(QString::fromUtf8(kResourceRoot) + path);
++                                ComPtr<ICoreWebView2WebResourceResponse> response;
++                                if (type == nullptr || !SafeResourcePath(path) ||
++                                    !file.open(QIODevice::ReadOnly)) {
++                                  web_->environment->CreateWebResourceResponse(
++                                      nullptr, 404, L"Not Found", L"", &response);
++                                } else {
++                                  const QByteArray bytes = file.readAll();
++                                  ComPtr<IStream> stream;
++                                  stream.Attach(::SHCreateMemStream(
++                                      reinterpret_cast<const BYTE *>(bytes.constData()),
++                                      static_cast<UINT>(bytes.size())));
++                                  const std::wstring headers = Wide(
++                                      QString::fromUtf8(
++                                          "Content-Type: %1\r\n"
++                                          "Cache-Control: no-store\r\n"
++                                          "X-Content-Type-Options: nosniff\r\n"
++                                          "Content-Security-Policy: default-src 'none'; "
++                                          "script-src 'self'; style-src 'self'; img-src 'self' data:; "
++                                          "font-src 'self'; connect-src 'none'; base-uri 'none'; "
++                                          "form-action 'none'; frame-ancestors 'none'")
++                                          .arg(QString::fromUtf8(type)));
++                                  web_->environment->CreateWebResourceResponse(
++                                      stream.Get(), 200, L"OK", headers.c_str(), &response);
++                                }
++                                args->put_Response(response.Get());
++                                return S_OK;
++                              })
++                              .Get(),
++                          &token);
++                      // 設定画面の外へは移らない。リンクで別の窓も開かない。
++                      web_->view->add_NavigationStarting(
++                          Callback<ICoreWebView2NavigationStartingEventHandler>(
++                              [](ICoreWebView2 *,
++                                 ICoreWebView2NavigationStartingEventArgs *args)
++                                  -> HRESULT {
++                                LPWSTR raw = nullptr;
++                                args->get_Uri(&raw);
++                                const QString uri = FromWide(raw);
++                                ::CoTaskMemFree(raw);
++                                if (!uri.startsWith(QString::fromUtf8(kOrigin) + "/")) {
++                                  args->put_Cancel(TRUE);
++                                }
++                                return S_OK;
++                              })
++                              .Get(),
++                          &token);
++                      web_->view->add_NewWindowRequested(
++                          Callback<ICoreWebView2NewWindowRequestedEventHandler>(
++                              [](ICoreWebView2 *,
++                                 ICoreWebView2NewWindowRequestedEventArgs *args)
++                                  -> HRESULT {
++                                args->put_Handled(TRUE);
++                                return S_OK;
++                              })
++                              .Get(),
++                          &token);
++                      web_->view->add_WebMessageReceived(
++                          Callback<ICoreWebView2WebMessageReceivedEventHandler>(
++                              [this](ICoreWebView2 *,
++                                     ICoreWebView2WebMessageReceivedEventArgs *args)
++                                  -> HRESULT {
++                                LPWSTR source = nullptr;
++                                args->get_Source(&source);
++                                const bool ours = FromWide(source).startsWith(
++                                    QString::fromUtf8(kOrigin) + "/");
++                                ::CoTaskMemFree(source);
++                                LPWSTR raw = nullptr;
++                                if (!ours || FAILED(args->TryGetWebMessageAsString(&raw))) {
++                                  return S_OK;
++                                }
++                                const QString message = FromWide(raw);
++                                ::CoTaskMemFree(raw);
++                                // 編集の窓(モーダル)を開く操作もあるので、WebView2 の知らせの外で処理する。
++                                QTimer::singleShot(0, this, [this, message] { Dispatch(message); });
++                                return S_OK;
++                              })
++                              .Get(),
++                          &token);
++                      web_->view->add_ProcessFailed(
++                          Callback<ICoreWebView2ProcessFailedEventHandler>(
++                              [this](ICoreWebView2 *,
++                                     ICoreWebView2ProcessFailedEventArgs *args)
++                                  -> HRESULT {
++                                COREWEBVIEW2_PROCESS_FAILED_KIND kind;
++                                args->get_ProcessFailedKind(&kind);
++                                if (kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED) {
++                                  Fail("browser process", E_FAIL);
++                                } else if (web_->view) {
++                                  web_->view->Reload();
++                                }
++                                return S_OK;
++                              })
++                              .Get(),
++                          &token);
++                      RECT bounds;
++                      ::GetClientRect(reinterpret_cast<HWND>(winId()), &bounds);
++                      controller->put_Bounds(bounds);
++                      controller->put_IsVisible(TRUE);
++                      web_->view->Navigate(Wide(QString::fromUtf8(kStartPage)).c_str());
++                      if (isActiveWindow()) {
++                        controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
++                      }
++                      return S_OK;
++                    })
++                    .Get());
++            if (FAILED(created)) Fail("create controller", created);
++            return S_OK;
++          })
++          .Get());
++  if (FAILED(hr)) {
++    LOG(ERROR) << "CreateCoreWebView2Environment failed: 0x" << std::hex
++               << static_cast<unsigned long>(hr);
++    failed_ = true;
++    return false;
++  }
++  return true;
++#else
++  return false;
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::Dispatch(const QString &message) {
++  const QJsonObject request = QJsonDocument::fromJson(message.toUtf8()).object();
++  const int id = request.value("id").toInt(-1);
++  const QString op = request.value("op").toString();
++  if (op == "close") {
++    close();
++    return;
++  }
++  Reply(id, bridge_->Handle(request));
++}
++
++void KotoriWebSettingsWindow::Reply(int id, const QJsonObject &result) {
++#ifdef _WIN32
++  if (!web_->view) return;
++  const QJsonObject envelope{{"id", id}, {"result", result}};
++  const std::wstring json = Wide(QString::fromUtf8(
++      QJsonDocument(envelope).toJson(QJsonDocument::Compact)));
++  web_->view->PostWebMessageAsJson(json.c_str());
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::ApplyTheme() {
++#ifdef _WIN32
++  // 題名の帯も Windows の配色(明るい・暗い)に合わせる。
++  const BOOL dark = AppsUseDarkTheme() ? TRUE : FALSE;
++  constexpr DWORD kUseImmersiveDarkMode = 20;  // DWMWA_USE_IMMERSIVE_DARK_MODE
++  ::DwmSetWindowAttribute(reinterpret_cast<HWND>(winId()), kUseImmersiveDarkMode,
++                          &dark, sizeof(dark));
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::resizeEvent(QResizeEvent *event) {
++  QWidget::resizeEvent(event);
++#ifdef _WIN32
++  if (web_->controller) {
++    RECT bounds;
++    ::GetClientRect(reinterpret_cast<HWND>(winId()), &bounds);
++    web_->controller->put_Bounds(bounds);
++  }
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::focusInEvent(QFocusEvent *event) {
++  QWidget::focusInEvent(event);
++#ifdef _WIN32
++  if (web_->controller) {
++    web_->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
++  }
++#endif  // _WIN32
++}
++
++void KotoriWebSettingsWindow::changeEvent(QEvent *event) {
++  QWidget::changeEvent(event);
++#ifdef _WIN32
++  if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
++      web_->controller) {
++    web_->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
++  }
++#endif  // _WIN32
++}
++
++bool KotoriWebSettingsWindow::nativeEvent(const QByteArray &type, void *message,
++                                          qintptr *result) {
++#ifdef _WIN32
++  const MSG *msg = static_cast<const MSG *>(message);
++  if (msg->message == WM_SETTINGCHANGE) {
++    ApplyTheme();
++  } else if ((msg->message == WM_MOVE || msg->message == WM_MOVING) &&
++             web_->controller) {
++    web_->controller->NotifyParentWindowPositionChanged();
++  }
++#endif  // _WIN32
++  return QWidget::nativeEvent(type, message, result);
++}
++
++bool KotoriWebSettingsWindow::EditKeymap(const std::string &input,
++                                         std::string *output) {
++  return KeyMapEditorDialog::Show(this, input, output);
++}
++
++bool KotoriWebSettingsWindow::EditRomanTable(const std::string &input,
++                                             std::string *output) {
++  return RomanTableEditorDialog::Show(this, input, output);
++}
++
++bool KotoriWebSettingsWindow::BrowseModel(const QString &current, QString *path) {
++  const QString chosen = QFileDialog::getOpenFileName(
++      this, QString::fromUtf8("モデルのファイルを選ぶ"), current,
++      QString::fromUtf8("GGUF (*.gguf);;すべてのファイル (*)"));
++  if (chosen.isEmpty()) return false;
++  *path = chosen;
++  return true;
++}
++
++bool KotoriWebSettingsWindow::SaveDiagnostics(const QString &text) {
++  const QString name =
++      QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) +
++      QString::fromUtf8("/Asteria-診断情報-") +
++      QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".txt";
++  const QString path = QFileDialog::getSaveFileName(
++      this, QString::fromUtf8("診断情報を保存"), name,
++      QString::fromUtf8("テキスト (*.txt)"));
++  if (path.isEmpty()) return false;
++  QFile file(path);
++  if (!file.open(QIODevice::WriteOnly) || file.write(text.toUtf8()) < 0) {
++    QMessageBox::warning(this, QString::fromUtf8("診断情報"),
++                         QString::fromUtf8("保存できませんでした。"));
++    return false;
++  }
++  return true;
++}
++
++void KotoriWebSettingsWindow::OpenSupportPage() {
++  QDesktopServices::openUrl(QUrl(QString::fromUtf8(kKotoriSupportUrl)));
++}
++
++bool KotoriWebSettingsWindow::GetImeHotKeyDisabled() {
++#ifdef _WIN32
++  return WinUtil::GetIMEHotKeyDisabled();
++#else
++  return false;
++#endif  // _WIN32
++}
++
++bool KotoriWebSettingsWindow::SetImeHotKeyDisabled(bool disabled) {
++#ifdef _WIN32
++  return WinUtil::SetIMEHotKeyDisabled(disabled);
++#else
++  return false;
++#endif  // _WIN32
++}
++
++std::string KotoriWebSettingsWindow::PresetKeymap(
++    config::Config::SessionKeymap keymap) {
++  // 「既定」は Windows では MS-IME と同じ割り当て。
++  if (keymap == config::Config::NONE) keymap = config::Config::MSIME;
++  const char *file = keymap::KeyMapManager::GetKeyMapFileName(keymap);
++  if (file == nullptr) return "";
++  std::unique_ptr<std::istream> stream(ConfigFileStream::LegacyOpen(file));
++  if (stream == nullptr) return "";
++  std::stringstream buffer;
++  buffer << stream->rdbuf();
++  return buffer.str();
++}
++
++}  // namespace gui
++}  // namespace mozc
+diff --git a/src/gui/config_dialog/kotori_web_settings.h b/src/gui/config_dialog/kotori_web_settings.h
+new file mode 100644
+index 000000000..7cfa569af
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_web_settings.h
+@@ -0,0 +1,75 @@
++// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
++// HTML で作った設定画面を、Edge の表示部品(WebView2)で開く窓(docs/adr/0084)。
++//
++// 画面の HTML・CSS・JS は mozc_tool に埋め込み、https://settings.asteria.invalid/ という名前で
++// この窓の中だけに出す。ネットワークには出ない。WebView2 が使えない PC では、今までの Qt の
++// 設定画面を開く(config_dialog_libmain.cc)。
++
++#ifndef MOZC_GUI_CONFIG_DIALOG_KOTORI_WEB_SETTINGS_H_
++#define MOZC_GUI_CONFIG_DIALOG_KOTORI_WEB_SETTINGS_H_
++
++#include <QJsonObject>
++#include <QString>
++#include <QWidget>
++#include <functional>
++#include <memory>
++#include <string>
++
++#include "gui/config_dialog/kotori_settings_bridge.h"
++#include "protocol/config.pb.h"
++
++namespace mozc {
++namespace client {
++class ClientInterface;
++}  // namespace client
++
++namespace gui {
++
++class KotoriWebSettingsWindow : public QWidget,
++                                public KotoriSettingsBridge::Host {
++ public:
++  // この PC で WebView2 の実行環境が使えるか。
++  static bool Available();
++
++  // on_failure: WebView2 を作れなかったとき(窓を閉じる前に)呼ぶ。今までの設定画面を開くのに使う。
++  explicit KotoriWebSettingsWindow(std::function<void()> on_failure);
++  ~KotoriWebSettingsWindow() override;
++
++  // WebView2 を作り始める。すぐに失敗が分かれば false。
++  bool Start();
++
++  // KotoriSettingsBridge::Host
++  bool EditKeymap(const std::string &input, std::string *output) override;
++  bool EditRomanTable(const std::string &input, std::string *output) override;
++  bool BrowseModel(const QString &current, QString *path) override;
++  bool SaveDiagnostics(const QString &text) override;
++  void OpenSupportPage() override;
++  bool GetImeHotKeyDisabled() override;
++  bool SetImeHotKeyDisabled(bool disabled) override;
++  std::string PresetKeymap(config::Config::SessionKeymap keymap) override;
++
++ protected:
++  void resizeEvent(QResizeEvent *event) override;
++  void focusInEvent(QFocusEvent *event) override;
++  void changeEvent(QEvent *event) override;
++  bool nativeEvent(const QByteArray &type, void *message,
++                   qintptr *result) override;
++
++ private:
++  struct WebView;  // WebView2 の COM の部品(Windows だけ)
++  void Fail(const char *where, long hr);
++  void Dispatch(const QString &message);
++  void Reply(int id, const QJsonObject &result);
++  void ApplyTheme();
++
++  std::function<void()> on_failure_;
++  std::unique_ptr<client::ClientInterface> client_;
++  std::unique_ptr<KotoriSettingsBridge> bridge_;
++  std::unique_ptr<WebView> web_;
++  bool failed_ = false;
++};
++
++}  // namespace gui
++}  // namespace mozc
++
++#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_WEB_SETTINGS_H_
+diff --git a/src/gui/config_dialog/kotori_web_settings.qrc b/src/gui/config_dialog/kotori_web_settings.qrc
+new file mode 100644
+index 000000000..df333ac86
+--- /dev/null
++++ b/src/gui/config_dialog/kotori_web_settings.qrc
+@@ -0,0 +1,9 @@
++<!DOCTYPE RCC>
++<RCC version="1.0">
++<!-- Asteria: HTML の設定画面(docs/adr/0084)。https://settings.asteria.invalid/ の中身。 -->
++<qresource prefix="/kotori_settings">
++  <file alias="index.html">web/index.html</file>
++  <file alias="settings.css">web/settings.css</file>
++  <file alias="settings.js">web/settings.js</file>
++</qresource>
++</RCC>
+diff --git a/src/gui/config_dialog/web/index.html b/src/gui/config_dialog/web/index.html
+new file mode 100644
+index 000000000..5f39f996f
+--- /dev/null
++++ b/src/gui/config_dialog/web/index.html
+@@ -0,0 +1,66 @@
++<!doctype html>
++<html lang="ja">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Asteria の設定</title>
++  <link rel="stylesheet" href="settings.css">
++  <script src="settings.js" defer></script>
++</head>
++<body>
++  <div class="loading" id="loading" role="status">
++    <div class="spinner" aria-hidden="true"></div>
++    <div>設定を読み込んでいます…</div>
++  </div>
++
++  <div class="app" id="app" hidden>
++    <aside class="sidebar">
++      <div class="brand">
++        <div class="brand-mark" aria-hidden="true">
++          <svg viewBox="0 0 32 32"><path fill="#d9c59e" d="M20.5 4.6A12 12 0 1 0 27.4 22a10 10 0 0 1-6.9-17.4z"/></svg>
++        </div>
++        <div>
++          <div class="brand-name">Asteria</div>
++          <div class="brand-sub">日本語入力の設定</div>
++        </div>
++      </div>
++      <div class="search" role="search">
++        <svg class="icon-search" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6.5 1a5.5 5.5 0 0 1 4.38 8.82l3.65 3.65-.7.7-3.65-3.65A5.5 5.5 0 1 1 6.5 1zm0 1a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
++        <input id="search" type="search" placeholder="設定を検索" aria-label="設定を検索" autocomplete="off" spellcheck="false">
++        <kbd>Ctrl+F</kbd>
++      </div>
++      <nav aria-label="設定のページ">
++        <ul class="nav" id="nav"></ul>
++      </nav>
++      <div class="sidebar-foot" id="foot"></div>
++    </aside>
++    <main class="main" id="main" tabindex="-1"></main>
++  </div>
++
++  <div class="save-state" id="save-state" role="status" aria-live="polite"></div>
++  <div class="toasts" id="toasts" aria-live="polite"></div>
++
++  <dialog id="confirm" aria-labelledby="confirm-title">
++    <div class="dialog-body">
++      <h2 class="dialog-title" id="confirm-title"></h2>
++      <p class="dialog-text" id="confirm-text"></p>
++    </div>
++    <div class="dialog-actions">
++      <button class="btn" id="confirm-cancel">やめる</button>
++      <button class="btn primary" id="confirm-ok"></button>
++    </div>
++  </dialog>
++
++  <dialog id="diagnostics" class="wide" aria-labelledby="diag-title">
++    <div class="dialog-body">
++      <h2 class="dialog-title" id="diag-title">診断情報</h2>
++      <p class="dialog-text">次の内容をファイルに保存します。不具合の報告(GitHub の Issue)に添付してください。入力した文字は含みません。どこにも送信しません。</p>
++      <textarea class="diag" id="diag-text" readonly aria-label="診断情報の中身"></textarea>
++    </div>
++    <div class="dialog-actions">
++      <button class="btn" id="diag-close">閉じる</button>
++      <button class="btn primary" id="diag-save">ファイルに保存…</button>
++    </div>
++  </dialog>
++</body>
++</html>
+diff --git a/src/gui/config_dialog/web/settings.css b/src/gui/config_dialog/web/settings.css
+new file mode 100644
+index 000000000..13696027c
+--- /dev/null
++++ b/src/gui/config_dialog/web/settings.css
+@@ -0,0 +1,810 @@
++/* Asteria の設定画面(docs/adr/0084)。濃紺と金のブランドの色、Windows 11 の部品の形。
++   明るい・暗いは Windows の設定に従い、ハイコントラストでは Windows の配色だけを使う。 */
++
++:root {
++  color-scheme: light dark;
++  --font: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif;
++  --font-display: "Segoe UI Variable Display", "Segoe UI", "Yu Gothic UI", sans-serif;
++
++  --bg: #f4f3ef;
++  --bg-sidebar: #ecebe5;
++  --surface: #ffffff;
++  --surface-2: #faf9f6;
++  --surface-hover: #f5f3ee;
++  --border: #e3e0d8;
++  --border-strong: #cfcabd;
++  --text: #17202f;
++  --text-2: #4e5766;
++  --text-3: #7a8190;
++  --navy: #111c2d;
++  --accent: #1f3b63;
++  --accent-hover: #2a4c7c;
++  --accent-text: #ffffff;
++  --gold: #b89a5e;
++  --gold-soft: #efe4cd;
++  --focus: #1f3b63;
++  --ok: #1d7a3a;
++  --warn: #a86d00;
++  --bad: #b3261e;
++  --match: #fff1c2;
++  --shadow: 0 1px 2px rgba(17, 28, 45, .06), 0 2px 8px rgba(17, 28, 45, .05);
++  --shadow-pop: 0 12px 40px rgba(17, 28, 45, .22);
++  --radius: 10px;
++  --radius-s: 6px;
++  --ease: cubic-bezier(.2, .8, .2, 1);
++}
++
++@media (prefers-color-scheme: dark) {
++  :root {
++    --bg: #0e1520;
++    --bg-sidebar: #0b111a;
++    --surface: #162030;
++    --surface-2: #131c2a;
++    --surface-hover: #1c2839;
++    --border: #243147;
++    --border-strong: #33435d;
++    --text: #edf0f5;
++    --text-2: #b4bccb;
++    --text-3: #8791a3;
++    --accent: #d9c59e;
++    --accent-hover: #e6d6b5;
++    --accent-text: #111c2d;
++    --gold: #d9c59e;
++    --gold-soft: #2a2a24;
++    --focus: #e6d6b5;
++    --ok: #5cc27e;
++    --warn: #e0b348;
++    --bad: #ff8a80;
++    --match: #4a3f1c;
++    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
++    --shadow-pop: 0 16px 48px rgba(0, 0, 0, .55);
++  }
++}
++
++* { box-sizing: border-box; }
++[hidden] { display: none !important; }
++
++html, body {
++  margin: 0;
++  height: 100%;
++  background: var(--bg);
++  color: var(--text);
++  font: 14px/1.6 var(--font);
++  -webkit-font-smoothing: antialiased;
++  overflow: hidden;
++}
++
++button, input, select { font: inherit; color: inherit; }
++
++:focus { outline: none; }
++:focus-visible {
++  outline: 2px solid var(--focus);
++  outline-offset: 2px;
++  border-radius: var(--radius-s);
++}
++
++.app {
++  display: grid;
++  grid-template-columns: 264px 1fr;
++  height: 100vh;
++}
++
++/* ---------- 左の一覧 ---------- */
++.sidebar {
++  background: var(--bg-sidebar);
++  border-right: 1px solid var(--border);
++  display: flex;
++  flex-direction: column;
++  padding: 20px 14px 14px;
++  gap: 14px;
++  min-height: 0;
++}
++
++.brand {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  padding: 2px 8px 4px;
++}
++
++.brand-mark {
++  width: 38px;
++  height: 38px;
++  border-radius: 10px;
++  background: var(--navy);
++  display: grid;
++  place-items: center;
++  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
++  flex: none;
++}
++
++.brand-mark svg { width: 26px; height: 26px; }
++.brand-name { font: 600 17px/1.2 var(--font-display); letter-spacing: .02em; }
++.brand-sub { font-size: 12px; color: var(--text-3); }
++
++.search {
++  position: relative;
++}
++
++.search input {
++  width: 100%;
++  height: 36px;
++  border-radius: 8px;
++  border: 1px solid var(--border-strong);
++  border-bottom-color: var(--text-3);
++  background: var(--surface);
++  padding: 0 34px 0 36px;
++  transition: border-color .15s, box-shadow .15s;
++}
++
++.search input:focus {
++  border-color: var(--accent);
++  box-shadow: 0 0 0 1px var(--accent);
++}
++
++.search .icon-search {
++  position: absolute;
++  left: 11px;
++  top: 10px;
++  width: 16px;
++  height: 16px;
++  color: var(--text-3);
++  pointer-events: none;
++}
++
++.search kbd {
++  position: absolute;
++  right: 8px;
++  top: 8px;
++  font: 11px/18px var(--font);
++  color: var(--text-3);
++  border: 1px solid var(--border);
++  border-radius: 4px;
++  padding: 0 5px;
++  background: var(--surface-2);
++}
++
++.search input:not(:placeholder-shown) ~ kbd { display: none; }
++
++.sidebar nav { flex: 1; min-height: 0; display: flex; flex-direction: column; }
++
++.nav {
++  list-style: none;
++  margin: 0;
++  padding: 0;
++  overflow-y: auto;
++  flex: 1;
++  min-height: 0;
++}
++
++.nav button {
++  position: relative;
++  width: 100%;
++  display: flex;
++  align-items: center;
++  gap: 12px;
++  border: 0;
++  background: transparent;
++  text-align: left;
++  padding: 9px 12px;
++  margin: 1px 0;
++  border-radius: 8px;
++  cursor: pointer;
++  color: var(--text);
++  transition: background .15s;
++}
++
++.nav button:hover { background: var(--surface-hover); }
++
++.nav button[aria-current="page"] {
++  background: var(--surface);
++  box-shadow: var(--shadow);
++  font-weight: 600;
++}
++
++.nav button[aria-current="page"]::before {
++  content: "";
++  position: absolute;
++  left: 0;
++  top: 50%;
++  width: 3px;
++  height: 18px;
++  margin-top: -9px;
++  border-radius: 3px;
++  background: var(--gold);
++  animation: grow .25s var(--ease);
++}
++
++@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
++
++.nav svg { width: 18px; height: 18px; flex: none; color: var(--text-2); }
++.nav button[aria-current="page"] svg { color: var(--accent); }
++.nav .count {
++  margin-left: auto;
++  font-size: 11px;
++  color: var(--text-3);
++  background: var(--surface-2);
++  border: 1px solid var(--border);
++  border-radius: 999px;
++  padding: 0 7px;
++}
++
++.sidebar-foot {
++  font-size: 12px;
++  color: var(--text-3);
++  padding: 0 8px;
++  line-height: 1.5;
++}
++
++/* ---------- 右のページ ---------- */
++.main {
++  position: relative;
++  overflow-y: auto;
++  scroll-behavior: smooth;
++  min-height: 0;
++}
++
++.page {
++  max-width: 880px;
++  margin: 0 auto;
++  padding: 32px 40px 72px;
++  animation: page-in .32s var(--ease);
++}
++
++@keyframes page-in {
++  from { opacity: 0; transform: translateY(8px); }
++  to { opacity: 1; transform: none; }
++}
++
++.page-head { margin-bottom: 20px; }
++.page-title {
++  font: 600 28px/1.25 var(--font-display);
++  margin: 0 0 6px;
++  letter-spacing: .01em;
++}
++.page-lead { margin: 0; color: var(--text-2); max-width: 64ch; }
++
++.group { margin-top: 26px; }
++.group-title {
++  font-size: 13px;
++  font-weight: 600;
++  color: var(--text-2);
++  margin: 0 0 8px 4px;
++  letter-spacing: .04em;
++}
++
++.card {
++  background: var(--surface);
++  border: 1px solid var(--border);
++  border-radius: var(--radius);
++  box-shadow: var(--shadow);
++  overflow: hidden;
++}
++
++.row {
++  display: flex;
++  align-items: center;
++  gap: 20px;
++  padding: 14px 18px;
++  min-height: 64px;
++  transition: background .2s, opacity .2s;
++}
++
++.row + .row { border-top: 1px solid var(--border); }
++.row.disabled { opacity: .5; }
++.row.disabled .control { pointer-events: none; }
++
++.row.flash { animation: flash 1.6s var(--ease); }
++@keyframes flash {
++  0%, 30% { background: var(--match); }
++  100% { background: transparent; }
++}
++
++.row-text { flex: 1; min-width: 0; }
++.row-label { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
++.row-desc { color: var(--text-2); font-size: 13px; margin-top: 2px; }
++.row-example {
++  display: inline-block;
++  margin-top: 6px;
++  font-size: 12px;
++  color: var(--text-2);
++  background: var(--surface-2);
++  border: 1px solid var(--border);
++  border-radius: 999px;
++  padding: 1px 10px;
++}
++
++.tag {
++  font-size: 11px;
++  font-weight: 600;
++  border-radius: 999px;
++  padding: 0 8px;
++  line-height: 18px;
++  border: 1px solid var(--border-strong);
++  color: var(--text-2);
++}
++.tag.recommended { border-color: transparent; background: var(--gold-soft); color: var(--text); }
++.tag.lab { border-style: dashed; }
++
++mark {
++  background: var(--match);
++  color: inherit;
++  border-radius: 3px;
++  padding: 0 1px;
++}
++
++.control { flex: none; display: flex; align-items: center; gap: 10px; }
++
++/* オン・オフ */
++.switch {
++  position: relative;
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  cursor: pointer;
++  user-select: none;
++}
++
++.switch input {
++  appearance: none;
++  width: 42px;
++  height: 22px;
++  margin: 0;
++  border-radius: 999px;
++  border: 1px solid var(--text-2);
++  background: transparent;
++  cursor: pointer;
++  position: relative;
++  transition: background .2s, border-color .2s;
++}
++
++.switch input::after {
++  content: "";
++  position: absolute;
++  top: 3px;
++  left: 4px;
++  width: 14px;
++  height: 14px;
++  border-radius: 50%;
++  background: var(--text-2);
++  transition: transform .25s var(--ease), width .15s, background .2s;
++}
++
++.switch input:active::after { width: 18px; }
++.switch input:checked { background: var(--accent); border-color: var(--accent); }
++.switch input:checked::after { transform: translateX(19px); background: var(--accent-text); }
++.switch input:checked:active::after { transform: translateX(15px); }
++.switch input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
++.switch .state { font-size: 13px; color: var(--text-2); min-width: 2em; }
++
++/* 選ぶ */
++.select {
++  position: relative;
++}
++
++.select select {
++  appearance: none;
++  min-width: 220px;
++  height: 34px;
++  padding: 0 36px 0 12px;
++  border-radius: var(--radius-s);
++  border: 1px solid var(--border-strong);
++  border-bottom-color: var(--text-3);
++  background: var(--surface-2);
++  cursor: pointer;
++  transition: background .15s, border-color .15s;
++}
++
++.select select:hover { background: var(--surface-hover); }
++.select select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
++.select::after {
++  content: "";
++  position: absolute;
++  right: 14px;
++  top: 12px;
++  width: 7px;
++  height: 7px;
++  border-right: 1.5px solid var(--text-2);
++  border-bottom: 1.5px solid var(--text-2);
++  transform: rotate(45deg);
++  pointer-events: none;
++}
++
++/* 段の選択(品質など) */
++.segmented {
++  display: inline-grid;
++  grid-auto-flow: column;
++  grid-auto-columns: minmax(max-content, 1fr);
++  width: max-content;
++  background: var(--surface-2);
++  border: 1px solid var(--border-strong);
++  border-radius: 8px;
++  padding: 3px;
++  position: relative;
++}
++
++.segmented button {
++  position: relative;
++  z-index: 1;
++  border: 0;
++  background: transparent;
++  padding: 5px 14px;
++  border-radius: 6px;
++  cursor: pointer;
++  color: var(--text-2);
++  white-space: nowrap;
++  transition: color .2s;
++}
++
++.segmented button[aria-checked="true"] { color: var(--accent-text); font-weight: 600; }
++.segmented .thumb {
++  position: absolute;
++  z-index: 0;
++  top: 3px;
++  bottom: 3px;
++  border-radius: 6px;
++  background: var(--accent);
++  transition: left .3s var(--ease), width .3s var(--ease);
++}
++
++/* 数 */
++.stepper {
++  display: inline-flex;
++  align-items: center;
++  border: 1px solid var(--border-strong);
++  border-radius: var(--radius-s);
++  background: var(--surface-2);
++  overflow: hidden;
++}
++
++.stepper button {
++  width: 34px;
++  height: 32px;
++  border: 0;
++  background: transparent;
++  cursor: pointer;
++  font-size: 16px;
++  color: var(--text-2);
++}
++
++.stepper button:hover { background: var(--surface-hover); }
++.stepper button:disabled { opacity: .35; cursor: default; }
++.stepper output {
++  min-width: 52px;
++  text-align: center;
++  font-variant-numeric: tabular-nums;
++  font-weight: 600;
++}
++
++/* ボタン */
++.btn {
++  height: 32px;
++  padding: 0 16px;
++  border-radius: var(--radius-s);
++  border: 1px solid var(--border-strong);
++  border-bottom-color: var(--text-3);
++  background: var(--surface-2);
++  cursor: pointer;
++  white-space: nowrap;
++  transition: background .15s, transform .1s;
++}
++
++.btn:hover { background: var(--surface-hover); }
++.btn:active { transform: scale(.98); }
++.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
++.btn.primary:hover { background: var(--accent-hover); }
++.btn.danger { color: var(--bad); }
++.btn .shield { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
++
++.text-input {
++  width: 320px;
++  height: 34px;
++  border-radius: var(--radius-s);
++  border: 1px solid var(--border-strong);
++  border-bottom-color: var(--text-3);
++  background: var(--surface-2);
++  padding: 0 10px;
++}
++
++.text-input:focus { border-bottom: 2px solid var(--accent); }
++
++/* 全角・半角の表 */
++.forms { width: 100%; border-collapse: collapse; }
++.forms th, .forms td { padding: 10px 18px; text-align: left; }
++.forms th { font-size: 12px; color: var(--text-2); font-weight: 600; background: var(--surface-2); }
++.forms tr + tr td { border-top: 1px solid var(--border); }
++.forms td:first-child { font-weight: 600; width: 30%; }
++.forms .chars { display: block; font-weight: 400; font-size: 12px; color: var(--text-3); letter-spacing: .1em; }
++
++/* 押して切り替える札(句読点の変換の記号など) */
++.chips { display: flex; gap: 8px; }
++.chip {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  height: 32px;
++  min-width: 52px;
++  padding: 0 12px;
++  border-radius: 999px;
++  border: 1px solid var(--border-strong);
++  background: var(--surface-2);
++  cursor: pointer;
++  font-weight: 600;
++  transition: background .2s, border-color .2s, color .2s;
++}
++.chip:hover { background: var(--surface-hover); }
++.chip .chip-mark { display: inline-flex; width: 0; overflow: hidden; transition: width .2s var(--ease); }
++.chip .chip-mark svg { width: 14px; height: 14px; }
++.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
++.chip[aria-pressed="true"] .chip-mark { width: 14px; }
++.forms .segmented button { padding: 4px 10px; font-size: 13px; }
++
++/* ---------- ホーム ---------- */
++.hero {
++  position: relative;
++  overflow: hidden;
++  border-radius: 14px;
++  padding: 26px 28px;
++  background: var(--navy);
++  color: #f3efe6;
++  box-shadow: var(--shadow-pop);
++  isolation: isolate;
++}
++
++.hero-moon {
++  position: absolute;
++  right: 34px;
++  top: 50%;
++  width: 132px;
++  height: 132px;
++  margin-top: -66px;
++  color: #d9c59e;
++  opacity: .9;
++  z-index: -1;
++  animation: drift 14s ease-in-out infinite alternate;
++}
++
++.hero-moon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(217, 197, 158, .25)); }
++
++@keyframes drift { from { transform: rotate(-6deg); } to { transform: rotate(4deg) translateY(-4px); } }
++
++.hero-state { display: flex; align-items: center; gap: 12px; font: 600 24px/1.3 var(--font-display); }
++.hero-ai { margin: 10px 0 0; color: #c9cfdb; max-width: 60ch; font-size: 13px; }
++.hero-actions { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
++.hero .btn { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .18); color: #f3efe6; }
++.hero .btn:hover { background: rgba(255, 255, 255, .14); }
++
++.dot {
++  width: 12px;
++  height: 12px;
++  border-radius: 50%;
++  background: #8a93a3;
++  position: relative;
++  flex: none;
++}
++
++.dot.ok { background: #4cc274; }
++.dot.wait { background: #e3b341; }
++.dot.bad { background: #ff6b5e; }
++.dot.ok::after, .dot.wait::after {
++  content: "";
++  position: absolute;
++  inset: -5px;
++  border-radius: 50%;
++  border: 2px solid currentColor;
++  color: inherit;
++  opacity: 0;
++  animation: pulse 2.4s var(--ease) infinite;
++}
++.dot.ok::after { color: #4cc274; }
++.dot.wait::after { color: #e3b341; }
++
++@keyframes pulse {
++  0% { transform: scale(.6); opacity: .7; }
++  100% { transform: scale(1.6); opacity: 0; }
++}
++
++.tiles {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
++  gap: 12px;
++}
++
++.tile {
++  background: var(--surface);
++  border: 1px solid var(--border);
++  border-radius: var(--radius);
++  padding: 16px 18px;
++  box-shadow: var(--shadow);
++  transition: transform .2s var(--ease), box-shadow .2s;
++}
++
++.tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(17, 28, 45, .08); }
++.tile-title { font-size: 12px; color: var(--text-2); }
++.tile-value { font: 600 30px/1.2 var(--font-display); margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
++.tile-value .unit { font-size: 15px; font-weight: 400; color: var(--text-2); margin: 0 3px 0 2px; }
++.tile-total { font-size: 12px; color: var(--text-3); }
++
++.note { color: var(--text-3); font-size: 12px; margin: 10px 4px 0; }
++
++.support {
++  display: flex;
++  align-items: center;
++  gap: 18px;
++  padding: 18px 20px;
++}
++
++.support .moon { width: 40px; height: 40px; flex: none; }
++.support p { margin: 0; flex: 1; color: var(--text-2); }
++
++/* ---------- 検索の結果 ---------- */
++.results-empty {
++  text-align: center;
++  padding: 80px 20px;
++  color: var(--text-2);
++}
++
++.result-page { font-size: 12px; color: var(--text-3); }
++
++/* ---------- 保存の状態・知らせ ---------- */
++.save-state {
++  position: fixed;
++  top: 14px;
++  right: 20px;
++  z-index: 20;
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  font-size: 12px;
++  color: var(--text-2);
++  background: var(--surface);
++  border: 1px solid var(--border);
++  border-radius: 999px;
++  padding: 4px 12px 4px 10px;
++  box-shadow: var(--shadow);
++  opacity: 0;
++  transform: translateY(-6px);
++  transition: opacity .25s, transform .25s var(--ease);
++  pointer-events: none;
++}
++
++.save-state.show { opacity: 1; transform: none; }
++.save-state svg { width: 14px; height: 14px; }
++.save-state.saved svg { color: var(--ok); }
++.save-state.error { color: var(--bad); border-color: var(--bad); pointer-events: auto; }
++
++.spinner {
++  width: 12px;
++  height: 12px;
++  border-radius: 50%;
++  border: 2px solid var(--border-strong);
++  border-top-color: var(--accent);
++  animation: spin .8s linear infinite;
++}
++
++@keyframes spin { to { transform: rotate(360deg); } }
++
++.toasts {
++  position: fixed;
++  left: 50%;
++  bottom: 24px;
++  transform: translateX(-50%);
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++  z-index: 30;
++  width: min(560px, calc(100% - 48px));
++}
++
++.toast {
++  background: var(--navy);
++  color: #f3efe6;
++  border-radius: 10px;
++  padding: 12px 16px;
++  box-shadow: var(--shadow-pop);
++  display: flex;
++  gap: 12px;
++  align-items: flex-start;
++  animation: toast-in .35s var(--ease);
++}
++
++.toast.out { animation: toast-out .3s var(--ease) forwards; }
++.toast.bad { background: #5c1612; }
++.toast svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--gold); }
++
++@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
++@keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
++
++/* ---------- 確かめる窓 ---------- */
++dialog {
++  border: 1px solid var(--border);
++  border-radius: 12px;
++  padding: 0;
++  background: var(--surface);
++  color: var(--text);
++  box-shadow: var(--shadow-pop);
++  width: min(520px, calc(100% - 48px));
++}
++
++dialog.wide { width: min(760px, calc(100% - 48px)); }
++dialog[open] { animation: dialog-in .25s var(--ease); }
++dialog::backdrop { background: rgba(10, 16, 26, .45); animation: fade .25s; }
++
++@keyframes dialog-in { from { opacity: 0; transform: scale(.96); } }
++@keyframes fade { from { opacity: 0; } }
++
++.dialog-body { padding: 24px 24px 8px; }
++.dialog-title { font: 600 20px/1.3 var(--font-display); margin: 0 0 10px; }
++.dialog-text { color: var(--text-2); margin: 0; white-space: pre-line; }
++.dialog-actions {
++  display: flex;
++  justify-content: flex-end;
++  gap: 10px;
++  padding: 18px 24px;
++  background: var(--surface-2);
++  border-top: 1px solid var(--border);
++  margin-top: 18px;
++}
++
++.diag {
++  width: 100%;
++  height: 340px;
++  resize: none;
++  border: 1px solid var(--border);
++  border-radius: 8px;
++  background: var(--surface-2);
++  font: 12px/1.5 Consolas, "BIZ UDGothic", monospace;
++  padding: 10px 12px;
++  margin-top: 12px;
++  color: var(--text);
++}
++
++.loading {
++  display: grid;
++  place-items: center;
++  height: 100vh;
++  color: var(--text-2);
++  gap: 12px;
++}
++
++.sr-only {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  overflow: hidden;
++  clip: rect(0 0 0 0);
++  white-space: nowrap;
++}
++
++/* 狭い窓では左の一覧を細くする */
++@media (max-width: 900px) {
++  .app { grid-template-columns: 220px 1fr; }
++  .page { padding: 24px 24px 64px; }
++  .row { flex-wrap: wrap; }
++  .select select { min-width: 180px; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  *, *::before, *::after {
++    animation-duration: .001ms !important;
++    animation-iteration-count: 1 !important;
++    transition-duration: .001ms !important;
++    scroll-behavior: auto !important;
++  }
++}
++
++/* ハイコントラスト: 色は Windows に任せ、形と線だけを残す */
++@media (forced-colors: active) {
++  .hero { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
++  .hero-ai { color: CanvasText; }
++  .hero-moon { display: none; }
++  .switch input { border-color: ButtonText; forced-color-adjust: none; background: Canvas; }
++  .switch input::after { background: ButtonText; }
++  .switch input:checked { background: Highlight; border-color: Highlight; }
++  .switch input:checked::after { background: HighlightText; }
++  .segmented .thumb { background: Highlight; forced-color-adjust: none; }
++  .segmented button[aria-checked="true"] { color: HighlightText; forced-color-adjust: none; }
++  .nav button[aria-current="page"] { border: 1px solid Highlight; }
++  .dot { forced-color-adjust: none; border: 1px solid CanvasText; }
++  .chip[aria-pressed="true"] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
++}
+diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
+new file mode 100644
+index 000000000..6cd155a80
+--- /dev/null
++++ b/src/gui/config_dialog/web/settings.js
+@@ -0,0 +1,1179 @@
++// Asteria の設定画面(docs/adr/0084)。
++// 設定は変えたらすぐ保存する(元に戻すときは同じ所で戻す)。保存・読み込みは WebView2 の
++// メッセージで mozc_tool の KotoriSettingsBridge に頼む。WebView2 の外(ブラウザーでの確認)では
++// 見本のデータで動く。
++'use strict';
++
++(() => {
++  // ---------------------------------------------------------------- 部品
++  const $ = (selector, root = document) => root.querySelector(selector);
++
++  // 要素を作る。attrs の on〜 は出来事、class・text・html は中身、それ以外は属性。
++  function h(tag, attrs = {}, ...children) {
++    const el = document.createElement(tag);
++    for (const [key, value] of Object.entries(attrs)) {
++      if (value === undefined || value === null || value === false) continue;
++      if (key === 'class') el.className = value;
++      else if (key === 'text') el.textContent = value;
++      else if (key === 'html') el.innerHTML = value;
++      else if (key.startsWith('on')) el.addEventListener(key.slice(2), value);
++      else el.setAttribute(key, value === true ? '' : value);
++    }
++    for (const child of children.flat()) {
++      if (child === null || child === undefined || child === false) continue;
++      el.append(child instanceof Node ? child : document.createTextNode(child));
++    }
++    return el;
++  }
++
++  let uid = 0;
++  const newId = (prefix) => `${prefix}-${++uid}`;
++
++  const ICONS = {
++    home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
++    ai: '<path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9zM18.5 14l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/>',
++    input: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h1M9 10h1M12 10h1M15 10h1M18 10h0M7 14h10"/>',
++    convert: '<path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 7 8M11 5c-1 4-4 7-7 8M14 21l4-10 4 10M15.5 17.5h5"/>',
++    assist: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/>',
++    suggest: '<path d="M4 6h16M4 12h10M4 18h6"/><path d="M17 15l3 3-3 3"/>',
++    privacy: '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
++    other: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
++    check: '<path d="M4 12.5l5 5L20 6.5"/>',
++    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
++    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/>',
++  };
++
++  function icon(name, cls) {
++    const filled = name === 'other';
++    return h('span', {
++      'aria-hidden': 'true',
++      html: `<svg viewBox="0 0 24 24" class="${cls || ''}" fill="${filled ? 'currentColor' : 'none'}" ` +
++        `stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`,
++    }).firstChild;
++  }
++
++  // ---------------------------------------------------------------- 橋渡し
++  const native = window.chrome && window.chrome.webview;
++  const pending = new Map();
++  let nextRequest = 1;
++
++  if (native) {
++    native.addEventListener('message', (event) => {
++      const { id, result } = event.data || {};
++      const resolve = pending.get(id);
++      if (resolve) {
++        pending.delete(id);
++        resolve(result || { ok: false, message: '答えが空でした。' });
++      }
++    });
++  }
++
++  function call(op, args = {}) {
++    if (!native) return Preview.call(op, args);
++    return new Promise((resolve) => {
++      const id = nextRequest++;
++      pending.set(id, resolve);
++      native.postMessage(JSON.stringify({ id, op, ...args }));
++    });
++  }
++
++  // ---------------------------------------------------------------- 項目の表
++  const ON_OFF = (v) => (v ? 'オン' : 'オフ');
++  const cfg = () => state.config;
++
++  const QUALITY_NOTES = [
++    'GPU のない PC 向けの軽い設定です。CPU だけで動きます。',
++    'おすすめ。この PC の GPU で AI が候補を作り、文脈に合う候補を選び直します。手元の測定で最も正確で、待ちも短い設定です。',
++    'Standard より多くの候補を調べます。手元の測定では Standard と同じ結果で、少しだけ重くなります。',
++    '大きな変換用 AI(zenz-v2.5-medium)を使います。手元の測定では、打ち間違いの補正が減り、変換の待ちも長くなりました。今はおすすめしません。',
++  ];
++
++  const PAGES = [
++    {
++      id: 'home', title: 'ホーム', icon: 'home', render: renderHome,
++      search: 'AI の状態 今日の使い方 変換した回数 正答率 メモリ 応援',
++    },
++    {
++      id: 'ai', title: 'AI 変換', icon: 'ai',
++      lead: 'Space を押すと、AI が前後の文を読んで候補を選び直します。処理はすべてこの PC の中で行い、入力した文字を外に送りません。',
++      groups: [
++        {
++          title: '変換', items: [
++            { type: 'switch', key: 'kotori_lm_enabled', label: 'AI 変換を使う', desc: 'オフにすると、AI を使わない変換(Mozc と同じ)になります。' },
++            {
++              type: 'segmented', key: 'kotori_lm_quality', label: '変換の品質',
++              options: [[0, 'Low'], [1, 'Standard'], [2, 'High'], [3, 'Unreal']],
++              note: (v) => QUALITY_NOTES[v] || '', recommended: 1,
++              disabledWhen: () => !cfg().kotori_lm_enabled,
++            },
++            { type: 'live', id: 'ai-status', label: 'この PC', desc: () => state.env.gpu },
++          ],
++        },
++        {
++          title: '入力中の動き', items: [
++            {
++              type: 'switch', key: 'kotori_live_conversion', label: 'ライブ変換',
++              desc: '手が止まると、AI が変換した文字に入れ替わります。Enter でそのまま確定、Space で候補を選べます。オフなら、Space を押すまで読みのまま表示します。',
++              example: 'きょうはいいてんき → 今日はいい天気', disabledWhen: () => !cfg().kotori_lm_enabled,
++            },
++            {
++              type: 'switch', key: 'kotori_lm_correction', label: '入力中に誤変換を補正する',
++              desc: '日本語 LLM が使えるとき、手が止まった間に補正します。数字・名前・登録した語は変えず、確かな改善だけを候補に反映します。',
++              disabledWhen: () => !cfg().kotori_lm_enabled,
++            },
++            {
++              type: 'switch', key: 'kotori_homophone_hints', label: '同音語のヒント',
++              desc: '「足」と「脚」のように同じ読みの語が並ぶとき、見分けるための手がかりの語を候補の横に出します。',
++              example: '足 ― 靴・靴下 / 脚 ― 椅子・机',
++            },
++            {
++              type: 'switch', key: 'kotori_romaji_english', label: '英語の名前をローマ字のまま打つ',
++              desc: '日本語のまま打ち続けて、github や linux のような英語の名前を、文に合えば GitHub・Linux にします。日本語の語として読める綴り(sake → 酒)は変えません。',
++              example: 'ubuntuwoirete → Ubuntuを入れて',
++            },
++          ],
++        },
++        {
++          title: 'GPU', items: [
++            {
++              type: 'switch', key: 'kotori_use_integrated_gpu', label: '内蔵 GPU で AI を動かす', tags: [['試験的', 'lab']],
++              desc: '専用の GPU がない PC で、CPU の代わりに内蔵 GPU を使います(品質は Low)。専用の GPU がある PC では変わりません。反映には PC の再起動が必要です。',
++            },
++          ],
++        },
++        {
++          title: '詳しい設定', items: [
++            {
++              type: 'select', key: 'kotori_lm_model', label: 'AI モデル',
++              desc: '自動なら、GPU があるときは日本語 LLM も使い、ないときは変換用の AI(zenz)だけを CPU で使います。',
++              options: [[0, '自動(おすすめ)'], [1, 'zenz のみ(軽い)'], [2, 'zenz + LLM(GPU 向け)']],
++            },
++            {
++              type: 'text', key: 'kotori_lm_model_path', label: 'LLM のファイル',
++              desc: 'llama.cpp で読める日本語の LLM(GGUF)に差し替えられます。空なら同梱の TinySwallow-1.5B を使います。',
++              placeholder: '同梱のモデルを使う', browse: true,
++            },
++            {
++              type: 'button', label: '診断情報', button: '診断情報を見る…', action: showDiagnostics,
++              desc: '不具合を報告するときに添付する情報(版、Windows、GPU、設定、AI の状態、異常終了の記録)を見て、ファイルに保存します。入力した文字は含みません。',
++            },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'input', title: '入力', icon: 'input',
++      lead: 'キーボードの打ち方と、記号や空白の形を決めます。',
++      groups: [
++        {
++          title: '基本', items: [
++            {
++              type: 'select', label: '入力のしかた', desc: 'ローマ字で打つか、キーボードのかなで打つか。「キーで切り替え」はひらがなキーで切り替えられます。',
++              options: [[0, 'ローマ字'], [1, 'かな'], [2, 'ローマ字(キーで切り替え)'], [3, 'かな(キーで切り替え)']],
++              get: () => cfg().preedit_method + (cfg().use_keyboard_to_change_preedit_method ? 2 : 0),
++              set: (v) => {
++                cfg().preedit_method = v % 2;
++                cfg().use_keyboard_to_change_preedit_method = v >= 2;
++              },
++              search: 'ローマ字入力 かな入力',
++            },
++            {
++              type: 'select', key: 'punctuation_method', label: '句読点',
++              desc: '「、。」のほか、横書きの論文で使う「，．」も選べます。',
++              options: [[0, '、。'], [1, '，．'], [2, '、．'], [3, '，。']],
++            },
++            {
++              type: 'select', key: 'symbol_method', label: 'かぎかっこ・中黒',
++              desc: '「」と・を、[] や ／ にすることもできます。',
++              options: [[0, '「」・'], [1, '[]／'], [2, '「」／'], [3, '[]・']],
++            },
++            {
++              type: 'select', key: 'space_character_form', label: '空白の幅',
++              desc: 'Space で空白を入れるときの全角・半角。「入力モードに従う」は、ひらがなのとき全角です。',
++              options: [[0, '入力モードに従う'], [1, 'いつも全角'], [2, 'いつも半角']],
++            },
++            {
++              type: 'select', key: 'selection_shortcut', label: '数字キーで候補を選ぶ',
++              desc: '候補の一覧が出ているときに、キーで直接選べるようにします。',
++              options: [[0, '使わない'], [1, '1〜9'], [2, 'A〜L']],
++            },
++            {
++              type: 'select', key: 'numpad_character_form', label: 'テンキーの数字',
++              desc: 'テンキーで打った数字の形。',
++              options: [[0, '入力モードに従う'], [1, '全角'], [2, '半角'], [3, '直接入力']],
++            },
++          ],
++        },
++        {
++          title: 'キー操作', items: [
++            {
++              type: 'select', key: 'session_keymap', label: 'キーの割り当て',
++              desc: 'Microsoft IME・ATOK・ことえりと同じ操作にできます。',
++              options: [[-1, '既定(MS-IME と同じ)'], [2, 'MS-IME'], [1, 'ATOK'], [3, 'ことえり'], [0, '自分で変えた割り当て']],
++              filter: ([v]) => v !== 0 || state.env.keymapCustomized || cfg().session_keymap === 0,
++            },
++            {
++              type: 'button', label: 'キーを 1 つずつ変える', button: 'カスタマイズ…', action: () => openNative('keymap'),
++              desc: '今の割り当てを元に、キーごとの操作を変えます。保存すると「自分で変えた割り当て」になります。',
++            },
++            {
++              type: 'button', label: 'ローマ字の表', button: 'カスタマイズ…', action: () => openNative('romanTable'),
++              desc: () => (state.env.romanTableCustomized ? '自分で変えた表を使っています。' : 'ローマ字とかなの対応を変えます(例: la → ぁ)。'),
++              disabledWhen: () => cfg().preedit_method !== 0,
++            },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'convert', title: '変換と辞書', icon: 'convert',
++      lead: '覚えた言葉と辞書、日付や計算などの特別な変換。',
++      groups: [
++        {
++          title: '学習', items: [
++            {
++              type: 'select', key: 'history_learning_level', label: '選んだ言葉を覚える',
++              desc: '変換で選んだ言葉を覚えて、次から先に出します。選び直した文は、次に同じ文を打ったときにその文で出します。この PC の中だけに保存します。',
++              options: [[0, '覚える'], [1, '覚えた分だけ使う(新しく覚えない)'], [2, '覚えない']],
++            },
++            {
++              type: 'button', label: '覚えた言葉を消す', button: '消す…', danger: true,
++              desc: '変換で覚えた言葉と、選び直した文をすべて消します。入力履歴からの予測は「予測」で消せます。',
++              action: () => clear('history', '覚えた言葉を消しますか?', '変換で覚えた言葉と、選び直した文をすべて消します。元には戻せません。'),
++            },
++          ],
++        },
++        {
++          title: 'ユーザー辞書', items: [
++            {
++              type: 'button', label: 'ユーザー辞書', button: '開く…', action: () => openNative('dictionary'),
++              desc: '人名・地名・専門用語など、自分の言葉を登録します。登録した語は AI が書き換えません。',
++            },
++          ],
++        },
++        {
++          title: '特別な変換', items: [
++            { type: 'switch', key: 'use_single_kanji_conversion', label: '漢字 1 字', example: 'か → 火・課・蚊' },
++            { type: 'switch', key: 'use_symbol_conversion', label: '記号', example: 'やじるし → →・⇒' },
++            { type: 'switch', key: 'use_emoticon_conversion', label: '顔文字', example: 'かおもじ → (^_^)' },
++            { type: 'switch', key: 'use_emoji_conversion', label: '絵文字', example: 'はーと → ❤' },
++            { type: 'switch', key: 'use_t13n_conversion', label: 'カタカナ語を英語に', example: 'こんぴゅーたー → computer' },
++            { type: 'switch', key: 'use_zip_code_conversion', label: '郵便番号から住所', example: '1000001 → 東京都千代田区千代田' },
++            { type: 'switch', key: 'use_date_conversion', label: '日付と時刻', example: 'きょう → 今日の日付' },
++            { type: 'switch', key: 'use_number_conversion', label: '数字の書き方', example: '12 → 十二・Ⅻ' },
++            { type: 'switch', key: 'use_calculator', label: '計算', example: '1+2= → 3' },
++            { type: 'switch', key: 'use_spelling_correction', label: '読みの覚え違いを候補に出す', desc: '「もしかして」として、正しい読みの候補を出します。' },
++            { type: 'switch', key: 'use_local_usage_dictionary', label: '言葉の使い分けを候補の横に出す', desc: '同じ読みの語の意味の違いを、候補の横に説明として出します。' },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'assist', title: '入力の補助', icon: 'assist',
++      lead: '英数字や句読点の扱い、入力モードの表示、全角・半角の形。',
++      groups: [
++        {
++          title: '入力の補助', items: [
++            {
++              type: 'switch', key: 'auto_switch_composition_mode', label: '英数字を自動で半角にする',
++              desc: '大文字で打ち始めたときや「http」などを打ったときに、半角英数に切り替えます。',
++            },
++            {
++              type: 'switch', key: 'use_auto_conversion', label: '句読点を打ったら変換する',
++              desc: '下で選んだ記号を打つと、Space を押さなくてもそこまでの読みを変換します(確定は Enter)。数字の直後では変換しません。',
++            },
++            {
++              type: 'checks', key: 'auto_conversion_key', label: '変換する記号',
++              bits: [[1, '。', '句点'], [2, '、', '読点'], [4, '?', '疑問符'], [8, '!', '感嘆符']],
++              disabledWhen: () => !cfg().use_auto_conversion,
++            },
++            {
++              type: 'select', key: 'shift_key_mode_switch', label: 'Shift を押しながら英字を打ったとき',
++              options: [[0, '切り替えない'], [1, '英数字にする'], [2, 'カタカナにする']],
++            },
++            {
++              type: 'switch', key: 'use_mode_indicator', label: '入力モード(あ・A)をカーソルの近くに出す',
++              desc: '切り替えたときに、今の入力モードを文字の近くに少しだけ表示します。',
++            },
++            {
++              type: 'switch', key: 'kotori_share_input_mode', label: '入力モードをすべてのアプリで共有する',
++              desc: 'アプリや窓を切り替えても、最後に使った入力モードのまま入力できます。',
++            },
++          ],
++        },
++        {
++          title: '全角・半角', items: [
++            { type: 'forms', label: '文字の形', search: '全角 半角 カタカナ 数字 英字 記号 前回と同じ' },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'suggest', title: '予測', icon: 'suggest',
++      lead: '打っている途中に、打った読みの続きになる言葉(ありがと → ありがとうございます)があるときだけ窓を出します。手を止めるたびに窓が出ることはありません。予測の設定を変えても、Space の変換の結果は変わりません。',
++      groups: [
++        {
++          title: '予測の元', items: [
++            { type: 'switch', key: 'use_history_suggest', label: '入力履歴から予測する', desc: '前に確定した言葉から、続きを補う候補を出します。' },
++            { type: 'switch', key: 'use_dictionary_suggest', label: 'システム辞書から予測する', desc: '辞書の言葉から、続きを補う候補を出します。' },
++          ],
++        },
++        {
++          title: '出し方', items: [
++            { type: 'stepper', key: 'suggestions_size', label: '予測の候補数', desc: '窓に出す予測の数。', min: 1, max: 9, unit: '件' },
++            {
++              type: 'stepper', key: 'kotori_suggest_min_chars', label: '予測を出し始める文字数',
++              desc: '読みがこの文字数以上になってから予測を出します。短い読みの予測は外れが多いので、最初は 3 文字です。', min: 1, max: 5, unit: '文字',
++            },
++          ],
++        },
++        {
++          title: '入力履歴', items: [
++            {
++              type: 'button', label: '使っていない履歴を消す', button: '消す…',
++              action: () => clear('unusedPrediction', '使っていない履歴を消しますか?', 'しばらく使っていない入力履歴を消します。'),
++            },
++            {
++              type: 'button', label: '入力履歴をすべて消す', button: 'すべて消す…', danger: true,
++              action: () => clear('prediction', '入力履歴をすべて消しますか?', '予測に使う入力履歴をすべて消します。元には戻せません。'),
++            },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'privacy', title: 'プライバシー', icon: 'privacy',
++      lead: 'Asteria は、入力した文字・覚えた言葉・使い方の情報を外に送りません。AI もこの PC の中だけで動き、インターネットにつながっていなくても使えます。',
++      groups: [
++        {
++          title: '一時的に止める', items: [
++            {
++              type: 'switch', key: 'incognito_mode', label: 'シークレットモード',
++              desc: '学習・入力履歴からの予測・ユーザー辞書を一時的に止めます。人に画面を見せるときなどに使います。止めている間に打った言葉は覚えません。',
++            },
++            {
++              type: 'switch', key: 'presentation_mode', label: 'プレゼンテーションモード',
++              desc: '発表などで画面を映している間、入力中の予測の窓を出しません。',
++              disabledWhen: () => !cfg().use_history_suggest && !cfg().use_dictionary_suggest,
++            },
++          ],
++        },
++      ],
++    },
++    {
++      id: 'other', title: 'その他', icon: 'other',
++      lead: 'Windows との連携、お知らせ、初期設定への戻し方。',
++      groups: [
++        {
++          title: 'Windows', items: [
++            { type: 'switch', key: 'check_default', label: '起動したときに Asteria が既定の IME か確かめる' },
++            { type: 'env', key: 'imeHotKeyDisabled', label: 'Ctrl+Shift でキーボードを切り替えない', desc: 'Windows の「Ctrl+Shift で入力方式を切り替える」を止めます。' },
++            {
++              type: 'button', label: '辞書の先読みと管理者の設定', button: '開く…', shield: true, action: () => openNative('administration'),
++              desc: 'PC のすべての利用者に効く設定です。管理者の権限が要ります。',
++            },
++          ],
++        },
++        {
++          title: 'お知らせ', items: [
++            { type: 'env', key: 'supportReminder', label: 'GitHub での応援のお願いを通知で表示する', desc: '3 日ごとに 1 回、Windows の通知でお願いを出します。' },
++          ],
++        },
++        {
++          title: '初期設定', items: [
++            {
++              type: 'button', label: '設定を初期設定に戻す', button: '戻す…', danger: true, action: resetDefaults,
++              desc: '覚えた言葉・入力履歴・ユーザー辞書・管理者の設定は、そのまま残ります。',
++            },
++          ],
++        },
++      ],
++    },
++  ];
++
++  // ---------------------------------------------------------------- 状態
++  const state = {
++    config: {}, env: {}, page: 'home', query: '', status: null,
++  };
++  const rows = [];  // 今の画面の行(状態が変わったら見直す)
++
++  // ---------------------------------------------------------------- 保存
++  let saveTimer = 0;
++  let saving = Promise.resolve();
++  let lastSavedJson = '';
++  let pendingEnv = {};
++
++  function scheduleSave(env) {
++    if (env) Object.assign(pendingEnv, env);
++    clearTimeout(saveTimer);
++    showSave('saving');
++    saveTimer = setTimeout(save, 260);
++  }
++
++  function save() {
++    const env = pendingEnv;
++    pendingEnv = {};
++    const config = JSON.parse(JSON.stringify(state.config));
++    saving = saving.then(async () => {
++      const result = await call('save', { config, env });
++      if (!result.ok) {
++        showSave('error');
++        toast(result.message || '保存できませんでした。', 'bad');
++        return;
++      }
++      lastSavedJson = JSON.stringify(result.config);
++      if (JSON.stringify(state.config) === JSON.stringify(config)) state.config = result.config;
++      state.env = result.env || state.env;
++      showSave('saved');
++      for (const notice of result.notices || []) toast(notice);
++      refreshRows();
++    });
++  }
++
++  let saveHide = 0;
++  function showSave(kind) {
++    const el = $('#save-state');
++    clearTimeout(saveHide);
++    el.className = `save-state show ${kind}`;
++    el.replaceChildren();
++    if (kind === 'saving') {
++      el.append(h('span', { class: 'spinner', 'aria-hidden': 'true' }), '保存しています');
++    } else if (kind === 'saved') {
++      el.append(icon('check'), '保存しました');
++      saveHide = setTimeout(() => el.classList.remove('show'), 2200);
++    } else {
++      el.append(icon('info'), '保存できませんでした ― ', h('button', {
++        class: 'btn', text: 'もう一度', onclick: () => scheduleSave(),
++      }));
++    }
++  }
++
++  function toast(text, kind = '') {
++    const el = h('div', { class: `toast ${kind}`, role: kind === 'bad' ? 'alert' : 'status' }, icon('info'), h('div', { text }));
++    $('#toasts').append(el);
++    setTimeout(() => {
++      el.classList.add('out');
++      el.addEventListener('animationend', () => el.remove(), { once: true });
++    }, kind === 'bad' ? 7000 : 4500);
++  }
++
++  // ---------------------------------------------------------------- 確かめる窓
++  function confirmDialog(title, text, ok, danger) {
++    const dialog = $('#confirm');
++    $('#confirm-title').textContent = title;
++    $('#confirm-text').textContent = text;
++    const okButton = $('#confirm-ok');
++    okButton.textContent = ok;
++    okButton.className = `btn primary${danger ? ' danger-primary' : ''}`;
++    return new Promise((resolve) => {
++      const done = (value) => {
++        dialog.close();
++        okButton.onclick = null;
++        $('#confirm-cancel').onclick = null;
++        resolve(value);
++      };
++      okButton.onclick = () => done(true);
++      $('#confirm-cancel').onclick = () => done(false);
++      dialog.oncancel = (e) => { e.preventDefault(); done(false); };
++      dialog.showModal();
++      $('#confirm-cancel').focus();
++    });
++  }
++
++  async function clear(what, title, text) {
++    if (!await confirmDialog(title, text, '消す', true)) return;
++    const result = await call('clear', { what });
++    toast(result.ok ? '消しました。' : result.message, result.ok ? '' : 'bad');
++  }
++
++  async function openNative(target) {
++    const result = await call('open', { target });
++    if (!result.ok) {
++      toast(result.message, 'bad');
++      return;
++    }
++    if (result.changed && result.config) {
++      state.config = result.config;
++      state.env = result.env || state.env;
++      render();
++      showSave('saved');
++    }
++  }
++
++  async function showDiagnostics() {
++    const result = await call('diagnostics');
++    if (!result.ok) {
++      toast(result.message, 'bad');
++      return;
++    }
++    const dialog = $('#diagnostics');
++    $('#diag-text').value = result.text;
++    $('#diag-close').onclick = () => dialog.close();
++    $('#diag-save').onclick = async () => {
++      const saved = await call('saveDiagnostics');
++      if (saved.ok && saved.saved) {
++        dialog.close();
++        toast('診断情報を保存しました。');
++      }
++    };
++    dialog.showModal();
++  }
++
++  async function resetDefaults() {
++    if (!await confirmDialog('設定を初期設定に戻しますか?',
++      'すべての設定を最初の状態に戻します。覚えた言葉・入力履歴・ユーザー辞書・管理者の設定はそのまま残ります。',
++      '初期設定に戻す', true)) return;
++    const result = await call('defaults');
++    if (!result.ok) return;
++    state.config = result.config;
++    render();
++    scheduleSave();
++    toast('初期設定に戻しました。');
++  }
++
++  // ---------------------------------------------------------------- 行の部品
++  const text = (value) => (typeof value === 'function' ? value() : value);
++
++  function rowShell(item, control, extra) {
++    const labelId = newId('label');
++    const descId = newId('desc');
++    const desc = text(item.desc);
++    const row = h('div', { class: 'row', 'data-search': searchText(item) },
++      h('div', { class: 'row-text' },
++        h('div', { class: 'row-label', id: labelId },
++          highlight(item.label),
++          (item.tags || []).map(([t, c]) => h('span', { class: `tag ${c || ''}`, text: t }))),
++        desc ? h('div', { class: 'row-desc', id: descId }, highlight(desc)) : null,
++        item.example ? h('span', { class: 'row-example' }, highlight(item.example)) : null,
++        extra || null),
++      control ? h('div', { class: 'control' }, control) : null);
++    row.labelId = labelId;
++    row.descId = desc ? descId : null;
++    return row;
++  }
++
++  function buildSwitch(item, get, set) {
++    const input = h('input', { type: 'checkbox', role: 'switch' });
++    const stateText = h('span', { class: 'state', 'aria-hidden': 'true' });
++    const label = h('label', { class: 'switch' }, stateText, input);
++    const row = rowShell(item, label);
++    input.setAttribute('aria-labelledby', row.labelId);
++    if (row.descId) input.setAttribute('aria-describedby', row.descId);
++    input.addEventListener('change', () => {
++      set(input.checked);
++      stateText.textContent = ON_OFF(input.checked);
++    });
++    row.refresh = () => {
++      input.checked = !!get();
++      stateText.textContent = ON_OFF(input.checked);
++    };
++    return row;
++  }
++
++  function buildSelect(item) {
++    const get = item.get || (() => cfg()[item.key]);
++    const set = item.set || ((v) => { cfg()[item.key] = v; });
++    const select = h('select');
++    const wrap = h('div', { class: 'select' }, select);
++    const row = rowShell(item, wrap);
++    select.setAttribute('aria-labelledby', row.labelId);
++    if (row.descId) select.setAttribute('aria-describedby', row.descId);
++    select.addEventListener('change', () => {
++      set(Number(select.value));
++      scheduleSave();
++      refreshRows();
++    });
++    row.refresh = () => {
++      const options = item.options.filter(item.filter || (() => true));
++      select.replaceChildren(...options.map(([v, label]) => h('option', { value: v, text: label })));
++      select.value = String(get());
++    };
++    return row;
++  }
++
++  function buildSegmented(item) {
++    const group = h('div', { class: 'segmented', role: 'radiogroup' });
++    const thumb = h('span', { class: 'thumb', 'aria-hidden': 'true' });
++    group.append(thumb);
++    const buttons = item.options.map(([v, label]) => {
++      const button = h('button', { type: 'button', role: 'radio', 'data-value': v, text: label });
++      button.addEventListener('click', () => choose(v, true));
++      group.append(button);
++      return button;
++    });
++    const note = h('div', { class: 'row-desc' });
++    const row = rowShell(item, group, note);
++    group.setAttribute('aria-labelledby', row.labelId);
++    const place = () => {
++      const current = buttons.find((b) => b.getAttribute('aria-checked') === 'true');
++      if (!current) return;
++      thumb.style.setProperty('left', `${current.offsetLeft}px`);
++      thumb.style.setProperty('width', `${current.offsetWidth}px`);
++    };
++    function choose(v, user) {
++      if (user) {
++        cfg()[item.key] = v;
++        scheduleSave();
++      }
++      for (const b of buttons) {
++        const on = Number(b.dataset.value) === v;
++        b.setAttribute('aria-checked', on ? 'true' : 'false');
++        b.tabIndex = on ? 0 : -1;
++        if (on && user) b.focus();
++      }
++      const recommended = item.recommended === v ? ' ' : '';
++      note.textContent = item.note ? item.note(v) + recommended : '';
++      requestAnimationFrame(place);
++    }
++    group.addEventListener('keydown', (e) => {
++      const keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
++      if (!(e.key in keys)) return;
++      e.preventDefault();
++      const values = item.options.map(([v]) => v);
++      const index = values.indexOf(cfg()[item.key]);
++      choose(values[(index + keys[e.key] + values.length) % values.length], true);
++    });
++    new ResizeObserver(place).observe(group);
++    row.refresh = () => choose(cfg()[item.key], false);
++    return row;
++  }
++
++  function buildStepper(item) {
++    const out = h('output', { 'aria-live': 'polite' });
++    const minus = h('button', { type: 'button', 'aria-label': `${item.label}を減らす`, text: '−' });
++    const plus = h('button', { type: 'button', 'aria-label': `${item.label}を増やす`, text: '+' });
++    const row = rowShell(item, h('div', { class: 'stepper' }, minus, out, plus));
++    const step = (d) => {
++      const v = Math.min(item.max, Math.max(item.min, cfg()[item.key] + d));
++      if (v === cfg()[item.key]) return;
++      cfg()[item.key] = v;
++      scheduleSave();
++      row.refresh();
++    };
++    minus.addEventListener('click', () => step(-1));
++    plus.addEventListener('click', () => step(1));
++    row.refresh = () => {
++      const v = cfg()[item.key];
++      out.textContent = `${v} ${item.unit}`;
++      minus.disabled = v <= item.min;
++      plus.disabled = v >= item.max;
++    };
++    return row;
++  }
++
++  function buildChecks(item) {
++    const chips = item.bits.map(([bit, label, name]) => {
++      const chip = h('button', { type: 'button', class: 'chip', 'aria-pressed': 'false', 'aria-label': `${name}で変換する` },
++        h('span', { class: 'chip-mark', 'aria-hidden': 'true' }, icon('check')), label);
++      chip.addEventListener('click', () => {
++        const on = chip.getAttribute('aria-pressed') !== 'true';
++        cfg()[item.key] = on ? (cfg()[item.key] | bit) : (cfg()[item.key] & ~bit);
++        scheduleSave();
++        row.refresh();
++      });
++      return [bit, chip];
++    });
++    const row = rowShell(item, h('div', { class: 'chips', role: 'group' }, chips.map(([, chip]) => chip)));
++    row.refresh = () => {
++      for (const [bit, chip] of chips) chip.setAttribute('aria-pressed', (cfg()[item.key] & bit) !== 0 ? 'true' : 'false');
++    };
++    return row;
++  }
++
++  function buildText(item) {
++    const input = h('input', { class: 'text-input', type: 'text', placeholder: item.placeholder, spellcheck: 'false' });
++    const browse = item.browse ? h('button', { class: 'btn', type: 'button', text: '参照…' }) : null;
++    const row = rowShell(item, [input, browse]);
++    input.setAttribute('aria-labelledby', row.labelId);
++    input.addEventListener('change', () => {
++      cfg()[item.key] = input.value.trim();
++      scheduleSave();
++    });
++    if (browse) {
++      browse.addEventListener('click', async () => {
++        const result = await call('open', { target: 'browseModel' });
++        if (result.ok && result.path) {
++          input.value = result.path;
++          cfg()[item.key] = result.path;
++          scheduleSave();
++        }
++      });
++    }
++    row.refresh = () => {
++      if (document.activeElement !== input) input.value = cfg()[item.key] || '';
++    };
++    return row;
++  }
++
++  function buildButton(item) {
++    const button = h('button', { class: `btn${item.danger ? ' danger' : ''}`, type: 'button' },
++      item.shield ? icon('shield', 'shield') : null, item.button);
++    button.addEventListener('click', item.action);
++    const row = rowShell(item, button);
++    button.setAttribute('aria-describedby', row.labelId);
++    row.refresh = () => {
++      const desc = row.querySelector('.row-desc');
++      if (desc && typeof item.desc === 'function') desc.textContent = item.desc();
++    };
++    return row;
++  }
++
++  function buildLive(item) {
++    const status = h('div', { class: 'row-desc', id: item.id });
++    const row = rowShell(item, null, status);
++    row.refresh = () => {
++      const desc = row.querySelector('.row-desc:not([id="' + item.id + '"])');
++      if (desc) desc.textContent = text(item.desc) || '';
++      status.textContent = state.status ? state.status.ai : 'AI の状態を確かめています…';
++    };
++    return row;
++  }
++
++  const FORM_GROUPS = {
++    'ア': 'カタカナ', 'A': '英字', '0': '数字', '(){}[]': 'かっこ', '.,': 'ピリオド・カンマ',
++    '。、': '句読点', '・「」': '中黒・かぎかっこ', '"\'': '引用符', ':;': 'コロン・セミコロン',
++    '#%&@$^_|`\\': '記号', '~': 'チルダ', '<>=+-/*': '計算の記号', '?!': '疑問符・感嘆符',
++  };
++  // 名前のない組は「記号」と、その文字を並べて出す。
++  const formGroupName = (group) => FORM_GROUPS[group] || `記号 ${[...group].join(' ')}`;
++  const formGroupChars = (group) => (FORM_GROUPS[group] && !['ア', '0', 'A'].includes(group) ? [...group].join(' ') : '');
++  const FORMS = [[1, '全角'], [0, '半角'], [2, '前回と同じ']];
++
++  function buildForms(item) {
++    const table = h('table', { class: 'forms' });
++    const wrap = h('div', {},
++      h('div', { class: 'row-desc', text: '打っている間と、変換した後の文字の形。「前回と同じ」は最後に選んだ形を使います(英字は、まだ選んでいなければ半角)。' }),
++      table);
++    const row = h('div', { class: 'row', 'data-search': searchText(item) }, h('div', { class: 'row-text' },
++      h('div', { class: 'row-label' }, highlight(item.label)), wrap));
++    row.refresh = () => {
++      const rules = cfg().character_form_rules || [];
++      table.replaceChildren(h('tr', {},
++        h('th', { text: '文字' }), h('th', { text: '打っている間' }), h('th', { text: '変換した後' })));
++      rules.forEach((rule, index) => {
++        const name = formGroupName(rule.group);
++        const cell = (field) => {
++          const group = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': `${name}の${field === 'preedit' ? '打っている間' : '変換した後'}` });
++          const thumb = h('span', { class: 'thumb', 'aria-hidden': 'true' });
++          group.append(thumb);
++          const fixed = field === 'preedit' && rule.group === 'ア';
++          for (const [v, label] of FORMS) {
++            const on = rule[field] === v;
++            const b = h('button', { type: 'button', role: 'radio', 'aria-checked': on ? 'true' : 'false', text: label, disabled: fixed && !on });
++            b.addEventListener('click', () => {
++              if (fixed) return;
++              cfg().character_form_rules[index][field] = v;
++              scheduleSave();
++              row.refresh();
++            });
++            group.append(b);
++          }
++          requestAnimationFrame(() => {
++            const current = group.querySelector('[aria-checked="true"]');
++            if (!current) return;
++            thumb.style.setProperty('left', `${current.offsetLeft}px`);
++            thumb.style.setProperty('width', `${current.offsetWidth}px`);
++          });
++          return h('td', {}, group);
++        };
++        const chars = formGroupChars(rule.group);
++        table.append(h('tr', {}, h('td', {}, name, chars ? h('span', { class: 'chars', text: chars }) : null), cell('preedit'), cell('conversion')));
++      });
++    };
++    return row;
++  }
++
++  function buildRow(item) {
++    let row;
++    switch (item.type) {
++      case 'switch':
++        row = buildSwitch(item, () => cfg()[item.key], (v) => {
++          cfg()[item.key] = v;
++          scheduleSave();
++          refreshRows();
++        });
++        break;
++      case 'env':
++        row = buildSwitch(item, () => state.env[item.key], (v) => {
++          state.env[item.key] = v;
++          scheduleSave({ [item.key]: v });
++        });
++        break;
++      case 'select': row = buildSelect(item); break;
++      case 'segmented': row = buildSegmented(item); break;
++      case 'stepper': row = buildStepper(item); break;
++      case 'checks': row = buildChecks(item); break;
++      case 'text': row = buildText(item); break;
++      case 'button': row = buildButton(item); break;
++      case 'live': row = buildLive(item); break;
++      case 'forms': row = buildForms(item); break;
++      default: return null;
++    }
++    row.item = item;
++    rows.push(row);
++    return row;
++  }
++
++  function refreshRows() {
++    for (const row of rows) {
++      if (row.refresh) row.refresh();
++      const disabled = row.item.disabledWhen ? row.item.disabledWhen() : false;
++      row.classList.toggle('disabled', disabled);
++      row.setAttribute('aria-disabled', disabled ? 'true' : 'false');
++      for (const el of row.querySelectorAll('.control input, .control select, .control button')) {
++        if (disabled) el.setAttribute('tabindex', '-1');
++        else if (!el.closest('.segmented')) el.removeAttribute('tabindex');
++      }
++    }
++  }
++
++  // ---------------------------------------------------------------- 検索
++  const normalize = (s) => (s || '').normalize('NFKC').toLowerCase();
++
++  function searchText(item) {
++    return normalize([item.label, text(item.desc), item.example, item.search,
++      ...(item.options || []).map(([, label]) => label)].join(' '));
++  }
++
++  function highlight(value) {
++    const q = state.query.trim();
++    if (!q || !value) return value || '';
++    const source = String(value);
++    const index = normalize(source).indexOf(normalize(q));
++    if (index < 0 || normalize(source).length !== source.length) return source;
++    const frag = document.createDocumentFragment();
++    frag.append(source.slice(0, index), h('mark', { text: source.slice(index, index + q.length) }), source.slice(index + q.length));
++    return frag;
++  }
++
++  function matches(page, group, item) {
++    const q = normalize(state.query.trim());
++    if (!q) return true;
++    return searchText(item).includes(q) || normalize(group.title).includes(q) || normalize(page.title).includes(q);
++  }
++
++  // ---------------------------------------------------------------- 画面
++  function renderNav() {
++    const nav = $('#nav');
++    nav.replaceChildren();
++    const q = state.query.trim();
++    for (const page of PAGES) {
++      let count = 0;
++      if (q && page.groups) {
++        for (const group of page.groups) for (const item of group.items) if (matches(page, group, item)) count++;
++      }
++      if (q && !count) continue;
++      const button = h('button', {
++        type: 'button', 'aria-current': !q && state.page === page.id ? 'page' : null,
++        onclick: () => go(page.id),
++      }, icon(page.icon), h('span', { text: page.title }), q ? h('span', { class: 'count', text: String(count) }) : null);
++      nav.append(h('li', {}, button));
++    }
++  }
++
++  function renderGroups(page, groups, container) {
++    for (const group of groups) {
++      const items = group.items.filter((item) => matches(page, group, item));
++      if (!items.length) continue;
++      const card = h('div', { class: 'card' }, items.map(buildRow));
++      container.append(h('section', { class: 'group', 'aria-label': group.title },
++        h('h2', { class: 'group-title', text: group.title }), card));
++    }
++  }
++
++  function render() {
++    rows.length = 0;
++    const main = $('#main');
++    const q = state.query.trim();
++    let page;
++    if (q) {
++      page = h('div', { class: 'page' }, h('div', { class: 'page-head' },
++        h('h1', { class: 'page-title', text: `「${q}」の検索結果` })));
++      let any = false;
++      for (const p of PAGES) {
++        if (!p.groups) continue;
++        const before = page.childElementCount;
++        renderGroups(p, p.groups.map((g) => ({ ...g, title: `${p.title} › ${g.title}` })), page);
++        any = any || page.childElementCount > before;
++      }
++      if (!any) {
++        page.append(h('div', { class: 'results-empty' },
++          h('p', { text: '見つかりませんでした。' }),
++          h('p', { class: 'note', text: '別の言葉(例: 予測、ライブ、全角、学習)で探してみてください。' })));
++      }
++    } else {
++      const def = PAGES.find((p) => p.id === state.page);
++      page = h('div', { class: 'page' });
++      if (def.render) {
++        def.render(page);
++      } else {
++        page.append(h('div', { class: 'page-head' },
++          h('h1', { class: 'page-title', text: def.title }),
++          def.lead ? h('p', { class: 'page-lead', text: def.lead }) : null));
++        renderGroups(def, def.groups, page);
++      }
++    }
++    main.replaceChildren(page);
++    renderNav();
++    refreshRows();
++  }
++
++  function go(id, focusKey) {
++    if (state.query) {
++      state.query = '';
++      $('#search').value = '';
++    }
++    const changed = state.page !== id;
++    state.page = id;
++    render();
++    if (changed) $('#main').scrollTop = 0;
++    if (focusKey) {
++      const row = rows.find((r) => r.item.key === focusKey);
++      if (row) {
++        row.scrollIntoView({ block: 'center' });
++        row.classList.add('flash');
++      }
++    }
++    if (id === 'home' || id === 'ai') refreshStatus();
++  }
++
++  // ---------------------------------------------------------------- ホーム
++  const homeEls = {};
++
++  function renderHome(page) {
++    const hero = h('section', { class: 'hero', 'aria-label': 'AI の状態' });
++    hero.append(h('span', {
++      class: 'hero-moon', 'aria-hidden': 'true',
++      html: '<svg viewBox="0 0 120 120"><path fill="currentColor" d="M74 14A48 48 0 1 0 106 86 40 40 0 0 1 74 14z"/></svg>',
++    }));
++    homeEls.dot = h('span', { class: 'dot', 'aria-hidden': 'true' });
++    homeEls.state = h('span', { text: 'AI の状態を確かめています' });
++    homeEls.ai = h('p', { class: 'hero-ai' });
++    hero.append(h('div', { class: 'hero-state' }, homeEls.dot, homeEls.state), homeEls.ai,
++      h('div', { class: 'hero-actions' },
++        h('button', { class: 'btn', type: 'button', text: 'AI 変換の設定', onclick: () => go('ai') }),
++        h('button', { class: 'btn', type: 'button', text: '予測の設定', onclick: () => go('suggest') })));
++    page.append(hero);
++
++    homeEls.tiles = h('div', { class: 'tiles' });
++    page.append(h('section', { class: 'group', 'aria-label': '今日の使い方' },
++      h('h2', { class: 'group-title', text: '今日の使い方' }), homeEls.tiles,
++      h('p', { class: 'note', text: '数えているのは回数と時間だけです。入力した文章は保存しません。' })));
++
++    homeEls.load = h('div', { class: 'row-desc' });
++    page.append(h('section', { class: 'group', 'aria-label': 'この PC で使っているもの' },
++      h('h2', { class: 'group-title', text: 'この PC で使っているもの' }),
++      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { class: 'row-text' },
++        h('div', { class: 'row-label', text: 'GPU とメモリ' }),
++        h('div', { class: 'row-desc', text: state.env.gpu || '' }), homeEls.load)))));
++
++    page.append(h('section', { class: 'group', 'aria-label': '応援' },
++      h('div', { class: 'card support' },
++        h('span', {
++          'aria-hidden': 'true',
++          html: '<svg class="moon" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#111c2d"/><path fill="#d9c59e" d="M24.6 9.5A11 11 0 1 0 31 25.4a9 9 0 0 1-6.4-15.9z"/></svg>',
++        }),
++        h('p', { text: 'Asteria は無料のオープンソースです。気に入ったら、開発の応援をお願いします。' }),
++        h('button', { class: 'btn', type: 'button', text: '開発を支援(Stripe)', onclick: () => call('open', { target: 'support' }) }))));
++    updateHome();
++  }
++
++  const STATE_WORDS = {
++    llm: ['いつでも使えます', 'ok'],
++    zenz: ['いつでも使えます', 'ok'],
++    loading: ['AI を準備しています…', 'wait'],
++    sleep: ['AI はひと休み中です', 'wait'],
++    off: ['AI を使わずに変換しています', ''],
++    error: ['AI が動いていません(入力は続けられます)', 'bad'],
++  };
++
++  // "1,234回"・"3分12秒" を、数(大きく)と単位(小さく)の並びに分ける。
++  function splitNumber(value) {
++    return (value || '—').match(/[\d,.]+|[^\d,.]+/g) || ['—'];
++  }
++
++  function animateNumber(el, to) {
++    const target = Number(String(to).replace(/,/g, ''));
++    const from = Number(el.dataset.value || 0);
++    el.dataset.value = String(target);
++    if (!Number.isFinite(target) || target === from || matchMedia('(prefers-reduced-motion: reduce)').matches) {
++      el.textContent = to;
++      return;
++    }
++    const decimals = (String(to).split('.')[1] || '').length;
++    const start = performance.now();
++    const tick = (now) => {
++      const t = Math.min(1, (now - start) / 700);
++      const eased = 1 - Math.pow(1 - t, 3);
++      const v = from + (target - from) * eased;
++      el.textContent = t < 1 ? v.toLocaleString('ja-JP', { maximumFractionDigits: decimals, minimumFractionDigits: decimals }) : to;
++      if (t < 1) requestAnimationFrame(tick);
++    };
++    requestAnimationFrame(tick);
++  }
++
++  function updateHome() {
++    const s = state.status;
++    if (!homeEls.state || !homeEls.state.isConnected) return;
++    const [words, kind] = (s && STATE_WORDS[s.state]) || ['AI の状態を確かめています', ''];
++    homeEls.state.textContent = words;
++    homeEls.dot.className = `dot ${kind}`;
++    homeEls.ai.textContent = s ? s.ai : '';
++    homeEls.load.textContent = s && s.memoryGb !== undefined
++      ? `Asteria が使っているメモリ: ${s.memoryGb.toFixed(1)} GB` : 'Asteria が使っているメモリ: 確かめています';
++    const usage = (s && s.usage) || [];
++    if (homeEls.tiles.childElementCount !== usage.length) {
++      homeEls.tiles.replaceChildren(...usage.map(() => {
++        return h('div', { class: 'tile' }, h('div', { class: 'tile-title' }),
++          h('div', { class: 'tile-value' }), h('div', { class: 'tile-total' }));
++      }));
++    }
++    usage.forEach((tile, i) => {
++      const el = homeEls.tiles.children[i];
++      el.querySelector('.tile-title').textContent = tile.title;
++      const parts = splitNumber(tile.value);
++      const valueEl = el.querySelector('.tile-value');
++      const numbers = parts.filter((p) => /^[\d,.]+$/.test(p));
++      if (numbers.length === 1 && /^[\d,.]+$/.test(parts[0]) && valueEl.dataset.shape === 'one') {
++        // 数が 1 つだけで形が同じなら、数え上げて見せる。
++        animateNumber(valueEl.querySelector('.num'), parts[0]);
++        valueEl.querySelector('.unit').textContent = parts.slice(1).join('');
++      } else {
++        valueEl.dataset.shape = numbers.length === 1 && /^[\d,.]+$/.test(parts[0]) ? 'one' : 'many';
++        valueEl.replaceChildren(...parts.map((p) => h('span', { class: /^[\d,.]+$/.test(p) ? 'num' : 'unit', text: p })));
++        if (valueEl.dataset.shape === 'one' && parts.length === 1) valueEl.append(h('span', { class: 'unit' }));
++      }
++      el.querySelector('.tile-total').textContent = tile.total;
++      el.setAttribute('aria-label', `${tile.title} ${tile.value}、${tile.total}`);
++    });
++  }
++
++  let statusTimer = 0;
++  async function refreshStatus() {
++    clearTimeout(statusTimer);
++    const result = await call('status');
++    if (result.ok) {
++      state.status = result;
++      updateHome();
++      const live = document.getElementById('ai-status');
++      if (live) live.textContent = result.ai;
++    }
++    if (!state.query && (state.page === 'home' || state.page === 'ai') && !document.hidden) {
++      statusTimer = setTimeout(refreshStatus, 2000);
++    }
++  }
++
++  document.addEventListener('visibilitychange', () => {
++    if (!document.hidden) refreshStatus();
++  });
++
++  // ---------------------------------------------------------------- キー操作
++  document.addEventListener('keydown', (e) => {
++    if ((e.ctrlKey && e.key.toLowerCase() === 'f') || (e.key === '/' && !e.target.closest('input, textarea, select'))) {
++      e.preventDefault();
++      $('#search').focus();
++      $('#search').select();
++      return;
++    }
++    if (e.ctrlKey && e.key === 'Tab') {
++      e.preventDefault();
++      const ids = PAGES.map((p) => p.id);
++      const i = ids.indexOf(state.page);
++      go(ids[(i + (e.shiftKey ? -1 : 1) + ids.length) % ids.length]);
++      $('#nav [aria-current="page"]')?.focus();
++    }
++  });
++
++  const search = $('#search');
++  let searchTimer = 0;
++  search.addEventListener('input', () => {
++    clearTimeout(searchTimer);
++    searchTimer = setTimeout(() => {
++      state.query = search.value;
++      render();
++      $('#main').scrollTop = 0;
++      if (!state.query) refreshStatus();
++    }, 90);
++  });
++  search.addEventListener('keydown', (e) => {
++    if (e.key === 'Escape' && search.value) {
++      e.stopPropagation();
++      search.value = '';
++      state.query = '';
++      render();
++      refreshStatus();
++    }
++  });
++
++  // ---------------------------------------------------------------- 起動
++  async function start() {
++    const result = await call('load');
++    if (!result.ok) {
++      $('#loading').replaceChildren(
++        h('div', { text: result.message || '設定を読み込めませんでした。' }),
++        h('button', { class: 'btn', type: 'button', text: 'もう一度読み込む', onclick: () => location.reload() }));
++      return;
++    }
++    state.config = result.config;
++    state.env = result.env || {};
++    lastSavedJson = JSON.stringify(state.config);
++    $('#foot').textContent = `ビルド ${state.env.version || ''}`;
++    $('#loading').hidden = true;
++    $('#app').hidden = false;
++    const first = location.hash.slice(1);
++    go(PAGES.some((p) => p.id === first) ? first : 'home');
++  }
++
++  // ---------------------------------------------------------------- 見本(WebView2 の外での確認用)
++  const Preview = {
++    config: {
++      preedit_method: 0, use_keyboard_to_change_preedit_method: false, punctuation_method: 0, symbol_method: 0,
++      space_character_form: 0, selection_shortcut: 1, numpad_character_form: 2, session_keymap: -1,
++      history_learning_level: 0, use_single_kanji_conversion: true, use_symbol_conversion: true,
++      use_emoticon_conversion: true, use_date_conversion: true, use_emoji_conversion: true,
++      use_number_conversion: true, use_calculator: true, use_t13n_conversion: true, use_zip_code_conversion: true,
++      use_spelling_correction: true, auto_switch_composition_mode: true, use_auto_conversion: false,
++      auto_conversion_key: 13, shift_key_mode_switch: 1, use_mode_indicator: true, kotori_share_input_mode: true,
++      use_history_suggest: true, use_dictionary_suggest: true, suggestions_size: 3, kotori_suggest_min_chars: 3,
++      incognito_mode: false, presentation_mode: false, check_default: true, kotori_lm_enabled: true,
++      kotori_lm_quality: 1, kotori_lm_model: 0, kotori_lm_correction: true, kotori_live_conversion: false,
++      kotori_homophone_hints: false, kotori_romaji_english: false, kotori_use_integrated_gpu: false,
++      kotori_lm_model_path: '', use_local_usage_dictionary: true,
++      character_form_rules: [
++        ['ア', 1, 1], ['A', 1, 2], ['0', 1, 2], ['(){}[]', 1, 2], ['.,', 1, 2], ['。、', 1, 1], ['・「」', 1, 1],
++        ['"\'', 1, 2], [':;', 1, 2], ['#%&@$^_|`\\', 1, 2], ['~', 1, 2], ['<>=+-/*', 1, 2], ['?!', 1, 2],
++      ].map(([group, preedit, conversion]) => ({ group, preedit, conversion })),
++    },
++    env: {
++      version: '3.34.6470.100(見本)', gpu: 'このPCのGPU: NVIDIA GeForce RTX 3060(VRAM 12 GB)。Standard以上を使えます。',
++      imeHotKeyDisabled: false, supportReminder: true, keymapCustomized: false, romanTableCustomized: false,
++    },
++    conversions: 1234,
++    async call(op, args) {
++      await new Promise((r) => setTimeout(r, op === 'save' ? 180 : 40));
++      if (op === 'load') return { ok: true, config: structuredClone(this.config), env: structuredClone(this.env) };
++      if (op === 'save') {
++        Object.assign(this.config, args.config);
++        Object.assign(this.env, args.env || {});
++        return { ok: true, config: structuredClone(this.config), env: structuredClone(this.env), notices: [] };
++      }
++      if (op === 'defaults') return { ok: true, config: structuredClone(this.config) };
++      if (op === 'status') {
++        this.conversions += Math.floor(Math.random() * 3);
++        return {
++          ok: true, state: 'llm', ai: 'AI の状態: 動いています(変換用の AI と日本語 LLM、GPU: NVIDIA GeForce RTX 3060)。',
++          memoryGb: 2.4, usage: [
++            { title: '変換した回数', value: `${this.conversions.toLocaleString('ja-JP')}回`, total: '累計 48,210回' },
++            { title: '考える時間(Spaceから候補まで)', value: '42 ms', total: '累計の平均 47 ms' },
++            { title: '正答率(1番目の候補で確定)', value: '94%', total: '累計 93%' },
++            { title: '予測で節約できた時間', value: '3分12秒', total: '累計 2時間41分' },
++          ],
++        };
++      }
++      if (op === 'diagnostics') return { ok: true, text: 'Asteria 診断情報(見本)\n版: 3.34.6470.100\n...' };
++      return { ok: true };
++    },
++  };
++
++  start();
++})();
 diff --git a/src/gui/tool/BUILD.bazel b/src/gui/tool/BUILD.bazel
 index 1c4726b0c..ba7b4dd48 100644
 --- a/src/gui/tool/BUILD.bazel
