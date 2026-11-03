@@ -30268,10 +30268,10 @@ index 000000000..bde648cf3
 +#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
 diff --git a/src/gui/config_dialog/kotori_settings_bridge_test.cc b/src/gui/config_dialog/kotori_settings_bridge_test.cc
 new file mode 100644
-index 000000000..55073c589
+index 000000000..6ec3dba49
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_bridge_test.cc
-@@ -0,0 +1,370 @@
+@@ -0,0 +1,375 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// HTML の設定画面と変換サーバーの橋渡し(docs/adr/0084)。
 +
@@ -30573,7 +30573,7 @@ index 000000000..55073c589
 +  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "nonsense"}}).value("ok").toBool());
 +}
 +
-+// 追加モデルの表(5.0.0 の製品では空なので、テストの表を使う)。
++// 追加モデルの表(テストの表に差し替える。製品の表は 5.0.1 で Unreal の 1 件)。
 +constexpr kotori::ExtraModel kTestModels[] = {
 +    {"test-high", config::Config::KOTORI_LM_HIGH, "Test High", "test-high.gguf",
 +     "https://example.invalid/test-high.gguf", 1024,
@@ -30587,9 +30587,14 @@ index 000000000..55073c589
 +  ~ExtraModelTable() { kotori::SetExtraModelsForTesting(nullptr, 0); }
 +};
 +
-+TEST_F(KotoriSettingsBridgeTest, ProductHasNoExtraModelsYet) {
-+  KotoriSettingsBridge bridge(&client_, &host_, reminder_);
-+  EXPECT_TRUE(bridge.Handle(QJsonObject{{"op", "models"}}).value("models").toArray().isEmpty());
++TEST_F(KotoriSettingsBridgeTest, ProductListsOnlyTheUnrealJudge) {
++  int count = 0;
++  const kotori::ExtraModel *models = kotori::ExtraModels(&count);
++  ASSERT_EQ(count, 1);
++  EXPECT_EQ(models[0].tier, config::Config::KOTORI_LM_UNREAL);
++  EXPECT_TRUE(QString(models[0].url).startsWith("https://huggingface.co/aruiki/"));
++  EXPECT_EQ(QString(models[0].sha256).size(), 64);
++  EXPECT_EQ(kotori::ExtraModelFor(config::Config::KOTORI_LM_HIGH), nullptr);
 +}
 +
 +TEST_F(KotoriSettingsBridgeTest, ExtraModelsListAndRefuseWhatDoesNotFit) {
@@ -37945,10 +37950,10 @@ index 000000000..778c9973f
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_catalog.cc b/src/rewriter/kotori_model_catalog.cc
 new file mode 100644
-index 000000000..7c7b5667c
+index 000000000..b2b4762b0
 --- /dev/null
 +++ b/src/rewriter/kotori_model_catalog.cc
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,84 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// 設定画面からダウンロードして使う追加のモデル(High・Unreal、docs/adr/0086)。
 +
@@ -37971,8 +37976,21 @@ index 000000000..7c7b5667c
 +//   {"qwen3-8b", config::Config::KOTORI_LM_UNREAL, "Qwen3-8B", "Qwen3-8B-Q4_K_M.gguf",
 +//    "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/<版>/Qwen3-8B-Q4_K_M.gguf", <バイト数>,
 +//    "<SHA-256>", 8.0, "Apache-2.0", "https://huggingface.co/Qwen/Qwen3-8B-GGUF"},
-+const ExtraModel *g_models = nullptr;
-+int g_count = 0;
++// Asteria 5.0.1(カード 90): Unreal の判定役。Standard の採点はそのままで、点差の小さい意味の選び分けだけを採点し直す。
++// 判定用の文脈の選択で 225 → 228/297、下がったセットなし(docs/verification/v501-consistency-20261104.md)。
++// GGUF は neody/Llama-3.1-Swallow-8B-v0.5-gguf@c2f03ee9 と同じバイト列を、元の規約の文面と一緒に置いたもの。
++constexpr ExtraModel kProductModels[] = {
++    {"swallow-8b-judge", config::Config::KOTORI_LM_UNREAL, "Llama 3.1 Swallow 8B(判定役)",
++     "llama-3.1-swallow-8b-v0.5-q4_k_m.gguf",
++     "https://huggingface.co/aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF/resolve/"
++     "a6258e14d4cce4e70881794c2f2f000da55367f5/llama-3.1-swallow-8b-v0.5-q4_k_m.gguf",
++     4920735136ULL, "292a4e2696251015daddc0393a63f33fc4b1cebae2d62eb35670561e17de4277", 8.0,
++     "Llama 3.1 Community License・Gemma Terms of Use",
++     "https://huggingface.co/tokyotech-llm/Llama-3.1-Swallow-8B-v0.5"},
++};
++
++const ExtraModel *g_models = kProductModels;
++int g_count = sizeof(kProductModels) / sizeof(kProductModels[0]);
 +
 +std::filesystem::path FsPath(const std::string &utf8) {
 +  return std::filesystem::path(
@@ -37994,6 +38012,12 @@ index 000000000..7c7b5667c
 +}
 +
 +void SetExtraModelsForTesting(const ExtraModel *models, int count) {
++  if (models == nullptr) {
++    // 製品の表に戻す。
++    g_models = kProductModels;
++    g_count = sizeof(kProductModels) / sizeof(kProductModels[0]);
++    return;
++  }
 +  g_models = models;
 +  g_count = count;
 +}
@@ -38016,7 +38040,7 @@ index 000000000..7c7b5667c
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_catalog.h b/src/rewriter/kotori_model_catalog.h
 new file mode 100644
-index 000000000..4f6f64bfb
+index 000000000..e0ee0a767
 --- /dev/null
 +++ b/src/rewriter/kotori_model_catalog.h
 @@ -0,0 +1,53 @@
@@ -38051,7 +38075,7 @@ index 000000000..4f6f64bfb
 +  const char *source;  // 元のモデルの場所(表示用)
 +};
 +
-+// 表は採用したモデルだけを載せる(判定用のセットで Standard より明らかに良いもの)。空なら High・Unreal は出さない。
++// 表は採用したモデルだけを載せる(判定用のセットで Standard より明らかに良いもの)。表にない段階(5.0.1 では High)は出さない。
 +const ExtraModel *ExtraModels(int *count);
 +
 +// その段階の追加モデル(なければ nullptr)。
@@ -38066,7 +38090,7 @@ index 000000000..4f6f64bfb
 +// 追加モデルが入っているか(ファイルがあり、大きさが表と同じ。指紋は受け取ったときに確かめてある)。
 +bool ExtraModelInstalled(const ExtraModel &model);
 +
-+// テストで表を差し替える(nullptr・0 で空に戻す)。
++// テストで表を差し替える(nullptr で製品の表に戻す。空にするには count 0 の表を渡す)。
 +void SetExtraModelsForTesting(const ExtraModel *models, int count);
 +
 +}  // namespace kotori
@@ -40881,10 +40905,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..1809b175d
+index 000000000..614b27b60
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5051 @@
+@@ -0,0 +1,5054 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -43975,11 +43999,14 @@ index 000000000..1809b175d
 +  }
 +
 +  // Asteria: High・Unreal の判定役(カード 90)。1 番目との点差が judge_margin_ 以内の上位の候補だけを、大きな
-+  // LLM で採点し直して選び直す。点差が大きい(Standard が確信している)文は変えない。
++  // LLM で採点し直して選び直す。点差が大きい(Standard が確信している)文は変えない。比べるのは、1 番目の漢字の語を
++  // 別の漢字の語に入れ替えた候補(意味の選び分け: 熱い/厚い、自信/地震)だけ。かなと漢字の書き分け(出かけ/出掛け、
++  // うまく/上手く)まで任せると、大きな LLM の書き方の好みで外した。
 +  if (judge_ != nullptr && llogp && !over()) {
 +    std::vector<size_t> close;
 +    for (size_t i = 0; i < values.size(); ++i) {
-+      if (std::isfinite(joint_scores[i]) && joint_scores[top] - joint_scores[i] <= judge_margin_) {
++      if (std::isfinite(joint_scores[i]) && joint_scores[top] - joint_scores[i] <= judge_margin_ &&
++          (i == top || kotori_internal::IsKanjiSwap(values[top], values[i]))) {
 +        close.push_back(i);
 +      }
 +    }
@@ -45938,7 +45965,7 @@ index 000000000..1809b175d
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..c90228d47
+index 000000000..016240d52
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
 @@ -0,0 +1,675 @@
@@ -46458,7 +46485,7 @@ index 000000000..c90228d47
 +  mutable std::unique_ptr<ZenzScorer> judge_ ABSL_GUARDED_BY(mutex_);
 +  std::string env_judge_path_;
 +  double judge_margin_ = 3.0;
-+  double judge_weight_ = 1.0;
++  double judge_weight_ = 2.0;  // 開発用の文脈の選択で決めた(1.0: 237、2.0: 240、3.0: 238)
 +  size_t judge_top_ = 4;
 +  // 2 つ目の zenz(Unreal で候補を増やす。KOTORI_ZENZ_EXTRA_MODEL で差し替える。docs/adr/0031)。
 +  std::string env_extra_path_;

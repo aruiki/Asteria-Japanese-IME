@@ -23,7 +23,8 @@
 | Mozc | BSD-3-Clause(Copyright Google Inc.) | google/mozc(`MOZC_COMMIT` で固定)+ `mozc/patches/` | Google の名前を推奨の表示に使わない(第 3 項) |
 | 短文の追加語彙（配布準備候補） | SudachiDict Apache-2.0、UniDic/NEologd等の全帰属。頻度由来の選択・加工TSVはCC BY-SA 4.0 | SudachiDict 20261015/commit830bf9e、zenz-v2.5-dataset Wikipedia全量/7d9c9ea。training/lexicon/package.jsonで固定 | 名詞の読み/品詞/コストをMozcへ対応し、全量頻度で選択。既存語は上書きしない。short_lexicon.tsv/jsonとNOTICE-short-lexicon.txtを同梱。原生成時のproduct_adopted=falseは生成記録として保持 |
 | Qt 6.9.1 | LGPL-3.0 | Mozc のビルド手順(`build_qt.py`) | 動的リンク(Qt6*.dll)。差し替えられる。差し替え方とソースの入手先は `NOTICE-third-party.txt`、LGPL-3.0 が取り込む GPL-3.0 の全文は `LICENSE-GPL-3.0.txt`(Qt のソースの `LICENSES/GPL-3.0-only.txt`) |
-| Qwen3-4B・Qwen3-8B(追加の AI) | Apache-2.0(Qwen) | Hugging Face の Qwen/Qwen3-4B-GGUF・Qwen3-8B-GGUF(版と SHA-256 を `rewriter/kotori_model_catalog.cc` で固定) | MSI に同梱しない。設定画面から利用者が受け取る(docs/adr/0086) |
+| Llama-3.1-Swallow-8B-v0.5 Q4_K_M(Unreal の判定役) | Llama 3.1 Community License・Gemma Terms of Use(tokyotech-llm。「Built with Llama」) | Hugging Face の aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF@a6258e14(元の規約の文面を同じ場所に置いた。版と SHA-256 を `rewriter/kotori_model_catalog.cc` で固定) | MSI に同梱しない。設定画面から利用者が受け取る(docs/adr/0086、カード 90) |
+| Qwen3-4B・Qwen3-8B(試して採らなかった追加の AI) | Apache-2.0(Qwen) | 表に載せない | 配らない |
 | Microsoft Edge WebView2 SDK 1.0.3179.45 | BSD-3-Clause 相当(Copyright Microsoft Corporation) | NuGet `Microsoft.Web.WebView2`(Mozc パッチの `MODULE.bazel` で SHA-256 固定) | `WebView2LoaderStatic.lib` を `mozc_tool.exe` に静的リンク(HTML の設定画面、docs/adr/0084)。WebView2 の実行環境は同梱しない。全文は `NOTICE-third-party.txt` |
 | llama.cpp / ggml | MIT | Windowsビルドb11259(Vulkan、固定SHA)。ggml-base.dllだけ同じ固定ソースにメモリ確保失敗の修正を加えてBazelで再構築 | 実行時に読み込むDLL。変更はMozcパッチ内`src/bazel/llama_oom.patch`。`ggml-rpc.dll`は入れない(REQ-15-1、作業カード41) |
 | LLVM OpenMP ランタイム(`libomp.dll`) | Apache-2.0 WITH LLVM-exception | llama.cpp の公式 Windows ビルドに含まれる | 全文は `LICENSE-llvm-openmp.txt`(llvm-project llvmorg-20.1.0 の `openmp/LICENSE.TXT`) |
