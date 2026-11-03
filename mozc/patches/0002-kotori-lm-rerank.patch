@@ -31289,10 +31289,10 @@ index 000000000..61f5a28bb
 +</html>
 diff --git a/src/gui/config_dialog/web/settings.css b/src/gui/config_dialog/web/settings.css
 new file mode 100644
-index 000000000..13696027c
+index 000000000..254c5e17a
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.css
-@@ -0,0 +1,810 @@
+@@ -0,0 +1,829 @@
 +/* Asteria の設定画面(docs/adr/0084)。濃紺と金のブランドの色、Windows 11 の部品の形。
 +   明るい・暗いは Windows の設定に従い、ハイコントラストでは Windows の配色だけを使う。 */
 +
@@ -31865,6 +31865,25 @@ index 000000000..13696027c
 +
 +.hero-state { display: flex; align-items: center; gap: 12px; font: 600 24px/1.3 var(--font-display); }
 +.hero-ai { margin: 10px 0 0; color: #c9cfdb; max-width: 60ch; font-size: 13px; }
++.hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
++.hero-meta span {
++  font-size: 12px;
++  color: #d9dfe9;
++  background: rgba(255, 255, 255, .07);
++  border: 1px solid rgba(255, 255, 255, .12);
++  border-radius: 999px;
++  padding: 2px 10px;
++}
++
++.support-line {
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  gap: 12px;
++  margin-top: 28px;
++  color: var(--text-3);
++  font-size: 13px;
++}
 +.hero-actions { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
 +.hero .btn { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .18); color: #f3efe6; }
 +.hero .btn:hover { background: rgba(255, 255, 255, .14); }
@@ -32091,7 +32110,7 @@ index 000000000..13696027c
 +/* ハイコントラスト: 色は Windows に任せ、形と線だけを残す */
 +@media (forced-colors: active) {
 +  .hero { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
-+  .hero-ai { color: CanvasText; }
++  .hero-ai, .hero-meta span { color: CanvasText; }
 +  .hero-moon { display: none; }
 +  .switch input { border-color: ButtonText; forced-color-adjust: none; background: Canvas; }
 +  .switch input::after { background: ButtonText; }
@@ -32105,10 +32124,10 @@ index 000000000..13696027c
 +}
 diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
 new file mode 100644
-index 000000000..c7bd4f72b
+index 000000000..af7985751
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.js
-@@ -0,0 +1,1179 @@
+@@ -0,0 +1,1162 @@
 +// Asteria の設定画面(docs/adr/0084)。
 +// 設定は変えたらすぐ保存する(元に戻すときは同じ所で戻す)。保存・読み込みは WebView2 の
 +// メッセージで mozc_tool の KotoriSettingsBridge に頼む。WebView2 の外(ブラウザーでの確認)では
@@ -32193,10 +32212,10 @@ index 000000000..c7bd4f72b
 +  const cfg = () => state.config;
 +
 +  const QUALITY_NOTES = [
-+    'GPU のない PC 向けの軽い設定です。CPU だけで動きます。',
-+    'おすすめ。この PC の GPU で AI が候補を作り、文脈に合う候補を選び直します。手元の測定で最も正確で、待ちも短い設定です。',
-+    'Standard より多くの候補を調べます。手元の測定では Standard と同じ結果で、少しだけ重くなります。',
-+    '大きな変換用 AI(zenz-v2.5-medium)を使います。手元の測定では、打ち間違いの補正が減り、変換の待ちも長くなりました。今はおすすめしません。',
++    'GPU のない PC 向け。CPU で動きます。',
++    'おすすめ。最も正確で、待ちも短い設定です。',
++    'Standard と同じ結果で、少し重くなります。',
++    '大きな AI を使います。今はおすすめしません。',
 +  ];
 +
 +  const PAGES = [
@@ -32206,40 +32225,39 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'ai', title: 'AI 変換', icon: 'ai',
-+      lead: 'Space を押すと、AI が前後の文を読んで候補を選び直します。処理はすべてこの PC の中で行い、入力した文字を外に送りません。',
 +      groups: [
 +        {
 +          title: '変換', items: [
-+            { type: 'switch', key: 'kotori_lm_enabled', label: 'AI 変換を使う', desc: 'オフにすると、AI を使わない変換(Mozc と同じ)になります。' },
++            { type: 'switch', key: 'kotori_lm_enabled', label: 'AI 変換を使う', desc: 'オフでは Mozc と同じ変換になります。' },
 +            {
 +              type: 'segmented', key: 'kotori_lm_quality', label: '変換の品質',
 +              options: [[0, 'Low'], [1, 'Standard'], [2, 'High'], [3, 'Unreal']],
 +              note: (v) => QUALITY_NOTES[v] || '', recommended: 1,
 +              disabledWhen: () => !cfg().kotori_lm_enabled,
 +            },
-+            { type: 'live', id: 'ai-status', label: 'この PC', desc: () => state.env.gpu },
++            { type: 'live', id: 'ai-status', label: 'この PC', desc: () => gpuChips().join(' ・ ') },
 +          ],
 +        },
 +        {
 +          title: '入力中の動き', items: [
 +            {
 +              type: 'switch', key: 'kotori_live_conversion', label: 'ライブ変換',
-+              desc: '手が止まると、AI が変換した文字に入れ替わります。Enter でそのまま確定、Space で候補を選べます。オフなら、Space を押すまで読みのまま表示します。',
++              desc: '手が止まると、変換した文字に入れ替わります。',
 +              example: 'きょうはいいてんき → 今日はいい天気', disabledWhen: () => !cfg().kotori_lm_enabled,
 +            },
 +            {
 +              type: 'switch', key: 'kotori_lm_correction', label: '入力中に誤変換を補正する',
-+              desc: '日本語 LLM が使えるとき、手が止まった間に補正します。数字・名前・登録した語は変えず、確かな改善だけを候補に反映します。',
++              desc: '数字・名前・登録した語は変えません。',
 +              disabledWhen: () => !cfg().kotori_lm_enabled,
 +            },
 +            {
 +              type: 'switch', key: 'kotori_homophone_hints', label: '同音語のヒント',
-+              desc: '「足」と「脚」のように同じ読みの語が並ぶとき、見分けるための手がかりの語を候補の横に出します。',
++              desc: '同じ読みの語に、見分ける手がかりを添えます。',
 +              example: '足 ― 靴・靴下 / 脚 ― 椅子・机',
 +            },
 +            {
 +              type: 'switch', key: 'kotori_romaji_english', label: '英語の名前をローマ字のまま打つ',
-+              desc: '日本語のまま打ち続けて、github や linux のような英語の名前を、文に合えば GitHub・Linux にします。日本語の語として読める綴り(sake → 酒)は変えません。',
++              desc: '文に合えば英語の名前にします。',
 +              example: 'ubuntuwoirete → Ubuntuを入れて',
 +            },
 +          ],
@@ -32248,7 +32266,7 @@ index 000000000..c7bd4f72b
 +          title: 'GPU', items: [
 +            {
 +              type: 'switch', key: 'kotori_use_integrated_gpu', label: '内蔵 GPU で AI を動かす', tags: [['試験的', 'lab']],
-+              desc: '専用の GPU がない PC で、CPU の代わりに内蔵 GPU を使います(品質は Low)。専用の GPU がある PC では変わりません。反映には PC の再起動が必要です。',
++              desc: '専用の GPU がない PC 向け。再起動で反映します。',
 +            },
 +          ],
 +        },
@@ -32256,17 +32274,16 @@ index 000000000..c7bd4f72b
 +          title: '詳しい設定', items: [
 +            {
 +              type: 'select', key: 'kotori_lm_model', label: 'AI モデル',
-+              desc: '自動なら、GPU があるときは日本語 LLM も使い、ないときは変換用の AI(zenz)だけを CPU で使います。',
 +              options: [[0, '自動(おすすめ)'], [1, 'zenz のみ(軽い)'], [2, 'zenz + LLM(GPU 向け)']],
 +            },
 +            {
 +              type: 'text', key: 'kotori_lm_model_path', label: 'LLM のファイル',
-+              desc: 'llama.cpp で読める日本語の LLM(GGUF)に差し替えられます。空なら同梱の TinySwallow-1.5B を使います。',
++              desc: 'GGUF のファイル。空なら同梱のモデル。',
 +              placeholder: '同梱のモデルを使う', browse: true,
 +            },
 +            {
 +              type: 'button', label: '診断情報', button: '診断情報を見る…', action: showDiagnostics,
-+              desc: '不具合を報告するときに添付する情報(版、Windows、GPU、設定、AI の状態、異常終了の記録)を見て、ファイルに保存します。入力した文字は含みません。',
++              desc: '不具合の報告用。入力した文字は含みません。',
 +            },
 +          ],
 +        },
@@ -32274,12 +32291,11 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'input', title: '入力', icon: 'input',
-+      lead: 'キーボードの打ち方と、記号や空白の形を決めます。',
 +      groups: [
 +        {
 +          title: '基本', items: [
 +            {
-+              type: 'select', label: '入力のしかた', desc: 'ローマ字で打つか、キーボードのかなで打つか。「キーで切り替え」はひらがなキーで切り替えられます。',
++              type: 'select', label: '入力のしかた',
 +              options: [[0, 'ローマ字'], [1, 'かな'], [2, 'ローマ字(キーで切り替え)'], [3, 'かな(キーで切り替え)']],
 +              get: () => cfg().preedit_method + (cfg().use_keyboard_to_change_preedit_method ? 2 : 0),
 +              set: (v) => {
@@ -32290,27 +32306,22 @@ index 000000000..c7bd4f72b
 +            },
 +            {
 +              type: 'select', key: 'punctuation_method', label: '句読点',
-+              desc: '「、。」のほか、横書きの論文で使う「，．」も選べます。',
 +              options: [[0, '、。'], [1, '，．'], [2, '、．'], [3, '，。']],
 +            },
 +            {
 +              type: 'select', key: 'symbol_method', label: 'かぎかっこ・中黒',
-+              desc: '「」と・を、[] や ／ にすることもできます。',
 +              options: [[0, '「」・'], [1, '[]／'], [2, '「」／'], [3, '[]・']],
 +            },
 +            {
 +              type: 'select', key: 'space_character_form', label: '空白の幅',
-+              desc: 'Space で空白を入れるときの全角・半角。「入力モードに従う」は、ひらがなのとき全角です。',
 +              options: [[0, '入力モードに従う'], [1, 'いつも全角'], [2, 'いつも半角']],
 +            },
 +            {
 +              type: 'select', key: 'selection_shortcut', label: '数字キーで候補を選ぶ',
-+              desc: '候補の一覧が出ているときに、キーで直接選べるようにします。',
 +              options: [[0, '使わない'], [1, '1〜9'], [2, 'A〜L']],
 +            },
 +            {
 +              type: 'select', key: 'numpad_character_form', label: 'テンキーの数字',
-+              desc: 'テンキーで打った数字の形。',
 +              options: [[0, '入力モードに従う'], [1, '全角'], [2, '半角'], [3, '直接入力']],
 +            },
 +          ],
@@ -32319,17 +32330,15 @@ index 000000000..c7bd4f72b
 +          title: 'キー操作', items: [
 +            {
 +              type: 'select', key: 'session_keymap', label: 'キーの割り当て',
-+              desc: 'Microsoft IME・ATOK・ことえりと同じ操作にできます。',
 +              options: [[-1, '既定(MS-IME と同じ)'], [2, 'MS-IME'], [1, 'ATOK'], [3, 'ことえり'], [0, '自分で変えた割り当て']],
 +              filter: ([v]) => v !== 0 || state.env.keymapCustomized || cfg().session_keymap === 0,
 +            },
 +            {
 +              type: 'button', label: 'キーを 1 つずつ変える', button: 'カスタマイズ…', action: () => openNative('keymap'),
-+              desc: '今の割り当てを元に、キーごとの操作を変えます。保存すると「自分で変えた割り当て」になります。',
 +            },
 +            {
 +              type: 'button', label: 'ローマ字の表', button: 'カスタマイズ…', action: () => openNative('romanTable'),
-+              desc: () => (state.env.romanTableCustomized ? '自分で変えた表を使っています。' : 'ローマ字とかなの対応を変えます(例: la → ぁ)。'),
++              desc: () => (state.env.romanTableCustomized ? '自分で変えた表を使っています。' : ''),
 +              disabledWhen: () => cfg().preedit_method !== 0,
 +            },
 +          ],
@@ -32338,18 +32347,16 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'convert', title: '変換と辞書', icon: 'convert',
-+      lead: '覚えた言葉と辞書、日付や計算などの特別な変換。',
 +      groups: [
 +        {
 +          title: '学習', items: [
 +            {
 +              type: 'select', key: 'history_learning_level', label: '選んだ言葉を覚える',
-+              desc: '変換で選んだ言葉を覚えて、次から先に出します。選び直した文は、次に同じ文を打ったときにその文で出します。この PC の中だけに保存します。',
++              desc: '選び直した文も、次から同じ文で出します。',
 +              options: [[0, '覚える'], [1, '覚えた分だけ使う(新しく覚えない)'], [2, '覚えない']],
 +            },
 +            {
 +              type: 'button', label: '覚えた言葉を消す', button: '消す…', danger: true,
-+              desc: '変換で覚えた言葉と、選び直した文をすべて消します。入力履歴からの予測は「予測」で消せます。',
 +              action: () => clear('history', '覚えた言葉を消しますか?', '変換で覚えた言葉と、選び直した文をすべて消します。元には戻せません。'),
 +            },
 +          ],
@@ -32358,7 +32365,6 @@ index 000000000..c7bd4f72b
 +          title: 'ユーザー辞書', items: [
 +            {
 +              type: 'button', label: 'ユーザー辞書', button: '開く…', action: () => openNative('dictionary'),
-+              desc: '人名・地名・専門用語など、自分の言葉を登録します。登録した語は AI が書き換えません。',
 +            },
 +          ],
 +        },
@@ -32369,29 +32375,27 @@ index 000000000..c7bd4f72b
 +            { type: 'switch', key: 'use_emoticon_conversion', label: '顔文字', example: 'かおもじ → (^_^)' },
 +            { type: 'switch', key: 'use_emoji_conversion', label: '絵文字', example: 'はーと → ❤' },
 +            { type: 'switch', key: 'use_t13n_conversion', label: 'カタカナ語を英語に', example: 'こんぴゅーたー → computer' },
-+            { type: 'switch', key: 'use_zip_code_conversion', label: '郵便番号から住所', example: '100-0001 → 東京都千代田区千代田', desc: 'ハイフンを入れて 7 桁で打ちます。' },
++            { type: 'switch', key: 'use_zip_code_conversion', label: '郵便番号から住所', example: '100-0001 → 東京都千代田区千代田', desc: 'ハイフンを入れて打ちます。' },
 +            { type: 'switch', key: 'use_date_conversion', label: '日付と時刻', example: 'きょう → 今日の日付' },
 +            { type: 'switch', key: 'use_number_conversion', label: '数字の書き方', example: '12 → 十二・Ⅻ' },
 +            { type: 'switch', key: 'use_calculator', label: '計算', example: '1+2= → 3' },
-+            { type: 'switch', key: 'use_spelling_correction', label: '読みの覚え違いを候補に出す', desc: '「もしかして」として、正しい読みの候補を出します。' },
-+            { type: 'switch', key: 'use_local_usage_dictionary', label: '言葉の使い分けを候補の横に出す', desc: '同じ読みの語の意味の違いを、候補の横に説明として出します。' },
++            { type: 'switch', key: 'use_spelling_correction', label: '読みの覚え違いを候補に出す' },
++            { type: 'switch', key: 'use_local_usage_dictionary', label: '言葉の使い分けを候補の横に出す' },
 +          ],
 +        },
 +      ],
 +    },
 +    {
 +      id: 'assist', title: '入力の補助', icon: 'assist',
-+      lead: '英数字や句読点の扱い、入力モードの表示、全角・半角の形。',
 +      groups: [
 +        {
 +          title: '入力の補助', items: [
 +            {
 +              type: 'switch', key: 'auto_switch_composition_mode', label: '英数字を自動で半角にする',
-+              desc: '大文字で打ち始めたときや「http」などを打ったときに、半角英数に切り替えます。',
 +            },
 +            {
 +              type: 'switch', key: 'use_auto_conversion', label: '句読点を打ったら変換する',
-+              desc: '下で選んだ記号を打つと、Space を押さなくてもそこまでの読みを変換します(確定は Enter)。数字の直後では変換しません。',
++              desc: '下の記号を打つと、そこまでを変換します。',
 +            },
 +            {
 +              type: 'checks', key: 'auto_conversion_key', label: '変換する記号',
@@ -32404,11 +32408,9 @@ index 000000000..c7bd4f72b
 +            },
 +            {
 +              type: 'switch', key: 'use_mode_indicator', label: '入力モード(あ・A)をカーソルの近くに出す',
-+              desc: '切り替えたときに、今の入力モードを文字の近くに少しだけ表示します。',
 +            },
 +            {
 +              type: 'switch', key: 'kotori_share_input_mode', label: '入力モードをすべてのアプリで共有する',
-+              desc: 'アプリや窓を切り替えても、最後に使った入力モードのまま入力できます。',
 +            },
 +          ],
 +        },
@@ -32421,20 +32423,19 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'suggest', title: '予測', icon: 'suggest',
-+      lead: '打っている途中に、打った読みの続きになる言葉(ありがと → ありがとうございます)があるときだけ窓を出します。手を止めるたびに窓が出ることはありません。予測の設定を変えても、Space の変換の結果は変わりません。',
++      lead: '続きになる言葉があるときだけ窓に出します。Space の変換の結果は変わりません。',
 +      groups: [
 +        {
 +          title: '予測の元', items: [
-+            { type: 'switch', key: 'use_history_suggest', label: '入力履歴から予測する', desc: '前に確定した言葉から、続きを補う候補を出します。' },
-+            { type: 'switch', key: 'use_dictionary_suggest', label: 'システム辞書から予測する', desc: '辞書の言葉から、続きを補う候補を出します。' },
++            { type: 'switch', key: 'use_history_suggest', label: '入力履歴から予測する' },
++            { type: 'switch', key: 'use_dictionary_suggest', label: 'システム辞書から予測する' },
 +          ],
 +        },
 +        {
 +          title: '出し方', items: [
-+            { type: 'stepper', key: 'suggestions_size', label: '予測の候補数', desc: '窓に出す予測の数。', min: 1, max: 9, unit: '件' },
++            { type: 'stepper', key: 'suggestions_size', label: '予測の候補数', min: 1, max: 9, unit: '件' },
 +            {
-+              type: 'stepper', key: 'kotori_suggest_min_chars', label: '予測を出し始める文字数',
-+              desc: '読みがこの文字数以上になってから予測を出します。短い読みの予測は外れが多いので、最初は 3 文字です。', min: 1, max: 5, unit: '文字',
++              type: 'stepper', key: 'kotori_suggest_min_chars', label: '予測を出し始める文字数', min: 1, max: 5, unit: '文字',
 +            },
 +          ],
 +        },
@@ -32454,17 +32455,17 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'privacy', title: 'プライバシー', icon: 'privacy',
-+      lead: 'Asteria は、入力した文字・覚えた言葉・使い方の情報を外に送りません。AI もこの PC の中だけで動き、インターネットにつながっていなくても使えます。',
++      lead: '入力した文字・覚えた言葉・使い方は外に送りません。AI もこの PC の中だけで動きます。',
 +      groups: [
 +        {
 +          title: '一時的に止める', items: [
 +            {
 +              type: 'switch', key: 'incognito_mode', label: 'シークレットモード',
-+              desc: '学習・入力履歴からの予測・ユーザー辞書を一時的に止めます。人に画面を見せるときなどに使います。止めている間に打った言葉は覚えません。',
++              desc: '学習・履歴・ユーザー辞書を止めます。',
 +            },
 +            {
 +              type: 'switch', key: 'presentation_mode', label: 'プレゼンテーションモード',
-+              desc: '発表などで画面を映している間、入力中の予測の窓を出しません。',
++              desc: '入力中の予測の窓を出しません。',
 +              disabledWhen: () => !cfg().use_history_suggest && !cfg().use_dictionary_suggest,
 +            },
 +          ],
@@ -32473,28 +32474,27 @@ index 000000000..c7bd4f72b
 +    },
 +    {
 +      id: 'other', title: 'その他', icon: 'other',
-+      lead: 'Windows との連携、お知らせ、初期設定への戻し方。',
 +      groups: [
 +        {
 +          title: 'Windows', items: [
 +            { type: 'switch', key: 'check_default', label: '起動したときに Asteria が既定の IME か確かめる' },
-+            { type: 'env', key: 'imeHotKeyDisabled', label: 'Ctrl+Shift でキーボードを切り替えない', desc: 'Windows の「Ctrl+Shift で入力方式を切り替える」を止めます。' },
++            { type: 'env', key: 'imeHotKeyDisabled', label: 'Ctrl+Shift でキーボードを切り替えない' },
 +            {
 +              type: 'button', label: '辞書の先読みと管理者の設定', button: '開く…', shield: true, action: () => openNative('administration'),
-+              desc: 'PC のすべての利用者に効く設定です。管理者の権限が要ります。',
++              desc: '管理者の権限が要ります。',
 +            },
 +          ],
 +        },
 +        {
 +          title: 'お知らせ', items: [
-+            { type: 'env', key: 'supportReminder', label: 'GitHub での応援のお願いを通知で表示する', desc: '3 日ごとに 1 回、Windows の通知でお願いを出します。' },
++            { type: 'env', key: 'supportReminder', label: 'GitHub での応援のお願いを通知で表示する', desc: '3 日に 1 回です。' },
 +          ],
 +        },
 +        {
 +          title: '初期設定', items: [
 +            {
 +              type: 'button', label: '設定を初期設定に戻す', button: '戻す…', danger: true, action: resetDefaults,
-+              desc: '覚えた言葉・入力履歴・ユーザー辞書・管理者の設定は、そのまま残ります。',
++              desc: '覚えた言葉と辞書は残ります。',
 +            },
 +          ],
 +        },
@@ -32834,8 +32834,10 @@ index 000000000..c7bd4f72b
 +    const row = rowShell(item, null, status);
 +    row.refresh = () => {
 +      const desc = row.querySelector('.row-desc:not([id="' + item.id + '"])');
-+      if (desc) desc.textContent = text(item.desc) || '';
-+      status.textContent = state.status ? state.status.ai : 'AI の状態を確かめています…';
++      if (desc) desc.textContent = gpuChips().join(' ・ ');
++      const st = state.status;
++      // 動いていないときだけ理由の文を出し、ふだんは短い言葉にする。
++      status.textContent = !st ? '確かめています' : st.state === 'error' ? st.ai : (STATE_WORDS[st.state] || ['確かめています'])[0];
 +    };
 +    return row;
 +  }
@@ -32853,7 +32855,7 @@ index 000000000..c7bd4f72b
 +  function buildForms(item) {
 +    const table = h('table', { class: 'forms' });
 +    const wrap = h('div', {},
-+      h('div', { class: 'row-desc', text: '打っている間と、変換した後の文字の形。「前回と同じ」は最後に選んだ形を使います(英字は、まだ選んでいなければ半角)。' }),
++      h('div', { class: 'row-desc', text: '「前回と同じ」は最後に選んだ形を使います。' }),
 +      table);
 +    const row = h('div', { class: 'row', 'data-search': searchText(item) }, h('div', { class: 'row-text' },
 +      h('div', { class: 'row-label' }, highlight(item.label)), wrap));
@@ -33058,36 +33060,31 @@ index 000000000..c7bd4f72b
 +      html: '<svg viewBox="0 0 32 32"><path fill="currentColor" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>',
 +    }));
 +    homeEls.dot = h('span', { class: 'dot', 'aria-hidden': 'true' });
-+    homeEls.state = h('span', { text: 'AI の状態を確かめています' });
-+    homeEls.ai = h('p', { class: 'hero-ai' });
-+    hero.append(h('div', { class: 'hero-state' }, homeEls.dot, homeEls.state), homeEls.ai,
-+      h('div', { class: 'hero-actions' },
-+        h('button', { class: 'btn', type: 'button', text: 'AI 変換の設定', onclick: () => go('ai') }),
-+        h('button', { class: 'btn', type: 'button', text: '予測の設定', onclick: () => go('suggest') })));
++    homeEls.state = h('span', { text: '確かめています' });
++    homeEls.meta = h('div', { class: 'hero-meta' });
++    homeEls.ai = h('p', { class: 'hero-ai', hidden: true });
++    hero.append(h('div', { class: 'hero-state' }, homeEls.dot, homeEls.state), homeEls.meta, homeEls.ai);
 +    page.append(hero);
 +
 +    homeEls.tiles = h('div', { class: 'tiles' });
-+    page.append(h('section', { class: 'group', 'aria-label': '今日の使い方' },
-+      h('h2', { class: 'group-title', text: '今日の使い方' }), homeEls.tiles,
-+      h('p', { class: 'note', text: '数えているのは回数と時間だけです。入力した文章は保存しません。' })));
++    page.append(h('section', { class: 'group', 'aria-label': '今日' },
++      h('h2', { class: 'group-title', text: '今日' }), homeEls.tiles));
 +
-+    homeEls.load = h('div', { class: 'row-desc' });
-+    page.append(h('section', { class: 'group', 'aria-label': 'この PC で使っているもの' },
-+      h('h2', { class: 'group-title', text: 'この PC で使っているもの' }),
-+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('div', { class: 'row-text' },
-+        h('div', { class: 'row-label', text: 'GPU とメモリ' }),
-+        h('div', { class: 'row-desc', text: state.env.gpu || '' }), homeEls.load)))));
-+
-+    page.append(h('section', { class: 'group', 'aria-label': '応援' },
-+      h('div', { class: 'card support' },
-+        h('span', {
-+          'aria-hidden': 'true',
-+          html: '<svg class="moon" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111c2d"/><path fill="#d9c59e" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>',
-+        }),
-+        h('p', { text: 'Asteria は無料のオープンソースです。気に入ったら、開発の応援をお願いします。' }),
-+        h('button', { class: 'btn', type: 'button', text: '開発を支援(Stripe)', onclick: () => call('open', { target: 'support' }) }))));
++    page.append(h('div', { class: 'support-line' },
++      h('span', { text: '気に入ったら、応援をお願いします。' }),
++      h('button', { class: 'btn', type: 'button', text: '応援する', onclick: () => call('open', { target: 'support' }) })));
 +    updateHome();
 +  }
++
++  // 「このPCのGPU: NVIDIA GeForce RTX 3060（VRAM 12 GB）。…」から、名前と VRAM だけを取り出す。
++  function gpuChips() {
++    const m = /GPU:\s*(.+?)\s*[（(]VRAM\s*([\d.]+)\s*GB/.exec(state.env.gpu || '');
++    if (!m) return ['CPU で動作'];
++    return [m[1].replace(/^NVIDIA\s+|^AMD\s+|^Intel\(R\)\s+/, ''), `VRAM ${m[2]} GB`];
++  }
++
++  // 数字の札の短い名前(元の長い名前は、指したときに出す)。
++  const TILE_NAMES = ['変換', '待ち時間', '1 番目で確定', '予測で節約'];
 +
 +  const STATE_WORDS = {
 +    llm: ['いつでも使えます', 'ok'],
@@ -33126,12 +33123,15 @@ index 000000000..c7bd4f72b
 +  function updateHome() {
 +    const s = state.status;
 +    if (!homeEls.state || !homeEls.state.isConnected) return;
-+    const [words, kind] = (s && STATE_WORDS[s.state]) || ['AI の状態を確かめています', ''];
++    const [words, kind] = (s && STATE_WORDS[s.state]) || ['確かめています', ''];
 +    homeEls.state.textContent = words;
 +    homeEls.dot.className = `dot ${kind}`;
++    // 動いていないときだけ、理由の文を出す。
++    homeEls.ai.hidden = !(s && s.state === 'error');
 +    homeEls.ai.textContent = s ? s.ai : '';
-+    homeEls.load.textContent = s && s.memoryGb !== undefined
-+      ? `Asteria が使っているメモリ: ${s.memoryGb.toFixed(1)} GB` : 'Asteria が使っているメモリ: 確かめています';
++    const chips = gpuChips();
++    if (s && s.memoryGb !== undefined) chips.push(`メモリ ${s.memoryGb.toFixed(1)} GB`);
++    homeEls.meta.replaceChildren(...chips.map((c) => h('span', { text: c })));
 +    const usage = (s && s.usage) || [];
 +    if (homeEls.tiles.childElementCount !== usage.length) {
 +      homeEls.tiles.replaceChildren(...usage.map(() => {
@@ -33141,7 +33141,9 @@ index 000000000..c7bd4f72b
 +    }
 +    usage.forEach((tile, i) => {
 +      const el = homeEls.tiles.children[i];
-+      el.querySelector('.tile-title').textContent = tile.title;
++      const title = el.querySelector('.tile-title');
++      title.textContent = TILE_NAMES[i] || tile.title;
++      el.title = tile.title;
 +      const parts = splitNumber(tile.value);
 +      const valueEl = el.querySelector('.tile-value');
 +      const numbers = parts.filter((p) => /^[\d,.]+$/.test(p));
@@ -33167,7 +33169,7 @@ index 000000000..c7bd4f72b
 +      state.status = result;
 +      updateHome();
 +      const live = document.getElementById('ai-status');
-+      if (live) live.textContent = result.ai;
++      if (live) live.textContent = result.state === 'error' ? result.ai : (STATE_WORDS[result.state] || ['確かめています'])[0];
 +    }
 +    if (!state.query && (state.page === 'home' || state.page === 'ai') && !document.hidden) {
 +      statusTimer = setTimeout(refreshStatus, 2000);
