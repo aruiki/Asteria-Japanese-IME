@@ -35093,10 +35093,26 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..82ad49116 100644
+index 4bbcddeca..2c5daab83 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
-@@ -663,10 +663,31 @@ mozc_cc_test(
+@@ -193,6 +193,7 @@ mozc_cc_library(
+         "//base:file_util",
+         "//base:vlog",
+         "//converter:segments",
++        "//protocol:commands_cc_proto",
+         "//protocol:config_cc_proto",
+         "//request:conversion_request",
+         "//storage:lru_storage",
+@@ -215,6 +216,7 @@ mozc_cc_test(
+         "//base:system_util",
+         "//config:config_handler",
+         "//converter:segments",
++        "//protocol:commands_cc_proto",
+         "//protocol:config_cc_proto",
+         "//request:conversion_request",
+         "//testing:gunit_main",
+@@ -663,10 +665,31 @@ mozc_cc_test(
      ],
  )
  
@@ -35129,7 +35145,7 @@ index 4bbcddeca..82ad49116 100644
      deps = [
          ":rewriter_interface",
          "//base:util",
-@@ -678,6 +699,7 @@ mozc_cc_library(
+@@ -678,6 +701,7 @@ mozc_cc_library(
          "@com_google_absl//absl/container:flat_hash_set",
          "@com_google_absl//absl/log:check",
          "@com_google_absl//absl/strings",
@@ -35137,7 +35153,20 @@ index 4bbcddeca..82ad49116 100644
      ],
      alwayslink = 1,
  )
-@@ -1536,6 +1558,9 @@ mozc_cc_library(
+@@ -690,10 +714,12 @@ mozc_cc_test(
+         ":english_variants_rewriter",
+         ":rewriter_interface",
+         "//converter:attribute",
++        "//config:config_handler",
+         "//converter:segments",
+         "//data_manager/testing:mock_data_manager",
+         "//dictionary:pos_matcher",
+         "//protocol:commands_cc_proto",
++        "//protocol:config_cc_proto",
+         "//request:conversion_request",
+         "//testing:gunit_main",
+         "//testing:mozctest",
+@@ -1536,6 +1562,9 @@ mozc_cc_library(
          ":fortune_rewriter",
          ":ivs_variants_rewriter",
          ":language_aware_rewriter",
@@ -35147,7 +35176,7 @@ index 4bbcddeca..82ad49116 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1768,278 @@ mozc_cc_test(
+@@ -1743,3 +1772,278 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -35499,7 +35528,7 @@ index b3bf25072..ff43d8e8f 100644
    // Make the following Segments:
    // "まぐろを" | "かいたい"
 diff --git a/src/rewriter/english_variants_rewriter.cc b/src/rewriter/english_variants_rewriter.cc
-index b75c03feb..54188c42c 100644
+index b75c03feb..20f662402 100644
 --- a/src/rewriter/english_variants_rewriter.cc
 +++ b/src/rewriter/english_variants_rewriter.cc
 @@ -29,16 +29,20 @@
@@ -35556,12 +35585,13 @@ index b75c03feb..54188c42c 100644
  // Add space-prefixed variants to enable Space-joined English words conversion.
  // 'Google Japan' consists of 'ぐーぐる': 'Google', and 'じゃぱん': 'Japan'
  // Therefore, when a user types 'ぐーぐるじゃぱん', it will be 'GoogleJapan'
-@@ -141,28 +171,88 @@ bool EnglishVariantsRewriter::IsEnglishCandidate(
+@@ -141,28 +171,74 @@ bool EnglishVariantsRewriter::IsEnglishCandidate(
  }
  
  bool EnglishVariantsRewriter::ExpandEnglishVariantsWithSegment(
 -    bool need_space_prefix, Segment* seg) const {
-+    bool need_space_prefix, Segment* seg, bool expand_case) const {
++    bool need_space_prefix, Segment* seg, bool expand_case,
++    bool katakana_english) const {
    CHECK(seg);
  
    bool modified = false;
@@ -35586,35 +35616,20 @@ index b75c03feb..54188c42c 100644
 +        original_candidate->content_value.empty()
 +            ? absl::string_view(original_candidate->value)
 +            : absl::string_view(original_candidate->content_value);
-+    const auto variants = KatakanaEnglishVariants(katakana);
++    const auto variants = katakana_english ? KatakanaEnglishVariants(katakana)
++                                           : absl::Span<const KatakanaEnglishEntry>();
 +    if (!variants.empty()) {
-+      // 同じ読みの優先順を保ち、同じ値を重複挿入しない。
-+      size_t next_pos = i + 1;
++      // Asteria: 英語表記は一覧の後ろに置く(Issue #208)。カタカナのすぐ下に入れると、「ないと」で
++      // night・knight が「ないと」「無いと」より上に来た。同じ読みの優先順を保ち、同じ値を重複挿入しない。
++      size_t next_pos = seg->candidates_size();
 +      for (const auto& variant : variants) {
 +        const char* english = variant.english;
++        // 空白を含むのは外来語の綴りではなく訳語(dark gray、talkative person など)なので出さない。
++        if (absl::StrContains(english, ' ')) continue;
 +        const std::string new_value =
 +            absl::StrCat(english, original_candidate->content_value.empty()
 +                                     ? absl::string_view()
 +                                     : original_candidate->functional_value());
-+        // 先頭のカタカナ語の正式英字が一覧の奥にある場合は、その語の次へ。
-+        // 日本語の先頭は保持し、既存の英字候補の大小文字の展開順位は変えない。
-+        if (i == 0) {
-+          size_t existing = seg->candidates_size();
-+          for (size_t pos = 1; pos < seg->candidates_size(); ++pos) {
-+            if (seg->candidate(pos).value == new_value) {
-+              existing = pos;
-+              break;
-+            }
-+          }
-+          if (existing != seg->candidates_size()) {
-+            if (existing != next_pos) {
-+              seg->move_candidate(existing, next_pos);
-+              modified = true;
-+            }
-+            ++next_pos;
-+            continue;
-+          }
-+        }
 +        if (original_english_spellings.contains(absl::AsciiStrToLower(english))) {
 +          continue;
 +        }
@@ -35652,7 +35667,7 @@ index b75c03feb..54188c42c 100644
        continue;
      }
  
-@@ -246,10 +336,7 @@ bool EnglishVariantsRewriter::ExpandEnglishVariantsWithSegment(
+@@ -246,10 +322,7 @@ bool EnglishVariantsRewriter::ExpandEnglishVariantsWithSegment(
  
  int EnglishVariantsRewriter::capability(
      const ConversionRequest& request) const {
@@ -35664,36 +35679,41 @@ index b75c03feb..54188c42c 100644
  }
  
  bool EnglishVariantsRewriter::Rewrite(const ConversionRequest& request,
-@@ -266,7 +353,10 @@ bool EnglishVariantsRewriter::Rewrite(const ConversionRequest& request,
+@@ -266,7 +339,12 @@ bool EnglishVariantsRewriter::Rewrite(const ConversionRequest& request,
      // need_space_prefix = true
      const bool need_space_prefix =
          enable_space_insersion && is_previous_candidate_english;
 -    modified |= ExpandEnglishVariantsWithSegment(need_space_prefix, &segment);
++    // Asteria: カタカナ語の英語表記は、設定「カタカナ語を英語に」(use_t13n_conversion)に従う(Issue #208)。
 +    modified |= ExpandEnglishVariantsWithSegment(
 +        need_space_prefix, &segment,
 +        request.request_type() == ConversionRequest::CONVERSION ||
-+            request.request().mixed_conversion());
++            request.request().mixed_conversion(),
++        request.config().use_t13n_conversion());
      is_previous_candidate_english =
          segment.candidates_size() > 0 &&
          Util::IsScriptType(segment.candidate(0).value, Util::ALPHABET);
 diff --git a/src/rewriter/english_variants_rewriter.h b/src/rewriter/english_variants_rewriter.h
-index 07e114229..af9330424 100644
+index 07e114229..959559d9e 100644
 --- a/src/rewriter/english_variants_rewriter.h
 +++ b/src/rewriter/english_variants_rewriter.h
-@@ -63,7 +63,7 @@ class EnglishVariantsRewriter : public RewriterInterface {
+@@ -62,8 +62,10 @@ class EnglishVariantsRewriter : public RewriterInterface {
+                              std::vector<std::string>* variants) const;
    bool ExpandSpacePrefixedVariants(absl::string_view input,
                                     std::vector<std::string>* variants) const;
++  // katakana_english: カタカナ語の英語表記を足すか(設定 use_t13n_conversion、Issue #208)。
    bool ExpandEnglishVariantsWithSegment(bool need_space_prefix,
 -                                        Segment* seg) const;
-+                                        Segment* seg, bool expand_case) const;
++                                        Segment* seg, bool expand_case,
++                                        bool katakana_english = true) const;
  
    const dictionary::PosMatcher pos_matcher_;
  };
 diff --git a/src/rewriter/english_variants_rewriter_test.cc b/src/rewriter/english_variants_rewriter_test.cc
-index 9c9f95e8f..5d320df18 100644
+index 9c9f95e8f..10ded400a 100644
 --- a/src/rewriter/english_variants_rewriter_test.cc
 +++ b/src/rewriter/english_variants_rewriter_test.cc
-@@ -32,6 +32,7 @@
+@@ -32,15 +32,18 @@
  #include <cstddef>
  #include <memory>
  #include <string>
@@ -35701,7 +35721,18 @@ index 9c9f95e8f..5d320df18 100644
  #include <vector>
  
  #include "absl/strings/string_view.h"
-@@ -161,6 +162,29 @@ TEST_F(EnglishVariantsRewriterTest, ExpandSpacePrefixedVariants) {
+ #include "converter/attribute.h"
+ #include "converter/candidate.h"
+ #include "converter/segments.h"
++#include "config/config_handler.h"
+ #include "data_manager/testing/mock_data_manager.h"
+ #include "dictionary/pos_matcher.h"
+ #include "protocol/commands.pb.h"
++#include "protocol/config.pb.h"
+ #include "request/conversion_request.h"
+ #include "rewriter/rewriter_interface.h"
+ #include "testing/gunit.h"
+@@ -161,6 +164,29 @@ TEST_F(EnglishVariantsRewriterTest, ExpandSpacePrefixedVariants) {
  }
  
  TEST_F(EnglishVariantsRewriterTest, RewriteTest) {
@@ -35731,7 +35762,7 @@ index 9c9f95e8f..5d320df18 100644
    // T13N
    {
      Segments segments;
-@@ -343,6 +367,136 @@ TEST_F(EnglishVariantsRewriterTest, RewriteTest) {
+@@ -343,6 +369,177 @@ TEST_F(EnglishVariantsRewriterTest, RewriteTest) {
    }
  }
  
@@ -35782,9 +35813,9 @@ index 9c9f95e8f..5d320df18 100644
 +                           .SetRequestType(ConversionRequest::SUGGESTION)
 +                           .Build();
 +  EXPECT_TRUE(rewriter_->Rewrite(request, &segments));
-+  ASSERT_EQ(seg->candidates_size(), 3);
++  // Asteria: 空白を含む訳語(the Internet)は出さない(Issue #208)。
++  ASSERT_EQ(seg->candidates_size(), 2);
 +  EXPECT_EQ(seg->candidate(1).value, "internet");
-+  EXPECT_EQ(seg->candidate(2).value, "the Internet");
 +}
 +
 +// Kotori: 以前の24語以外も、初回・Tab・Spaceの各候補へ提供する。
@@ -35827,8 +35858,9 @@ index 9c9f95e8f..5d320df18 100644
 +  }
 +}
 +
-+// Kotori: 正式な英語表記が既存一覧の奥にあっても、略語より先に選べるようにする。
-+TEST_F(EnglishVariantsRewriterTest, PreferredEnglishAlreadyBelowVisibleCandidates) {
++// Asteria: 英語表記は日本語の候補より上に動かさない(Issue #208)。すでに一覧にある英字はその位置のまま、
++// 重ねて足さない。
++TEST_F(EnglishVariantsRewriterTest, EnglishStaysBelowJapaneseCandidates) {
 +  Segments segments;
 +  auto* seg = segments.push_back_segment();
 +  for (const auto* value : {"アクセシビリティ", "アクセシビリティー",
@@ -35840,15 +35872,55 @@ index 9c9f95e8f..5d320df18 100644
 +  const auto request = ConversionRequestBuilder()
 +                           .SetRequestType(ConversionRequest::SUGGESTION)
 +                           .Build();
-+  ASSERT_TRUE(rewriter_->Rewrite(request, &segments));
++  rewriter_->Rewrite(request, &segments);
 +  EXPECT_EQ(seg->candidate(0).value, "アクセシビリティ");
-+  EXPECT_EQ(seg->candidate(1).value, "accessibility");
++  EXPECT_EQ(seg->candidate(1).value, "アクセシビリティー");
++  EXPECT_EQ(seg->candidate(2).value, "あくせしびりてぃ");
 +  int count = 0;
 +  for (size_t i = 0; i < seg->candidates_size(); ++i) {
 +    count += seg->candidate(i).value == "accessibility";
 +  }
 +  EXPECT_EQ(count, 1);
-+  EXPECT_FALSE(rewriter_->Rewrite(request, &segments));
++}
++
++// Asteria: 「ないと」で night・knight が「ないと」「無いと」より上に来た(Issue #208)。英語表記は一覧の後ろ。
++TEST_F(EnglishVariantsRewriterTest, EnglishGoesAfterTheJapaneseCandidates) {
++  Segments segments;
++  auto* seg = segments.push_back_segment();
++  for (const auto* value : {"ナイト", "ないと", "無いと"}) {
++    auto* candidate = seg->add_candidate();
++    candidate->value = value;
++    candidate->content_value = value;
++  }
++  const auto request = ConversionRequestBuilder()
++                           .SetRequestType(ConversionRequest::CONVERSION)
++                           .Build();
++  ASSERT_TRUE(rewriter_->Rewrite(request, &segments));
++  EXPECT_EQ(seg->candidate(0).value, "ナイト");
++  EXPECT_EQ(seg->candidate(1).value, "ないと");
++  EXPECT_EQ(seg->candidate(2).value, "無いと");
++  int rank = -1;
++  ASSERT_TRUE(GetRankFromValue(*seg, "night", &rank));
++  EXPECT_GT(rank, 2);
++}
++
++// Asteria: 設定「カタカナ語を英語に」(use_t13n_conversion)をオフにすると、英語表記を足さない(Issue #208)。
++TEST_F(EnglishVariantsRewriterTest, KatakanaEnglishFollowsTheSetting) {
++  Segments segments;
++  auto* seg = segments.push_back_segment();
++  auto* candidate = seg->add_candidate();
++  candidate->value = "ナイト";
++  candidate->content_value = "ナイト";
++  config::Config config;
++  config::ConfigHandler::GetDefaultConfig(&config);
++  config.set_use_t13n_conversion(false);
++  const auto request = ConversionRequestBuilder()
++                           .SetConfig(config)
++                           .SetRequestType(ConversionRequest::CONVERSION)
++                           .Build();
++  rewriter_->Rewrite(request, &segments);
++  int rank = -1;
++  EXPECT_FALSE(GetRankFromValue(*seg, "night", &rank));
 +}
 +
 +TEST_F(EnglishVariantsRewriterTest, AmbiguousEnglishSpellingsStaySelectable) {
@@ -35868,7 +35940,7 @@ index 9c9f95e8f..5d320df18 100644
  TEST_F(EnglishVariantsRewriterTest, Regression3242753) {
    Segments segments;
    const ConversionRequest request;
-@@ -604,7 +758,7 @@ TEST_F(EnglishVariantsRewriterTest, MobileEnvironmentTest) {
+@@ -604,7 +801,7 @@ TEST_F(EnglishVariantsRewriterTest, MobileEnvironmentTest) {
      request.set_mixed_conversion(false);
      const ConversionRequest convreq =
          ConversionRequestBuilder().SetRequest(request).Build();
@@ -40809,10 +40881,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..346a61c9c
+index 000000000..1809b175d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4964 @@
+@@ -0,0 +1,5051 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -42571,6 +42643,10 @@ index 000000000..346a61c9c
 +  }
 +  if (const char* v = Env("KOTORI_ZENZ_MODEL")) env_model_path_ = v;
 +  if (const char* v = Env("KOTORI_LLM_MODEL")) env_llm_path_ = v;
++  if (const char* v = Env("KOTORI_LM_JUDGE")) env_judge_path_ = v;
++  if (const char* v = Env("KOTORI_LM_JUDGE_MARGIN")) judge_margin_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_JUDGE_WEIGHT")) judge_weight_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_JUDGE_TOP")) judge_top_ = std::max(2, std::atoi(v));
 +  if (const char* v = Env("KOTORI_ZENZ_EXTRA_MODEL")) env_extra_path_ = v;
 +  if (const char* v = Env("KOTORI_LM_BEAMS")) beams_override_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_PREDICT")) predict_ = *v != '0';
@@ -42608,6 +42684,7 @@ index 000000000..346a61c9c
 +  if (const char* v = Env("KOTORI_LM_TYPO_POOL_NEXT")) typo_pool_next_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_WINDOW")) typo_window_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_SEARCH_MS")) typo_search_ms_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_ALT_MARGIN")) alt_margin_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_QUICK_K")) typo_quick_k_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_WAIT_MS")) typo_wait_ms_ = std::max(0, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_BATCH")) typo_batch_ = std::clamp(std::atoi(v), 2, 32);
@@ -42776,11 +42853,13 @@ index 000000000..346a61c9c
 +  // 要求の最中なら外さない(次の確かめで外す)。
 +  if (!mutex_.TryLock()) return;
 +  const bool any = scorer_ != nullptr || llm_ != nullptr || extra_ != nullptr ||
-+                   long_scorer_ != nullptr;
++                   long_scorer_ != nullptr || judge_ != nullptr;
 +  if (any) {
 +    ++model_epoch_;
 +    scorer_.reset();
 +    llm_.reset();
++    judge_.reset();
++    judge_path_.clear();
 +    extra_.reset();
 +    long_scorer_.reset();
 +    loaded_ = llm_loaded_ = extra_loaded_ = long_loaded_ = false;
@@ -42845,6 +42924,14 @@ index 000000000..346a61c9c
 +  if (path.empty() || !FileUtil::FileExists(path).ok()) return;
 +  llm_ = ZenzScorer::Open(path, threads_, runtime_dir_,
 +                           identify_correction_models_);
++}
++
++void LmRewriter::EnsureJudgeLoaded(const std::string& path) const {
++  if (judge_path_ == path && (path.empty() || judge_ != nullptr)) return;
++  judge_path_ = path;
++  judge_.reset();
++  if (path.empty() || !FileUtil::FileExists(path).ok()) return;
++  judge_ = ZenzScorer::Open(path, threads_, runtime_dir_);
 +}
 +
 +ZenzScorer* LmRewriter::Prepare(const ConversionRequest& request, size_t* k,
@@ -42969,25 +43056,34 @@ index 000000000..346a61c9c
 +  // では品質に関係なく使う。品質 Low では最初の Tab で読み込み、その後は読み込んだままにする。
 +  if (!UsesLlm(config)) {
 +    EnsureLlmLoaded(std::string());  // 使わない設定なら VRAM を空ける
++    EnsureJudgeLoaded(std::string());
 +    return main_scorer;
 +  }
 +  if (*llm_top == 0 && !for_predict) {
 +    // Eco では LLM を GPU から下ろす(節約のための段階なので、前に読んだものも残さない)。
 +    EnsureLlmLoaded(std::string());
++    EnsureJudgeLoaded(std::string());
 +    return main_scorer;
 +  }
 +  if (*llm_top > 0 || for_predict) {
 +    std::string llm_path = config.kotori_lm_model_path();
 +    if (llm_path.empty()) llm_path = env_llm_path_;
-+    // High・Unreal: 設定画面からダウンロードした追加の LLM があれば、それで採点する(docs/adr/0086)。
-+    // 大きさが表と違うファイル(受け取りの途中など)は使わない。指紋は受け取ったときに確かめてある。
-+    if (llm_path.empty() && gpu) {
++    // High・Unreal: 設定画面からダウンロードした追加の LLM を判定役にする(カード 90。docs/adr/0086 を改めた)。
++    // Standard の採点はそのままにし、点差の小さい上位の候補だけを採点し直す(採点役を丸ごと替えると、
++    // どの大きな LLM も Standard を下回った)。大きさが表と違うファイル(受け取りの途中など)は使わない。
++    std::string judge_path = env_judge_path_;
++    if (judge_path.empty() && gpu && !for_predict) {
 +      if (const kotori::ExtraModel* extra =
 +              kotori::ExtraModelFor(config.kotori_lm_quality())) {
-+        if (kotori::ExtraModelInstalled(*extra)) {
-+          llm_path = kotori::ExtraModelPath(*extra);
-+          *llm_top = llm_top_override_.value_or(std::max<size_t>(*llm_top, 8));
-+        }
++        if (kotori::ExtraModelInstalled(*extra)) judge_path = kotori::ExtraModelPath(*extra);
++      }
++    }
++    // 読み込みは重いので、裏で読める時だけ読む(使わなくなったら、すぐ下ろす)。
++    if (!for_predict) {
++      if (may_load || judge_path.empty() || judge_path_ == judge_path) {
++        EnsureJudgeLoaded(judge_path);
++      } else {
++        RequestLoad(config);
 +      }
 +    }
 +    if (llm_path.empty()) llm_path = FileUtil::JoinPath(model_dir_, kLlmModelName);
@@ -43169,7 +43265,9 @@ index 000000000..346a61c9c
 +int LmRewriter::BudgetMs() const {
 +  // 変換で AI に使う時間の上限。GPU がないときは短くする(CPU では生成が遅く、待たせないため)。
 +  if (budget_ms_ >= 0) return budget_ms_;
-+  return HasGpu() ? 2000 : 600;
++  // Asteria: GPU では 5 秒(カード 89)。上限は固まらないための安全装置で、ふつうは数百 ms で終わる。
++  // 2 秒では、ほかのアプリが GPU を使っているときに上限に当たり、AI の答えを出せなかった。
++  return HasGpu() ? 5000 : 600;
 +}
 +
 +// Kotori: 文脈つきの学習を使ってよい入力か(保護された欄・シークレット・学習の停止では使わない)。
@@ -43475,11 +43573,16 @@ index 000000000..346a61c9c
 +  // (遅い PC で固まらないため)。
 +  std::chrono::steady_clock::time_point deadline, gen_deadline;
 +  int budget_ms = 0;
++  // Asteria: やめる理由は 2 つ(カード 89)。入力が変わった(cancelled)ときは結果を捨てる。時間の上限を
++  // 超えたときは、それ以上の計算をやめるが、そこまでに作って採点した文から選ぶ(捨てると Mozc の
++  // 答えに戻り、同じ読みでも 1 回目だけ「空間後編長期」のように外れた)。
++  auto cancelled = [&] {
++    return background && (stop_.load() || new_job_.load() || urgent_.load() > 0 ||
++                          (request.kotori_input_generation().IsSet() &&
++                           !request.kotori_input_generation().IsCurrent()));
++  };
 +  auto over = [&] {
-+    return (background && (stop_.load() || new_job_.load() || urgent_.load() > 0 ||
-+            (request.kotori_input_generation().IsSet() &&
-+             !request.kotori_input_generation().IsCurrent()))) ||
-+           (budget_ms > 0 && std::chrono::steady_clock::now() > deadline);
++    return cancelled() || (budget_ms > 0 && std::chrono::steady_clock::now() > deadline);
 +  };
 +  // 生成は上限の 6 割までにし、残りを採点に残す(採点の 1 回の計算は途中でやめられないため。
 +  // docs/adr/0029)。
@@ -43663,15 +43766,18 @@ index 000000000..346a61c9c
 +    }
 +  }
 +  const auto t_gen = std::chrono::steady_clock::now();
-+  // 生成で時間を使い切ったら、採点もせずに Mozc の結果を出す(待たせないため)。
 +  // Kotori: 生成補正は非同期の初回評価のみ。採用前に読み・保護語・入力世代・モデルを検査。
++  // Asteria: 文を作り直す LLM の補正は、開発で KOTORI_LM_CORRECTION=1 を指定したときだけ使う(カード 89)。
++  // 開発用・判定用のどのセットでも正解を増やさず(文脈の選択 235/297・判定用 225/297、打ち間違い 28/40 で同じ)、
++  // Space の待ちを延ばし(文脈の選択の p95 38 → 458 ms)、手を止めたかどうかで答えを変えていた。
++  // 打ち間違いの補正(FindTypoCorrection)は別で、設定「入力中に誤変換を補正する」に従う。
++  const char* llm_correction_env = Env("KOTORI_LM_CORRECTION");
 +  const bool llm_correction = background && correction_models != nullptr &&
 +      request.kotori_input_generation().IsCurrent() &&
-+      request.config().kotori_lm_correction() &&
-+      (Env("KOTORI_LM_CORRECTION") == nullptr ||
-+       std::string(Env("KOTORI_LM_CORRECTION")) == "1");
++      request.config().kotori_lm_correction() && llm_correction_env != nullptr &&
++      std::string(llm_correction_env) == "1";
 +  // 候補が1件でも、並べ替えでは作れない修正文を非同期で生成できる。
-+  if (values.empty() || (values.size() < 2 && !llm_correction) || gen_over()) {
++  if (values.empty() || (values.size() < 2 && !llm_correction) || cancelled()) {
 +    return std::nullopt;
 +  }
 +  // 点数 = zenz の log P(文 | 読み、前の文) + LLM の log P(文 | 前の文)(docs/adr/0016)。
@@ -43868,20 +43974,51 @@ index 000000000..346a61c9c
 +    }
 +  }
 +
++  // Asteria: High・Unreal の判定役(カード 90)。1 番目との点差が judge_margin_ 以内の上位の候補だけを、大きな
++  // LLM で採点し直して選び直す。点差が大きい(Standard が確信している)文は変えない。
++  if (judge_ != nullptr && llogp && !over()) {
++    std::vector<size_t> close;
++    for (size_t i = 0; i < values.size(); ++i) {
++      if (std::isfinite(joint_scores[i]) && joint_scores[top] - joint_scores[i] <= judge_margin_) {
++        close.push_back(i);
++      }
++    }
++    std::stable_sort(close.begin(), close.end(),
++                     [&](size_t a, size_t b) { return joint_scores[a] > joint_scores[b]; });
++    if (close.size() > judge_top_) close.resize(judge_top_);
++    if (close.size() >= 2) {
++      std::vector<std::string> subset;
++      for (size_t i : close) subset.push_back(values[i]);
++      if (const auto judged = judge_->Score(context, reading, subset)) {
++        size_t best_index = top;
++        double best_score = -std::numeric_limits<double>::infinity();
++        for (size_t j = 0; j < close.size(); ++j) {
++          const double s = joint_scores[close[j]] + judge_weight_ * (*judged)[j];
++          if (debug) {
++            std::fprintf(stderr, "[judge] %s %.2f + %.2f\n", values[close[j]].c_str(),
++                         joint_scores[close[j]], (*judged)[j]);
++          }
++          if (s > best_score) {
++            best_score = s;
++            best_index = close[j];
++          }
++        }
++        top = best_index;
++      }
++    }
++  }
++
 +  // Kotori: 「90ぱーせんと」は「90%」と書くのが普通。同じ文で記号の候補が採点済みならそちらを選ぶ。
 +  if (!over()) top = kotori_internal::PreferPercentSymbol(values, joint_scores, top);
 +
 +  Best best{reading, context, {}, {}};
 +  // Kotori: 打ち間違いを補った文の方がずっと自然なら、それを 1 つの文節として出す(docs/adr/0036)。
 +  std::string fixed;
-+  // Kotori: 利用者がSpaceを押して待っている読みでは、補正の生成(数百 ms)を省いて採点の結果を
-+  // すぐ出す。手が止まった間に計算したときは補正する(開発用の評価で、補正は待ちを約 250 ms
-+  // 延ばし、正解数は変わらなかった。docs/verification)。
-+  const std::string waiting_key = MemoKey(request.config(), reading, context);
++  // Asteria: 補正は、Space を押して待っているときも、手が止まった間に計算したときと同じだけ行う
++  // (カード 89)。待っているときだけ省くと、同じ読みでも Space を押す時刻で 1 番目が変わった。
++  // 利用者は「多少待っても正しい答え」を選んだ(2026-11-03)。時間の上限(over)だけで止める。
 +  const auto t_corr = std::chrono::steady_clock::now();
-+  const std::function<bool()> correction_over = [&] {
-+    return over() || UserWaitingFor(waiting_key);
-+  };
++  const std::function<bool()> correction_over = [&] { return over(); };
 +  // Asteria: ローマ字のまま打った英語の名前(docs/adr/0080)。辞書を引くだけで、当たりがなければ
 +  // LLM を呼ばないので、Space を押して待っているときも試す(時間の上限 over だけを見る)。
 +  const bool english_fixed =
@@ -43898,30 +44035,12 @@ index 000000000..346a61c9c
 +      FindLlmCorrection(scorer, llm, context, reading, TypingKeys(request), values[top],
 +                        lambda_lm_ * (*zlogp)[top] + kCorrectionLlmWeight * (*llogp)[top],
 +                        correction_over, &fixed);
-+  // Kotori: 打ち間違いの補正だけは、Space を押してから変換を始めたとき(手を止めずにすぐ押した)も、
-+  // かなの 1 か所の書き換えの軽い補正を typo_wait_ms_ までは行う(docs/adr/0074)。省くと、すぐ
-+  // Space を押したときだけ打ち間違いが直らず(打ち間違い 40 問で 24 → 4)、打ち直すと直る
-+  // 「たまに外れる」になる。補正の関所は自然な文を通さないので、ふつうの文の待ちは増えない。
-+  // 手が止まった間に深く探している途中で Space を押されたときは、これまでどおりすぐやめる。
-+  // (押してから続けると、打ち間違いのない長い文でも探索が走り、判定用の長い文で Space の p95 が
-+  // 82 → 247 ms になった。v3.2.0 の準備中に試して戻した)
-+  const bool waiting_at_start = UserWaitingFor(waiting_key);
-+  std::optional<std::chrono::steady_clock::time_point> waited_since;
++  // Kotori: 打ち間違いの補正(docs/adr/0074)。Asteria: Space を押して待っているときも、手が止まった間と
++  // 同じ深さで探す(カード 89)。以前は待っているときだけ軽い探索にし、深い探索の途中で Space を押すと
++  // すぐやめていた(Space の p95 を 82 ms に保つため)。押す時刻で答えが変わるので、時間の上限だけで止める。
 +  ZenzScorer* typo_scorer = g_typo_scorer != nullptr ? g_typo_scorer : scorer;
-+  // Asteria: メインの zenz が genmai のときは、Space を押してからの補正を 100 ms までにする(docs/adr/0085)。
-+  // genmai の文を small で採点し直すと点が低めに出て、自然な文でも補正の探索が走り、重い文の Space の待ちが
-+  // 延びた(文脈の選択の開発用で p95 70 → 89 ms)。
-+  const int typo_wait_ms =
-+      typo_scorer != scorer ? std::min(typo_wait_ms_, 100) : typo_wait_ms_;
-+  const std::function<bool()> typo_over = [&] {
-+    if (over()) return true;
-+    if (!UserWaitingFor(waiting_key)) return false;
-+    const auto now = std::chrono::steady_clock::now();
-+    if (!waited_since) waited_since = now;
-+    return !waiting_at_start ||
-+           now - *waited_since > std::chrono::milliseconds(typo_wait_ms);
-+  };
-+  g_typo_quick = waiting_at_start;
++  const std::function<bool()> typo_over = [&] { return over(); };
++  g_typo_quick = false;
 +  double typo_chosen = zlogp ? lambda_lm_ * (*zlogp)[top] : 0.0;
 +  if (typo_scorer != scorer && zlogp && llogp) {
 +    if (const auto z = typo_scorer->Score(context, reading, {values[top]})) {
@@ -43929,7 +44048,8 @@ index 000000000..346a61c9c
 +    }
 +  }
 +  const bool typo_fixed =
-+      !english_fixed && !llm_fixed && typo_correct_ && llm != nullptr && llogp && dictionary_ != nullptr &&
++      !english_fixed && !llm_fixed && typo_correct_ && request.config().kotori_lm_correction() &&
++      llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !typo_over() &&
 +      !reading.empty() &&
 +      Util::CharsLen(reading) <= kMaxTypoChars &&
@@ -43978,7 +44098,7 @@ index 000000000..346a61c9c
 +      best.values.emplace_back(inner.GetValue());
 +    }
 +  }
-+  if (best.keys.empty() || (background && over())) return std::nullopt;
++  if (best.keys.empty() || cancelled()) return std::nullopt;
 +
 +  // Kotori: 最良の文だけを残すと、AIが採点した別の正解が候補一覧から消える。
 +  // 同じ読み・同じ文節keyへ対応する有限スコアの文を、最大8件まで残す。
@@ -43996,9 +44116,19 @@ index 000000000..346a61c9c
 +    for (size_t index : order) {
 +      if (best.alternatives.size() >= 8 || over()) break;
 +      if (index == top || !std::isfinite(joint_scores[index])) continue;
++      // Asteria: AI が生成した文(辞書の候補にない文)は、別案に入れる条件を厳しくする(Issue #208)。
++      // - 1 番目との点差が alt_margin_ 以内(点の低い作文で、よく使う辞書の語を押し下げない)。
++      // - 単漢字の読みを 1 字ずつ当てた漢字を認めない(「な」→波、「めい」→命 で「波る」「た命気は」が通った)。
++      // - 辞書の語でない 1 文字のカタカナを含まない(「ヤブれて」「やブレて」のように 1 語の中で混ざる文)。
++      const bool generated = cands[index] == nullptr;
++      if (generated && joint_scores[top] - joint_scores[index] > alt_margin_) continue;
 +      std::vector<std::pair<std::string, std::string>> units;
-+      if (!MatchesReading(*dictionary_, single_kanji_, values[index], reading,
-+                          false, &units)) continue;
++      if (!MatchesReading(*dictionary_, generated ? nullptr : single_kanji_, values[index],
++                          reading, false, &units)) continue;
++      if (generated && std::any_of(units.begin(), units.end(), [](const auto& unit) {
++            return Util::CharsLen(unit.first) == 1 &&
++                   Util::GetScriptType(unit.first) == Util::KATAKANA;
++          })) continue;
 +      auto aligned = kotori_internal::AlignSentenceToSegments(units, best.keys);
 +      if (!aligned || *aligned == best.values ||
 +          std::find(best.alternatives.begin(), best.alternatives.end(), *aligned) !=
@@ -44114,11 +44244,27 @@ index 000000000..346a61c9c
 +            return v.empty() || !Util::IsValidUtf8(v);
 +          })) continue;
 +      const std::string& surface = alternative[segment_index];
-+      bool exists = false;
-+      for (const auto& candidate : seg.candidates()) {
-+        if (candidate->value == surface) { exists = true; break; }
++      size_t existing = seg.candidates_size();
++      for (size_t c = 0; c < seg.candidates_size(); ++c) {
++        if (seg.candidate(c).value == surface) {
++          existing = c;
++          break;
++        }
 +      }
-+      if (exists) continue;
++      if (existing < insert_at) continue;  // もう並べた位置より上にある
++      // 前に後ろへ足した作文は、その位置のまま(当て直しで上へ戻さない)。
++      if (existing < seg.candidates_size() && seg.candidate(existing).kotori_ai_evaluated &&
++          (seg.candidate(existing).attributes & converter::Attribute::NO_LEARNING)) continue;
++      if (existing < seg.candidates_size()) {
++        if (existing != insert_at) {
++          converter::Candidate moved = seg.candidate(existing);
++          seg.erase_candidate(existing);
++          *seg.insert_candidate(insert_at) = std::move(moved);
++          changed = true;
++        }
++        ++insert_at;
++        continue;
++      }
 +      converter::Candidate c = seg.candidate(0);
 +      c.key = c.content_key = std::string(seg.key());
 +      c.value = c.content_value = surface;
@@ -44126,7 +44272,10 @@ index 000000000..346a61c9c
 +      c.attributes = converter::Attribute::NO_LEARNING;
 +      c.kotori_ai_evaluated = true;
 +      c.kotori_corrected_reading.clear();
-+      *seg.insert_candidate(insert_at++) = std::move(c);
++      // Asteria: 辞書にない作文(この文節の候補にない表記)は、Mozc の候補(ひらがな・カタカナを含む)の
++      // 後ろに置く(Issue #208)。2 番目から入れると「返品好感」「敗走状況」のような語の組み合わせが、
++      // よく使う候補を押し下げた。短文 120 問では、1 番目が違ったときに正解がこの作文の中にあった例はない。
++      *seg.add_candidate() = std::move(c);
 +      changed = true;
 +    }
 +  }
@@ -45399,6 +45548,16 @@ index 000000000..346a61c9c
 +                                    const std::function<bool()>& over,
 +                                    std::string* fixed) const {
 +  const auto t0 = std::chrono::steady_clock::now();
++  // Asteria: 打った読みがそのまま辞書の語で、4 文字以下なら直さない(カード 89)。短い読みは前後の手がかりが
++  // 少なく、LLM はよく使う語を好むだけになる。「ないと」を「らいと(ライト)」の打ち間違いとみなし、事後確率
++  // 0.86 で直した。手を止めて待ったときだけ直り、すぐ Space を押したときは直らない食い違いにもなっていた。
++  constexpr size_t kMaxShortWordChars = 4;
++  if (Util::CharsLen(reading) <= kMaxShortWordChars && dictionary_->HasKey(reading)) {
++    if (Env("KOTORI_LM_DEBUG") != nullptr) {
++      std::fprintf(stderr, "[typo] %s short dictionary word\n", reading.c_str());
++    }
++    return false;
++  }
 +  // Kotori: キーの単位・複数か所の補正(docs/adr/0074)は、手が止まった間の裏の仕事でだけ使う。
 +  // その場の変換(Space を押して待っている)では、数百 ms かかる探索で待たせないよう、
 +  // これまでどおりかなの 1 か所の書き換えだけにする。
@@ -45779,10 +45938,10 @@ index 000000000..346a61c9c
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..332b927c4
+index 000000000..c90228d47
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,661 @@
+@@ -0,0 +1,675 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -46091,6 +46250,9 @@ index 000000000..332b927c4
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  void EnsureLlmLoaded(const std::string& path) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  // Asteria: High・Unreal の判定役(カード 90)。空のパスで下ろす。
++  void EnsureJudgeLoaded(const std::string& path) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  // 文全体で選んだ文が今の区切りに合えば、各文節の先頭をそれにして true を返す
 +  // (*changed は候補を入れ替えたか)。
 +  bool ApplyBest(const ConversionRequest& request, Segments* segments,
@@ -46282,11 +46444,22 @@ index 000000000..332b927c4
 +  int typo_batch_ = 16;
 +  // Space を押してから始めた変換で、軽い補正に使ってよい時間(ms、KOTORI_LM_TYPO_WAIT_MS。0 で省く)。
 +  int typo_wait_ms_ = 200;
++  // 生成した文を 2 番目以降の別案に入れる、1 番目との点差の上限(KOTORI_LM_ALT_MARGIN、Issue #208)。
++  double alt_margin_ = 4.0;
 +  // その軽い補正で文を作る読みの数(KOTORI_LM_TYPO_QUICK_K)。
 +  int typo_quick_k_ = 10;
 +  mutable std::string llm_path_ ABSL_GUARDED_BY(mutex_);
 +  mutable bool llm_loaded_ ABSL_GUARDED_BY(mutex_) = false;
 +  mutable std::unique_ptr<ZenzScorer> llm_ ABSL_GUARDED_BY(mutex_);
++  // Asteria: High・Unreal の判定役(カード 90)。Standard の採点(genmai と LLM)はそのままにし、1 番目との点差が
++  // judge_margin_ 以内の上位 judge_top_ 件だけを、大きな LLM で採点し直して judge_weight_ 倍を足す。
++  // 開発では KOTORI_LM_JUDGE(ファイル)・_MARGIN・_WEIGHT・_TOP で試す。
++  mutable std::string judge_path_ ABSL_GUARDED_BY(mutex_);
++  mutable std::unique_ptr<ZenzScorer> judge_ ABSL_GUARDED_BY(mutex_);
++  std::string env_judge_path_;
++  double judge_margin_ = 3.0;
++  double judge_weight_ = 1.0;
++  size_t judge_top_ = 4;
 +  // 2 つ目の zenz(Unreal で候補を増やす。KOTORI_ZENZ_EXTRA_MODEL で差し替える。docs/adr/0031)。
 +  std::string env_extra_path_;
 +  mutable bool extra_loaded_ ABSL_GUARDED_BY(mutex_) = false;
@@ -46446,10 +46619,10 @@ index 000000000..332b927c4
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..f472d91f7
+index 000000000..434e88c6e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1328 @@
+@@ -0,0 +1,1363 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -47352,6 +47525,37 @@ index 000000000..f472d91f7
 +    EXPECT_EQ(segments.conversion_segment(0).candidates_size(), user_word ? 1 : 2);
 +    EXPECT_EQ(segments.conversion_segment(1).candidates_size(), 2);
 +  }
++  // Asteria: 別案は AI の点の順に 2 番目から並べる。一覧の奥にある辞書の語も、その位置へ上げる。
++  // 辞書にない作文(この文節の候補にない表記)は一覧の後ろに足す(Issue #208)。
++  void CheckScoredAlternativeOrder() const {
++    auto owner = std::make_shared<std::atomic<uint64_t>>(1);
++    Best best{"あしを", "", {"あしを"}, {"足を"}};
++    best.alternatives = {{"脚を"}, {"葦を"}};
++    Segments segments;
++    auto* segment = segments.add_segment();
++    segment->set_key("あしを");
++    for (const char* value : {"足を", "あしを", "アシヲ", "脚を"}) {
++      auto* candidate = segment->add_candidate();
++      candidate->key = candidate->content_key = "あしを";
++      candidate->value = candidate->content_value = value;
++    }
++    bool changed = false;
++    ASSERT_TRUE(rewriter_->ApplyBestFrom(best, Request({owner, 1}), &segments, "", &changed));
++    EXPECT_TRUE(changed);
++    const auto& seg = segments.conversion_segment(0);
++    const std::vector<std::string> expected = {"足を", "脚を", "あしを", "アシヲ", "葦を"};
++    ASSERT_EQ(seg.candidates_size(), expected.size());
++    for (size_t i = 0; i < expected.size(); ++i) EXPECT_EQ(seg.candidate(i).value, expected[i]);
++    // 動かした辞書の語は元の候補のまま(学習できる)、足した別案だけ学習しない。
++    EXPECT_EQ(seg.candidate(1).attributes & converter::Attribute::NO_LEARNING, 0);
++    EXPECT_NE(seg.candidate(4).attributes & converter::Attribute::NO_LEARNING, 0);
++    // 同じ結果を再び当てても並びは変わらない。
++    changed = true;
++    ASSERT_TRUE(rewriter_->ApplyBestFrom(best, Request({owner, 1}), &segments, "", &changed));
++    EXPECT_FALSE(changed);
++    ASSERT_EQ(seg.candidates_size(), expected.size());
++    for (size_t i = 0; i < expected.size(); ++i) EXPECT_EQ(seg.candidate(i).value, expected[i]);
++  }
 +  void CheckScoredPredictionDeadline() const {
 +    using Prediction = LmRewriter::Prediction;
 +    const std::vector<Prediction> preds = {
@@ -47395,6 +47599,10 @@ index 000000000..f472d91f7
 +
 +TEST_F(LmRewriterGenerationTest, ScoredAlternativesPreserveUserDictionaryTop) {
 +  CheckScoredAlternativePublication(true);
++}
++
++TEST_F(LmRewriterGenerationTest, ScoredAlternativesFollowAiOrder) {
++  CheckScoredAlternativeOrder();
 +}
 +
 +TEST_F(LmRewriterGenerationTest, DeadlineKeepsOnlyScoredReadingMatchedPredictions) {
@@ -47814,6 +48022,91 @@ index d92e814fd..ef9e772dd 100644
    AddRewriter(make_unique_from_tuples<A11yDescriptionRewriter>(
        data_manager.GetA11yDescriptionRewriterData()));
  }
+diff --git a/src/rewriter/user_boundary_history_rewriter.cc b/src/rewriter/user_boundary_history_rewriter.cc
+index b704fcba7..a4e8d4c62 100644
+--- a/src/rewriter/user_boundary_history_rewriter.cc
++++ b/src/rewriter/user_boundary_history_rewriter.cc
+@@ -48,6 +48,7 @@
+ #include "base/file_util.h"
+ #include "base/vlog.h"
+ #include "converter/segments.h"
++#include "protocol/commands.pb.h"
+ #include "protocol/config.pb.h"
+ #include "request/conversion_request.h"
+ #include "rewriter/rewriter_interface.h"
+@@ -219,6 +220,15 @@ UserBoundaryHistoryRewriter::CheckResizeSegmentsRequest(
+     return std::nullopt;
+   }
+ 
++  // Asteria: AI がオンのときは、覚えた区切りで切り直さない。AI が文全体で選んだ文(空間光変調器)が、
++  // 昔の区切り(くうかん|こうへん|ちょうき)に合わずに捨てられ、切り直した文節には AI が採点していない
++  // 候補と古い候補の学習(制度)が残った。利用者が文節を切り直して確定した文は、AI 側の確定した文の
++  // 学習(docs/adr/0081)が読みと前の文で覚えて出す。保護された欄では AI を使わないので従来どおり。
++  if (request.config().kotori_lm_enabled() &&
++      request.context().input_field_type() != commands::Context::PASSWORD) {
++    return std::nullopt;
++  }
++
+   if (DisableLaegacyRewriterInMixedConversion(request,
+                                               kDisableUserBoundaryHistory) ||
+       DisableLegacyRewriter(request, kDisableUserBoundaryHistory)) {
+diff --git a/src/rewriter/user_boundary_history_rewriter_test.cc b/src/rewriter/user_boundary_history_rewriter_test.cc
+index b3b9a0632..50c7c637a 100644
+--- a/src/rewriter/user_boundary_history_rewriter_test.cc
++++ b/src/rewriter/user_boundary_history_rewriter_test.cc
+@@ -39,6 +39,7 @@
+ #include "config/config_handler.h"
+ #include "converter/candidate.h"
+ #include "converter/segments.h"
++#include "protocol/commands.pb.h"
+ #include "protocol/config.pb.h"
+ #include "request/conversion_request.h"
+ #include "rewriter/rewriter_interface.h"
+@@ -84,7 +85,11 @@ Segments MakeSegments(absl::Span<const absl::string_view> segments_texts,
+ class UserBoundaryHistoryRewriterTest
+     : public testing::TestWithTempUserProfile {
+  protected:
+-  void SetUp() override { config::ConfigHandler::GetDefaultConfig(&config_); }
++  void SetUp() override {
++    config::ConfigHandler::GetDefaultConfig(&config_);
++    // Mozc の区切りの学習そのものを試す(AI がオンのときは切り直さない。下の試験)。
++    config_.set_kotori_lm_enabled(false);
++  }
+ 
+   void TearDown() override {
+     UserBoundaryHistoryRewriter rewriter;
+@@ -145,6 +150,31 @@ TEST_F(UserBoundaryHistoryRewriterTest, SplitSegmentByHistory) {
+   }
+ }
+ 
++// Asteria: AI がオンのときは、覚えた区切りで AI の選んだ文を切り直さない。
++TEST_F(UserBoundaryHistoryRewriterTest, NoResizeWhenAiIsOn) {
++  SetIncognito(false);
++  SetLearningLevel(config::Config::DEFAULT_HISTORY);
++  UserBoundaryHistoryRewriter rewriter;
++  {
++    Segments segments = MakeSegments({"たん", "ぽぽ"}, Segment::FIXED_VALUE);
++    segments.set_resized(true);
++    rewriter.Finish(CreateConversionRequest(), segments);
++  }
++  const Segments segments = MakeSegments({"たんぽぽ"}, Segment::FREE);
++  config_.set_kotori_lm_enabled(true);
++  EXPECT_FALSE(rewriter.CheckResizeSegmentsRequest(CreateConversionRequest(), segments)
++                   .has_value());
++  // 保護された欄では AI を使わないので、覚えた区切りを使う。
++  commands::Context context;
++  context.set_input_field_type(commands::Context::PASSWORD);
++  const ConversionRequest password =
++      ConversionRequestBuilder().SetConfig(config_).SetContext(context).Build();
++  EXPECT_TRUE(rewriter.CheckResizeSegmentsRequest(password, segments).has_value());
++  config_.set_kotori_lm_enabled(false);
++  EXPECT_TRUE(rewriter.CheckResizeSegmentsRequest(CreateConversionRequest(), segments)
++                  .has_value());
++}
++
+ // Test if the rewriter can learn the joining key for which user explicitly
+ // resized segments.
+ TEST_F(UserBoundaryHistoryRewriterTest, JoinSegmentsByHistory) {
 diff --git a/src/rewriter/user_segment_history_rewriter.cc b/src/rewriter/user_segment_history_rewriter.cc
 index 3765a2c9a..8ca158b5f 100644
 --- a/src/rewriter/user_segment_history_rewriter.cc
