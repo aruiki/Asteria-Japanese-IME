@@ -1052,6 +1052,74 @@ index 7893248f4..8959625e4 100644
  }
  
  TEST_F(ComposerTest, PreeditFormAfterCharacterTransform) {
+diff --git a/src/config/character_form_manager.cc b/src/config/character_form_manager.cc
+index 7b52286e6..08f7af7ee 100644
+--- a/src/config/character_form_manager.cc
++++ b/src/config/character_form_manager.cc
+@@ -371,14 +371,18 @@ void CharacterFormManagerImpl::SetCharacterForm(const absl::string_view str,
+ 
+ Config::CharacterForm CharacterFormManagerImpl::GetCharacterFormFromStorage(
+     char16_t ucs2) const {
++  // Asteria: まだ選んだことがなければ、英字は半角で出す(生成AI、Python など。今の書き方に合わせる)。
++  // 数字・記号は今までどおり全角。一度選んだ書き方は覚えて次から使う(LAST_FORM)。
++  const Config::CharacterForm default_form =
++      ucs2 == 0x0041 ? Config::HALF_WIDTH : Config::FULL_WIDTH;
+   if (storage_ == nullptr) {
+-    return Config::FULL_WIDTH;  // Return default setting
++    return default_form;  // Return default setting
+   }
+   const absl::string_view key(reinterpret_cast<const char*>(&ucs2),
+                               sizeof(ucs2));
+   const char* value = storage_->Lookup(key);
+   if (value == nullptr) {
+-    return Config::FULL_WIDTH;  // Return default setting
++    return default_form;  // Return default setting
+   }
+   const uint32_t ivalue = LoadUnaligned<uint32_t>(value);
+   return static_cast<Config::CharacterForm>(ivalue);
+diff --git a/src/config/character_form_manager_test.cc b/src/config/character_form_manager_test.cc
+index ef97855c1..bd645efc4 100644
+--- a/src/config/character_form_manager_test.cc
++++ b/src/config/character_form_manager_test.cc
+@@ -61,6 +61,9 @@ TEST_F(CharacterFormManagerTest, DefaultTest) {
+       CharacterFormManager::GetCharacterFormManager();
+ 
+   manager->ClearHistory();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  manager->SetCharacterForm("ABC", config::Config::FULL_WIDTH);
+ 
+   EXPECT_EQ(manager->GetPreeditCharacterForm("カタカナ"),
+             config::Config::FULL_WIDTH);
+@@ -369,6 +372,28 @@ TEST_F(CharacterFormManagerTest, DefaultTest) {
+   EXPECT_EQ(output, "［京都］｛東京｝ＡＢＣ！インターネット");
+ }
+ 
++// Asteria: 英字は、まだ選んでいなければ半角で出し(生成ＡＩ → 生成AI)、数字・記号は今までどおり全角。一度選んだ
++// 書き方は覚えて次から使う。英字とカタカナが混ざって書き方がそろわない語は、そのまま出す(半角カナにしない)。
++TEST_F(CharacterFormManagerTest, AsteriaAlphabetStartsHalfWidth) {
++  CharacterFormManager* manager = CharacterFormManager::GetCharacterFormManager();
++  manager->ClearHistory();
++  EXPECT_EQ(manager->GetConversionCharacterForm("ABC"), config::Config::HALF_WIDTH);
++  EXPECT_EQ(manager->GetConversionCharacterForm("012"), config::Config::FULL_WIDTH);
++  std::string output;
++  manager->ConvertConversionString("生成ＡＩ", &output);
++  EXPECT_EQ(output, "生成AI");
++  manager->ConvertConversionString("Ｐｙｔｈｏｎ環境", &output);
++  EXPECT_EQ(output, "Python環境");
++  manager->ConvertConversionString("９０％", &output);
++  EXPECT_EQ(output, "９０％");
++  manager->ConvertConversionString("ＡＢＣインターネット", &output);
++  EXPECT_EQ(output, "ＡＢＣインターネット");
++  manager->SetCharacterForm("ＡＩ", config::Config::FULL_WIDTH);
++  manager->ConvertConversionString("生成AI", &output);
++  EXPECT_EQ(output, "生成ＡＩ");
++  manager->ClearHistory();
++}
++
+ TEST_F(CharacterFormManagerTest, MixedFormTest) {
+   CharacterFormManager* manager =
+       CharacterFormManager::GetCharacterFormManager();
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -25175,7 +25243,7 @@ index 40a10582d..b8e671c01 100644
          "//base:util",
          "//base:vlog",
 diff --git a/src/engine/engine_converter.cc b/src/engine/engine_converter.cc
-index fd03a6c0c..d369970db 100644
+index fd03a6c0c..a422b19ab 100644
 --- a/src/engine/engine_converter.cc
 +++ b/src/engine/engine_converter.cc
 @@ -44,8 +44,10 @@
@@ -25380,7 +25448,28 @@ index fd03a6c0c..d369970db 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION));
    candidate_list_visible_ = false;
  
-@@ -541,6 +682,7 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+@@ -502,6 +643,20 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+     return false;
+   }
+ 
++  kotori_suggestion_hidden_ = false;
++  // Asteria: 入力中の候補は、利用者の表示の設定に関係なく既定と同じ設定で作る(docs/adr/0081 の要件 11)。
++  // 打鍵ごとの候補作りが AI の先回りの変換と打ち間違いの補正を始めさせるので、表示の設定で作り方を変えると
++  // Space の結果が変わる。窓に何を出すかは KotoriIsVisibleSuggestion で決める。
++  config::Config suggest_config = *config_;
++  if (KotoriCompletionsOnly()) {
++    suggest_config.set_use_history_suggest(true);
++    suggest_config.set_use_dictionary_suggest(true);
++    suggest_config.set_use_realtime_conversion(true);
++    suggest_config.set_presentation_mode(false);
++    suggest_config.set_suggestions_size(
++        std::max<uint32_t>(config_->suggestions_size(), 3));
++  }
++
+   // Initialize the conversion request and segments for suggestion.
+   ConversionRequest::Options options;
+   options.enable_user_history_for_conversion = preferences.use_history;
+@@ -541,10 +696,11 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    DCHECK(config_);
    const ConversionRequest conversion_request =
        ConversionRequestBuilder()
@@ -25388,7 +25477,12 @@ index fd03a6c0c..d369970db 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -599,11 +741,151 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
+-          .SetConfigView(*config_)
++          .SetConfigView(suggest_config)
+           .SetOptions(std::move(options))
+           .Build();
+ 
+@@ -599,11 +755,154 @@ bool EngineConverter::Suggest(const composer::Composer& composer,
    segment_index_ = 0;
    state_ = SUGGESTION;
    UpdateCandidateList();
@@ -25402,10 +25496,11 @@ index fd03a6c0c..d369970db 100644
 +      segments_.kotori_ai_status() == Segments::KotoriAiStatus::kPending &&
 +      !evaluated;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
-+  InitializeSelectedCandidateIndices();
-+  return true;
-+}
-+
++  KotoriUpdateSuggestionVisibility();
+   InitializeSelectedCandidateIndices();
+   return true;
+ }
+ 
 +// Kotori: 入力中の候補の先頭に、Space と同じ変換の結果を置く(docs/adr/0039)。
 +// 変換は別の Segments で行い、今の状態(入力中の候補)は変えない。AI は覚えておいた結果を
 +// 使うので、続けて Space を押したときも同じ文が出る。
@@ -25427,6 +25522,7 @@ index fd03a6c0c..d369970db 100644
 +  kotori_awaiting_ai_ = status == KotoriAiStatus::kPending;
 +  if (confident_prediction) kotori_awaiting_ai_ = false;
 +  candidate_list_visible_ = !kotori_awaiting_ai_;
++  KotoriUpdateSuggestionVisibility();
 +  // Asteria: ライブ変換(docs/adr/0077)。AI の結果を待っている間は読みのまま出す。結果が出たら
 +  // (AI がこの読みを採点しなかったときも)、Space を押したときに出る 1 番目と同じ文を出す。
 +  if (live && status != KotoriAiStatus::kPending && kotori_prepared_conversion_ &&
@@ -25493,10 +25589,11 @@ index fd03a6c0c..d369970db 100644
 +  *suggestion->insert_candidate(0) = std::move(candidate);
 +  previous_suggestions_ = *suggestion;
 +  UpdateCandidateList();
-   InitializeSelectedCandidateIndices();
-   return true;
- }
- 
++  KotoriUpdateSuggestionVisibility();
++  InitializeSelectedCandidateIndices();
++  return true;
++}
++
 +EngineConverterInterface::KotoriAiStatus EngineConverter::KotoriPrepareConversion(
 +    const composer::Composer& composer, const commands::Context& context,
 +    const ConversionPreferences& preferences) {
@@ -25541,7 +25638,7 @@ index fd03a6c0c..d369970db 100644
  bool EngineConverter::IsEmptySegment(const Segment& segment) const {
    return ((segment.candidates_size() == 0) &&
            (segment.meta_candidates_size() == 0));
-@@ -612,10 +894,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
+@@ -612,10 +911,14 @@ bool EngineConverter::IsEmptySegment(const Segment& segment) const {
  bool EngineConverter::Predict(const composer::Composer& composer,
                                const commands::Context& context,
                                const ConversionPreferences& preferences) {
@@ -25556,7 +25653,7 @@ index fd03a6c0c..d369970db 100644
  
    // Initialize the segments and conversion_request for prediction
    ConversionRequest::Options options;
-@@ -624,8 +910,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -624,8 +927,11 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    DCHECK(config_);
    SetRequestType(ConversionRequest::PREDICTION, options);
    options.use_actual_converter_for_realtime_conversion = true;
@@ -25568,7 +25665,7 @@ index fd03a6c0c..d369970db 100644
            .SetComposer(composer)
            .SetRequestView(*request_)
            .SetContextView(context)
-@@ -641,11 +930,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -641,11 +947,12 @@ bool EngineConverter::Predict(const composer::Composer& composer,
         candidate_list_.size() > 0 && candidate_list_.focused() &&
         candidate_list_.focused_index() == candidate_list_.last_index());
  
@@ -25583,7 +25680,7 @@ index fd03a6c0c..d369970db 100644
      if (!result && predict_first) {
        // Returns false if we failed at the first prediction.
        // If predict_expand is true, it means we have prevous_suggestions_.
-@@ -655,9 +945,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -655,9 +962,16 @@ bool EngineConverter::Predict(const composer::Composer& composer,
      }
    } else {
      converter_->PrependCandidates(conversion_request, previous_suggestions_,
@@ -25601,7 +25698,7 @@ index fd03a6c0c..d369970db 100644
    segment_index_ = 0;
    state_ = PREDICTION;
    UpdateCandidateList();
-@@ -666,6 +963,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
+@@ -666,6 +980,47 @@ bool EngineConverter::Predict(const composer::Composer& composer,
    return true;
  }
  
@@ -25649,7 +25746,7 @@ index fd03a6c0c..d369970db 100644
  void EngineConverter::MaybeExpandPrediction(
      const composer::Composer& composer) {
    DCHECK(CheckState(PREDICTION | CONVERSION));
-@@ -690,7 +1028,27 @@ void EngineConverter::MaybeExpandPrediction(
+@@ -690,7 +1045,27 @@ void EngineConverter::MaybeExpandPrediction(
    UpdateSelectedCandidateIndex();
  }
  
@@ -25677,7 +25774,7 @@ index fd03a6c0c..d369970db 100644
    DCHECK(CheckState(SUGGESTION | PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -700,6 +1058,7 @@ void EngineConverter::Cancel() {
+@@ -700,6 +1075,7 @@ void EngineConverter::Cancel() {
  }
  
  void EngineConverter::Reset() {
@@ -25685,7 +25782,7 @@ index fd03a6c0c..d369970db 100644
    DCHECK(CheckState(COMPOSITION | SUGGESTION | PREDICTION | CONVERSION));
  
    // Even if composition mode, call ResetConversion
-@@ -717,6 +1076,7 @@ void EngineConverter::Reset() {
+@@ -717,6 +1093,7 @@ void EngineConverter::Reset() {
  
  void EngineConverter::Commit(const composer::Composer& composer,
                               const commands::Context& context) {
@@ -25693,7 +25790,7 @@ index fd03a6c0c..d369970db 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    ResetResult();
  
-@@ -748,6 +1108,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
+@@ -748,6 +1125,7 @@ void EngineConverter::Commit(const composer::Composer& composer,
  
  void EngineConverter::CommitContext(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25701,7 +25798,7 @@ index fd03a6c0c..d369970db 100644
    const ConversionRequest conversion_request = ConversionRequestBuilder()
                                                     .SetComposer(composer)
                                                     .SetRequestView(*request_)
-@@ -760,6 +1121,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
+@@ -760,6 +1138,7 @@ void EngineConverter::CommitContext(const composer::Composer& composer,
  bool EngineConverter::CommitSuggestionInternal(
      const composer::Composer& composer, const commands::Context& context,
      size_t* consumed_key_size) {
@@ -25709,7 +25806,7 @@ index fd03a6c0c..d369970db 100644
    DCHECK(consumed_key_size);
    DCHECK(CheckState(SUGGESTION));
    ResetResult();
-@@ -860,6 +1222,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -860,6 +1239,7 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
                                               const commands::Context& context,
                                               size_t segments_to_commit,
                                               size_t* consumed_key_size) {
@@ -25717,7 +25814,7 @@ index fd03a6c0c..d369970db 100644
    DCHECK(CheckState(PREDICTION | CONVERSION));
    DCHECK(segments_.conversion_segments_size() >= segments_to_commit);
    ResetResult();
-@@ -919,14 +1282,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
+@@ -919,14 +1299,19 @@ void EngineConverter::CommitSegmentsInternal(const composer::Composer& composer,
  
  void EngineConverter::CommitPreedit(const composer::Composer& composer,
                                      const commands::Context& context) {
@@ -25739,7 +25836,7 @@ index fd03a6c0c..d369970db 100644
    token->set_value(preedit);
  
    // Cursor offset needs to be calculated based on normalized text.
-@@ -956,6 +1324,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
+@@ -956,6 +1341,7 @@ void EngineConverter::CommitPreedit(const composer::Composer& composer,
  void EngineConverter::CommitHead(size_t count,
                                   const composer::Composer& composer,
                                   size_t* consumed_key_size) {
@@ -25747,7 +25844,7 @@ index fd03a6c0c..d369970db 100644
    std::string preedit = composer.GetStringForSubmission();
    if (count > preedit.length()) {
      *consumed_key_size = preedit.length();
-@@ -1095,6 +1464,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
+@@ -1095,6 +1481,7 @@ void EngineConverter::ResizeSegmentWidth(const composer::Composer& composer,
      return;
    }
  
@@ -25755,7 +25852,7 @@ index fd03a6c0c..d369970db 100644
    UpdateCandidateList();
    // Clears selected index of a focused segment and trailing segments.
    // TODO(hsumita): Keep the indices if the segment type is FIXED_VALUE.
-@@ -1112,14 +1482,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
+@@ -1112,14 +1499,121 @@ void EngineConverter::SegmentWidthShrink(const composer::Composer& composer) {
    ResizeSegmentWidth(composer, -1);
  }
  
@@ -25877,7 +25974,7 @@ index fd03a6c0c..d369970db 100644
    SegmentFocus();
  }
  
-@@ -1128,6 +1605,11 @@ void EngineConverter::CandidateNextPage() {
+@@ -1128,6 +1622,11 @@ void EngineConverter::CandidateNextPage() {
    ResetResult();
  
    candidate_list_.MoveNextPage();
@@ -25889,7 +25986,7 @@ index fd03a6c0c..d369970db 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1138,6 +1620,11 @@ void EngineConverter::CandidatePrev() {
+@@ -1138,6 +1637,11 @@ void EngineConverter::CandidatePrev() {
    ResetResult();
  
    candidate_list_.MovePrev();
@@ -25901,7 +25998,7 @@ index fd03a6c0c..d369970db 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1148,6 +1635,11 @@ void EngineConverter::CandidatePrevPage() {
+@@ -1148,6 +1652,11 @@ void EngineConverter::CandidatePrevPage() {
    ResetResult();
  
    candidate_list_.MovePrevPage();
@@ -25913,7 +26010,7 @@ index fd03a6c0c..d369970db 100644
    candidate_list_visible_ = true;
    UpdateSelectedCandidateIndex();
    SegmentFocus();
-@@ -1261,6 +1753,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
+@@ -1261,6 +1770,34 @@ void EngineConverter::FillPreedit(const composer::Composer& composer,
    output::FillPreedit(composer, preedit);
  }
  
@@ -25948,7 +26045,7 @@ index fd03a6c0c..d369970db 100644
  void EngineConverter::FillOutput(const composer::Composer& composer,
                                   commands::Output* output) const {
    if (!output) {
-@@ -1272,7 +1792,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1272,7 +1809,7 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
    }
    if (CheckState(COMPOSITION)) {
      if (!composer.Empty()) {
@@ -25957,7 +26054,7 @@ index fd03a6c0c..d369970db 100644
      }
    }
  
-@@ -1287,16 +1807,19 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+@@ -1287,16 +1824,24 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
      // When the suggestion comes from zero query suggestion, the
      // composer is empty.  In that case, preedit is not rendered.
      if (!composer.Empty()) {
@@ -25969,7 +26066,12 @@ index fd03a6c0c..d369970db 100644
      FillConversion(output->mutable_preedit());
    }
 +  // Kotori: 読みは表示し、AI未評価の候補は一覧/API/デバッグ出力にも出さない。
-+  if (CheckState(SUGGESTION) && kotori_awaiting_ai_) return;
++  // Asteria: 入力中の窓は続きの予測だけ(docs/adr/0081)。予測は AI の結果を待たずに出し、なければ出さない。
++  if (CheckState(SUGGESTION) && KotoriCompletionsOnly()) {
++    if (!KotoriSuggestionVisible()) return;
++  } else if (CheckState(SUGGESTION) && kotori_awaiting_ai_) {
++    return;
++  }
    // Candidate list
    if (CheckState(SUGGESTION | PREDICTION | CONVERSION) &&
        candidate_list_visible_) {
@@ -25978,7 +26080,52 @@ index fd03a6c0c..d369970db 100644
    }
  
    // All candidate words
-@@ -1319,6 +1842,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1315,10 +1860,55 @@ void EngineConverter::FillOutput(const composer::Composer& composer,
+   }
+ }
+ 
++bool EngineConverter::KotoriCompletionsOnly() const {
++  return config_->kotori_suggest_completions_only() && !request_->mixed_conversion();
++}
++
++// 続きの予測: 読みが今打った読みで始まり、それより長い候補(入力履歴・システム辞書から)。今打った読みをそのまま
++// 変換したもの(Space の結果と同じもの・リアルタイム変換・AI の変換結果)は出さない(docs/adr/0081)。
++bool EngineConverter::KotoriIsVisibleSuggestion(const converter::Candidate& candidate,
++                                                absl::string_view key) const {
++  if (config_->presentation_mode()) return false;
++  const size_t key_chars = Util::CharsLen(key);
++  if (key_chars < config_->kotori_suggest_min_chars()) return false;
++  if (candidate.attributes & (converter::Attribute::REALTIME_CONVERSION |
++                              converter::Attribute::COMMAND_CANDIDATE)) {
++    return false;
++  }
++  if (!absl::StartsWith(candidate.key, key) || Util::CharsLen(candidate.key) <= key_chars) {
++    return false;
++  }
++  const bool history = candidate.attributes &
++      (converter::Attribute::USER_HISTORY_PREDICTION |
++       converter::Attribute::WEAK_USER_HISTORY_PREDICTION);
++  return history ? config_->use_history_suggest() : config_->use_dictionary_suggest();
++}
++
++bool EngineConverter::KotoriSuggestionVisible() const {
++  if (!KotoriCompletionsOnly()) return true;
++  return !kotori_suggestion_hidden_ && CheckState(SUGGESTION) && candidate_list_.size() > 0;
++}
++
++void EngineConverter::KotoriHideSuggestionDisplay() {
++  kotori_suggestion_hidden_ = true;
++  if (KotoriCompletionsOnly()) candidate_list_visible_ = false;
++}
++
++void EngineConverter::KotoriUpdateSuggestionVisibility() {
++  // 予測は AI の変換とは別のものなので、AI の結果を待たずに出す(docs/adr/0081 の要件 4)。
++  if (KotoriCompletionsOnly() && CheckState(SUGGESTION)) {
++    candidate_list_visible_ = KotoriSuggestionVisible();
++  }
++}
++
+ EngineConverter* EngineConverter::Clone() const {
    EngineConverter* engine_converter =
        new EngineConverter(converter_, request_, config_);
    *engine_converter = *this;
@@ -25989,7 +26136,7 @@ index fd03a6c0c..d369970db 100644
  
    if (engine_converter->CheckState(SUGGESTION | PREDICTION | CONVERSION)) {
      // UpdateCandidateList() is not simple setter and it uses some members.
-@@ -1333,6 +1860,10 @@ EngineConverter* EngineConverter::Clone() const {
+@@ -1333,6 +1923,10 @@ EngineConverter* EngineConverter::Clone() const {
  void EngineConverter::ResetResult() { result_.Clear(); }
  
  void EngineConverter::ResetState() {
@@ -26000,7 +26147,24 @@ index fd03a6c0c..d369970db 100644
    state_ = COMPOSITION;
    segment_index_ = 0;
    previous_suggestions_.clear();
-@@ -1712,6 +2243,26 @@ void EngineConverter::FillCandidateWindow(
+@@ -1562,9 +2156,16 @@ void EngineConverter::AppendCandidateList() {
+     return c.value;
+   };
+ 
++  // Asteria: 入力中の窓には続きの予測だけを、候補数の上限まで出す(docs/adr/0081)。
++  const bool completions_only = state_ == SUGGESTION && KotoriCompletionsOnly();
+   for (size_t i = candidate_list_.next_available_id();
+        i < segment.candidates_size(); ++i) {
+     const converter::Candidate& c = segment.candidate(i);
++    if (completions_only &&
++        (candidate_list_.size() >= config_->suggestions_size() ||
++         !KotoriIsVisibleSuggestion(c, segment.key()))) {
++      continue;
++    }
+     candidate_list_.AddCandidate(i, get_candidate_dedup_key(c));
+     // if candidate has spelling correction attribute,
+     // always display the candidate to let user know the
+@@ -1712,6 +2313,26 @@ void EngineConverter::FillCandidateWindow(
    output::FillCandidateWindow(segment, candidate_list_, position,
                                candidate_window);
  
@@ -26027,7 +26191,7 @@ index fd03a6c0c..d369970db 100644
    // Shortcut keys
    if (CheckState(PREDICTION | CONVERSION)) {
      output::FillShortcuts(GetCandidateShortcuts(selection_shortcut_),
-@@ -1823,12 +2374,18 @@ void EngineConverter::FillIncognitoCandidateWords(
+@@ -1823,12 +2444,18 @@ void EngineConverter::FillIncognitoCandidateWords(
  void EngineConverter::SetRequest(
      std::shared_ptr<const commands::Request> request) {
    DCHECK(request);
@@ -26046,7 +26210,7 @@ index fd03a6c0c..d369970db 100644
    config_ = std::move(config);
    updated_command_ = converter::Candidate::DEFAULT_COMMAND;
    selection_shortcut_ = config_->selection_shortcut();
-@@ -1836,6 +2393,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
+@@ -1836,6 +2463,7 @@ void EngineConverter::SetConfig(std::shared_ptr<const config::Config> config) {
  }
  
  void EngineConverter::OnStartComposition(const commands::Context& context) {
@@ -26055,7 +26219,7 @@ index fd03a6c0c..d369970db 100644
    if (context.has_revision()) {
      revision_changed = (context.revision() != client_revision_);
 diff --git a/src/engine/engine_converter.h b/src/engine/engine_converter.h
-index 6d061cfca..98b88efd9 100644
+index 6d061cfca..3d0dbc41d 100644
 --- a/src/engine/engine_converter.h
 +++ b/src/engine/engine_converter.h
 @@ -32,6 +32,7 @@
@@ -26074,7 +26238,7 @@ index 6d061cfca..98b88efd9 100644
  
    // Checks if the current state is in the state bitmap.
    bool CheckState(States) const override;
-@@ -107,6 +109,18 @@ class EngineConverter : public EngineConverterInterface {
+@@ -107,6 +109,20 @@ class EngineConverter : public EngineConverterInterface {
                 const commands::Context& context,
                 const ConversionPreferences& preferences) override;
  
@@ -26086,6 +26250,8 @@ index 6d061cfca..98b88efd9 100644
 +      const composer::Composer& composer, const commands::Context& context,
 +      const ConversionPreferences& preferences) override;
 +  bool KotoriIsAwaitingAi() const override { return kotori_awaiting_ai_; }
++  bool KotoriSuggestionVisible() const override;
++  void KotoriHideSuggestionDisplay() override;
 +  bool KotoriFirstCandidatesKept() const override;
 +
 +  void KotoriInputFieldTypeChanged() override { KotoriInvalidateInput(); }
@@ -26093,7 +26259,7 @@ index 6d061cfca..98b88efd9 100644
    // Sends a prediction request to the converter.
    // Brings base class overloads into scope to avoid name hiding.
    using EngineConverterInterface::Predict;
-@@ -116,6 +130,7 @@ class EngineConverter : public EngineConverterInterface {
+@@ -116,6 +132,7 @@ class EngineConverter : public EngineConverterInterface {
  
    // Clears conversion segments, but keep the context.
    void Cancel() override;
@@ -26101,7 +26267,7 @@ index 6d061cfca..98b88efd9 100644
  
    // Clears conversion segments and the context.
    void Reset() override;
-@@ -239,6 +254,12 @@ class EngineConverter : public EngineConverterInterface {
+@@ -239,6 +256,12 @@ class EngineConverter : public EngineConverterInterface {
                     commands::Preedit* preedit) const override;
  
    // Fills protocol buffers
@@ -26114,7 +26280,7 @@ index 6d061cfca..98b88efd9 100644
    void FillOutput(const composer::Composer& composer,
                    commands::Output* output) const override;
  
-@@ -274,6 +295,25 @@ class EngineConverter : public EngineConverterInterface {
+@@ -274,6 +297,25 @@ class EngineConverter : public EngineConverterInterface {
  
    friend class EngineConverterTest;
  
@@ -26140,7 +26306,7 @@ index 6d061cfca..98b88efd9 100644
    // Resets the result value stored at the previous command.
    void ResetResult();
  
-@@ -344,6 +384,8 @@ class EngineConverter : public EngineConverterInterface {
+@@ -344,6 +386,8 @@ class EngineConverter : public EngineConverterInterface {
    // Returns true if the selected candidate on the first segment covers all
    // conversion segments.
    bool IsFullSentenceCandidateSelected() const;
@@ -26149,11 +26315,17 @@ index 6d061cfca..98b88efd9 100644
  
    // Returns the length of committed candidate's key in characters.
    // True is returned if the selected candidate is successfully committed.
-@@ -424,6 +466,15 @@ class EngineConverter : public EngineConverterInterface {
+@@ -424,6 +468,21 @@ class EngineConverter : public EngineConverterInterface {
    int32_t client_revision_;
  
    bool candidate_list_visible_;
 +  bool kotori_awaiting_ai_ = false;
++  // Asteria: 入力中の窓に続きの予測だけを出す(docs/adr/0081)。
++  bool KotoriCompletionsOnly() const;
++  bool KotoriIsVisibleSuggestion(const converter::Candidate& candidate,
++                                 absl::string_view key) const;
++  void KotoriUpdateSuggestionVisibility();
++  bool kotori_suggestion_hidden_ = false;
 +  // Asteria: 変換の後に文節の区切りを変えたか(正答率では「外れ」に数える)。
 +  bool kotori_resized_ = false;
 +  std::optional<Segments> kotori_prepared_conversion_;
@@ -26166,10 +26338,10 @@ index 6d061cfca..98b88efd9 100644
    // Mutable values of |config_|.  These values may be changed temporarily per
    // session.
 diff --git a/src/engine/engine_converter_interface.h b/src/engine/engine_converter_interface.h
-index f8e3b43ec..719704d9f 100644
+index f8e3b43ec..6ac33bcfc 100644
 --- a/src/engine/engine_converter_interface.h
 +++ b/src/engine/engine_converter_interface.h
-@@ -141,6 +141,28 @@ class EngineConverterInterface {
+@@ -141,6 +141,32 @@ class EngineConverterInterface {
                     conversion_preferences());
    }
  
@@ -26189,6 +26361,10 @@ index f8e3b43ec..719704d9f 100644
 +    return KotoriAiStatus::kUnavailable;
 +  }
 +  virtual bool KotoriIsAwaitingAi() const { return false; }
++  // Asteria: 入力中の候補が利用者に見えているか(docs/adr/0081)。
++  virtual bool KotoriSuggestionVisible() const { return true; }
++  // Asteria: 作った入力中の候補を窓に出さない(窓を出さない欄。docs/adr/0081)。
++  virtual void KotoriHideSuggestionDisplay() {}
 +  // Asteria: 今の変換で、どの文節も1番目の候補のまま、区切りも変えていないか(ダッシュボードの正答率)。
 +  virtual bool KotoriFirstCandidatesKept() const { return false; }
 +
@@ -26198,7 +26374,7 @@ index f8e3b43ec..719704d9f 100644
    // Sends a prediction request to the converter.
    virtual bool Predict(const composer::Composer& composer,
                         const commands::Context& context,
-@@ -162,6 +184,9 @@ class EngineConverterInterface {
+@@ -162,6 +188,9 @@ class EngineConverterInterface {
    // Clear conversion segments, but keep the context.
    virtual void Cancel() = 0;
  
@@ -26209,18 +26385,20 @@ index f8e3b43ec..719704d9f 100644
    virtual void Reset() = 0;
  
 diff --git a/src/engine/engine_converter_test.cc b/src/engine/engine_converter_test.cc
-index 808058c64..0a1f4a805 100644
+index 808058c64..08dcb5365 100644
 --- a/src/engine/engine_converter_test.cc
 +++ b/src/engine/engine_converter_test.cc
-@@ -111,6 +111,7 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
+@@ -111,6 +111,9 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
    void SetUp() override {
      config_ = std::make_shared<Config>();
      config_->set_use_cascading_window(true);
 +    config_->set_kotori_hide_character_types(false);
++    // Asteria: Mozc の入力中の候補を確かめるため、Mozc と同じ出し方にする(既定は続きの予測だけ。docs/adr/0081)。
++    config_->set_kotori_suggest_completions_only(false);
      request_ = std::make_shared<Request>();
  
      table_ = std::make_shared<composer::Table>();
-@@ -124,6 +125,22 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
+@@ -124,6 +127,22 @@ class EngineConverterTest : public testing::TestWithTempUserProfile {
      composer_.reset();
    }
  
@@ -26243,7 +26421,7 @@ index 808058c64..0a1f4a805 100644
    static void GetSegments(const EngineConverter& converter, Segments* dest) {
      CHECK(dest);
      *dest = converter.segments_;
-@@ -2472,6 +2489,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
+@@ -2472,6 +2491,31 @@ TEST_F(EngineConverterTest, AppendCandidateList) {
    }
  }
  
@@ -26275,7 +26453,7 @@ index 808058c64..0a1f4a805 100644
  TEST_F(EngineConverterTest, AppendCandidateListForRequestTypes) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -3970,6 +4012,297 @@ TEST_F(EngineConverterTest, PredictWithContext) {
+@@ -3970,6 +4014,389 @@ TEST_F(EngineConverterTest, PredictWithContext) {
    EXPECT_TRUE(converter.Predict(*composer_, context));
  }
  
@@ -26318,6 +26496,98 @@ index 808058c64..0a1f4a805 100644
 +    EXPECT_EQ(output.result().value(), live ? "今日はあ" : "きょうはあ");
 +    EXPECT_EQ(output.result().key(), "きょうはあ");
 +  }
++}
++
++// Asteria: 入力中の窓には続きの予測だけを出す(Issue #205、docs/adr/0081)。今打った読みの変換(Space の結果と
++// 同じもの・リアルタイム変換・AI の結果)は出さず、Space では AI の結果を出す。予測の元・候補数・文字数の設定が効き、
++// 候補はどの設定でも既定と同じ設定で作る(AI の準備を変えない)。
++TEST_F(EngineConverterTest, KotoriSuggestionShowsOnlyCompletions) {
++  config_->set_kotori_suggest_completions_only(true);
++  config_->set_kotori_lm_enabled(true);
++  auto mock = std::make_shared<MockConverter>();
++  EngineConverter converter(mock, request_, config_);
++  Segments suggestion;
++  Segment* segment = suggestion.add_segment();
++  segment->set_key("きょうは");
++  auto add = [&](absl::string_view key, absl::string_view value, uint32_t attributes) {
++    converter::Candidate* c = segment->add_candidate();
++    c->key = c->content_key = std::string(key);
++    c->value = c->content_value = std::string(value);
++    c->attributes = attributes;
++  };
++  add("きょうは", "京は", 0);                    // 今の読みの変換
++  add("きょうはいいてんき", "今日はいい天気", 0);  // システム辞書の続き
++  add("きょうはやすみ", "今日は休み", converter::Attribute::USER_HISTORY_PREDICTION);
++  add("きょうは", "今日は", converter::Attribute::REALTIME_CONVERSION);
++  bool pending = false;
++  EXPECT_CALL(*mock, StartPrediction(_, _))
++      .WillRepeatedly([&](const ConversionRequest& request, Segments* segments) {
++        EXPECT_TRUE(request.config().use_history_suggest());
++        EXPECT_TRUE(request.config().use_dictionary_suggest());
++        EXPECT_TRUE(request.config().use_realtime_conversion());
++        EXPECT_FALSE(request.config().presentation_mode());
++        *segments = suggestion;
++        if (pending) segments->set_kotori_ai_status(Segments::KotoriAiStatus::kPending);
++        return true;
++      });
++  Segments ai;
++  AddSegmentWithSingleCandidate(&ai, "きょうは", "今日は");
++  ai.mutable_conversion_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  ai.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*mock, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(ai), Return(true)));
++  composer_->InsertCharacterPreedit("きょうは");
++  auto shown = [&] {
++    commands::Output output;
++    converter.FillOutput(*composer_, &output);
++    std::vector<std::string> values;
++    for (const auto& c : output.candidate_window().candidate()) values.push_back(c.value());
++    return values;
++  };
++  using Values = std::vector<std::string>;
++  ASSERT_TRUE(converter.Suggest(*composer_, commands::Context()));
++  EXPECT_EQ(shown(), (Values{"今日はいい天気", "今日は休み"}));
++  // 取り直しで AI の結果を入れても、窓には出さない。
++  converter.KotoriPreviewConversion(*composer_, commands::Context());
++  EXPECT_EQ(shown(), (Values{"今日はいい天気", "今日は休み"}));
++  // AI の結果を待っている間も、予測は待たずに出す。
++  pending = true;
++  ASSERT_TRUE(converter.Suggest(*composer_, commands::Context()));
++  EXPECT_TRUE(converter.KotoriIsAwaitingAi());
++  EXPECT_EQ(shown(), (Values{"今日はいい天気", "今日は休み"}));
++  pending = false;
++  // 予測の元。
++  config_->set_use_dictionary_suggest(false);
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_EQ(shown(), (Values{"今日は休み"}));
++  config_->set_use_history_suggest(false);
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_TRUE(shown().empty());
++  EXPECT_FALSE(converter.KotoriSuggestionVisible());
++  config_->set_use_history_suggest(true);
++  config_->set_use_dictionary_suggest(true);
++  // 候補数。
++  config_->set_suggestions_size(1);
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_EQ(shown(), (Values{"今日はいい天気"}));
++  config_->set_suggestions_size(3);
++  // 予測を出し始める文字数(「きょうは」は 4 文字)。
++  config_->set_kotori_suggest_min_chars(5);
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_TRUE(shown().empty());
++  config_->set_kotori_suggest_min_chars(4);
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_EQ(shown().size(), 2);
++  // 窓を出さない欄。
++  converter.KotoriHideSuggestionDisplay();
++  EXPECT_TRUE(shown().empty());
++  // Space は AI の結果。
++  converter.Suggest(*composer_, commands::Context());
++  EXPECT_TRUE(converter.Convert(*composer_, commands::Context()));
++  commands::Output output;
++  converter.FillOutput(*composer_, &output);
++  ASSERT_EQ(output.preedit().segment_size(), 1);
++  EXPECT_EQ(output.preedit().segment(0).value(), "今日は");
 +}
 +
 +// 打ち間違いを補正した結果(読みが打った読みと違う)も出し、Enter でそのまま確定する。
@@ -26573,7 +26843,7 @@ index 808058c64..0a1f4a805 100644
  TEST_F(EngineConverterTest, FullSentenceCandidateInConversion) {
    auto mock_converter = std::make_shared<MockConverter>();
    EngineConverter converter(mock_converter, request_, config_);
-@@ -4822,5 +5155,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
+@@ -4822,5 +5249,199 @@ TEST_F(EngineConverterTest, CommitFirstSegmentSingleSegmentCandidate) {
    EXPECT_EQ(consumed_key_size, Util::CharsLen("きょうは"));
  }
  
@@ -26910,15 +27180,57 @@ index 335639ca8..1295e38c7 100644
 +        "//testing:mozctest",
 +    ],
 +)
+diff --git a/src/gui/config_dialog/character_form_editor.cc b/src/gui/config_dialog/character_form_editor.cc
+index ec0faf7e7..a75b28272 100644
+--- a/src/gui/config_dialog/character_form_editor.cc
++++ b/src/gui/config_dialog/character_form_editor.cc
+@@ -52,7 +52,7 @@ QString FormToString(config::Config::CharacterForm form) {
+       return QObject::tr("Halfwidth");
+       break;
+     case config::Config::LAST_FORM:
+-      return QObject::tr("Remember");
++      return QString::fromUtf8("前回と同じ");
+       break;
+     default:
+       return QObject::tr("Unknown");
+@@ -65,7 +65,7 @@ config::Config::CharacterForm StringToForm(const QString &str) {
+     return config::Config::FULL_WIDTH;
+   } else if (str == QObject::tr("Halfwidth")) {
+     return config::Config::HALF_WIDTH;
+-  } else if (str == QObject::tr("Remember")) {
++  } else if (str == QString::fromUtf8("前回と同じ")) {
+     return config::Config::LAST_FORM;
+   }
+   return config::Config::FULL_WIDTH;  // failsafe
+@@ -99,7 +99,7 @@ std::string StringToGroup(const QString &str) {
+ CharacterFormEditor::CharacterFormEditor(QWidget *parent)
+     : QTableWidget(parent), delegate_(std::make_unique<ComboBoxDelegate>()) {
+   QStringList item_list;
+-  item_list << tr("Fullwidth") << tr("Halfwidth") << tr("Remember");
++  item_list << tr("Fullwidth") << tr("Halfwidth") << QString::fromUtf8("前回と同じ");
+   delegate_->SetItemList(item_list);
+   setEditTriggers(QAbstractItemView::AllEditTriggers);
+   setItemDelegate(delegate_.get());
+@@ -120,7 +120,8 @@ CharacterFormEditor::CharacterFormEditor(QWidget *parent)
+ void CharacterFormEditor::Load(const config::Config &config) {
+   clear();
+   QStringList header;
+-  header << tr("Group") << tr("Composition") << tr("Conversion");
++  // Asteria: わかりやすい言葉にする(2026-11-03)。
++  header << QString::fromUtf8("文字") << QString::fromUtf8("打っている間") << QString::fromUtf8("変換した後");
+   setHorizontalHeaderLabels(header);
+ 
+   std::unique_ptr<config::Config> default_config;
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..42ca9c268 100644
+index abbf55d68..87e4a90b4 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
-@@ -30,12 +30,55 @@
+@@ -30,12 +30,60 @@
  // Qt component of configure dialog for Mozc
  #include "gui/config_dialog/config_dialog.h"
  
 +#include <array>
++#include <QAbstractButton>
 +#include <QCheckBox>
 +#include <QComboBox>
 +#include <QDate>
@@ -26937,6 +27249,7 @@ index abbf55d68..42ca9c268 100644
 +#include <QHBoxLayout>
 +#include <QLabel>
 +#include <QLineEdit>
++#include <QListWidget>
 +#include <QLocale>
  #include <QMessageBox>
 +#include <QPainter>
@@ -26948,8 +27261,11 @@ index abbf55d68..42ca9c268 100644
 +#include <QScreen>
 +#include <QScrollArea>
 +#include <QSettings>
++#include <QShortcut>
 +#include <QStandardPaths>
++#include <QStyle>
 +#include <QSysInfo>
++#include <QTabBar>
 +#include <QTimer>
 +#include <QUrl>
 +#include <QVBoxLayout>
@@ -26970,7 +27286,7 @@ index abbf55d68..42ca9c268 100644
  #include <sstream>
  #include <string>
  
-@@ -43,6 +86,10 @@
+@@ -43,6 +91,10 @@
  #include "absl/log/log.h"
  #include "absl/strings/string_view.h"
  #include "base/config_file_stream.h"
@@ -26981,7 +27297,7 @@ index abbf55d68..42ca9c268 100644
  #include "client/client.h"
  #include "config/config_handler.h"
  #include "config/stats_config_util.h"
-@@ -83,6 +130,457 @@ void Connect(const QList<T *> &objects, const char *signal,
+@@ -83,6 +135,467 @@ void Connect(const QList<T *> &objects, const char *signal,
  
  namespace mozc {
  namespace gui {
@@ -27015,6 +27331,16 @@ index abbf55d68..42ca9c268 100644
 +QLabel { color: #1A1A1A; }
 +QLabel#kotoriNote, QLabel[kotoriNote="true"] { color: #5C5C5C; font-size: 9pt; }
 +QFrame#kotoriCard { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; }
++QFrame[class="setting-group-layout"] { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 8px; padding: 6px 10px; }
++QFrame[class="setting-group-header"] QLabel { font-size: 11pt; font-weight: 600; color: #1A1A1A; }
++QListWidget#kotoriNav { background: transparent; border: none; outline: none; font-size: 10pt; }
++QListWidget#kotoriNav::item { padding: 9px 12px; margin: 1px 0; border-radius: 4px; color: #1A1A1A; }
++QListWidget#kotoriNav::item:hover { background: #EAEAEA; }
++QListWidget#kotoriNav::item:selected { background: #E5E5E5; color: #1A1A1A; border-left: 3px solid #0F6CBD; }
++QLineEdit#kotoriSearch { padding: 6px 10px; }
++QLabel#kotoriPageTitle { font-size: 18pt; font-weight: 600; color: #1A1A1A; }
++QLabel#kotoriSearchEmpty { color: #5C5C5C; padding: 8px 12px; }
++QCheckBox[kotoriMatch="true"], QLabel[kotoriMatch="true"], QPushButton[kotoriMatch="true"] { background: #FFF4CE; border-radius: 4px; }
 +)";
 +
 +#ifdef _WIN32
@@ -27439,7 +27765,7 @@ index abbf55d68..42ca9c268 100644
  
  using ::mozc::config::StatsConfigUtil;
  
-@@ -104,6 +602,14 @@ ConfigDialog::ConfigDialog()
+@@ -104,6 +617,14 @@ ConfigDialog::ConfigDialog()
        initial_use_keyboard_to_change_preedit_method_(false),
        initial_use_mode_indicator_(true) {
    setupUi(this);
@@ -27454,7 +27780,7 @@ index abbf55d68..42ca9c268 100644
    setStyleSheet(QString::fromUtf8(kQss.data(), kQss.size()));
  
    // Remove the context help button (question mark button) from the window.
-@@ -120,7 +626,6 @@ ConfigDialog::ConfigDialog()
+@@ -120,7 +641,6 @@ ConfigDialog::ConfigDialog()
  #ifdef __APPLE__
    miscDefaultIMEWidget->setVisible(false);
    miscAdministrationWidget->setVisible(false);
@@ -27462,7 +27788,34 @@ index abbf55d68..42ca9c268 100644
  #endif  // __APPLE__
  
  #if defined(__linux__)
-@@ -152,6 +657,525 @@ ConfigDialog::ConfigDialog()
+@@ -141,6 +661,26 @@ ConfigDialog::ConfigDialog()
+ #endif  // NDEBUG
+ 
+   suggestionsSizeSpinBox->setRange(1, 9);
++  // Asteria: 入力中の窓は続きの予測だけを出す(docs/adr/0081)。予測を出し始める文字数を選べるようにし、
++  // 変換の先取り(リアルタイム変換)の項目は画面から外す(窓には出さないため)。
++  {
++    auto *label = new QLabel(QString::fromUtf8("予測を出し始める文字数"), suggestOtherGroup);
++    kotoriSuggestMinCharsSpinBox_ = new QSpinBox(suggestOtherGroup);
++    kotoriSuggestMinCharsSpinBox_->setObjectName("kotoriSuggestMinChars");
++    kotoriSuggestMinCharsSpinBox_->setRange(1, 5);
++    gridLayout_11->addWidget(label, 1, 0);
++    gridLayout_11->addWidget(kotoriSuggestMinCharsSpinBox_, 1, 2);
++    auto *note = new QLabel(QString::fromUtf8(
++        "入力中は、打った読みの続きを補う候補(入力履歴・システム辞書から)だけを出します。"
++        "続きの候補がないときは窓を出しません。変換の結果を先に見たいときは、「AI 変換」タブの"
++        "「ライブ変換」を使います。"), suggestOtherGroup);
++    note->setWordWrap(true);
++    note->setProperty("kotoriNote", true);
++    gridLayout_11->addWidget(note, 2, 0, 1, 3);
++    realtimeConversionCheckBox->setVisible(false);
++    QObject::connect(kotoriSuggestMinCharsSpinBox_, SIGNAL(valueChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++  }
+ 
+   punctuationsSettingComboBox->addItem(QString::fromUtf8("、。"));
+   punctuationsSettingComboBox->addItem(QString::fromUtf8("，．"));
+@@ -152,6 +692,525 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27988,7 +28341,7 @@ index abbf55d68..42ca9c268 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +1241,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +1276,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -28003,7 +28356,7 @@ index abbf55d68..42ca9c268 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +1282,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +1317,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28018,7 +28371,7 @@ index abbf55d68..42ca9c268 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +1335,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +1370,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28068,7 +28421,15 @@ index abbf55d68..42ca9c268 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -324,6 +1403,10 @@ ConfigDialog::ConfigDialog()
+@@ -312,6 +1426,7 @@ ConfigDialog::ConfigDialog()
+ #endif  // __linux__
+ 
+   GuiUtil::ReplaceWidgetLabels(this);
++  KotoriPolishSettings();
+ 
+   Reload();
+ 
+@@ -324,6 +1439,278 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28076,10 +28437,278 @@ index abbf55d68..42ca9c268 100644
 +  configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(false);
 +  kotoriSettingsStatusLabel_->setText(QString::fromUtf8("変更はありません"));
 +  kotoriSettingsStatusLabel_->setProperty("saveState", "unchanged");
++}
++
++namespace {
++
++// 行の部品の下に、ひとこと説明を付ける(部品を、部品と説明の縦の並びに置き換える)。
++void KotoriAddNote(QWidget *widget, const char *text) {
++  if (widget == nullptr || widget->parentWidget() == nullptr) return;
++  QLayout *layout = widget->parentWidget()->layout();
++  if (layout == nullptr) return;
++  auto *box = new QWidget(widget->parentWidget());
++  auto *v = new QVBoxLayout(box);
++  v->setContentsMargins(0, 0, 0, 0);
++  v->setSpacing(2);
++  if (layout->replaceWidget(widget, box) == nullptr) {
++    delete box;
++    return;
++  }
++  v->addWidget(widget);
++  auto *note = new QLabel(QString::fromUtf8(text), box);
++  note->setWordWrap(true);
++  note->setProperty("kotoriNote", true);
++  v->addWidget(note);
++}
++
++void KotoriSetText(QLabel *label, const char *text) {
++  if (label != nullptr) label->setText(QString::fromUtf8(text));
++}
++void KotoriSetText(QAbstractButton *button, const char *text) {
++  if (button != nullptr) button->setText(QString::fromUtf8(text));
++}
++
++}  // namespace
++
++void ConfigDialog::KotoriPolishSettings() {
++  // 1. わかりやすい言葉と説明(Mozc の英語の文言の訳を、Asteria の言葉で置き換える)。
++  // 入力
++  KotoriSetText(basicsLabel, "基本");
++  KotoriSetText(inputModeLabel, "入力のしかた");
++  KotoriAddNote(inputModeLabel, "ローマ字で打つか、キーボードのかなで打つか。");
++  KotoriSetText(PunctuationsSettingLabel, "句読点");
++  KotoriAddNote(PunctuationsSettingLabel, "「、。」のほか、横書きの論文で使う「，．」も選べます。");
++  KotoriSetText(symbolsSettingLabel, "かぎかっこ・中黒");
++  KotoriAddNote(symbolsSettingLabel, "「」と・を、[] や ／ にすることもできます。");
++  KotoriSetText(spaceInputSettingLabel, "空白の幅");
++  KotoriAddNote(spaceInputSettingLabel, "Space で空白を入れるときの全角・半角。「入力モードに従う」はひらがなのとき全角です。");
++  KotoriSetText(selectionShortcutModeLabel, "数字キーで候補を選ぶ");
++  KotoriAddNote(selectionShortcutModeLabel, "候補の一覧が出ているときに、数字キーで選べるようにします。");
++  KotoriSetText(numpadCharacterFormLabel, "テンキーの数字");
++  KotoriAddNote(numpadCharacterFormLabel, "テンキーで打った数字を全角にするか半角にするか。");
++  KotoriSetText(yenSignLabel, "¥ キー・\\ キー");
++  KotoriSetText(label_4, "キー操作");
++  KotoriSetText(keymapSettingLabel, "キーの割り当て");
++  KotoriAddNote(keymapSettingLabel, "Microsoft IME・ATOK・ことえりと同じ操作にできます。「カスタマイズ」で 1 つずつ変えられます。");
++  KotoriSetText(editKeymapButton, "カスタマイズ…");
++  KotoriSetText(label_11, "ローマ字の表");
++  KotoriAddNote(label_11, "ローマ字とかなの対応を変えます(例: la → ぁ)。");
++  KotoriSetText(editRomanTableButton, "カスタマイズ…");
++  // 変換と辞書
++  KotoriSetText(label, "学習");
++  KotoriSetText(label_7, "選んだ言葉を覚える");
++  KotoriAddNote(label_7, "変換で選んだ言葉を覚えて、次から先に出します。この PC の中だけに保存します。");
++  KotoriSetText(clearUserHistoryButton, "覚えた言葉を消す");
++  KotoriSetText(label_6, "ユーザー辞書");
++  KotoriSetText(editUserDictionaryButton, "ユーザー辞書を開く…");
++  if (auto *grid = qobject_cast<QGridLayout *>(
++          editUserDictionaryButton->parentWidget() ? editUserDictionaryButton->parentWidget()->layout()
++                                                   : nullptr)) {
++    auto *note = new QLabel(QString::fromUtf8("人名・地名・専門用語など、自分の言葉を登録します。"),
++                            editUserDictionaryButton->parentWidget());
++    note->setWordWrap(true);
++    note->setProperty("kotoriNote", true);
++    grid->addWidget(note, 0, 0, Qt::AlignVCenter);
++  }
++  KotoriSetText(label_9, "用例");
++  KotoriSetText(localUsageDictionaryCheckBox, "同音語の使い分けを候補の横に出す");
++  KotoriSetText(specialConversionLabel, "特別な変換");
++  KotoriSetText(singleKanjiConversionCheckBox, "漢字 1 字(例: か → 火・課・蚊)");
++  KotoriSetText(symbolConversionCheckBox, "記号(例: やじるし → →・⇒)");
++  KotoriSetText(emoticonConversionCheckBox, "顔文字(例: かおもじ → (^_^))");
++  KotoriSetText(t13nConversionCheckBox, "カタカナ語を英語に(例: こんぴゅーたー → computer)");
++  KotoriSetText(zipcodeConversionCheckBox, "郵便番号から住所(例: 1000001 → 東京都千代田区千代田)");
++  KotoriSetText(spellingCorrectionCheckBox, "読みの覚え違いを候補に出す(「もしかして」)");
++  KotoriSetText(calculatorCheckBox, "計算(例: 1+2= → 3)");
++  KotoriSetText(numberConversionCheckBox, "数字の書き方(例: 12 → 十二・Ⅻ)");
++  KotoriSetText(dateConversionCheckBox, "日付と時刻(例: きょう → 今日の日付)");
++  KotoriSetText(emojiConversionCheckBox, "絵文字(例: はーと → ❤)");
++  // 入力の補助
++  KotoriSetText(autoCorrectionLable, "入力の補助");
++  KotoriSetText(autoSwitchCompositionMode, "英数字を自動で半角にする");
++  KotoriAddNote(autoSwitchCompositionMode, "大文字で打ち始めたときや「http」などを打ったときに、半角英数に切り替えます。");
++  KotoriSetText(autoCorrectionLable_3, "Shift キーで切り替える文字");
++  KotoriAddNote(autoCorrectionLable_3, "Shift を押しながら英字を打ったときの入力。");
++  KotoriSetText(useJapaneseLayout, "英語配列のキーボードでも日本語配列として打つ");
++  KotoriSetText(useModeIndicator, "入力モード(あ・A)をカーソルの近くに出す");
++  KotoriSetText(autoCorrectionLable_2, "全角・半角");
++  if (auto *box = qobject_cast<QBoxLayout *>(fullwidthHalfwidthGroup->layout())) {
++    auto *note = new QLabel(QString::fromUtf8(
++        "打っている間と変換した後の、文字の全角・半角。「前回と同じ」は最後に選んだ書き方を使います"
++        "(英字は、まだ選んでいなければ半角)。"), fullwidthHalfwidthGroup);
++    note->setWordWrap(true);
++    note->setProperty("kotoriNote", true);
++    box->insertWidget(0, note);
++  }
++  // 予測
++  KotoriSetText(label_3, "予測の元");
++  KotoriSetText(historySuggestCheckBox, "入力履歴から予測する");
++  KotoriAddNote(historySuggestCheckBox, "前に確定した言葉から、続きを補う候補を出します。");
++  KotoriSetText(clearUserPredictionButton, "入力履歴をすべて消す");
++  KotoriSetText(dictionarySuggestCheckBox, "システム辞書から予測する");
++  KotoriAddNote(dictionarySuggestCheckBox, "辞書の言葉から、続きを補う候補を出します。");
++  KotoriSetText(clearUnusedUserPredictionButton, "使っていない履歴を消す");
++  KotoriSetText(SuggestionPreferenceLabel, "予測の出し方");
++  KotoriSetText(defaultNUmberofSuggestionsLabel, "予測の候補数");
++  // プライバシー
++  KotoriSetText(label_10, "シークレットモード");
++  KotoriSetText(incognitoModeCheckBox, "学習・入力履歴からの予測・ユーザー辞書を一時的に止める");
++  if (incognitoModeMessage != nullptr) incognitoModeMessage->setVisible(false);
++  KotoriAddNote(incognitoModeCheckBox, "人に画面を見せるときなどに使います。止めている間に打った言葉は覚えません。");
++  KotoriSetText(label_12, "プレゼンテーションモード");
++  KotoriSetText(presentationModeCheckBox, "入力中の予測を一時的にすべて止める");
++  KotoriAddNote(presentationModeCheckBox, "発表などで画面を映している間、入力中の窓を出しません。");
++  // その他
++  KotoriSetText(checkDefaultLabel, "既定の IME");
++  KotoriSetText(checkDefaultCheckBox, "起動したときに Asteria が既定の IME か確かめる");
++  KotoriSetText(IMEHotKeyDisabledCheckBox, "Ctrl+Shift でキーボードを切り替えない");
++  KotoriSetText(administrationLabel, "管理");
++  KotoriSetText(dictionaryPreloadingAndUACLabel, "辞書の先読みと UAC(管理者の権限が要ります)");
++  KotoriSetText(launchAdministrationDialogButton, "設定…");
++  KotoriSetText(startupLabel, "起動");
++  KotoriSetText(startupCheckBox, "ログインしたときに変換エンジンを起動する");
++
++  // 2. 製品に合わない項目を外す。Asteria は使い方の情報を送らない(すべて PC の中で動く)ので、Mozc の
++  // 「使用統計情報と障害レポート」は出さず、何も送らないことを書く。
++  for (QWidget *w : {static_cast<QWidget *>(usageStatsHeader),
++                     static_cast<QWidget *>(usageStatsMessageGroup),
++                     static_cast<QWidget *>(usageStatsButtonGroup)}) {
++    if (w != nullptr) w->setVisible(false);
++  }
++  if (auto *layout = qobject_cast<QBoxLayout *>(privacyTab->layout())) {
++    auto *header = new QFrame(privacyTab);
++    header->setProperty("class", "setting-group-header");
++    auto *header_layout = new QHBoxLayout(header);
++    header_layout->setContentsMargins(incognitoModeHeader->layout()->contentsMargins());
++    header_layout->addWidget(new QLabel(QString::fromUtf8("外に送る情報"), header));
++    layout->insertWidget(std::max(0, layout->count() - 1), header);
++    auto *card = new QFrame(privacyTab);
++    card->setProperty("class", "setting-group-layout");
++    auto *v = new QVBoxLayout(card);
++    v->setContentsMargins(12, 10, 12, 10);
++    auto *text = new QLabel(QString::fromUtf8(
++        "Asteria は、入力した文字・覚えた言葉・使い方の情報を外に送りません。AI もこの PC の中だけで動き、"
++        "インターネットにつながっていなくても使えます。"), card);
++    text->setWordWrap(true);
++    text->setProperty("kotoriNote", true);
++    v->addWidget(text);
++    layout->insertWidget(std::max(0, layout->count() - 1), card);
++  }
++
++  // 3. 見出しの線を外して、まとまりをカードにする(スタイルシートの setting-group-layout)。
++  for (QFrame *line : findChildren<QFrame *>()) {
++    if (line->property("class").toString() == "setting-group-line") line->setVisible(false);
++  }
++
++  // 4. タブの名前を、左の一覧に出す名前にそろえる。
++  const std::map<QWidget *, const char *> names = {
++      {basicTab, "入力"}, {dictionaryTab, "変換と辞書"}, {inputSupportTab, "入力の補助"},
++      {suggestionsTab, "予測"}, {privacyTab, "プライバシー"}, {miscTab, "その他"}};
++  for (int i = 0; i < configDialogTabWidget->count(); ++i) {
++    const auto it = names.find(configDialogTabWidget->widget(i));
++    if (it != names.end()) configDialogTabWidget->setTabText(i, QString::fromUtf8(it->second));
++    if (configDialogTabWidget->tabText(i) == QString::fromUtf8("ダッシュボード")) {
++      configDialogTabWidget->setTabText(i, QString::fromUtf8("ホーム"));
++    }
++    // Windows 11 の設定アプリのように、ページの上に大きな見出しを置く(ホームと AI 変換は自分の見出しを持つ)。
++    QWidget *page = configDialogTabWidget->widget(i);
++    if (it != names.end()) {
++      if (auto *layout = qobject_cast<QBoxLayout *>(page->layout())) {
++        auto *title = new QLabel(QString::fromUtf8(it->second), page);
++        title->setObjectName("kotoriPageTitle");
++        layout->insertWidget(0, title);
++      }
++    }
++  }
++
++  // 5. Windows 11 の設定アプリのように、左に検索と一覧、右にページを置く。タブの見出しは隠す。
++  auto *panel = new QWidget(this);
++  panel->setFixedWidth(220);
++  auto *panel_layout = new QVBoxLayout(panel);
++  panel_layout->setContentsMargins(0, 0, 8, 0);
++  panel_layout->setSpacing(8);
++  auto *search = new QLineEdit(panel);
++  search->setObjectName("kotoriSearch");
++  search->setPlaceholderText(QString::fromUtf8("設定を検索"));
++  search->setClearButtonEnabled(true);
++  panel_layout->addWidget(search);
++  kotoriNav_ = new QListWidget(panel);
++  kotoriNav_->setObjectName("kotoriNav");
++  for (int i = 0; i < configDialogTabWidget->count(); ++i) {
++    kotoriNav_->addItem(configDialogTabWidget->tabText(i));
++  }
++  panel_layout->addWidget(kotoriNav_, 1);
++  kotoriSearchEmpty_ = new QLabel(QString::fromUtf8("見つかりませんでした"), panel);
++  kotoriSearchEmpty_->setObjectName("kotoriSearchEmpty");
++  kotoriSearchEmpty_->setVisible(false);
++  panel_layout->addWidget(kotoriSearchEmpty_);
++  configDialogTabWidget->tabBar()->setVisible(false);
++  auto *row = new QHBoxLayout();
++  row->setSpacing(12);
++  configDialogTabLayout->removeWidget(configDialogTabWidget);
++  row->addWidget(panel);
++  row->addWidget(configDialogTabWidget, 1);
++  configDialogTabLayout->addLayout(row);
++  kotoriNav_->setCurrentRow(configDialogTabWidget->currentIndex());
++  QObject::connect(kotoriNav_, &QListWidget::currentRowChanged, configDialogTabWidget,
++                   [this](int row) {
++                     if (row >= 0) configDialogTabWidget->setCurrentIndex(row);
++                   });
++  QObject::connect(configDialogTabWidget, &QTabWidget::currentChanged, kotoriNav_,
++                   [this](int index) { kotoriNav_->setCurrentRow(index); });
++  QObject::connect(search, &QLineEdit::textChanged, this,
++                   [this](const QString &text) { KotoriFilterSettings(text); });
++  // タブの見出しを隠しても、Ctrl+Tab・Ctrl+Shift+Tab でページを移れるようにする(キーボードだけで使う人のため)。
++  auto step = [this](int delta) {
++    const int n = kotoriNav_->count();
++    int row = kotoriNav_->currentRow();
++    for (int k = 0; k < n; ++k) {
++      row = (row + delta + n) % n;
++      if (!kotoriNav_->item(row)->isHidden()) break;
++    }
++    kotoriNav_->setCurrentRow(row);
++  };
++  QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Tab), this),
++                   &QShortcut::activated, this, [step] { step(1); });
++  QObject::connect(new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backtab), this),
++                   &QShortcut::activated, this, [step] { step(-1); });
++  QObject::connect(new QShortcut(QKeySequence(QKeySequence::Find), this), &QShortcut::activated,
++                   search, [search] { search->setFocus(); search->selectAll(); });
++  search->setToolTip(QString::fromUtf8("Ctrl+F で検索、Ctrl+Tab で次のページ"));
++  setMinimumSize(860, 600);
++}
++
++void ConfigDialog::KotoriFilterSettings(const QString &query) {
++  // 各ページの見出し・項目・ボタン・説明の文字から探す。合うページだけを一覧に残し、合う項目に色を付ける。
++  const QString q = query.trimmed();
++  int first = -1;
++  for (int i = 0; i < configDialogTabWidget->count(); ++i) {
++    QWidget *page = configDialogTabWidget->widget(i);
++    bool page_match = q.isEmpty() || configDialogTabWidget->tabText(i).contains(q, Qt::CaseInsensitive);
++    for (QWidget *w : page->findChildren<QWidget *>()) {
++      QString text;
++      if (auto *label = qobject_cast<QLabel *>(w)) text = label->text();
++      else if (auto *button = qobject_cast<QAbstractButton *>(w)) text = button->text();
++      else continue;
++      const bool match = !q.isEmpty() && w->isVisibleTo(page) && text.contains(q, Qt::CaseInsensitive);
++      if (w->property("kotoriMatch").toBool() != match) {
++        w->setProperty("kotoriMatch", match);
++        w->style()->unpolish(w);
++        w->style()->polish(w);
++      }
++      page_match = page_match || match;
++    }
++    kotoriNav_->item(i)->setHidden(!page_match);
++    if (page_match && first < 0) first = i;
++  }
++  kotoriSearchEmpty_->setVisible(first < 0);
++  if (first >= 0 && kotoriNav_->item(configDialogTabWidget->currentIndex())->isHidden()) {
++    kotoriNav_->setCurrentRow(first);
++  }
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1466,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1770,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28107,7 +28736,7 @@ index abbf55d68..42ca9c268 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1509,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1813,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28132,7 +28761,7 @@ index abbf55d68..42ca9c268 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1534,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1838,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28142,7 +28771,7 @@ index abbf55d68..42ca9c268 100644
    return true;
  }
  
-@@ -524,6 +1631,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1935,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28169,7 +28798,16 @@ index abbf55d68..42ca9c268 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -612,6 +1739,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -571,6 +2002,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+ 
+   suggestionsSizeSpinBox->setValue(
+       std::clamp<int>(config.suggestions_size(), 1, 9));
++  kotoriSuggestMinCharsSpinBox_->setValue(
++      std::clamp<int>(config.kotori_suggest_min_chars(), 1, 5));
+ 
+   // tab5
+   SetSendStatsCheckBox();
+@@ -612,6 +2045,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28193,7 +28831,16 @@ index abbf55d68..42ca9c268 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -846,6 +1990,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -664,6 +2114,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+ 
+   config->set_suggestions_size(
+       static_cast<uint32_t>(suggestionsSizeSpinBox->value()));
++  config->set_kotori_suggest_min_chars(
++      static_cast<uint32_t>(kotoriSuggestMinCharsSpinBox_->value()));
+ 
+   // tab5
+   GetSendStatsCheckBox();
+@@ -846,6 +2298,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28206,10 +28853,10 @@ index abbf55d68..42ca9c268 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..fd6b4e8f4 100644
+index 85e1c0075..222e5bc8e 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
-@@ -33,6 +33,11 @@
+@@ -33,6 +33,12 @@
  #define MOZC_GUI_CONFIG_DIALOG_CONFIG_DIALOG_H_
  
  #include <QObject>
@@ -28218,10 +28865,11 @@ index 85e1c0075..fd6b4e8f4 100644
 +class QComboBox;
 +class QLineEdit;
 +class QLabel;
++class QListWidget;
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +53,24 @@ namespace gui {
+@@ -48,6 +54,31 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -28241,12 +28889,19 @@ index 85e1c0075..fd6b4e8f4 100644
 +  QCheckBox *kotoriIntegratedGpuCheckBox_ = nullptr;
 +  QCheckBox *kotoriHomophoneHintsCheckBox_ = nullptr;
 +  QCheckBox *kotoriRomajiEnglishCheckBox_ = nullptr;
++  // Asteria: 予測を出し始める文字数(docs/adr/0081)。
++  QSpinBox *kotoriSuggestMinCharsSpinBox_ = nullptr;
 +  QLabel *kotoriSettingsStatusLabel_ = nullptr;
++  // Asteria: 設定画面の作り直し(左の一覧・検索・カードの見た目・わかりやすい言葉。2026-11-03)。
++  void KotoriPolishSettings();
++  void KotoriFilterSettings(const QString &query);
++  QListWidget *kotoriNav_ = nullptr;
++  QLabel *kotoriSearchEmpty_ = nullptr;
 +
   public:
    ConfigDialog();
  
-@@ -80,6 +103,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +111,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -28256,10 +28911,10 @@ index 85e1c0075..fd6b4e8f4 100644
    // Set/GetSendStatsChechBox read/write registry or file directly
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
-index 000000000..f4047d6ba
+index 000000000..00acc896c
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_dashboard_test.cc
-@@ -0,0 +1,354 @@
+@@ -0,0 +1,412 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include <QApplication>
 +#include <QDir>
@@ -28270,6 +28925,8 @@ index 000000000..f4047d6ba
 +#include <QFontInfo>
 +#include <QGridLayout>
 +#include <QLabel>
++#include <QLineEdit>
++#include <QListWidget>
 +#include <QMessageBox>
 +#include <QProgressBar>
 +#include <QPushButton>
@@ -28442,7 +29099,7 @@ index 000000000..f4047d6ba
 +  auto* tabs = dialog.findChild<QTabWidget*>("configDialogTabWidget");
 +  ASSERT_NE(tabs, nullptr);
 +  EXPECT_EQ(tabs->currentIndex(), 0);
-+  EXPECT_EQ(tabs->tabText(0), QString::fromUtf8("ダッシュボード"));
++  EXPECT_EQ(tabs->tabText(0), QString::fromUtf8("ホーム"));  // docs/adr/0083
 +  Refresh();
 +  // AI の状態がまだ無いときは、動いているとは言わない。
 +  EXPECT_TRUE(dialog.findChild<QLabel*>("kotoriDashboardAi")
@@ -28534,6 +29191,62 @@ index 000000000..f4047d6ba
 +  }
 +}
 +// 応援の通知のチェックを外して適用すると、通知の設定ファイルに「出さない」と書く。
++// Asteria: 左の一覧と設定の検索(docs/adr/0083)。一覧を選ぶとページが替わり、検索は合うページだけを一覧に残して
++// 合う項目に色を付ける。製品に合わない「使用統計情報と障害レポート」は出さない。
++TEST_F(KotoriDashboardTest, NavigationAndSearchFindSettings) {
++  ConfigDialog dialog;
++  dialog.setAttribute(Qt::WA_DontShowOnScreen);
++  dialog.show();
++  QCoreApplication::processEvents();
++  auto* tabs = dialog.findChild<QTabWidget*>("configDialogTabWidget");
++  auto* nav = dialog.findChild<QListWidget*>("kotoriNav");
++  auto* search = dialog.findChild<QLineEdit*>("kotoriSearch");
++  ASSERT_NE(tabs, nullptr);
++  ASSERT_NE(nav, nullptr);
++  ASSERT_NE(search, nullptr);
++  ASSERT_EQ(nav->count(), tabs->count());
++  EXPECT_FALSE(tabs->tabBar()->isVisible());
++  QStringList names;
++  for (int i = 0; i < nav->count(); ++i) names << nav->item(i)->text();
++  EXPECT_EQ(names, QStringList({QString::fromUtf8("ホーム"), QString::fromUtf8("AI 変換"),
++                                QString::fromUtf8("入力"), QString::fromUtf8("変換と辞書"),
++                                QString::fromUtf8("入力の補助"), QString::fromUtf8("予測"),
++                                QString::fromUtf8("プライバシー"), QString::fromUtf8("その他")}));
++  nav->setCurrentRow(3);
++  EXPECT_EQ(tabs->currentIndex(), 3);
++  tabs->setCurrentIndex(5);
++  EXPECT_EQ(nav->currentRow(), 5);
++  // 「辞書」は 変換と辞書・予測(システム辞書)・プライバシー(ユーザー辞書)・その他(辞書の先読み)にある。
++  search->setText(QString::fromUtf8("辞書"));
++  QCoreApplication::processEvents();
++  QStringList shown;
++  for (int i = 0; i < nav->count(); ++i) {
++    if (!nav->item(i)->isHidden()) shown << nav->item(i)->text();
++  }
++  EXPECT_TRUE(shown.contains(QString::fromUtf8("変換と辞書")));
++  EXPECT_TRUE(shown.contains(QString::fromUtf8("予測")));
++  EXPECT_FALSE(shown.contains(QString::fromUtf8("ホーム")));
++  EXPECT_FALSE(nav->item(nav->currentRow())->isHidden());
++  bool highlighted = false;
++  for (QWidget* w : tabs->widget(3)->findChildren<QWidget*>()) {
++    highlighted = highlighted || w->property("kotoriMatch").toBool();
++  }
++  EXPECT_TRUE(highlighted);
++  search->setText(QString::fromUtf8("存在しない設定"));
++  QCoreApplication::processEvents();
++  for (int i = 0; i < nav->count(); ++i) EXPECT_TRUE(nav->item(i)->isHidden());
++  EXPECT_TRUE(dialog.findChild<QLabel*>("kotoriSearchEmpty")->isVisible());
++  search->clear();
++  QCoreApplication::processEvents();
++  for (int i = 0; i < nav->count(); ++i) EXPECT_FALSE(nav->item(i)->isHidden());
++  // 使用統計の項目は出さない。
++  for (QWidget* w : dialog.findChildren<QWidget*>()) {
++    if (w->objectName() == "usageStatsHeader" || w->objectName() == "launchAdministrationDialogButtonForUsageStats") {
++      EXPECT_FALSE(w->isVisibleTo(&dialog)) << w->objectName().toStdString();
++    }
++  }
++}
++
 +TEST_F(KotoriDashboardTest, ReminderCheckboxWritesSettingOnApply) {
 +  ConfigDialog dialog;
 +  dialog.setAttribute(Qt::WA_DontShowOnScreen);
@@ -28675,10 +29388,10 @@ index 1c4726b0c..ba7b4dd48 100644
 +)
 diff --git a/src/gui/tool/kotori_support_reminder.cc b/src/gui/tool/kotori_support_reminder.cc
 new file mode 100644
-index 000000000..c364b21e2
+index 000000000..460cc72fd
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.cc
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,228 @@
 +// Kotori: Windowsの通知センターに届く応援のお願い(3日ごと。kotori_support_reminder.h)。
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QApplication>
@@ -28689,6 +29402,7 @@ index 000000000..c364b21e2
 +#include "base/system_util.h"
 +#ifdef _WIN32
 +#include <windows.h>
++#include <appmodel.h>
 +#include <roapi.h>
 +#include <windows.data.xml.dom.h>
 +#include <windows.ui.notifications.h>
@@ -28715,6 +29429,14 @@ index 000000000..c364b21e2
 +}
 +bool SupportReminderState::Defer(qint64 now, qint64 seconds) {
 +  settings_.setValue("next_prompt_utc", now + seconds);
++  settings_.sync();
++  return settings_.status() == QSettings::NoError;
++}
++bool SupportReminderState::RecordAttempt(qint64 now, qint32 result) {
++  settings_.setValue("last_attempt_utc", now);
++  settings_.setValue("last_result",
++      QStringLiteral("0x%1").arg(static_cast<quint32>(result), 8, 16, QLatin1Char('0')));
++  if (result < 0) settings_.setValue("next_prompt_utc", now + kSupportRetrySeconds);
 +  settings_.sync();
 +  return settings_.status() == QSettings::NoError;
 +}
@@ -28781,6 +29503,21 @@ index 000000000..c364b21e2
 +  }
 +  HRESULT STDMETHODCALLTYPE LockServer(BOOL) override { return S_OK; }
 +};
++// IME を最初に使ったアプリが AppContainer(スタートの検索など)やパッケージのアプリだと、そこから起動された
++// この常駐も同じ制限の中で動き、通知を出せないまま「1つだけ動かす」ための排他を持ち続けてしまう。そのときは
++// すぐ終わり、次にふつうのアプリから起動されるのを待つ。
++bool InSandboxedProcess() {
++  HANDLE token = nullptr;
++  if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_QUERY, &token)) {
++    DWORD app_container = 0, size = 0;
++    const bool known = ::GetTokenInformation(token, TokenIsAppContainer, &app_container,
++                                             sizeof(app_container), &size);
++    ::CloseHandle(token);
++    if (known && app_container != 0) return true;
++  }
++  UINT32 length = 0;
++  return ::GetCurrentPackageFullName(&length, nullptr) != APPMODEL_ERROR_NO_PACKAGE;
++}
 +HRESULT ShowSupportToast() {
 +  using namespace ABI::Windows::Data::Xml::Dom;
 +  using namespace ABI::Windows::UI::Notifications;
@@ -28796,9 +29533,13 @@ index 000000000..c364b21e2
 +  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), IID_PPV_ARGS(&manager)))) return hr;
 +  ComPtr<IToastNotifier> notifier;
 +  if (FAILED(hr = manager->CreateToastNotifierWithId(HStringReference(kAumid).Get(), &notifier))) return hr;
-+  NotificationSetting setting;
-+  if (FAILED(hr = notifier->get_Setting(&setting))) return hr;
-+  if (setting != NotificationSetting_Enabled) return S_FALSE;
++  // 一度も通知を出したことがないアプリでは、Windows は設定を「見つからない」(0x80070490)と返す。
++  // これを失敗として扱うと最初の通知を永久に出せない(Issue: 3日たっても届かない)。設定が取れて、
++  // 利用者が止めているときだけ出さない。
++  NotificationSetting setting = NotificationSetting_Enabled;
++  if (SUCCEEDED(notifier->get_Setting(&setting)) && setting != NotificationSetting_Enabled) {
++    return S_FALSE;
++  }
 +  ComPtr<IToastNotificationFactory> factory;
 +  if (FAILED(hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), IID_PPV_ARGS(&factory)))) return hr;
 +  ComPtr<IToastNotification> toast;
@@ -28835,6 +29576,9 @@ index 000000000..c364b21e2
 +#endif
 +}
 +int RunKotoriSupportReminder(int argc, char *argv[]) {
++#ifdef _WIN32
++  if (InSandboxedProcess()) return 0;
++#endif
 +  mozc::ProcessMutex mutex("support_reminder");
 +  if (!mutex.Lock()) return 0;
 +  mozc::gui::SupportReminderState state(StatePath());
@@ -28865,6 +29609,7 @@ index 000000000..c364b21e2
 +    if (!state.Due(now) || !state.Defer(now)) { app.quit(); return; }
 +    const HRESULT hr = ShowSupportToast();
 +    qInfo("Asteria support toast HRESULT=0x%08lx", static_cast<unsigned long>(hr));
++    state.RecordAttempt(now, static_cast<qint32>(hr));
 +#endif
 +    idle.setInterval(60 * 60 * 1000);
 +  });
@@ -28877,10 +29622,10 @@ index 000000000..c364b21e2
 +}
 diff --git a/src/gui/tool/kotori_support_reminder.h b/src/gui/tool/kotori_support_reminder.h
 new file mode 100644
-index 000000000..557acffa0
+index 000000000..be03eba76
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder.h
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,36 @@
 +#ifndef MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#define MOZC_GUI_TOOL_KOTORI_SUPPORT_REMINDER_H_
 +#include <QSettings>
@@ -28894,6 +29639,8 @@ index 000000000..557acffa0
 +inline constexpr qint64 kSupportFirstDelaySeconds = 3 * 24 * 60 * 60;
 +inline constexpr qint64 kSupportIntervalSeconds = 3 * 24 * 60 * 60;
 +inline constexpr qint64 kSupportAfterGithubSeconds = 30 * 24 * 60 * 60;
++// 通知を出せなかった(Windows の通知の失敗)ときは、3日待たずに1時間後に出し直す。
++inline constexpr qint64 kSupportRetrySeconds = 60 * 60;
 +class SupportReminderState {
 + public:
 +  explicit SupportReminderState(const QString &path) : settings_(path, QSettings::IniFormat) {}
@@ -28901,6 +29648,9 @@ index 000000000..557acffa0
 +  bool Due(qint64 now);
 +  bool Defer(qint64 now, qint64 seconds = kSupportIntervalSeconds);
 +  bool Disable();
++  // 通知を出した結果(HRESULT)を残す。失敗なら1時間後に出し直す。原因を後から追えるよう、
++  // 最後に試した時刻と結果を support-reminder.ini に書く。
++  bool RecordAttempt(qint64 now, qint32 result);
 + private:
 +  QSettings settings_;
 +};
@@ -28914,10 +29664,10 @@ index 000000000..557acffa0
 +#endif
 diff --git a/src/gui/tool/kotori_support_reminder_test.cc b/src/gui/tool/kotori_support_reminder_test.cc
 new file mode 100644
-index 000000000..f17be3a13
+index 000000000..f4850c326
 --- /dev/null
 +++ b/src/gui/tool/kotori_support_reminder_test.cc
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,110 @@
 +#include "gui/tool/kotori_support_reminder.h"
 +#include <QTemporaryDir>
 +#include "testing/gunit.h"
@@ -28997,6 +29747,26 @@ index 000000000..f17be3a13
 +  EXPECT_FALSE(HandleSupportAction(state, "later", 100, open));
 +  EXPECT_EQ(opened, 0);
 +}
++// 通知を出せなかったときは3日待たずに出し直し、結果を残す。出せたとき・利用者が Windows で
++// 止めているとき(S_FALSE)は3日後のまま。
++TEST_F(SupportReminderTest, FailedToastRetriesWithinAnHourAndIsRecorded) {
++  SupportReminderState state(Path());
++  ASSERT_TRUE(state.Defer(1000));
++  ASSERT_TRUE(state.RecordAttempt(1000, static_cast<qint32>(0x80070490u)));
++  EXPECT_FALSE(state.Due(1000 + kSupportRetrySeconds - 1));
++  EXPECT_TRUE(state.Due(1000 + kSupportRetrySeconds));
++  QSettings ini(Path(), QSettings::IniFormat);
++  EXPECT_EQ(ini.value("last_result").toString(), QStringLiteral("0x80070490"));
++  EXPECT_EQ(ini.value("last_attempt_utc").toLongLong(), 1000);
++  for (const qint32 ok : {0, 1}) {
++    SupportReminderState shown(Path());
++    ASSERT_TRUE(shown.Defer(5000));
++    ASSERT_TRUE(shown.RecordAttempt(5000, ok));
++    EXPECT_FALSE(shown.Due(5000 + kSupportIntervalSeconds - 1));
++    EXPECT_TRUE(shown.Due(5000 + kSupportIntervalSeconds));
++  }
++  EXPECT_EQ(kSupportRetrySeconds, 60 * 60);
++}
 +TEST_F(SupportReminderTest, ToastHasNativeActionsAndSilentAudio) {
 +  const QString xml = SupportToastXml();
 +  EXPECT_TRUE(xml.contains("ToastGeneric"));
@@ -29057,7 +29827,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..51d897175 100644
+index 7d735374e..3da899452 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -29069,7 +29839,7 @@ index 7d735374e..51d897175 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,47 @@ message Config {
+@@ -360,6 +360,54 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -29113,6 +29883,13 @@ index 7d735374e..51d897175 100644
 +  // Asteria: ローマ字のまま打った英語の名前(github → GitHub)を、文脈に合えば 1 番目に出す
 +  // (docs/adr/0080)。既定はオフ。
 +  optional bool kotori_romaji_english = 211 [default = false];
++  // 212 は公開前に取り下げた「入力中に候補の窓を出さない」(docs/adr/0081)。
++  reserved 212;
++  reserved "kotori_hide_suggestion_window";
++  // Asteria: 入力中の窓は続きの予測だけを出す(docs/adr/0081)。読みがこの文字数以上のときに予測を出す。
++  optional uint32 kotori_suggest_min_chars = 213 [default = 3];
++  // Asteria: 入力中の窓に続きの予測だけを出す(docs/adr/0081)。false は Mozc と同じ出し方(試験用。画面には出さない)。
++  optional bool kotori_suggest_completions_only = 214 [default = true];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -29624,7 +30401,7 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..d3c7eae1c 100644
+index 4bbcddeca..03d72a25c 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -663,10 +663,31 @@ mozc_cc_test(
@@ -29678,7 +30455,7 @@ index 4bbcddeca..d3c7eae1c 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1768,261 @@ mozc_cc_test(
+@@ -1743,3 +1768,263 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -29820,6 +30597,7 @@ index 4bbcddeca..d3c7eae1c 100644
 +    deps = [
 +        "//base:file_stream",
 +        "//base:file_util",
++        "//base:hash",
 +        "//base:util",
 +        "@com_google_absl//absl/base:core_headers",
 +        "@com_google_absl//absl/strings",
@@ -29902,6 +30680,7 @@ index 4bbcddeca..d3c7eae1c 100644
 +        "//base:file_stream",
 +        "//base:file_util",
 +        "//base:kotori_live",
++        "//base/strings:japanese",
 +        "//base:system_util",
 +        "//base:util",
 +        "//composer",
@@ -31625,10 +32404,10 @@ index 000000000..fb3fa7cdf
 +{"りょうしゃ", "両者", "両社", "対立、関係、主張、間、合意、比較、中立、直接、溝"},
 diff --git a/src/rewriter/kotori_context_history.cc b/src/rewriter/kotori_context_history.cc
 new file mode 100644
-index 000000000..94c3eda3c
+index 000000000..ca4dede9e
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history.cc
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,290 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習(kotori_context_history.h、docs/adr/0075)。
 +
@@ -31642,12 +32421,14 @@ index 000000000..94c3eda3c
 +
 +#include "absl/strings/match.h"
 +#include "absl/strings/numbers.h"
++#include "absl/strings/str_cat.h"
 +#include "absl/strings/str_join.h"
 +#include "absl/strings/str_split.h"
 +#include "absl/strings/string_view.h"
 +#include "absl/synchronization/mutex.h"
 +#include "base/file_stream.h"
 +#include "base/file_util.h"
++#include "base/hash.h"
 +#include "base/util.h"
 +
 +namespace mozc {
@@ -31744,11 +32525,67 @@ index 000000000..94c3eda3c
 +
 +bool ContextHistory::Applies(const Entry& e, absl::string_view input_reading,
 +                             absl::string_view context, absl::string_view text) const {
-+  if (e.count <= 0 || !absl::StrContains(input_reading, e.reading)) return false;
++  if (e.count <= 0 || e.reading == kSentenceReading || !absl::StrContains(input_reading, e.reading)) {
++    return false;
++  }
 +  for (const std::string& c : e.cues) {
 +    if (absl::StrContains(context, c) || absl::StrContains(text, c)) return true;
 +  }
 +  return false;
++}
++
++std::string ContextHistory::ExactCue(absl::string_view input_reading, absl::string_view context) {
++  // 保存するファイルの鍵には、読みと前の文のハッシュだけを使う。
++  return absl::StrCat("=", absl::Hex(CityFingerprint(absl::StrCat(input_reading, "\n", context)),
++                                     absl::kZeroPad16));
++}
++
++void ContextHistory::LearnSentence(absl::string_view input_reading, absl::string_view context,
++                                   const Sentence& sentence, int64_t now) {
++  if (input_reading.empty() || sentence.keys.empty() || sentence.keys.size() != sentence.values.size()) {
++    return;
++  }
++  const std::string sep(1, kSentenceSeparator);
++  const std::string chosen = absl::StrJoin(sentence.values, sep);
++  const std::string keys = absl::StrJoin(sentence.keys, sep);
++  if (Unsafe(chosen) || Unsafe(keys)) return;
++  const std::string exact = ExactCue(input_reading, context);
++  absl::MutexLock lock(&mutex_);
++  for (Entry& e : entries_) {
++    if (e.reading == kSentenceReading && !e.cues.empty() && e.cues.front() == exact) {
++      e.chosen = chosen;
++      e.rejected = keys;
++      e.count = std::max(e.count, 0) + 1;
++      e.last = now;
++      return;
++    }
++  }
++  entries_.push_back(Entry{kSentenceReading, chosen, keys, {exact}, 1, now});
++  if (entries_.size() > kMaxEntries) {
++    std::sort(entries_.begin(), entries_.end(),
++              [](const Entry& a, const Entry& b) { return a.last > b.last; });
++    entries_.resize(kMaxEntries);
++  }
++}
++
++std::optional<ContextHistory::Sentence> ContextHistory::ExactSentence(
++    absl::string_view input_reading, absl::string_view context) const {
++  absl::ReaderMutexLock lock(&mutex_);
++  const std::string exact = ExactCue(input_reading, context);
++  for (const Entry& e : entries_) {
++    if (e.reading != kSentenceReading || e.count <= 0 || e.cues.empty() || e.cues.front() != exact) {
++      continue;
++    }
++    Sentence out;
++    out.values = absl::StrSplit(e.chosen, kSentenceSeparator);
++    out.keys = absl::StrSplit(e.rejected, kSentenceSeparator);
++    // 読みが合わない(ハッシュの衝突など)ときは使わない。
++    if (out.keys.size() != out.values.size() || absl::StrJoin(out.keys, "") != input_reading) {
++      return std::nullopt;
++    }
++    return out;
++  }
++  return std::nullopt;
 +}
 +
 +double ContextHistory::Score(absl::string_view input_reading, absl::string_view context,
@@ -31863,10 +32700,10 @@ index 000000000..94c3eda3c
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_context_history.h b/src/rewriter/kotori_context_history.h
 new file mode 100644
-index 000000000..7877997e0
+index 000000000..759aebe36
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history.h
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,107 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習(docs/adr/0075)。利用者が AI の 1 番目と違う語を選んで確定したとき、
 +// 読み・選んだ表記・退けた表記・その場の手がかりの語を PC の中に覚え、次に同じ読みと手がかりが
@@ -31878,6 +32715,7 @@ index 000000000..7877997e0
 +#define MOZC_REWRITER_KOTORI_CONTEXT_HISTORY_H_
 +
 +#include <cstdint>
++#include <optional>
 +#include <string>
 +#include <vector>
 +
@@ -31922,6 +32760,23 @@ index 000000000..7877997e0
 +  std::vector<std::string> Variants(absl::string_view input_reading, absl::string_view context,
 +                                    absl::string_view text) const;
 +
++  // Asteria: 同じ文(打った読み全体と前の文が同じ)で利用者が確定した文を、文節の区切りごと覚える。同じ文を
++  // もう一度変換したら、AI を通さずにその文を出す(同じ間違いを二度しない。docs/adr/0081 の目標)。
++  // 文を探す鍵は読みと前の文のハッシュ。この PC の中だけに保存し、学習のクリアで消える。
++  struct Sentence {
++    std::vector<std::string> keys;    // 文節の読み
++    std::vector<std::string> values;  // 文節の表記
++  };
++  void LearnSentence(absl::string_view input_reading, absl::string_view context,
++                     const Sentence& sentence, int64_t now);
++  std::optional<Sentence> ExactSentence(absl::string_view input_reading,
++                                        absl::string_view context) const;
++  // LearnSentence の組の読み(打つ読みには現れない印)。Forget で取り消すときに使う。
++  static constexpr char kSentenceReading[] = "#文";
++  // 文の組の chosen(表記)・rejected(読み)を文節ごとに区切る文字。
++  static constexpr char kSentenceSeparator = '\x1f';
++  static std::string ExactCue(absl::string_view input_reading, absl::string_view context);
++
 +  // 既定の学習データ(同音の語の意味ごとの手がかりの語)を 1 組足す。回数は 1 として扱う。
 +  void AddDefault(absl::string_view reading, absl::string_view chosen, absl::string_view rejected,
 +                  absl::string_view cues);
@@ -31958,14 +32813,16 @@ index 000000000..7877997e0
 +#endif  // MOZC_REWRITER_KOTORI_CONTEXT_HISTORY_H_
 diff --git a/src/rewriter/kotori_context_history_test.cc b/src/rewriter/kotori_context_history_test.cc
 new file mode 100644
-index 000000000..39b9cc2a0
+index 000000000..d1b08d7cb
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history_test.cc
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,165 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習の流れ(docs/adr/0075)。
 +
 +#include "rewriter/kotori_context_history.h"
++
++#include "absl/strings/str_join.h"
 +
 +#include <string>
 +#include <vector>
@@ -32078,6 +32935,48 @@ index 000000000..39b9cc2a0
 +  }
 +  EXPECT_EQ(h.size(), ContextHistory::kMaxEntries);
 +  EXPECT_EQ(h.Score("よみ0", "手掛", "選0"), 0);
++}
++
++// 同じ文(読みと前の文が同じ)で確定した文を文節ごと覚え、保存・読み直し・取り消し・クリアでも正しく扱う。
++// 鍵は読みと前の文のハッシュ(docs/adr/0081)。
++TEST(ContextHistoryTest, ExactSentenceIsSavedForgottenAndCleared) {
++  TempDirectory dir = testing::MakeTempDirectoryOrDie();
++  const std::string path = FileUtil::JoinPath(dir.path(), "context.tsv");
++  const std::string reading = "けいしょうでいらしたとのこと";
++  const ContextHistory::Sentence light{{"けいしょうで", "いらしたとのこと"}, {"軽症で", "いらしたとのこと"}};
++  const ContextHistory::Sentence injury{{"けいしょうで", "いらしたとのこと"}, {"軽傷で", "いらしたとのこと"}};
++  const std::string sep(1, ContextHistory::kSentenceSeparator);
++  EXPECT_EQ(ContextHistory::ExactCue(reading, "").size(), 17);
++  EXPECT_EQ(ContextHistory::ExactCue(reading, "").find(reading), std::string::npos);
++  {
++    ContextHistory h(path);
++    EXPECT_FALSE(h.ExactSentence(reading, "").has_value());
++    h.LearnSentence(reading, "", light, 100);
++    ASSERT_TRUE(h.ExactSentence(reading, "").has_value());
++    EXPECT_EQ(h.ExactSentence(reading, "")->values, light.values);
++    EXPECT_EQ(h.ExactSentence(reading, "")->keys, light.keys);
++    EXPECT_FALSE(h.ExactSentence(reading, "前の文").has_value());
++    // 文の組は、語の学習(Score・Variants)には混ぜない。
++    EXPECT_EQ(h.Score(reading, "", "軽傷でいらしたとのこと"), 0);
++    EXPECT_TRUE(h.Variants(reading, "", "軽傷でいらしたとのこと").empty());
++    // 同じ文をもう一度選び直したら、新しい方を覚える。
++    h.LearnSentence(reading, "", injury, 200);
++    EXPECT_EQ(h.ExactSentence(reading, "")->values, injury.values);
++    ASSERT_TRUE(h.Save());
++  }
++  {
++    ContextHistory h(path);
++    ASSERT_TRUE(h.ExactSentence(reading, "").has_value());
++    EXPECT_EQ(h.ExactSentence(reading, "")->values, injury.values);
++    const std::string chosen = absl::StrJoin(injury.values, sep);
++    const std::string keys = absl::StrJoin(injury.keys, sep);
++    h.Forget(ContextHistory::kSentenceReading, chosen, keys);
++    h.Forget(ContextHistory::kSentenceReading, chosen, keys);
++    EXPECT_FALSE(h.ExactSentence(reading, "").has_value());
++    h.LearnSentence(reading, "", light, 300);
++    h.Clear();
++    EXPECT_FALSE(h.ExactSentence(reading, "").has_value());
++  }
 +}
 +
 +}  // namespace
@@ -33584,10 +34483,10 @@ index 000000000..3f2d754ce
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_typo_model.cc b/src/rewriter/kotori_typo_model.cc
 new file mode 100644
-index 000000000..2800783b7
+index 000000000..8db0fbcf8
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model.cc
-@@ -0,0 +1,522 @@
+@@ -0,0 +1,532 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -33604,6 +34503,7 @@ index 000000000..2800783b7
 +#include <vector>
 +
 +#include "absl/container/flat_hash_map.h"
++#include "absl/strings/match.h"
 +#include "absl/strings/string_view.h"
 +
 +namespace mozc {
@@ -33936,6 +34836,15 @@ index 000000000..2800783b7
 +        (is(x, {"じ"}) && is(y, {"ぢ"})) || (is(x, {"ぢ"}) && is(y, {"じ"}))) {
 +      return slip;
 +    }
++    // Asteria: 濁点・半濁点の付け忘れ・付けすぎ(ごさいます → ございます、はんこう → ばんこう)。書き分けの迷いと
++    // 同じ率と見る(docs/adr/0082)。
++    static const char* const kVoiced[] = {"かが", "きぎ", "くぐ", "けげ", "こご", "さざ", "しじ", "すず",
++                                          "せぜ", "そぞ", "ただ", "ちぢ", "つづ", "てで", "とど", "はばぱ",
++                                          "ひびぴ", "ふぶぷ", "へべぺ", "ほぼぽ"};
++    for (const char* group : kVoiced) {
++      const absl::string_view g(group);
++      if (x != y && absl::StrContains(g, x) && absl::StrContains(g, y)) return slip;
++    }
 +  }
 +  // い段のかなの後の ゃ・ゅ・ょ の抜け(意図した読みにあって、打った読みにない)。
 +  if (na == 0 && nb == 1 && head > 0 && is(b[head], {"ゃ", "ゅ", "ょ"}) &&
@@ -34197,10 +35106,10 @@ index 000000000..7fabbbc57
 +#endif  // MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
 diff --git a/src/rewriter/kotori_typo_model_test.cc b/src/rewriter/kotori_typo_model_test.cc
 new file mode 100644
-index 000000000..574302502
+index 000000000..6d0878e23
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model_test.cc
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,133 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -34261,6 +35170,12 @@ index 000000000..574302502
 +  // 隣どうしのかなの入れ替えは 1 回の入れ替え(ござまいせん → ございません)。
 +  EXPECT_NEAR(KanaSlipLogRatio("ござまいせん", "ございません"),
 +              std::log(0.0024) - std::log(1 - 0.0336), 0.05);
++  // Asteria: 濁点・半濁点の付け忘れ・付けすぎ(docs/adr/0082)。
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ありがとうごさいます", "ありがとうございます"), slip);
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("はんこう", "ばんこう"), slip);
++  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ぱん", "はん"), slip);
++  EXPECT_EQ(KanaSlipLogRatio("さいます", "ざいもす"), -INFINITY);  // 2 か所
++  EXPECT_EQ(KanaSlipLogRatio("さ", "た"), -INFINITY);  // 濁点の違いではない
 +}
 +
 +TEST(TypoModelTest, ReadingToKeys) {
@@ -35057,10 +35972,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..2cde31e15
+index 000000000..428406eab
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,4850 @@
+@@ -0,0 +1,4906 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -35098,6 +36013,7 @@ index 000000000..2cde31e15
 +#include "absl/time/clock.h"
 +#include "absl/time/time.h"
 +#include "base/file_util.h"
++#include "base/strings/japanese.h"
 +#include "base/file_stream.h"
 +#include "base/kotori_live.h"
 +#include "base/system_util.h"
@@ -36984,6 +37900,10 @@ index 000000000..2cde31e15
 +  if (config.kotori_lm_enabled() && sleeping_.exchange(false)) {
 +    RequestLoad(config);
 +  }
++  UpdateLiveTiming(config);
++}
++
++void LmRewriter::UpdateLiveTiming(const config::Config& config) const {
 +  // Kotori: 入力中の候補を取り直すまでの時間(docs/adr/0039)。GPU があれば、手が止まって 20 ms で
 +  // Space と同じ変換を裏で始める(人が最後の打鍵から Space を押すまでの約 0.1〜0.2 秒の間に結果を
 +  // 作っておく。docs/adr/0071)。ないときは先回りの変換(手が止まって 0.12 秒後に始める生成)が終わる頃にする。
@@ -37407,6 +38327,7 @@ index 000000000..2cde31e15
 +  const int64_t now = absl::ToUnixSeconds(absl::Now());
 +  offset = 0;
 +  size_t index = 0;
++  bool hiragana_commit = false;
 +  for (const Segment& seg : segments.conversion_segments()) {
 +    const size_t at = offset;
 +    const std::string& value = committed[index];
@@ -37415,6 +38336,11 @@ index 000000000..2cde31e15
 +    const auto it = ai_at.find(at);
 +    if (it == ai_at.end() || best.keys[it->second] != seg.key() || value.empty() ||
 +        value == best.values[it->second]) continue;
++    // ひらがなのまま確定した文節(F6 など)があれば、文そのものも覚えない(次から同じ文がひらがなになる)。
++    if (Util::IsScriptType(value, Util::HIRAGANA) &&
++        Util::ContainsScriptType(best.values[it->second], Util::KANJI)) {
++      hiragana_commit = true;
++    }
 +    std::vector<std::string> cues = context_cues;
 +    for (size_t j = 0; j < committed.size(); ++j) {
 +      if (j + 1 == index) continue;
@@ -37439,13 +38365,37 @@ index 000000000..2cde31e15
 +        reading.resize(reading.size() - key_tail.size());
 +      }
 +    }
-+    if (chosen == rejected) continue;
++    // 全角・半角だけの違い(AI の文の「!」と、確定のときに書き方の設定で直った「！」など)は、選び直しではない。
++    // 覚えると、同じ文の選び直しを当てはめるときに AI の文と合わなくなる(docs/adr/0081)。
++    if (chosen == rejected ||
++        japanese::FullWidthToHalfWidth(chosen) == japanese::FullWidthToHalfWidth(rejected)) {
++      continue;
++    }
 +    if (debug) {
 +      std::fprintf(stderr, "[context_history] learn %s %s<-%s cues=%s\n", reading.c_str(),
 +                   chosen.c_str(), rejected.c_str(), absl::StrJoin(cues, ",").c_str());
 +    }
 +    context_history_->Learn(reading, chosen, rejected, cues, now);
 +    last_learned_.push_back({reading, chosen, rejected});
++  }
++  // Asteria: 同じ文で利用者が確定した文を、文節の区切りごと覚える(全角・半角だけの違い、ひらがなのままの
++  // 確定は除く)。同じ文をもう一度変換したら、AI を通さずにこの文を出す(docs/adr/0081)。
++  {
++    kotori::ContextHistory::Sentence sentence;
++    for (const Segment& seg : segments.conversion_segments()) sentence.keys.push_back(std::string(seg.key()));
++    sentence.values = committed;
++    const std::string chosen = absl::StrJoin(committed, "");
++    const std::string rejected = absl::StrJoin(best.values, "");
++    if (!hiragana_commit && !chosen.empty() && japanese::FullWidthAsciiToHalfWidthAscii(chosen) !=
++                               japanese::FullWidthAsciiToHalfWidthAscii(rejected)) {
++      if (debug) {
++        std::fprintf(stderr, "[context_history] learn sentence %s<-%s\n", chosen.c_str(), rejected.c_str());
++      }
++      context_history_->LearnSentence(reading, context, sentence, now);
++      const std::string sep(1, kotori::ContextHistory::kSentenceSeparator);
++      last_learned_.push_back({kotori::ContextHistory::kSentenceReading, absl::StrJoin(sentence.values, sep),
++                               absl::StrJoin(sentence.keys, sep)});
++    }
 +  }
 +  if (!last_learned_.empty()) {
 +    // 覚えた結果がすぐ次の同じ変換に効くよう、覚えておいた AI の結果を捨てる。
@@ -37498,6 +38448,23 @@ index 000000000..2cde31e15
 +  if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +    std::fprintf(stderr, "[kotori] sentences=%zu segments=%zu\n",
 +                 sentences.size(), segments.conversion_segments_size());
++  }
++  // Asteria: 同じ文(読みと前の文が同じ)で利用者が確定した文があれば、AI を通さずにその文を出す(同じ間違いを
++  // 二度しない。docs/adr/0081)。利用者が文節を切り直して確定した後は Mozc が区切りを覚えていて文全体の候補が
++  // ないので、この判定は文全体の候補を見る前に行う。
++  if (context_history_ != nullptr && LearnsContext(request)) {
++    const std::string exact_reading = ConversionReading(segments);
++    if (const auto exact = context_history_->ExactSentence(exact_reading, HistoryContext(request, segments))) {
++      if (Env("KOTORI_LM_DEBUG") != nullptr) {
++        std::fprintf(stderr, "[context_history] exact %s\n", absl::StrJoin(exact->values, "").c_str());
++      }
++      const std::string exact_context = HistoryContext(request, segments);
++      Best best{exact_reading, exact_context, exact->keys, exact->values};
++      // AI の結果と同じ道筋(覚えておいた結果を、文節を切り直した後の変換で当てはめる)で出す。
++      StoreMemo(MemoKey(request.config(), exact_reading, exact_context), best, false, [] { return false; });
++      best_ = best;
++      return ResizeFor(best, segments);
++    }
 +  }
 +  // 文全体の候補は、区切りが決まっていない最初の変換のときだけある(切り直した後の変換では空)。
 +  if (sentences.empty()) return std::nullopt;
@@ -39136,6 +40103,10 @@ index 000000000..2cde31e15
 +            gpu_available_.store(EnsureLlamaRuntime(runtime_dir_) && LlamaHasGpu() &&
 +                                 !LlamaGpuIsIntegrated());
 +          }
++          // Asteria: 取り直しの時間は、変換の要求(Touch)を待たずにここでも決める(起動して最初の入力から
++          // 先回りの変換を始めるため。打鍵ごとの要求に頼ると、要求が来ない経路で最初の Space が
++          // 約 0.18 秒待つ。docs/adr/0081 の検証で見つけた)。
++          UpdateLiveTiming(config);
 +          WriteStatus(config, "loading");
 +          size_t k = 0, llm_top = 0;
 +          int beams = 0;
@@ -39913,10 +40884,10 @@ index 000000000..2cde31e15
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..6dcd66ff5
+index 000000000..17ec4100d
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,654 @@
+@@ -0,0 +1,656 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -40214,6 +41185,8 @@ index 000000000..6dcd66ff5
 +  void RequestLoad(const config::Config& config) const;
 +  // 要求が来たことを記録し、モデルを外していれば裏で読み込み直させる。
 +  void Touch(const config::Config& config) const;
++  // 入力中の候補を取り直すまでの時間(kotori::g_live_first_ms など)を、設定と GPU の有無から決める。
++  void UpdateLiveTiming(const config::Config& config) const;
 +  // しばらく入力がなければモデルを外す(裏のスレッドから呼ぶ)。
 +  void UnloadIfIdle(const config::Config& config) const;
 +  // 要求の中で mutex_ を取る。モデルの読み込み中や、しばらく取れないときは false(AI なしにする)。
@@ -42008,6 +42981,60 @@ index d322feaee..89296272a 100644
  TEST_F(UserSegmentHistoryRewriterTest, CreateFile) {
    std::unique_ptr<UserSegmentHistoryRewriter> rewriter(
        CreateUserSegmentHistoryRewriter());
+diff --git a/src/rewriter/variants_rewriter_test.cc b/src/rewriter/variants_rewriter_test.cc
+index 1dafe70bd..f32bf61e3 100644
+--- a/src/rewriter/variants_rewriter_test.cc
++++ b/src/rewriter/variants_rewriter_test.cc
+@@ -661,6 +661,9 @@ TEST_F(VariantsRewriterTest, GetFormTypesFromStringPair) {
+ TEST_F(VariantsRewriterTest, RewriteForConversion) {
+   CharacterFormManager* character_form_manager =
+       CharacterFormManager::GetCharacterFormManager();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  character_form_manager->SetCharacterForm("abc", Config::FULL_WIDTH);
+   std::unique_ptr<VariantsRewriter> rewriter(CreateVariantsRewriter());
+   ConversionRequest request;
+   {
+@@ -735,6 +738,9 @@ TEST_F(VariantsRewriterTest, RewriteForConversion) {
+ TEST_F(VariantsRewriterTest, RewriteForPrediction) {
+   CharacterFormManager* character_form_manager =
+       CharacterFormManager::GetCharacterFormManager();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  character_form_manager->SetCharacterForm("abc", Config::FULL_WIDTH);
+   std::unique_ptr<VariantsRewriter> rewriter(CreateVariantsRewriter());
+   const ConversionRequest request =
+       ConversionRequestBuilder()
+@@ -772,6 +778,9 @@ TEST_F(VariantsRewriterTest, RewriteForPrediction) {
+ TEST_F(VariantsRewriterTest, RewriteForMixedConversion) {
+   CharacterFormManager* character_form_manager =
+       CharacterFormManager::GetCharacterFormManager();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  character_form_manager->SetCharacterForm("abc", Config::FULL_WIDTH);
+   std::unique_ptr<VariantsRewriter> rewriter(CreateVariantsRewriter());
+   Request request;
+   request.set_mixed_conversion(true);  // Request mixed conversion.
+@@ -849,6 +858,9 @@ TEST_F(VariantsRewriterTest, RewriteForMixedConversion) {
+ TEST_F(VariantsRewriterTest, RewriteForPartialSuggestion) {
+   CharacterFormManager* character_form_manager =
+       CharacterFormManager::GetCharacterFormManager();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  character_form_manager->SetCharacterForm("abc", Config::FULL_WIDTH);
+   EXPECT_EQ(Config::FULL_WIDTH,
+             character_form_manager->GetConversionCharacterForm("0"));
+   std::unique_ptr<VariantsRewriter> rewriter(CreateVariantsRewriter());
+@@ -893,6 +905,9 @@ TEST_F(VariantsRewriterTest, RewriteForPartialSuggestion) {
+ TEST_F(VariantsRewriterTest, RewriteForSuggestion) {
+   CharacterFormManager* character_form_manager =
+       CharacterFormManager::GetCharacterFormManager();
++  // Asteria: 英字は、まだ選んでいなければ半角で出す(config/character_form_manager.cc)。Mozc の既定(全角)の
++  // 動きを確かめるため、英字の全角を選んだことにする。
++  character_form_manager->SetCharacterForm("abc", Config::FULL_WIDTH);
+   std::unique_ptr<VariantsRewriter> rewriter(CreateVariantsRewriter());
+   const ConversionRequest request =
+       ConversionRequestBuilder()
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
 index 000000000..dca2b3506
@@ -43075,7 +44102,7 @@ index eda5d517e..2c99a39c7 100644
    if (run_level == mozc::RunLevel::RESTRICTED) {
      MOZC_VLOG(1) << "Mozc server starts with timeout mode";
 diff --git a/src/session/BUILD.bazel b/src/session/BUILD.bazel
-index 2da5b8d46..a0315a9f4 100644
+index 2da5b8d46..e28c88def 100644
 --- a/src/session/BUILD.bazel
 +++ b/src/session/BUILD.bazel
 @@ -44,6 +44,31 @@ load("//bazel:run_build_tool.bzl", "mozc_run_build_tool")
@@ -43143,7 +44170,19 @@ index 2da5b8d46..a0315a9f4 100644
      shard_count = 8,
      tags = [
          "noandroid",  # TODO(b/73698251): disabled due to errors
-@@ -678,3 +713,18 @@ mozc_cc_test(
+@@ -540,9 +575,11 @@ mozc_cc_test(
+         ":session_handler_tool",
+         "//base:file_stream",
+         "//base:file_util",
++        "//config:config_handler",
+         "//engine:engine_interface",
+         "//engine:mock_data_engine_factory",
+         "//protocol:commands_cc_proto",
++        "//protocol:config_cc_proto",
+         "//request:request_test_util",
+         "//testing:gunit_main",
+         "//testing:mozctest",
+@@ -678,3 +715,18 @@ mozc_cc_test(
          "@com_google_absl//absl/strings",
      ],
  )
@@ -43726,7 +44765,7 @@ index 000000000..344468822
 +}  // namespace
 +}  // namespace mozc::session
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..89c522063 100644
+index 8186b0a8d..fdcb946f1 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -43811,7 +44850,17 @@ index 8186b0a8d..89c522063 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -538,10 +578,158 @@ bool Session::SendKey(commands::Command* command) {
+@@ -444,8 +484,7 @@ bool Session::TestSendKey(commands::Command* command) {
+   // Precomposition
+   if (state == ImeContext::PRECOMPOSITION) {
+     keymap::PrecompositionState::Commands key_command;
+-    const bool is_suggestion =
+-        context_->converter().CheckState(EngineConverterInterface::SUGGESTION);
++    const bool is_suggestion = KotoriShowsSuggestion();
+     const bool result =
+         is_suggestion ? keymap->GetCommandZeroQuerySuggestion(key, &key_command)
+                       : keymap->GetCommandPrecomposition(key, &key_command);
+@@ -538,10 +577,165 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -43854,6 +44903,13 @@ index 8186b0a8d..89c522063 100644
 +      commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
 +  callback->set_delay_millisec(delay);
 +  // Kotori: 読みの編集を続けながら、同じ入力世代のAI結果を待つ。
++}
++
++bool Session::KotoriShowsSuggestion() const {
++  // Asteria: 入力中の窓には続きの予測だけを出す(docs/adr/0081)。窓に出ていない候補は見えないので、キーは
++  // 候補がないときと同じに扱う(Shift+Enter などで見えない候補を確定しない)。
++  return context_->converter().CheckState(EngineConverterInterface::SUGGESTION) &&
++         context_->converter().KotoriSuggestionVisible();
 +}
 +
 +bool Session::KotoriRefreshSuggestion(commands::Command* command) {
@@ -43970,7 +45026,7 @@ index 8186b0a8d..89c522063 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -604,7 +792,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
+@@ -604,7 +798,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
      case keymap::DirectInputState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::DirectInputState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -43981,7 +45037,16 @@ index 8186b0a8d..89c522063 100644
      case keymap::DirectInputState::NONE:
        return EchoBackAndClearUndoContext(command);
      case keymap::DirectInputState::RECONVERT:
-@@ -648,7 +838,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -617,7 +813,7 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+   keymap::PrecompositionState::Commands key_command;
+   const keymap::KeyMapManager* keymap = &context_->GetKeyMapManager();
+   const bool result =
+-      context_->converter().CheckState(EngineConverterInterface::SUGGESTION)
++      KotoriShowsSuggestion()
+           ? keymap->GetCommandZeroQuerySuggestion(command->input().key(),
+                                                   &key_command)
+           : keymap->GetCommandPrecomposition(command->input().key(),
+@@ -648,7 +844,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::INSERT_FULL_SPACE:
        return InsertSpaceFullWidth(command);
      case keymap::PrecompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -43992,7 +45057,7 @@ index 8186b0a8d..89c522063 100644
      case keymap::PrecompositionState::REVERT:
        return Revert(command);
      case keymap::PrecompositionState::UNDO:
-@@ -667,7 +859,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -667,7 +865,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::PrecompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -44003,7 +45068,16 @@ index 8186b0a8d..89c522063 100644
      case keymap::PrecompositionState::COMPOSITION_MODE_SWITCH_KANA_TYPE:
        return CompositionModeSwitchKanaType(command);
  
-@@ -717,6 +911,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -709,7 +909,7 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+   keymap::CompositionState::Commands key_command;
+   const keymap::KeyMapManager* keymap = &context_->GetKeyMapManager();
+   const bool result =
+-      context_->converter().CheckState(EngineConverterInterface::SUGGESTION)
++      KotoriShowsSuggestion()
+           ? keymap->GetCommandSuggestion(command->input().key(), &key_command)
+           : keymap->GetCommandComposition(command->input().key(), &key_command);
+ 
+@@ -717,6 +917,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -44033,7 +45107,7 @@ index 8186b0a8d..89c522063 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -821,7 +1038,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -821,7 +1044,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::CompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -44044,7 +45118,7 @@ index 8186b0a8d..89c522063 100644
  
      case keymap::CompositionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -836,7 +1055,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -836,7 +1061,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return CompositionModeFullASCII(command);
  
      case keymap::CompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -44055,7 +45129,7 @@ index 8186b0a8d..89c522063 100644
  
      case keymap::CompositionState::NONE:
        return DoNothing(command);
-@@ -966,7 +1187,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
+@@ -966,7 +1193,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::ConversionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -44066,7 +45140,7 @@ index 8186b0a8d..89c522063 100644
  
      case keymap::ConversionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -1026,7 +1249,8 @@ bool Session::IMEOn(commands::Command* command) {
+@@ -1026,7 +1255,8 @@ bool Session::IMEOn(commands::Command* command) {
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
    if (command->input().has_key() && command->input().key().has_mode()) {
@@ -44076,7 +45150,7 @@ index 8186b0a8d..89c522063 100644
                           context_->mutable_composer());
    }
    OutputMode(command);
-@@ -1062,8 +1286,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
+@@ -1062,8 +1292,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -44089,7 +45163,7 @@ index 8186b0a8d..89c522063 100644
    }
    OutputMode(command);
    return true;
-@@ -1087,8 +1313,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
+@@ -1087,8 +1319,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -44102,7 +45176,7 @@ index 8186b0a8d..89c522063 100644
    }
    OutputMode(command);
    return true;
-@@ -1388,9 +1616,11 @@ bool Session::CommitCandidate(commands::Command* command) {
+@@ -1388,9 +1622,11 @@ bool Session::CommitCandidate(commands::Command* command) {
    } else {
      // No candidate is focused.
      size_t consumed_key_size = 0;
@@ -44114,7 +45188,7 @@ index 8186b0a8d..89c522063 100644
        if (consumed_key_size < context_->composer().GetLength()) {
          // partial suggestion was committed.
          context_->mutable_composer()->DeleteRange(0, consumed_key_size);
-@@ -1523,6 +1753,10 @@ bool Session::InsertCharacter(commands::Command* command) {
+@@ -1523,6 +1759,10 @@ bool Session::InsertCharacter(commands::Command* command) {
  
    const std::string composition = context_->composer().GetQueryForConversion();
    bool should_commit = (context_->state() == ImeContext::CONVERSION);
@@ -44125,7 +45199,7 @@ index 8186b0a8d..89c522063 100644
  
    if (context_->GetRequest().space_on_alphanumeric() ==
            commands::Request::SPACE_OR_CONVERT_COMMITTING_COMPOSITION &&
-@@ -1784,6 +2018,12 @@ bool Session::CommitInternal(commands::Command* command,
+@@ -1784,6 +2024,12 @@ bool Session::CommitInternal(commands::Command* command,
      context_->mutable_converter()->CommitPreedit(context_->composer(),
                                                   command->input().context());
    } else {  // ImeContext::CONVERSION
@@ -44138,7 +45212,7 @@ index 8186b0a8d..89c522063 100644
      context_->mutable_converter()->Commit(context_->composer(),
                                            command->input().context());
    }
-@@ -1827,6 +2067,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
+@@ -1827,6 +2073,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
    return true;
  }
  
@@ -44164,7 +45238,7 @@ index 8186b0a8d..89c522063 100644
  bool Session::CommitFirstSuggestion(commands::Command* command) {
    if (!(context_->state() == ImeContext::COMPOSITION ||
          context_->state() == ImeContext::PRECOMPOSITION)) {
-@@ -1841,9 +2100,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
+@@ -1841,9 +2106,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
  
    constexpr int kFirstIndex = 0;
    size_t committed_key_size = 0;
@@ -44176,7 +45250,31 @@ index 8186b0a8d..89c522063 100644
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
  
-@@ -2158,6 +2419,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
+@@ -1973,9 +2240,22 @@ bool SuppressSuggestion(const commands::Input& input) {
+ }  // namespace
+ 
+ bool Session::Suggest(const commands::Input& input) {
+-  if (SuppressSuggestion(input)) {
++  // Asteria: 窓を出さない欄(Chrome のアドレス欄など)でも候補は作り、AI の準備を同じにする(docs/adr/0081)。
++  const bool suppressed = SuppressSuggestion(input);
++  const bool completions_only = context_->GetConfig().kotori_suggest_completions_only() &&
++                                !context_->GetRequest().mixed_conversion();
++  if (suppressed && !completions_only) {
++    return false;
++  }
++  const bool result = SuggestInternal(input);
++  if (suppressed) {
++    context_->mutable_converter()->KotoriHideSuggestionDisplay();
+     return false;
+   }
++  return result;
++}
++
++bool Session::SuggestInternal(const commands::Input& input) {
+ 
+   // |request_suggestion| is not supposed to always ensure suppressing
+   // suggestion since this field is used for performance improvement
+@@ -2158,6 +2438,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
    return true;
  }
  
@@ -44202,7 +45300,7 @@ index 8186b0a8d..89c522063 100644
  bool Session::CompositionModeSwitchKanaType(commands::Command* command) {
    if (context_->state() != ImeContext::PRECOMPOSITION) {
      return DoNothing(command);
-@@ -2371,14 +2651,46 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,14 +2670,46 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -44253,7 +45351,7 @@ index 8186b0a8d..89c522063 100644
    Output(command);
    return true;
  }
-@@ -2389,16 +2701,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2720,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -44271,7 +45369,7 @@ index 8186b0a8d..89c522063 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +2979,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +2998,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -44280,7 +45378,7 @@ index 8186b0a8d..89c522063 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +2994,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +3013,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -44303,7 +45401,7 @@ index 8186b0a8d..89c522063 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +3053,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +3072,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -44317,7 +45415,7 @@ index 8186b0a8d..89c522063 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3189,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2867,6 +3208,10 @@ void Session::TransformInput(commands::Input* input) {
  
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
@@ -44329,7 +45427,7 @@ index 8186b0a8d..89c522063 100644
        command->input().context().input_field_type());
    Output(command);
 diff --git a/src/session/session.h b/src/session/session.h
-index a9903ecd3..60e10e26e 100644
+index a9903ecd3..33d5db08b 100644
 --- a/src/session/session.h
 +++ b/src/session/session.h
 @@ -35,6 +35,7 @@
@@ -44340,18 +45438,22 @@ index a9903ecd3..60e10e26e 100644
  #include <utility>
  
  #include "absl/strings/string_view.h"
-@@ -116,6 +117,10 @@ class Session {
+@@ -116,6 +117,14 @@ class Session {
    // is called when the CONVERT_REVERSE SessionCommand is called.
    bool ConvertReverse(mozc::commands::Command* command);
  
 +  // Kotori: 入力中の候補を取り直し、先頭に Space と同じ変換の結果を置く
 +  // (KOTORI_REFRESH_SUGGESTION。docs/adr/0039)。
 +  bool KotoriRefreshSuggestion(mozc::commands::Command* command);
++  // 入力中の候補が利用者に見えているか(作っていても、窓を出さない設定なら見えていない)。
++  bool KotoriShowsSuggestion() const;
++  // Session::Suggest の本体(窓を出さない欄かどうかは Suggest で扱う)。
++  bool SuggestInternal(const commands::Input& input);
 +
    // Fills Output::Callback with the Undo SessionCommand to ask the
    // client to send back the SessionCommand to the server.
    // This function is called when the key event representing the
-@@ -200,6 +205,10 @@ class Session {
+@@ -200,6 +209,10 @@ class Session {
    bool TranslateHalfASCII(mozc::commands::Command* command);
    bool TranslateHalfWidth(mozc::commands::Command* command);
    bool ToggleAlphanumericMode(mozc::commands::Command* command);
@@ -44362,7 +45464,7 @@ index a9903ecd3..60e10e26e 100644
  
    // Switch the composition mode.
    bool CompositionModeHiragana(mozc::commands::Command* command);
-@@ -275,6 +284,32 @@ class Session {
+@@ -275,6 +288,32 @@ class Session {
   private:
    friend class SessionTestPeer;
  
@@ -44460,10 +45562,30 @@ index 4718077e2..9532e7021 100644
        if (is_passed) {
          std::cout << "[ PASSED ] " << filepath << std::endl;
 diff --git a/src/session/session_handler_scenario_test.cc b/src/session/session_handler_scenario_test.cc
-index 1bce7497e..ffd4b8fd7 100644
+index 1bce7497e..dfb72a867 100644
 --- a/src/session/session_handler_scenario_test.cc
 +++ b/src/session/session_handler_scenario_test.cc
-@@ -74,6 +74,7 @@ class SessionHandlerScenarioTestBase : public SessionHandlerTestBase {
+@@ -44,9 +44,11 @@
+ #include "absl/strings/str_replace.h"
+ #include "base/file_stream.h"
+ #include "base/file_util.h"
++#include "config/config_handler.h"
+ #include "engine/engine_interface.h"
+ #include "engine/mock_data_engine_factory.h"
+ #include "protocol/commands.pb.h"
++#include "protocol/config.pb.h"
+ #include "request/request_test_util.h"
+ #include "session/session_handler_test_util.h"
+ #include "session/session_handler_tool.h"
+@@ -71,9 +73,15 @@ class SessionHandlerScenarioTestBase : public SessionHandlerTestBase {
+     // Note that singleton Config instance is backed up and restored
+     // by SessionHandlerTestBase's SetUp and TearDown methods.
+     SessionHandlerTestBase::SetUp();
++    // Asteria: シナリオは Mozc の入力中の候補を確かめるので、Mozc と同じ出し方にする(既定は続きの予測だけ。
++    // docs/adr/0081)。
++    config::Config config = config::ConfigHandler::DefaultConfig();
++    config.set_kotori_suggest_completions_only(false);
++    config::ConfigHandler::SetConfig(config);
      std::unique_ptr<EngineInterface> engine =
          MockDataEngineFactory::Create().value();
      handler_ = std::make_unique<SessionHandlerInterpreter>(std::move(engine));
@@ -44471,7 +45593,7 @@ index 1bce7497e..ffd4b8fd7 100644
  
    }
  
-@@ -217,6 +218,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
+@@ -217,6 +225,64 @@ TEST_P(SessionHandlerScenarioTest, TestImplBase) {
    }
  }
  
@@ -44679,7 +45801,7 @@ index 4d3669e06..48cb80565 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..12ef7809a 100644
+index 012d822a5..aaa24e1c3 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -27,6 +27,8 @@
@@ -44699,7 +45821,19 @@ index 012d822a5..12ef7809a 100644
  #include "base/strings/assign.h"
  #include "base/strings/unicode.h"
  #include "base/vlog.h"
-@@ -1225,6 +1228,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
+@@ -552,6 +555,11 @@ class SessionTest : public testing::TestWithTempUserProfile {
+   void InitSessionWithRequest(Session* session,
+                               const commands::Request& request) {
+     session->SetRequest(request);
++    // Asteria: Mozc の入力中の候補を確かめるため、Mozc と同じ出し方にする(既定は続きの予測だけ。docs/adr/0081)。
++    // テストが先に入れた設定は引き継ぐ。
++    config::Config config = session->context().GetConfig();
++    config.set_kotori_suggest_completions_only(false);
++    session->SetConfig(config);
+     auto table = std::make_shared<composer::Table>();
+     table->InitializeWithRequestAndConfig(
+         request, config::ConfigHandler::DefaultConfig());
+@@ -1225,6 +1233,9 @@ TEST_F(SessionTest, ResetFocusedSegmentAfterCommit) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44709,7 +45843,7 @@ index 012d822a5..12ef7809a 100644
  
    commands::Command command;
    InsertCharacterChars("watasinonamaehanakanodesu", &session, &command);
-@@ -2098,6 +2104,9 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2098,6 +2109,9 @@ TEST_F(SessionTest, UpdatePreferences) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44719,7 +45853,7 @@ index 012d822a5..12ef7809a 100644
    commands::Command command;
    InsertCharacterChars("aiueo", &session, &command);
    Segments segments;
-@@ -2109,6 +2118,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2109,6 +2123,7 @@ TEST_F(SessionTest, UpdatePreferences) {
        .WillRepeatedly(DoAll(SetArgPointee<1>(segments), Return(true)));
  
    SetSendKeyCommand("SPACE", &command);
@@ -44727,7 +45861,7 @@ index 012d822a5..12ef7809a 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(false);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2121,6 +2131,7 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2121,6 +2136,7 @@ TEST_F(SessionTest, UpdatePreferences) {
    session.ConvertCancel(&command);
  
    SetSendKeyCommand("SPACE", &command);
@@ -44735,7 +45869,7 @@ index 012d822a5..12ef7809a 100644
    command.mutable_input()->mutable_config()->set_use_cascading_window(true);
    session.SendKey(&command);
    SetSendKeyCommand("SPACE", &command);
-@@ -2138,13 +2149,12 @@ TEST_F(SessionTest, UpdatePreferences) {
+@@ -2138,13 +2154,12 @@ TEST_F(SessionTest, UpdatePreferences) {
    command.Clear();
    session.ConvertCancel(&command);
  
@@ -44751,7 +45885,7 @@ index 012d822a5..12ef7809a 100644
  
    // On KOTOERI keymap, EISU key does "ToggleAlphanumericMode".
    SetSendKeyCommand("EISU", &command);
-@@ -2291,6 +2301,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
+@@ -2291,6 +2306,9 @@ TEST_F(SessionTest, OutputAllCandidateWords) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session);
@@ -44761,7 +45895,7 @@ index 012d822a5..12ef7809a 100644
    commands::Command command;
  
    Segments segments;
-@@ -3799,6 +3812,9 @@ TEST_F(SessionTest, Issue1816861) {
+@@ -3799,6 +3817,9 @@ TEST_F(SessionTest, Issue1816861) {
    candidate = segment->add_candidate();
    candidate->value = "陰謀説";
  
@@ -44771,7 +45905,7 @@ index 012d822a5..12ef7809a 100644
    EXPECT_CALL(*converter, StartPredictionWithPreviousSuggestion(_, _, _))
        .WillOnce(DoAll(SetArgPointee<2>(segments), Return(true)));
  
-@@ -6218,6 +6234,8 @@ TEST_F(SessionTest, Issue2223762) {
+@@ -6218,6 +6239,8 @@ TEST_F(SessionTest, Issue2223762) {
  }
  
  TEST_F(SessionTest, Issue2223755) {
@@ -44780,7 +45914,7 @@ index 012d822a5..12ef7809a 100644
    // This is a unittest against http://b/2223755.
    // - F6 and F7 convert space to half-width.
  
-@@ -6230,9 +6248,11 @@ TEST_F(SessionTest, Issue2223755) {
+@@ -6230,9 +6253,11 @@ TEST_F(SessionTest, Issue2223755) {
      commands::Command command;
  
      EXPECT_TRUE(SendKey("a", &session, &command));
@@ -44794,7 +45928,7 @@ index 012d822a5..12ef7809a 100644
      EXPECT_TRUE(SendKey("i", &session, &command));
  
      EXPECT_EQ(GetComposition(command), "あ い");
-@@ -6249,9 +6269,11 @@ TEST_F(SessionTest, Issue2223755) {
+@@ -6249,9 +6274,11 @@ TEST_F(SessionTest, Issue2223755) {
      commands::Command command;
  
      EXPECT_TRUE(SendKey("a", &session, &command));
@@ -44808,7 +45942,7 @@ index 012d822a5..12ef7809a 100644
      EXPECT_TRUE(SendKey("i", &session, &command));
  
      EXPECT_EQ(GetComposition(command), "あ い");
-@@ -6708,9 +6730,10 @@ TEST_F(SessionTest, IMEOnWithModeTest) {
+@@ -6708,9 +6735,10 @@ TEST_F(SessionTest, IMEOnWithModeTest) {
      command.mutable_input()->mutable_key()->set_mode(commands::HALF_ASCII);
      EXPECT_TRUE(session.IMEOn(&command));
      EXPECT_TRUE(command.output().has_mode());
@@ -44821,7 +45955,7 @@ index 012d822a5..12ef7809a 100644
    }
  }
  
-@@ -7165,7 +7188,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -7165,7 +7193,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterChars("123.", &session, &command);
  
@@ -44831,7 +45965,7 @@ index 012d822a5..12ef7809a 100644
    }
  
    // Don't trigger auto conversion for the ".."
-@@ -7190,7 +7214,8 @@ TEST_F(SessionTest, AutoConversion) {
+@@ -7190,7 +7219,8 @@ TEST_F(SessionTest, AutoConversion) {
      // The last "." is a triggering key for auto conversion
      InsertCharacterString("１２３。", "123.", &session, &command);
  
@@ -44841,7 +45975,7 @@ index 012d822a5..12ef7809a 100644
    }
  
    // Don't trigger auto conversion for "." only.
-@@ -7878,6 +7903,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
+@@ -7878,6 +7908,9 @@ TEST_F(SessionTest, CommitCandidateT13N) {
  
    Session session(engine);
    InitSessionToPrecomposition(&session, *mobile_request_);
@@ -44851,7 +45985,7 @@ index 012d822a5..12ef7809a 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9172,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9177,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -44889,18 +46023,19 @@ index 012d822a5..12ef7809a 100644
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9864,10 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9869,11 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
 +  // 通常候補の抑制を検証する。AI の非同期反映と通常候補維持は KotoriRefreshSuggestion で検証。
 +  config::Config config;
 +  config.set_kotori_lm_enabled(false);
++  config.set_kotori_suggest_completions_only(false);
 +  session.SetConfig(config);
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10557,757 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10563,842 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -45062,6 +46197,90 @@ index 012d822a5..12ef7809a 100644
 +  kotori::g_live_next_ms = 0;
 +}
 +
++// Asteria: 既定では、続きの予測がなければ入力中の窓を出さない(Issue #205、docs/adr/0081)。手が止まった後の
++// 取り直しは続けて AI の変換を用意し、Space でその結果を出す。見えない候補はキーで確定しない。
++TEST_F(SessionTest, KotoriDefaultShowsOnlyCompletions) {
++  ASSERT_TRUE(config::ConfigHandler::DefaultConfig().kotori_suggest_completions_only());
++  EXPECT_EQ(config::ConfigHandler::DefaultConfig().kotori_suggest_min_chars(), 3);
++  MockEngine engine;
++  auto converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  session.SetConfig(config::ConfigHandler::DefaultConfig());
++  Segments suggestion;
++  AddCandidate("あいうえお", "あいうえお", suggestion.add_segment());
++  suggestion.mutable_segment(0)->set_key("あいうえお");
++  EXPECT_CALL(*converter, StartPrediction(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(suggestion), Return(true)));
++  Segments converted;
++  AddCandidate("あいうえお", "阿伊宇江於", converted.add_segment());
++  converted.mutable_segment(0)->set_key("あいうえお");
++  converted.mutable_segment(0)->mutable_candidate(0)->kotori_ai_evaluated = true;
++  converted.set_kotori_ai_status(Segments::KotoriAiStatus::kReady);
++  EXPECT_CALL(*converter, StartConversion(_, _))
++      .WillRepeatedly(DoAll(SetArgPointee<1>(converted), Return(true)));
++  kotori::g_live_first_ms = 200;
++  kotori::g_live_next_ms = 0;
++  commands::Command command;
++  InsertCharacterChars("aiueo", &session, &command);
++  EXPECT_FALSE(command.output().has_candidate_window());
++  ASSERT_TRUE(command.output().has_callback());
++  EXPECT_EQ(command.output().callback().session_command().type(),
++            commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
++  command.Clear();
++  command.mutable_input()->set_type(commands::Input::SEND_COMMAND);
++  command.mutable_input()->mutable_command()->set_type(
++      commands::SessionCommand::KOTORI_REFRESH_SUGGESTION);
++  ASSERT_TRUE(session.SendCommand(&command));
++  EXPECT_TRUE(command.output().consumed());
++  EXPECT_FALSE(command.output().has_candidate_window());
++  EXPECT_FALSE(command.output().has_all_candidate_words());
++  ASSERT_TRUE(command.output().has_preedit());
++  EXPECT_EQ(command.output().preedit().segment(0).value(), "あいうえお");
++  // 見えない候補をキーで確定しない(Shift+Enter は何もしない)。
++  ASSERT_TRUE(SendKey("Shift Enter", &session, &command));
++  EXPECT_FALSE(command.output().has_result());
++  EXPECT_EQ(session.context().state(), ImeContext::COMPOSITION);
++  command.Clear();
++  ASSERT_TRUE(session.Convert(&command));
++  EXPECT_EQ(command.output().preedit().segment(0).value(), "阿伊宇江於");
++  kotori::g_live_first_ms = 0;
++  kotori::g_live_next_ms = 0;
++}
++
++// 続きの予測があれば、AI の結果を待たずに打った直後から窓に出し、Shift+Enter(1 番目の予測で確定)で選べる。
++// 窓に出ていない候補(今の読みの変換)は確定しない。
++TEST_F(SessionTest, KotoriCompletionsShownImmediatelyAndOnlyVisibleOnesCommitted) {
++  for (const bool has_completion : {true, false}) {
++    SCOPED_TRACE(has_completion);
++    MockEngine engine;
++    auto converter = CreateEngineConverterMock(&engine);
++    Session session(engine);
++    InitSessionToPrecomposition(&session);
++    session.SetConfig(config::ConfigHandler::DefaultConfig());
++    Segments suggestion;
++    Segment* segment = suggestion.add_segment();
++    segment->set_key("あいうえお");
++    AddCandidate("あいうえお", "阿伊宇江於", segment);
++    if (has_completion) AddCandidate("あいうえおかきくけこ", "あいうえお柿くけこ", segment);
++    suggestion.set_kotori_ai_status(Segments::KotoriAiStatus::kPending);  // AI はまだ
++    EXPECT_CALL(*converter, StartPrediction(_, _))
++        .WillRepeatedly(DoAll(SetArgPointee<1>(suggestion), Return(true)));
++    EXPECT_CALL(*converter, StartConversion(_, _)).WillRepeatedly(Return(false));
++    commands::Command command;
++    InsertCharacterChars("aiueo", &session, &command);
++    ASSERT_EQ(command.output().has_candidate_window(), has_completion);
++    if (has_completion) {
++      ASSERT_EQ(command.output().candidate_window().candidate_size(), 1);
++      EXPECT_EQ(command.output().candidate_window().candidate(0).value(), "あいうえお柿くけこ");
++    }
++    // Shift+Enter は、予測が見えていれば 1 番目の予測で確定し、見えていなければ何もしない。
++    ASSERT_TRUE(SendKey("Shift Enter", &session, &command));
++    ASSERT_EQ(command.output().has_result(), has_completion);
++    if (has_completion) EXPECT_EQ(command.output().result().value(), "あいうえお柿くけこ");
++  }
++}
++
 +TEST_F(SessionTest, KotoriRefreshDisabledOrPrivate) {
 +  // 別セッションの AI が有効でも、このセッションの設定を優先する。
 +  kotori::g_live_first_ms = 200;
@@ -45074,6 +46293,7 @@ index 012d822a5..12ef7809a 100644
 +    config::Config config;
 +    config.set_kotori_lm_enabled(incognito);
 +    config.set_incognito_mode(incognito);
++    config.set_kotori_suggest_completions_only(false);
 +    session.SetConfig(config);
 +    Segments suggestion;
 +    Segment* segment = suggestion.add_segment();
@@ -45659,7 +46879,7 @@ index 012d822a5..12ef7809a 100644
  }  // namespace session
  }  // namespace mozc
 diff --git a/src/version.bzl b/src/version.bzl
-index ada11a64a..a5ecf4910 100644
+index ada11a64a..386a52361 100644
 --- a/src/version.bzl
 +++ b/src/version.bzl
 @@ -32,11 +32,10 @@ MAJOR = 3
@@ -45672,7 +46892,7 @@ index ada11a64a..a5ecf4910 100644
  # Number to be increased. This value may be replaced by other tools.
 -BUILD = BUILD_OSS
 -
-+BUILD = 6463
++BUILD = 6464
  # Represent the platform and release channel.
  REVISION = 100
  

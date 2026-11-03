@@ -70,6 +70,20 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   (別の作業ツリーで Bazel のサーバーが開いていた)、`&&` でつないだせいで止まらずに `~/mz` のまま続け、ファイルを自分自身に
   写して 13 個を空にした。今は 1 行ずつ確かめて止まる。`~/mz` 以外の所で Bazel を動かしたら `bazelisk shutdown` してから
   作り直す。壊れたときは、素の Mozc に main のパッチを当てた木から写して戻す(`git worktree add`)。
+- **作業ツリー ~/ag16 でのテスト**: `--repo_env=BAZEL_LLVM=C:/Users/aruik/mz/src/third_party/llvm` を付けないと、
+  「absolute path inclusion(s) found」で止まる。Qt を使うテスト(`//gui/tool:kotori_support_reminder_test`・`//gui/config_dialog:kotori_dashboard_test`)は、
+  CI と同じく PowerShell で `$env:PATH` に `third_party/qt/bin`、`QT_PLUGIN_PATH` に `third_party/qt/plugins` を入れ、
+  `--test_env=PATH=… --test_env=QT_PLUGIN_PATH=… --test_env=QT_QPA_PLATFORM=offscreen` を付けて bazel で動かす
+  (付けないと Qt の DLL が見つからず `Exit -1073741515`、設定画面のテストは止まったままになる)。
+- **Windows の通知は結果を残す**: 一度も通知を出したことがない AUMID では `ToastNotifier.Setting` が 0x80070490 を返す。
+  これを失敗として扱っていたため、応援のお願いは一度も出ていなかった(2026-11-02 に発見)。`qInfo` は製品では
+  どこにも残らないので、見えない処理の結果はファイル(support-reminder.ini の `last_result` など)に書く。
+- **CI と同じテストを全部回す**: Mozc の単体テストは `.github/workflows/mozc-windows.yml` の「テストする」の一覧を
+  そのまま手元で回す。設定の既定値を変えたとき `session_handler_scenario_test` だけ回し忘れ、CI の MSI が作れなかった
+  (2026-11-02)。
+- **入力中の候補を作るのを止めると Space の結果が変わる**: 打鍵ごとの候補作り(`EngineConverter::Suggest` →
+  `LmRewriter::RewriteSuggestion`)は、AI の先回りの変換と打ち間違いの補正を始めさせる役も持つ。窓を隠すだけなら
+  出力(`FillOutput`)で隠す(docs/adr/0081)。見た目だけの変更でも、`session_eval.py` で前後の 1 番目を比べる。
 - **Bazel の出力は読み取り専用**: `bazel-bin` からコピーしたファイルを上書きするときは `chmod u+w` してから。
 - **積み重ねた PR のマージ**: 下の PR を `--delete-branch` でマージすると、上の PR が付け替えられずに閉じることが
   ある。先に上の PR の base を main に変えてからマージするか、一番上のブランチからまとめて出し直す。

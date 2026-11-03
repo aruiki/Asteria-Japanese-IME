@@ -66,6 +66,22 @@ def capture(path):
 
 
 capture(out)
+# 第 6 引数に文字を渡すと、Ctrl+F で設定の検索欄に移って、その文字を打った画面も撮る(2026-11-03)。
+# IME を通さないよう、キーではなく文字(WM_CHAR)として送る。
+query = sys.argv[6] if len(sys.argv) > 6 else ""
+if query:
+    user32.SetForegroundWindow(h)
+    time.sleep(.5)
+    user32.keybd_event(0x11, 0, 0, 0)
+    user32.keybd_event(0x46, 0, 0, 0)
+    user32.keybd_event(0x46, 0, 0x2, 0)
+    user32.keybd_event(0x11, 0, 0x2, 0)
+    time.sleep(.5)
+    for ch in query:
+        user32.PostMessageW(h, 0x0102, ord(ch), 0)
+        time.sleep(.1)
+    time.sleep(1.5)
+    capture(out.rsplit(".", 1)[0] + "-search.png")
 VK_CONTROL, VK_TAB, KEYUP = 0x11, 0x09, 0x2
 for i in range(1, tabs + 1):
     user32.SetForegroundWindow(h)
