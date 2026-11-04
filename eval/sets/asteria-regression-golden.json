@@ -1,0 +1,26 @@
+[
+ {
+  "index": "rg-0001",
+  "context_text": "",
+  "input": "くうかんこうへんちょうき",
+  "expected_output": [
+   "空間光変調器"
+  ]
+ },
+ {
+  "index": "rg-0002",
+  "context_text": "うーむ納得いきませんね。今は普通に出ます。",
+  "input": "くうかんこうへんちょうき",
+  "expected_output": [
+   "空間光変調器"
+  ]
+ },
+ {
+  "index": "rg-0003",
+  "context_text": "上の文自体が精度の悪さを物語っています。文脈的に",
+  "input": "せいどのはなしなんかしていない",
+  "expected_output": [
+   "精度の話なんかしていない"
+  ]
+ }
+]

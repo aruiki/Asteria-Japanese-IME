@@ -27,11 +27,38 @@ Acc@1 が最大の重みを JSON で出す。λ_lm = 1、T = 1000 に固定し�
 | --- | --- | --- |
 | AJIMEE-Bench(200 問) | 取得・評価できる | azooKey/AJIMEE-Bench の `JWTD_v2/v1/evaluation_items.json`。CC-BY-SA 3.0 |
 | KTB-conv ほか KTB 系 | 未作成 | 7.2 の test 分割から作り、分野ごとに人手で正解を確認する。作成手順と確認基準はここに書く |
-| 回帰ゴールデン | 未作成 | 誤変換を直したときに加えていく |
+| 回帰ゴールデン(`eval/sets/asteria-regression-golden.json`) | 評価できる(2026-11-05 作成。誤変換を直すたびに足す) | 本プロジェクトで作成。SPEC 14.1 の 2,000 問へ育てる。調整に使わない |
 | Kotori の調整・回帰用(`eval/sets/kotori-idioms`・`nuance`・`daily`) | 評価できる | 本プロジェクトで作成。生成の数や LLM の重みを選ぶのにも使った(docs/adr/0016、0023)ので、未知の文の精度には使わない |
 | Kotori の調整・回帰用: 漢数字を含む熟語・慣用句(`eval/sets/kotori-kanjinum.json`、29 問) | 評価できる | 本プロジェクトで作成。熟語の中の漢数字を算用数字にしないかを見る。2026-09-30: Mozc 89.7%(読みの誤りを直す前)、Standard 96.6% |
 | Kotori の調整用: 打ち間違い・同音語・人名と新語(`eval/sets/kotori-typo`・`homophone`・`names`、各 40 問) | 評価できる | ATOK が強いとされる所を測るために作成(`eval/sets/make_atok_sets.py`)。打ち間違いは、意図した文が正解 |
 | **Kotori の最終評価用(`eval/sets/kotori-heldout.json`、300 問)** | 評価できる | 本プロジェクトで作成(下記)。**調整に使わない** |
+
+### 回帰ゴールデン(`eval/sets/asteria-regression-golden.json`)
+
+**直した誤変換が二度と戻らないこと**を見るセット。SPEC 14.1 の「過去に修正した誤変換と必ず正解すべき基本例」で、
+合格は全件一致(1 問でも外れたら失敗)。調整・重みの選択には使わない。
+
+- 足すのは、直ったことを確かめた問題だけ。直す前の赤い問題を足すと、ゲートが常に失敗する。
+- 前の文が要る問題は `context_text` を残す。無いと再現しない。
+- `--input` はひらがな・カタカナのどちらでもよい(評価器がひらがなに直す)。同じ読み・同じ前の文の組は重複として足さない。
+- index は `rg-0001` の連番。手で振らない。
+
+```bash
+# 足す(直ったことを確認してから)
+python mozc/tools/regression_add.py --input くうかんこうへんちょうき --expected 空間光変調器
+python mozc/tools/regression_add.py --input ないと --expected ナイト --expected ないと --context "前の文"
+
+# 形式の検査と一覧
+python mozc/tools/regression_add.py --check
+python mozc/tools/regression_add.py --list
+
+# 全件一致のゲート(製品の既定=Standard。第2引数はモデルのある所)
+mozc/tools/eval_regression.sh ~/mz/src/bazel-bin/converter/converter_main.exe "C:/Program Files (x86)/Asteria"
+```
+
+2026-11-05 時点の初期 3 問は、v5.1.0 の検証記録(`docs/verification/v501-consistency-20261104.md`)で
+直ったことを確認した問題(空間光変調器・精度の話なんかしていない)。変換器での初回実行は、この変更を入れた環境で行う。
+SPEC 14.1 の 2,000 問へは、直した誤変換を 1 問ずつ足して育てる。
 
 ### kotori-heldout(最終評価用、300 問)
 
