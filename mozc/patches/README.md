@@ -26,6 +26,7 @@ Mozc や llama.cpp を上げるときは、この表で「何を守る変更か�
 | `gui/tool/kotori_support_reminder.*` | 応援のお願いの通知(3日ごと)。一度も通知を出していないアプリで Windows が設定を「見つからない」と返しても出す。出せなかったら1時間後に出し直し、結果を support-reminder.ini に残す。AppContainer・パッケージのアプリから起動されたらすぐ終わる | — |
 | `config/character_form_manager.cc`(と試験) | 英字は、まだ選んでいなければ半角で出す(数字・記号は全角のまま) | 0082 |
 | `rewriter/kotori_context_history.*`、`rewriter/lm_rewriter.*` の `Finish`・`CheckResizeSegmentsRequest` | 同じ文で確定した文を文節ごと覚え、同じ文には AI を通さずにその文を出す(同じ間違いを二度しない) | 0082 |
+| `rewriter/user_boundary_history_rewriter.*`(と試験) | AI がオンのときは、覚えた区切りで AI の選んだ文を切り直さない(古い学習で 1 回目だけ外れた) | カード 89 |
 | `gui/config_dialog/*`(`KotoriPolishSettings`)、`gui/config_dialog/character_form_editor.cc` | 設定画面の左の一覧・検索・カードの見た目・わかりやすい言葉と説明 | 0083 |
 | `rewriter/zenz_scorer.*` | zenz / LLM の採点(前置きの使い回し、候補の木)、ビームサーチ(複数の根をまとめる)、計算量の累計 | 0013、0016、0024 |
 | `rewriter/lm_rewriter.*` | 文全体の選択(生成 + 採点)、文節ごとの並べ替え、入力中の予測と Tab、先回りの変換、時間の上限、モデルの裏での読み込み、AI の状態、生成した文の文節分け、ユーザー辞書の保護 | 0015〜0027 |

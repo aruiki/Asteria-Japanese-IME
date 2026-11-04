@@ -229,7 +229,7 @@ jobs:
         working-directory: .\mozc-src\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:kotori_homophone_hint_rewriter_test //rewriter:kotori_typo_model_test //rewriter:kotori_romaji_english_test //rewriter:lm_rewriter_test //rewriter:kotori_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:kotori_usage_stats_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
+        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:kotori_homophone_hint_rewriter_test //rewriter:kotori_typo_model_test //rewriter:kotori_romaji_english_test //rewriter:lm_rewriter_test //rewriter:kotori_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //rewriter:user_boundary_history_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:kotori_usage_stats_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
       - name: 応援案内の保存と画面を確かめる
         shell: pwsh
         working-directory: .\mozc-src\src
@@ -280,11 +280,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'リリース名を決められない' }
           $hash = (Get-FileHash ../Asteria64.msi -Algorithm SHA256).Hash.ToLower()
           [IO.File]::WriteAllText((Join-Path (Get-Location) '../Asteria64.msi.sha256'), "$hash  Asteria64.msi`n", [Text.Encoding]::ASCII)
-          # 旧版READMEや外部サイトのlatest/downloadリンクを継続する。
-          Copy-Item ../Asteria64.msi ../Kotori64.msi
-          [IO.File]::WriteAllText((Join-Path (Get-Location) '../Kotori64.msi.sha256'), "$hash  Kotori64.msi`n", [Text.Encoding]::ASCII)
-          Write-Host "版 $env:TAG、名前 $releaseName"
-          [IO.File]::AppendAllText($env:GITHUB_ENV, "RELEASE_NAME=$releaseName`n", [Text.UTF8Encoding]::new($false))
+          # 配布ファイルの名前に版を入れる(利用者の依頼、2026-11-04)。README・サイト・出回っている
+          # latest/download の固定リンクのため、同じ中身の Asteria64.msi も添付する。Kotori64.msi はやめた
+          # (5.0.0・4.2.0 で各 1 回しか使われていない)。
+          $named = "Asteria-$($env:TAG.TrimStart('v'))-x64.msi"
+          Copy-Item ../Asteria64.msi "../$named"
+          [IO.File]::WriteAllText((Join-Path (Get-Location) "../$named.sha256"), "$hash  $named`n", [Text.Encoding]::ASCII)
+          Write-Host "版 $env:TAG、名前 $releaseName、ファイル $named"
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "RELEASE_NAME=$releaseName`nASSET_NAMED=$named`n", [Text.UTF8Encoding]::new($false))
       - if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
@@ -295,7 +298,7 @@ jobs:
           make_latest: ${{ env.MAKE_LATEST }}
           body_path: kotori/mozc/release-notes.md
           files: |
+            ${{ env.ASSET_NAMED }}
+            ${{ env.ASSET_NAMED }}.sha256
             Asteria64.msi
             Asteria64.msi.sha256
-            Kotori64.msi
-            Kotori64.msi.sha256

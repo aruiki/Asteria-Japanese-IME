@@ -1,0 +1,7 @@
+[
+ {"index": 1, "input": "ためいきは", "expected_output": ["ため息は", "溜息は", "溜め息は"]},
+ {"index": 2, "input": "やぶれて", "expected_output": ["敗れて", "破れて"]},
+ {"index": 3, "input": "なる", "expected_output": ["なる", "鳴る", "成る"]},
+ {"index": 4, "input": "ないと", "expected_output": ["ナイト", "ないと", "無いと"]},
+ {"index": 5, "input": "なおったのか", "expected_output": ["治ったのか", "直ったのか"]}
+]

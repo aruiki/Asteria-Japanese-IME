@@ -1,6 +1,7 @@
 """公開した MSI を確かめる(作業カード 35)。リリースの後に必ず回す。
 
-GitHub Releases から `Asteria64.msi`（旧版は `Kotori64.msi`） と `.sha256` を取り、次を確かめる。1 つでも外れたら終了コード 1。
+GitHub Releases から `Asteria64.msi`（旧版は `Kotori64.msi`） と `.sha256` を取り、次を確かめる(5.1.0 からは版つきの
+`Asteria-<版>-x64.msi` が同じ中身かも見る)。1 つでも外れたら終了コード 1。
 - SHA-256 が `.sha256` と一致する
 - MSI の大きさが 1.8 GiB 以下(GitHub Releases の 1 ファイルの上限 2 GiB の手前で気づく。カード 40)
 - MSI の ProductVersion が、比べる版(既定は 1 つ前のリリース)より大きい(上書きで入れ替わるための条件)
@@ -52,6 +53,23 @@ def msi_version(msi: pathlib.Path) -> str:
         "$v.GetType().InvokeMember('Execute','InvokeMethod',$null,$v,$null);"
         "$r = $v.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v,$null);"
         "$r.GetType().InvokeMember('StringData','GetProperty',$null,$r,1)")
+
+
+def versioned_asset_name(tag):
+    """5.1.0 からの版つきの配布名(Asteria-5.1.0-x64.msi)。中身は Asteria64.msi と同じ。"""
+    return "Asteria-" + tag.lstrip("v") + "-x64.msi"
+
+
+def check_versioned_asset(assets, tag, sha256, check):
+    """版つきの添付があれば、GitHub が出す SHA-256 が Asteria64.msi と同じで、.sha256 も添付されているかを見る。"""
+    name = versioned_asset_name(tag)
+    by_name = {asset["name"]: asset for asset in assets}
+    if name not in by_name:
+        print(f"--  版つきの配布名 {name} はない(5.1.0 より前の版)")
+        return
+    digest = (by_name[name].get("digest") or "").removeprefix("sha256:")
+    check(digest == sha256, f"版つきの配布名 {name} の中身が Asteria64.msi と同じ")
+    check(name + ".sha256" in by_name, f"版つきの配布名 {name}.sha256 の添付")
 
 
 def choose_asset_name(names):
@@ -253,6 +271,8 @@ def main() -> int:
         want = msi.with_name(msi.name + ".sha256").read_text().split()[0]
         got = hashlib.sha256(msi.read_bytes()).hexdigest()
         check(got == want, f"SHA-256 {got[:16]}…")
+        assets = json.loads(run(["gh", "api", f"repos/{REPO}/releases/tags/{tag}"]))["assets"]
+        check_versioned_asset(assets, tag, got, check)
         ver = msi_version(msi)
         if prev:
             prev_ver = msi_version(download(prev, work / prev))
