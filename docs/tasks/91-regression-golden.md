@@ -24,10 +24,10 @@
 コミットしたセットが検査を通ること、`--check` と追加の終了コード。
 
 ## 完了条件
-- [ ] `python -X utf8 -m unittest discover -s mozc/tools -p test_regression_add.py -v` が通る
-- [ ] 変換器のある環境で `mozc/tools/eval_regression.sh` が全件一致(この作業環境には変換器のビルドが無いため未実施)
-- [ ] CI が緑
-- [ ] 直した誤変換を足す手順が `eval/README.md` に書かれている
+- [x] `python -X utf8 -m unittest discover -s mozc/tools -p test_regression_add.py -v` が通る(16 件)
+- [x] 変換器のある環境で `mozc/tools/eval_regression.sh` が全件一致(3/3、[検証記録](../verification/regression-golden-20261105.md))
+- [ ] CI が緑(この変更を push してから)
+- [x] 直した誤変換を足す手順が `eval/README.md` に書かれている
 
 ## 注意
 - 直す前の赤い問題をセットへ足さない。ゲートが常に失敗する。
