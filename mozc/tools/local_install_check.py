@@ -235,7 +235,7 @@ def verify(args):
     core = core_hashes()
     if core != r.state["expected_core"]:
         errors.append("導入ファイルが候補と一致しません（3010なら再起動後に再実行）: " + json.dumps(core))
-    profile_kept = all((profile() / name).is_file() for name in r.state["backup_profile"])
+    profile_kept = profile_files_kept(r.state["backup_profile"])
     if not profile_kept:
         errors.append("更新後に利用者プロファイルのファイルが欠けています")
     if errors:
@@ -412,13 +412,22 @@ def rollback(args):
     r.save("rollback", profile_restored=restored_profile)
 
 
+def profile_files_kept(names):
+    """導入の前に保存したプロファイルのファイルが、導入の後も残っているか。
+
+    webview2/ は設定画面の表示部品(WebView2)が自分で作っては消すブラウザのデータ(BrowserMetrics-spare.pma など)で、
+    利用者の学習や設定ではない。設定画面を開くだけで入れ替わるので、残っているかの確認から外す(2026-11-04)。
+    """
+    return all((profile() / name).is_file() for name in names if not name.startswith("webview2/"))
+
+
 def restored(args):
     r = Run(args.out)
     r.require("rollback")
     checks = {
         "product": [p["code"] for p in installed_products()] == [r.state["baseline_product"]["code"]],
         "core_files": core_hashes() == r.state["baseline_core"],
-        "profile_files_kept": all((profile() / name).is_file() for name in r.state.get("backup_profile", {})),
+        "profile_files_kept": profile_files_kept(r.state.get("backup_profile", {})),
         "languages": language_list() == r.state["baseline_languages"],
     }
     r.save("restored", restored_checks=checks, restored_all=all(checks.values()))
