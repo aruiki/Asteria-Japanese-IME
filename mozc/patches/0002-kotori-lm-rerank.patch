@@ -40942,10 +40942,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..d97aa5a8f
+index 000000000..92a5822d5
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5056 @@
+@@ -0,0 +1,5091 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -42965,6 +42965,7 @@ index 000000000..d97aa5a8f
 +  }
 +  job_cv_.notify_all();
 +  if (worker_.joinable()) worker_.join();
++  if (judge_loader_.joinable()) judge_loader_.join();
 +}
 +
 +void LmRewriter::EnsureLoaded(const std::string& path) const {
@@ -43141,12 +43142,19 @@ index 000000000..d97aa5a8f
 +        if (kotori::ExtraModelInstalled(*extra)) judge_path = kotori::ExtraModelPath(*extra);
 +      }
 +    }
-+    // 読み込みは重いので、裏で読める時だけ読む(使わなくなったら、すぐ下ろす)。
++    // 判定役は、ここでは読み込まない(読み込みは裏の仕事で、変換の鍵の外。下ろすのはすぐ)。読み終えるまでは
++    // 判定役なしで変換する(判定役は点差の小さい候補の相談役なので、なくても Standard の答えは出る)。
 +    if (!for_predict) {
-+      if (may_load || judge_path.empty() || judge_path_ == judge_path) {
-+        EnsureJudgeLoaded(judge_path);
-+      } else {
-+        RequestLoad(config);
++      judge_wanted_ = judge_path;
++      if (judge_path.empty()) {
++        EnsureJudgeLoaded(std::string());
++      } else if (judge_path_ != judge_path) {
++        // 評価(その場で読み込む設定)では、結果がそろうようにその場で読む。
++        if (sync_load_) {
++          EnsureJudgeLoaded(judge_path);
++        } else {
++          RequestLoad(config);
++        }
 +      }
 +    }
 +    if (llm_path.empty()) llm_path = FileUtil::JoinPath(model_dir_, kLlmModelName);
@@ -45230,6 +45238,33 @@ index 000000000..d97aa5a8f
 +          }
 +          WriteStatus(config, "ready");
 +        }
++        // Asteria: 判定役(High・Unreal)は変換の鍵の外で読み込み、読み終えてから差し込む(カード 90)。読み込みの間も
++        // 変換は判定役なしで続く。開けなかったファイルは、パスが変わるか休んで戻るまで読み直さない。
++        std::string judge_want;
++        {
++          absl::MutexLock model_lock(mutex_);
++          if (!judge_wanted_.empty() && judge_wanted_ != judge_path_) judge_want = judge_wanted_;
++        }
++        // 読み込みは専用のスレッドで行う(この係は変換の仕事を続ける)。読み込み中に別の判定役を頼まれたら、
++        // 読み終えた後の PrepareFor がもう一度頼む。
++        if (!judge_want.empty() && !stop_.load() && !judge_loading_.exchange(true)) {
++          if (judge_loader_.joinable()) judge_loader_.join();
++          judge_loader_ = std::thread([this, judge_want, config] {
++            std::unique_ptr<ZenzScorer> judge;
++            if (FileUtil::FileExists(judge_want).ok()) {
++              judge = ZenzScorer::Open(judge_want, threads_, runtime_dir_);
++            }
++            {
++              absl::MutexLock model_lock(mutex_);
++              if (judge_wanted_ == judge_want && !stop_.load()) {
++                judge_ = std::move(judge);
++                judge_path_ = judge_want;
++                WriteStatus(config, "ready");
++              }
++            }
++            judge_loading_ = false;
++          });
++        }
 +        loading_ = false;
 +        continue;
 +      }
@@ -46004,10 +46039,10 @@ index 000000000..d97aa5a8f
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..016240d52
+index 000000000..cef9202ef
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,675 @@
+@@ -0,0 +1,681 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -46522,6 +46557,12 @@ index 000000000..016240d52
 +  // 開発では KOTORI_LM_JUDGE(ファイル)・_MARGIN・_WEIGHT・_TOP で試す。
 +  mutable std::string judge_path_ ABSL_GUARDED_BY(mutex_);
 +  mutable std::unique_ptr<ZenzScorer> judge_ ABSL_GUARDED_BY(mutex_);
++  // 読み込んでほしい判定役(PrepareFor が決める)。読み込みは裏の仕事が変換の鍵の外で行い、読み終えてから差し込む
++  // (判定役は 4〜5 GB あり、鍵を握ったまま読むと最初の変換が数秒待った)。
++  mutable std::string judge_wanted_ ABSL_GUARDED_BY(mutex_);
++  // 判定役を読み込むスレッド。裏の仕事の係(worker_)で読むと、その間の変換の仕事が数秒止まった。
++  mutable std::thread judge_loader_;
++  mutable std::atomic<bool> judge_loading_{false};
 +  std::string env_judge_path_;
 +  double judge_margin_ = 3.0;
 +  double judge_weight_ = 2.0;  // 開発用の文脈の選択で決めた(1.0: 237、2.0: 240、3.0: 238)
