@@ -1,6 +1,6 @@
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">
-    ⬇ Asteria64.msi をダウンロード
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.1.0/Asteria-5.1.0-x64.msi">
+    ⬇ Asteria-5.1.0-x64.msi をダウンロード
   </a>
 </h2>
 
@@ -44,7 +44,9 @@
 - 入力中に文を丸ごと作り直す補正をやめました。正解は増えず、Space の待ちを延ばしていたためです
   (前の文で決まる同音語の選び分けで、待ちの長い方から 5% が 0.09 → 0.04 秒)。打ち間違いの補正は続けます。
 - 精度は前と同じです(調整に使っていない文脈の選択で 297 問中 225 問、短文で 120 問中 119 問)。
-- 確かめたアプリ: メモ帳。Word などの Office では、まだ確かめていません。
+- 配布ファイルの名前に版を入れました(Asteria-5.1.0-x64.msi)。中身が同じ Asteria64.msi も、これまでのリンクのために添付します。
+  旧名の Kotori64.msi の添付はやめました。
+- 確かめたアプリ: メモ帳と Edge。Word などの Office では、まだ確かめていません。
 
 ## v5.0.0 で変わったこと
 

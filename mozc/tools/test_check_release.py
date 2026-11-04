@@ -204,4 +204,37 @@ class CollocationsPayloadTest(unittest.TestCase):
             self.assertFalse(self.check_payload(root, identity))
 
 
+
+class VersionedAssetTest(unittest.TestCase):
+    class Collect:
+        def __init__(self):
+            self.results = []
+
+        def __call__(self, ok, label):
+            self.results.append((ok, label))
+
+    def test_versioned_name_matches_tag(self):
+        from check_release import versioned_asset_name
+        self.assertEqual(versioned_asset_name("v5.1.0"), "Asteria-5.1.0-x64.msi")
+        self.assertEqual(versioned_asset_name("v5.1.0-rc.2"), "Asteria-5.1.0-rc.2-x64.msi")
+
+    def test_versioned_asset_must_match_the_fixed_name(self):
+        from check_release import check_versioned_asset
+        assets = [{"name": "Asteria-5.1.0-x64.msi", "digest": "sha256:abc"},
+                  {"name": "Asteria-5.1.0-x64.msi.sha256", "digest": "sha256:x"},
+                  {"name": "Asteria64.msi", "digest": "sha256:abc"}]
+        check = self.Collect()
+        check_versioned_asset(assets, "v5.1.0", "abc", check)
+        self.assertTrue(all(ok for ok, _ in check.results) and len(check.results) == 2)
+        check = self.Collect()
+        check_versioned_asset(assets, "v5.1.0", "different", check)
+        self.assertFalse(check.results[0][0])
+
+    def test_older_release_without_versioned_asset_is_not_a_failure(self):
+        from check_release import check_versioned_asset
+        check = self.Collect()
+        check_versioned_asset([{"name": "Asteria64.msi"}], "v5.0.0", "abc", check)
+        self.assertEqual(check.results, [])
+
+
 if __name__ == '__main__': unittest.main()
