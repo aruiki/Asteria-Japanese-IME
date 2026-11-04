@@ -28790,10 +28790,10 @@ index 115c7c46b..289f7b205 100644
  }
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
-index 000000000..00acc896c
+index 000000000..a67f5b873
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_dashboard_test.cc
-@@ -0,0 +1,412 @@
+@@ -0,0 +1,427 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include <QApplication>
 +#include <QDir>
@@ -28824,6 +28824,7 @@ index 000000000..00acc896c
 +#include "client/client_mock.h"
 +#include "gui/base/util.h"
 +#include "gui/config_dialog/config_dialog.h"
++#include "gui/config_dialog/kotori_settings_data.h"
 +#include "protocol/config.pb.h"
 +#include "testing/gmock.h"
 +#include "testing/gunit.h"
@@ -29204,6 +29205,20 @@ index 000000000..00acc896c
 +            QString::fromUtf8("いつでも使えます"));
 +}
 +#endif
++
++// Asteria: High・Unreal の判定役が動いていれば、AI の状態に出す(カード 90)。
++TEST(KotoriAiStatusTextTest, ShowsJudgeWhenLoaded) {
++  KotoriStatus status;
++  status["state"] = "llm";
++  status["device"] = "NVIDIA GeForce RTX 3060";
++  EXPECT_EQ(FormatKotoriAiStatus(status),
++            "AI の状態: 動いています(変換用の AI と日本語 LLM、GPU: NVIDIA GeForce RTX 3060)。");
++  status["judge"] = "llama-3.1-swallow-8b-v0.5-q4_k_m.gguf";
++  EXPECT_EQ(FormatKotoriAiStatus(status),
++            "AI の状態: 動いています(変換用の AI と日本語 LLM、判定役 "
++            "llama-3.1-swallow-8b-v0.5-q4_k_m.gguf、GPU: NVIDIA GeForce RTX 3060)。");
++}
++
 +}  // namespace
 +}  // namespace mozc::gui
 diff --git a/src/gui/config_dialog/kotori_model_download.cc b/src/gui/config_dialog/kotori_model_download.cc
@@ -29484,10 +29499,10 @@ index 000000000..9d49397b8
 +#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_MODEL_DOWNLOAD_H_
 diff --git a/src/gui/config_dialog/kotori_settings_bridge.cc b/src/gui/config_dialog/kotori_settings_bridge.cc
 new file mode 100644
-index 000000000..111b04d4d
+index 000000000..14ce141a0
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_bridge.cc
-@@ -0,0 +1,678 @@
+@@ -0,0 +1,679 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// HTML の設定画面と変換サーバーの間で、設定と状態を JSON でやり取りする(docs/adr/0084)。
 +
@@ -29800,9 +29815,10 @@ index 000000000..111b04d4d
 +  if (op == "open") return Open(request.value("target").toString());
 +  if (op == "diagnostics") return Diagnostics();
 +  if (op == "models") return Models();
-+  if (op == "download") return Download(request.value("id").toString());
-+  if (op == "cancelDownload") return CancelDownload(request.value("id").toString());
-+  if (op == "deleteModel") return DeleteModel(request.value("id").toString());
++  // Asteria: モデルの名前は model で受ける(id は画面が返事を待つ要求の番号。カード 90)。
++  if (op == "download") return Download(request.value("model").toString());
++  if (op == "cancelDownload") return CancelDownload(request.value("model").toString());
++  if (op == "deleteModel") return DeleteModel(request.value("model").toString());
 +  if (op == "saveDiagnostics") {
 +    // 保存する中身は画面から受け取らず、ここで作り直す(画面が書き換えた文を保存しない)。
 +    const QString text = Diagnostics().value("text").toString();
@@ -30268,7 +30284,7 @@ index 000000000..bde648cf3
 +#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
 diff --git a/src/gui/config_dialog/kotori_settings_bridge_test.cc b/src/gui/config_dialog/kotori_settings_bridge_test.cc
 new file mode 100644
-index 000000000..50f95ba42
+index 000000000..d016c4136
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_bridge_test.cc
 @@ -0,0 +1,382 @@
@@ -30616,10 +30632,10 @@ index 000000000..50f95ba42
 +    EXPECT_GT(m.toObject().value("size").toDouble(), 0);
 +  }
 +  // 知らないモデル・GPU のメモリが足りないモデルは受け取らない(通信を始めない)。
-+  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "download"}, {"id", "nothing"}}).value("ok").toBool());
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "download"}, {"model", "nothing"}}).value("ok").toBool());
 +  host_.vram = 2;
 +  const QString id = models[0].toObject().value("id").toString();
-+  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "download"}, {"id", id}}).value("ok").toBool());
++  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "download"}, {"model", id}}).value("ok").toBool());
 +  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "models"}})
 +                   .value("models").toArray()[0].toObject().value("fits").toBool());
 +}
@@ -30636,7 +30652,7 @@ index 000000000..50f95ba42
 +  ASSERT_FALSE(high.isEmpty());
 +  config::Config stored;
 +  EXPECT_CALL(client_, SetConfig(_)).WillOnce(DoAll(SaveArg<0>(&stored), Return(true)));
-+  const QJsonObject result = bridge.Handle(QJsonObject{{"op", "deleteModel"}, {"id", high}});
++  const QJsonObject result = bridge.Handle(QJsonObject{{"op", "deleteModel"}, {"id", 7}, {"model", high}});
 +  ASSERT_TRUE(result.value("ok").toBool()) << result.value("message").toString().toStdString();
 +  EXPECT_EQ(stored.kotori_lm_quality(), config::Config::KOTORI_LM_STANDARD);
 +}
@@ -30656,10 +30672,10 @@ index 000000000..50f95ba42
 +}  // namespace mozc
 diff --git a/src/gui/config_dialog/kotori_settings_data.cc b/src/gui/config_dialog/kotori_settings_data.cc
 new file mode 100644
-index 000000000..4a8ba31e8
+index 000000000..a8f84dfa1
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_data.cc
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,415 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// 設定画面(Qt の画面と HTML の画面)が共有する、AI の状態・GPU・使い方の数字(docs/adr/0084)。
 +
@@ -30807,6 +30823,11 @@ index 000000000..4a8ba31e8
 +  const std::string &device = kv["device"];
 +  const std::string where = device == "CPU" ? "CPU で動作" : "GPU: " + device;
 +  if (state == "llm") {
++    // Asteria: High・Unreal で判定役が動いていれば、それも書く(報告で見分けるため。カード 90)。
++    const std::string &judge = kv["judge"];
++    if (!judge.empty()) {
++      return "AI の状態: 動いています(変換用の AI と日本語 LLM、判定役 " + judge + "、" + where + ")。";
++    }
 +    return "AI の状態: 動いています(変換用の AI と日本語 LLM、" + where + ")。";
 +  } else if (state == "zenz") {
 +    return "AI の状態: 動いています(変換用の AI " + kv["zenz"] + "、" + where +
@@ -32714,10 +32735,10 @@ index 000000000..99c3afd68
 +}
 diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
 new file mode 100644
-index 000000000..94e08ba42
+index 000000000..8e9aa1564
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.js
-@@ -0,0 +1,1292 @@
+@@ -0,0 +1,1293 @@
 +// Asteria の設定画面(docs/adr/0084)。
 +// 設定は変えたらすぐ保存する(元に戻すときは同じ所で戻す)。保存・読み込みは WebView2 の
 +// メッセージで mozc_tool の KotoriSettingsBridge に頼む。WebView2 の外(ブラウザーでの確認)では
@@ -32797,7 +32818,8 @@ index 000000000..94e08ba42
 +    return new Promise((resolve) => {
 +      const id = nextRequest++;
 +      pending.set(id, resolve);
-+      native.postMessage(JSON.stringify({ id, op, ...args }));
++      // 要求の番号と操作の名前は、引数で上書きしない(返事をこの番号で待つ)。
++      native.postMessage(JSON.stringify({ ...args, id, op }));
 +    });
 +  }
 +
@@ -32845,7 +32867,7 @@ index 000000000..94e08ba42
 +        },
 +        {
 +          title: '追加の AI', when: () => (state.models || []).length > 0, items: [
-+            { type: 'models', label: '追加の AI', search: 'ダウンロード High Unreal Qwen 追加 モデル' },
++            { type: 'models', label: '追加の AI', search: 'ダウンロード High Unreal Swallow 判定役 追加 モデル' },
 +          ],
 +        },
 +        {
@@ -33541,7 +33563,7 @@ index 000000000..94e08ba42
 +          bar.firstChild.style.setProperty('width', `${pct}%`);
 +          actions.append(h('div', { class: 'progress-wrap' }, bar,
 +            h('span', { class: 'row-desc', text: `${gb(dl.received)} / ${gb(dl.total)}(${pct}%)` })),
-+          h('button', { class: 'btn', type: 'button', text: '取り消す', onclick: () => call('cancelDownload', { id: m.id }) }));
++          h('button', { class: 'btn', type: 'button', text: '取り消す', onclick: () => call('cancelDownload', { model: m.id }) }));
 +        } else if (!m.fits) {
 +          actions.append(h('span', { class: 'row-desc', text: `この PC の GPU(${state.gpuVramGb.toFixed(0)} GB)では動かせません` }));
 +        } else {
@@ -33571,7 +33593,7 @@ index 000000000..94e08ba42
 +      'ダウンロード', false)) return;
 +    state.downloads[m.id] = { running: true, received: m.received || 0, total: m.size };
 +    refreshRows();
-+    const result = await call('download', { id: m.id });
++    const result = await call('download', { model: m.id });
 +    if (!result.ok) {
 +      state.downloads[m.id] = null;
 +      toast(result.message, 'bad');
@@ -33581,7 +33603,7 @@ index 000000000..94e08ba42
 +
 +  async function deleteModel(m) {
 +    if (!await confirmDialog(`${m.title} を消しますか?`, `${gb(m.size)} を空けます。必要になったら、もう一度ダウンロードできます。`, '消す', true)) return;
-+    const result = await call('deleteModel', { id: m.id });
++    const result = await call('deleteModel', { model: m.id });
 +    if (!result.ok) {
 +      toast(result.message, 'bad');
 +      return;
@@ -40920,10 +40942,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..614b27b60
+index 000000000..d97aa5a8f
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5054 @@
+@@ -0,0 +1,5056 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -42825,6 +42847,8 @@ index 000000000..614b27b60
 +  line("device", gpu.empty() ? "CPU" : gpu);
 +  if (scorer_ != nullptr) line("zenz", base(loaded_path_));
 +  if (llm_ != nullptr) line("llm", base(llm_path_));
++  // Asteria: High・Unreal の判定役(カード 90)。報告の「AI の状態」で、判定役が動いているかを見分ける。
++  if (judge_ != nullptr) line("judge", base(judge_path_));
 +  // Kotori: 状態と計算量のみ。入力文・読み・文脈は記録しない。
 +  line("stats", ZenzScorer::Stats());
 +#ifdef _WIN32
