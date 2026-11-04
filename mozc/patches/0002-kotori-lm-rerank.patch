@@ -30268,10 +30268,10 @@ index 000000000..bde648cf3
 +#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_SETTINGS_BRIDGE_H_
 diff --git a/src/gui/config_dialog/kotori_settings_bridge_test.cc b/src/gui/config_dialog/kotori_settings_bridge_test.cc
 new file mode 100644
-index 000000000..6ec3dba49
+index 000000000..50f95ba42
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_bridge_test.cc
-@@ -0,0 +1,375 @@
+@@ -0,0 +1,382 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// HTML の設定画面と変換サーバーの橋渡し(docs/adr/0084)。
 +
@@ -30573,7 +30573,7 @@ index 000000000..6ec3dba49
 +  EXPECT_FALSE(bridge.Handle(QJsonObject{{"op", "nonsense"}}).value("ok").toBool());
 +}
 +
-+// 追加モデルの表(テストの表に差し替える。製品の表は 5.0.1 で Unreal の 1 件)。
++// 追加モデルの表(テストの表に差し替える。製品の表は 5.1.0 で High・Unreal の 2 件)。
 +constexpr kotori::ExtraModel kTestModels[] = {
 +    {"test-high", config::Config::KOTORI_LM_HIGH, "Test High", "test-high.gguf",
 +     "https://example.invalid/test-high.gguf", 1024,
@@ -30587,14 +30587,21 @@ index 000000000..6ec3dba49
 +  ~ExtraModelTable() { kotori::SetExtraModelsForTesting(nullptr, 0); }
 +};
 +
-+TEST_F(KotoriSettingsBridgeTest, ProductListsOnlyTheUnrealJudge) {
++TEST_F(KotoriSettingsBridgeTest, ProductListsHighAndUnrealJudges) {
 +  int count = 0;
 +  const kotori::ExtraModel *models = kotori::ExtraModels(&count);
-+  ASSERT_EQ(count, 1);
-+  EXPECT_EQ(models[0].tier, config::Config::KOTORI_LM_UNREAL);
-+  EXPECT_TRUE(QString(models[0].url).startsWith("https://huggingface.co/aruiki/"));
-+  EXPECT_EQ(QString(models[0].sha256).size(), 64);
-+  EXPECT_EQ(kotori::ExtraModelFor(config::Config::KOTORI_LM_HIGH), nullptr);
++  ASSERT_EQ(count, 2);
++  for (int i = 0; i < count; ++i) {
++    EXPECT_TRUE(QString(models[i].url).startsWith("https://huggingface.co/aruiki/"));
++    EXPECT_EQ(QString(models[i].sha256).size(), 64);
++    EXPECT_GT(models[i].size, 0u);
++  }
++  const kotori::ExtraModel *high = kotori::ExtraModelFor(config::Config::KOTORI_LM_HIGH);
++  const kotori::ExtraModel *unreal = kotori::ExtraModelFor(config::Config::KOTORI_LM_UNREAL);
++  ASSERT_NE(high, nullptr);
++  ASSERT_NE(unreal, nullptr);
++  EXPECT_LT(high->vram_gb, unreal->vram_gb);
++  EXPECT_STRNE(high->id, unreal->id);
 +}
 +
 +TEST_F(KotoriSettingsBridgeTest, ExtraModelsListAndRefuseWhatDoesNotFit) {
@@ -37950,10 +37957,10 @@ index 000000000..778c9973f
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_catalog.cc b/src/rewriter/kotori_model_catalog.cc
 new file mode 100644
-index 000000000..b2b4762b0
+index 000000000..00fcc1e60
 --- /dev/null
 +++ b/src/rewriter/kotori_model_catalog.cc
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,92 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// 設定画面からダウンロードして使う追加のモデル(High・Unreal、docs/adr/0086)。
 +
@@ -37976,10 +37983,18 @@ index 000000000..b2b4762b0
 +//   {"qwen3-8b", config::Config::KOTORI_LM_UNREAL, "Qwen3-8B", "Qwen3-8B-Q4_K_M.gguf",
 +//    "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/<版>/Qwen3-8B-Q4_K_M.gguf", <バイト数>,
 +//    "<SHA-256>", 8.0, "Apache-2.0", "https://huggingface.co/Qwen/Qwen3-8B-GGUF"},
-+// Asteria 5.0.1(カード 90): Unreal の判定役。Standard の採点はそのままで、点差の小さい意味の選び分けだけを採点し直す。
++// Asteria 5.1.0(カード 90): High・Unreal の判定役。Standard の採点はそのままで、点差の小さい意味の選び分けだけを採点し直す。
 +// 判定用の文脈の選択で 225 → 228/297、下がったセットなし(docs/verification/v501-consistency-20261104.md)。
 +// GGUF は neody/Llama-3.1-Swallow-8B-v0.5-gguf@c2f03ee9 と同じバイト列を、元の規約の文面と一緒に置いたもの。
++// High は同じモデルの Q3_K_M(判定用の文脈の選択 225 → 229、下がったセットなし。GPU のメモリは Standard と合わせて約 5.3 GB)。
 +constexpr ExtraModel kProductModels[] = {
++    {"swallow-8b-judge-high", config::Config::KOTORI_LM_HIGH, "Llama 3.1 Swallow 8B 軽量版(判定役)",
++     "llama-3.1-swallow-8b-v0.5-q3_k_m.gguf",
++     "https://huggingface.co/aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF/resolve/"
++     "a96b0217d2d148f32e0d5dd36e47523439b9dbfc/llama-3.1-swallow-8b-v0.5-q3_k_m.gguf",
++     4018918816ULL, "64e16e946d8feef02c86cc990581b133129f33df961d4ddeafe152b3b8628c2c", 6.0,
++     "Llama 3.1 Community License・Gemma Terms of Use",
++     "https://huggingface.co/tokyotech-llm/Llama-3.1-Swallow-8B-v0.5"},
 +    {"swallow-8b-judge", config::Config::KOTORI_LM_UNREAL, "Llama 3.1 Swallow 8B(判定役)",
 +     "llama-3.1-swallow-8b-v0.5-q4_k_m.gguf",
 +     "https://huggingface.co/aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF/resolve/"
@@ -38040,7 +38055,7 @@ index 000000000..b2b4762b0
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_catalog.h b/src/rewriter/kotori_model_catalog.h
 new file mode 100644
-index 000000000..e0ee0a767
+index 000000000..44ff81779
 --- /dev/null
 +++ b/src/rewriter/kotori_model_catalog.h
 @@ -0,0 +1,53 @@
@@ -38075,7 +38090,7 @@ index 000000000..e0ee0a767
 +  const char *source;  // 元のモデルの場所(表示用)
 +};
 +
-+// 表は採用したモデルだけを載せる(判定用のセットで Standard より明らかに良いもの)。表にない段階(5.0.1 では High)は出さない。
++// 表は採用したモデルだけを載せる(判定用のセットで Standard より明らかに良いもの)。表にない段階は出さない。
 +const ExtraModel *ExtraModels(int *count);
 +
 +// その段階の追加モデル(なければ nullptr)。

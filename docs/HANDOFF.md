@@ -8,7 +8,7 @@
   辞書にある 4 文字以下の読みは直さない。文を作り直す LLM の補正は変換で使わない(正解が増えず待ちだけ延びた)。
 - #208: 別案は AI の点の順、辞書にない作文は Mozc の候補の後ろ、英字表記は一覧の後ろ。
 - High・Unreal: 大きな LLM を判定役(点差の小さい意味の選び分けだけ採点し直す)にした。Llama-3.1-Swallow-8B-v0.5 を Unreal に
-  載せた(判定用の文脈の選択 225 → 228)。置き場は aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF。High は空。
+  載せた(判定用の文脈の選択 225 → 228)。High は同じモデルの Q3_K_M(225 → 229)。置き場は aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF。
 - 道具: `consistency_check.py`(押し方・学習の有無で 1 番目が変わらないか)、`oracle_check.py`(外れを作る側/採点に分ける)。
   記録: docs/verification/v501-consistency-20261104.md。Mozc の作業ツリーは `~/ag16` の枝 `asteria/candidate-order`。
 - 残り: 文脈の選択の外れ 62 のうち 44 は候補にあるのに点で負けた(合わせ方の改善)。この PC の Claude アプリの入力欄で
