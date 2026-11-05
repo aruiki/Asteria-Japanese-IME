@@ -12,9 +12,10 @@ installer_smoke も成功。
   ([記録](verification/recent-conversions-20261105.md))。
 - CI: PR の全チェック成功。MSI 3.34.6494.100(1,665,924,089 bytes、SHA-256 9f520a99…c9bd)で
   installer_smoke の install/input/uninstall が成功(native_tsf、8 checks、errors 0)。
-- 残り: この PC は sudo が無効で UAC が必要なため、導入済み TSF で設定をオンにした実入力と、
-  書き出しの保存ダイアログの実保存が未確認。保護欄の AI/学習は CI でも未検証
-  (`secure_field_internal_ai_or_learning_verified: false`)。
+- 導入確認: 同じコードのローカル MSI 3.34.6494.100 を実機へ導入し、実 TSF で
+  `くうかんこうへんちょうき → 空間光変調器` が記録されることを確認(設定はオフに戻し、記録は消去)。
+- 残り: 書き出しの保存ダイアログの実保存、保護欄の AI/学習(CI でも未検証
+  `secure_field_internal_ai_or_learning_verified: false`)。導入したのは公開リリースではないローカルビルド。
 
 ---
 
