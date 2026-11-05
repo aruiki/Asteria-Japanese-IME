@@ -1,3 +1,21 @@
+# 現在の引き継ぎ（2026-11-05、誤変換の報告と回帰ゴールデン）
+
+利用者の依頼「誤変換をデータにできない」への対策。回帰ゴールデン(カード 91)と、直近の変換を残す設定
+(カード 92、[ADR0087](adr/0087-recent-conversions.md))を入れた。
+
+- 91: `eval/sets/asteria-regression-golden.json`、`mozc/tools/regression_add.py`、`mozc/tools/eval_regression.sh`。
+  初期 3 問を実変換器で 3/3([記録](verification/regression-golden-20261105.md))。
+- 92: 設定「プライバシー → 誤変換の報告」(既定オフ)。直近 20 件をこの PC に残し、設定画面から確認・
+  書き出し・消去。パスワード欄・シークレットでは記録しない。`session_handler_main` の実経路で、
+  オン=1 件、オフ・シークレット・パスワード=0 件([記録](verification/recent-conversions-20261105.md))。
+- テスト: 保存クラス 6 件、ブリッジ、`session_test` 8 シャードが成功。設定画面は Edge のプレビューで確認。
+- 残り: CI の MSI を作り、導入済み TSF の実入力と書き出しの保存ダイアログを確認する。README の
+  利用者向け説明は追記済み。
+
+---
+
+以下は過去の引き継ぎ（履歴）。
+
 # 現在の引き継ぎ（2026-11-04、v5.1.0 一貫性・堅牢性・Issue #208・Unreal の判定役）
 
 利用者の依頼は「堅牢性と一貫性の目標を設定して開発」「Issue に基づく一貫性・堅牢性」「High・Unreal の大きなモデルの
