@@ -69,6 +69,14 @@ static class BrowserDuplicateDriver {
             Require(mapped != -1 && (mapped & 0xff00) == 0, "Unexpected fixed-key mapping");
             Press((ushort)mapped); Thread.Sleep(5);
           }
+        } else if (mode.StartsWith("keys:")) {
+          // 前の文が IME に届くかの確認(browser_context_probe.py)。英小文字と記号だけ。
+          foreach (char key in mode.Substring(5)) {
+            Require(AcceptanceNative.GetForegroundWindow() == edge, "Browser lost foreground while typing");
+            short mapped = Native.VkKeyScanW(key);
+            Require(mapped != -1 && (mapped & 0xff00) == 0, "Unexpected key mapping");
+            Press((ushort)mapped); Thread.Sleep(5);
+          }
         } else if (mode == "space_enter") { Press(0x20); Thread.Sleep(delay); Press(0x0D); }
         else if (mode == "down_enter") { Press(0x28); Thread.Sleep(delay); Press(0x0D); }
         else if (mode == "open_candidates") {
