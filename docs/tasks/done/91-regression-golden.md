@@ -25,7 +25,7 @@
 
 ## 完了条件
 - [x] `python -X utf8 -m unittest discover -s mozc/tools -p test_regression_add.py -v` が通る(16 件)
-- [x] 変換器のある環境で `mozc/tools/eval_regression.sh` が全件一致(3/3、[検証記録](../verification/regression-golden-20261105.md))
+- [x] 変換器のある環境で `mozc/tools/eval_regression.sh` が全件一致(3/3、[検証記録](../../verification/regression-golden-20261105.md))
 - [ ] CI が緑(この変更を push してから)
 - [x] 直した誤変換を足す手順が `eval/README.md` に書かれている
 

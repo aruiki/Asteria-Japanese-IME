@@ -42,8 +42,6 @@
 | --- | --- | --- |
 | 81 | 精度改善指南書を測定・製品改善へ接続する | [作業カード](81-accuracy-guide.md)、専用枝で基準測定と診断を実装中 |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
-| 91 | 回帰ゴールデンの運用(直した誤変換を二度と戻さない) | [作業カード](91-regression-golden.md)、道具・テスト・初期 3 問を追加。[初回実行 3/3](../verification/regression-golden-20261105.md) |
-| 92 | 誤変換の報告(直近の変換を残す) | [作業カード](92-recent-conversions.md)、[ADR0087](../adr/0087-recent-conversions.md)、[検証](../verification/recent-conversions-20261105.md) |
 
 
 残る受入れ・配布条件（現在は署名なしの正式v2.0.0を公開済み。公開は製品全体の完成判定ではない）:
@@ -65,6 +63,10 @@
 | 33 | 表記だけが違うときは Mozc の表記を優先する(保留。調整用の手がかりが少ない) | 30 |
 
 済(`done/`、実機の確認は `docs/ACCEPTANCE.md`):
+
+[91: 回帰ゴールデンの運用](done/91-regression-golden.md)（PR #211、初期 3 問 3/3）。
+
+[92: 誤変換の報告](done/92-recent-conversions.md)（PR #212、CI の MSI 3.34.6494.100 と installer_smoke 成功）。
 
 [82: 紹介・告知・公式サイトの刷新](done/82-marketing-refresh.md)（PR178、kanai PR8。公開画面と配布物不変を確認）。
 

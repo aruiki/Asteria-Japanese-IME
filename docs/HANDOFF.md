@@ -1,16 +1,20 @@
-# 現在の引き継ぎ（2026-11-05、誤変換の報告と回帰ゴールデン）
+# 現在の引き継ぎ（2026-11-05、誤変換の報告と回帰ゴールデンを main へ統合）
 
-利用者の依頼「誤変換をデータにできない」への対策。回帰ゴールデン(カード 91)と、直近の変換を残す設定
-(カード 92、[ADR0087](adr/0087-recent-conversions.md))を入れた。
+利用者の依頼「誤変換をデータにできない」への対策。**#211(回帰ゴールデン)と #212(誤変換の報告)は
+main へ統合済み**(#211 merge 021f292、#212 merge 88fc30b)。CI の MSI は 3.34.6494.100 で
+installer_smoke も成功。
 
 - 91: `eval/sets/asteria-regression-golden.json`、`mozc/tools/regression_add.py`、`mozc/tools/eval_regression.sh`。
   初期 3 問を実変換器で 3/3([記録](verification/regression-golden-20261105.md))。
 - 92: 設定「プライバシー → 誤変換の報告」(既定オフ)。直近 20 件をこの PC に残し、設定画面から確認・
   書き出し・消去。パスワード欄・シークレットでは記録しない。`session_handler_main` の実経路で、
-  オン=1 件、オフ・シークレット・パスワード=0 件([記録](verification/recent-conversions-20261105.md))。
-- テスト: 保存クラス 6 件、ブリッジ、`session_test` 8 シャードが成功。設定画面は Edge のプレビューで確認。
-- 残り: CI の MSI を作り、導入済み TSF の実入力と書き出しの保存ダイアログを確認する。README の
-  利用者向け説明は追記済み。
+  オン=1 件、オフ・シークレット・パスワード=0 件。抽出した MSI の実 UI で表示・消去も確認
+  ([記録](verification/recent-conversions-20261105.md))。
+- CI: PR の全チェック成功。MSI 3.34.6494.100(1,665,924,089 bytes、SHA-256 9f520a99…c9bd)で
+  installer_smoke の install/input/uninstall が成功(native_tsf、8 checks、errors 0)。
+- 残り: この PC は sudo が無効で UAC が必要なため、導入済み TSF で設定をオンにした実入力と、
+  書き出しの保存ダイアログの実保存が未確認。保護欄の AI/学習は CI でも未検証
+  (`secure_field_internal_ai_or_learning_verified: false`)。
 
 ---
 

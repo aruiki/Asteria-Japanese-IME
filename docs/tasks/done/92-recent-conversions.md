@@ -22,4 +22,4 @@
 - [x] パスワード欄とシークレットモードで記録されない(検査用コマンドで確認)
 - [ ] 導入済み TSF の実入力と保存ダイアログ(CI の MSI で確認)
 
-検証: [recent-conversions-20261105](../verification/recent-conversions-20261105.md)
+検証: [recent-conversions-20261105](../../verification/recent-conversions-20261105.md)

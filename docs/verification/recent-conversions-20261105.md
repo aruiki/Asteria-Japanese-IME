@@ -61,11 +61,22 @@ CI と同じコードのローカル MSI(3.34.6464.100、1,668,423,680 bytes、S
 ## CI(2026-11-05)
 - CI(run 41926680030): licenses、mozc tools (python)、MSRV 1.80、TSF TIP Win32/x64、
   just ci (Ubuntu/Windows) がすべて成功。
-- Mozc (Windows)(run 41926680011): MSI のビルドと `installer_smoke.py`(導入・実入力・再導入・削除)の結果は
-  下の「CI の MSI」に追記する。
+- Mozc (Windows)(run 41926680011): **成功(35分14秒)**。MSI のビルド、単体テスト、installer_smoke、
+  成果物の保存まで通った。
+
+### CI の MSI と installer_smoke
+- 成果物: `Asteria64.msi`(**1,665,924,089 bytes**、ProductVersion **3.34.6494.100**)。
+  `installer-smoke` の `result.json`: SHA-256 `9f520a99e3f1a2423ed71a3b65f94eb5b5c19eb296d31e2972363cb44989c9bd`。
+- `installer_smoke.py --acceptance --duplicate-stress --browser-duplicate-stress --reinstall`:
+  install / input / uninstall = **true**、errors **0**、native_tsf **true**、8 checks、再導入も成功。
+  読み込まれた TIP は `C:\Program Files (x86)\Asteria\mozc_tip64-3.34.6494.100.dll`。
+- 範囲: WinForms の EDIT/RichEdit(Notepad・ブラウザー・Office・低性能実機ではない)。
+  保護欄の AI/学習は `secure_field_internal_ai_or_learning_verified: false`(未検証)。
 
 ## 限界
-- 導入済み TSF の実入力では未確認(CI の MSI を作ってから行う)。今回の証拠はセッションの経路まで。
+- この PC では sudo が無効で、MSI の導入に UAC が必要なため、**導入済み TSF で設定をオンにして
+  実入力する確認は未実施**。CI の installer_smoke は導入・実 TSF 入力・再導入・削除を満たしたが、
+  新しい設定をオンにした実入力は含まない。
 - パスワード欄は検査用のコマンドで切り替えて確認した。実際の TIP が同じ `input_field_type` を送ることは
-  既存の使い方の統計と同じ経路だが、実機の欄では未確認。
+  既存の使い方の統計と同じ経路だが、実機の欄では未確認(CI の secure_field も未検証)。
 - 書き出しの保存ダイアログは、ブリッジのテスト(FakeHost)で確認した。実機のダイアログは未確認。
