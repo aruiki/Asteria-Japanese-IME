@@ -17,6 +17,7 @@ static class AcceptanceNative {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll", CharSet = CharSet.Unicode)]
   public static extern int GetWindowTextW(IntPtr window, StringBuilder text, int maximum);
+  [DllImport("msctf.dll")] public static extern int SetInputScope(IntPtr window, int scope);
 }
 
 sealed class ImeObservation : NativeWindow {
@@ -70,6 +71,8 @@ sealed partial class Acceptance : Form {
             name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
   }
   readonly TextBox first = new TextBox(), second = new TextBox(), password = new TextBox();
+  // InputScope が IS_PASSWORD の欄。ブラウザーのパスワード欄と同じく IME を使える(半角/全角キーで日本語入力にできる)。
+  readonly TextBox scoped = new TextBox();
   readonly RichTextBox rich = new RichTextBox();
   readonly Dictionary<string, object> report = new Dictionary<string, object>();
   readonly List<Dictionary<string, object>> checks = new List<Dictionary<string, object>>();
@@ -77,23 +80,24 @@ sealed partial class Acceptance : Form {
   readonly bool duplicateStress, clickProbe;
   // ImeClickProbe.csを一緒にビルドしたときだけ実体がある（CIの受入れビルドには含めない）。
   partial void RunClickProbe();
-  ImeObservation a, b, r, p;
+  ImeObservation a, b, r, p, s;
   int exit = 1;
 
   Acceptance(string[] args) {
     installed = Path.GetFullPath(args[0]); destination = args[1];
     duplicateStress = args.Length == 3 && args[2] == "--duplicate-stress";
     clickProbe = args.Length == 3 && args[2] == "--click-probe";
-    Text = "Asteria installed TIP acceptance"; Width = 900; Height = 420; TopMost = true;
+    Text = "Asteria installed TIP acceptance"; Width = 900; Height = 480; TopMost = true;
     first.SetBounds(20, 20, 820, 45); second.SetBounds(20, 85, 820, 45);
     rich.SetBounds(20, 150, 820, 120); password.SetBounds(20, 290, 820, 45);
-    password.UseSystemPasswordChar = true;
-    foreach (Control control in new Control[] {first, second, rich, password}) {
+    password.UseSystemPasswordChar = true; scoped.SetBounds(20, 350, 820, 45);
+    foreach (Control control in new Control[] {first, second, rich, password, scoped}) {
       control.Font = new System.Drawing.Font("Yu Gothic UI", 14); Controls.Add(control);
     }
     Shown += (sender, e) => {
       a = new ImeObservation(first); b = new ImeObservation(second);
-      r = new ImeObservation(rich); p = new ImeObservation(password);
+      r = new ImeObservation(rich); p = new ImeObservation(password); s = new ImeObservation(scoped);
+      Require(AcceptanceNative.SetInputScope(scoped.Handle, 31) == 0, "SetInputScope(IS_PASSWORD) failed");
       new Thread(Run) {IsBackground = true}.Start();
     };
   }
@@ -174,6 +178,14 @@ sealed partial class Acceptance : Form {
       Require(timer.ElapsedMilliseconds < 15000, message);
       Thread.Sleep(25);
     }
+  }
+  // 変換サーバーの使用量(asteria_usage.txt)の累計。ファイルがまだなければ 0。
+  static int Conversions() {
+    string path = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE"), "AppData", "LocalLow", "Asteria", "asteria_usage.txt");
+    if (!File.Exists(path)) return 0;
+    foreach (string line in File.ReadAllLines(path))
+      if (line.StartsWith("total_conversions=")) return int.Parse(line.Substring(18));
+    return 0;
   }
   void Check(string name, Action<Dictionary<string, object>> action) {
     var row = new Dictionary<string, object> {{"name", name}, {"passed", false}};
@@ -269,7 +281,25 @@ sealed partial class Acceptance : Form {
                 "Password host accepted composition instead of literal ASCII keys");
         Convert(a, "nihonngo", "日本語");
       });
-      Require(checks.Count == 8, "Incomplete acceptance suite");
+      Check("password_scope_ime_on_not_learned", row => {
+        // IS_PASSWORD の欄で日本語入力をオンにして変換・確定しても、使用量(学習)を増やさない。
+        // 先に普通の欄で数が増えることを見て、増えないことが記録の止まりによると確かめる。
+        int before = Conversions(); Convert(a, "nihonngo", "日本語");
+        WaitUntil(() => Conversions() > before, "Usage did not count an ordinary conversion");
+        int ordinary = Conversions(); row["usage_after_ordinary"] = ordinary;
+        // IS_PASSWORD の欄は直接入力で始まる。利用者と同じく半角/全角(VK_KANJI)で日本語入力にする。
+        Focus(s, true);
+        for (int toggle = 0; toggle < 2 && Preedit(s).Length == 0; toggle++) {
+          Ui(() => scoped.Clear()); Press(0x19); Type(s, "toukyou");
+        }
+        row["scoped_preedit"] = Preedit(s);
+        Require(Preedit(s).Length > 0, "No composition after enabling IME in the IS_PASSWORD field");
+        Press(0x20); Thread.Sleep(1500); Press(0x0D); Thread.Sleep(3000);
+        row["scoped_text"] = TextOf(s); row["usage_after_password"] = Conversions();
+        Require(Conversions() == ordinary, "Usage counted a conversion in the IS_PASSWORD field");
+        report["password_scope_learning_verified"] = true;
+      });
+      Require(checks.Count == 9, "Incomplete acceptance suite");
       if (duplicateStress) RunDuplicateStress();
       report["complete"] = true; exit = 0;
     } catch (Exception error) { report["error"] = error.ToString(); }

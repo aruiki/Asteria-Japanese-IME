@@ -117,7 +117,7 @@ ACCEPTANCE_CHECKS = {
     "plain_preedit_space_commit", "richedit_preedit_space_commit",
     "candidate_down_page_roundtrip_commit", "cancel_and_resume",
     "backspace_and_continue", "f6_to_f10", "focus_between_ordinary_fields",
-    "password_host_visible_behavior",
+    "password_host_visible_behavior", "password_scope_ime_on_not_learned",
 }
 
 
@@ -134,6 +134,9 @@ def validate_acceptance(report, install):
         raise RuntimeError("入力ホストが導入したTIPを読み込んでいません")
     if report.get("secure_field_internal_ai_or_learning_verified") is not False:
         raise RuntimeError("保護欄の内部AI/学習を、この表示試験で検証済みにしてはいけません")
+    # IS_PASSWORD の欄で日本語入力をオンにしても使用量(学習)が増えないこと。AI の停止は別に確かめる。
+    if report.get("password_scope_learning_verified") is not True:
+        raise RuntimeError("IS_PASSWORD の欄で学習が止まることを確かめていません")
 
 
 def validate_duplicate_stress(report):

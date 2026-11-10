@@ -12,6 +12,7 @@ class AcceptanceReceiptTest(unittest.TestCase):
         self.report = dict(complete=True, native_tsf=True,
                            loaded_tip=str(self.install / "mozc_tip64.dll"),
                            secure_field_internal_ai_or_learning_verified=False,
+                           password_scope_learning_verified=True,
                            checks=[dict(name=name, passed=True) for name in ACCEPTANCE_CHECKS])
 
     def test_complete_receipt(self):
@@ -33,7 +34,8 @@ class AcceptanceReceiptTest(unittest.TestCase):
                     dict(self.report, error="native input failed"),
                     dict(self.report, loaded_tip=str(self.install / "other.dll")),
                     dict(self.report, native_tsf=False),
-                    dict(self.report, secure_field_internal_ai_or_learning_verified=True)]
+                    dict(self.report, secure_field_internal_ai_or_learning_verified=True),
+                    dict(self.report, password_scope_learning_verified=False)]
         failed = copy.deepcopy(self.report)
         failed["checks"][0]["passed"] = False
         variants.append(failed)
