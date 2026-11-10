@@ -40,7 +40,6 @@
 
 | 番号 | 目的 | 状態 |
 | --- | --- | --- |
-| 93 | NVIDIA の GPU で CUDA 版の計算を使えるか測り、採否を決める | [作業カード](93-cuda-backend.md)、[ADR 0088](../adr/0088-cuda-backend.md) を提案済み、メンテナの判断と測定待ち |
 | 81 | 精度改善指南書を測定・製品改善へ接続する | [作業カード](81-accuracy-guide.md)、専用枝で基準測定と診断を実装中 |
 | 78 | 辞書候補の採点取りこぼし | [PR #162](https://github.com/aruiki/Asteria-Japanese-IME/pull/162)、Windows CI確認待ち |
 
@@ -64,6 +63,8 @@
 | 33 | 表記だけが違うときは Mozc の表記を優先する(保留。調整用の手がかりが少ない) | 30 |
 
 済(`done/`、実機の確認は `docs/ACCEPTANCE.md`):
+
+[93: CUDA 版の計算](done/93-cuda-backend.md)（ADR 0088 を不採用。変換の中央値 −8〜−10% で条件の 30% に届かない）。
 
 [91: 回帰ゴールデンの運用](done/91-regression-golden.md)（PR #211、初期 3 問 3/3）。
 
