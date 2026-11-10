@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Asteria日本語入力の追加パッケージ「NVIDIA の高速化(CUDA)」(docs/adr/0088)。
+  本体のインストール先(Program Files (x86)\Asteria)の cuda フォルダに、llama.cpp の公式 CUDA 版の
+  ggml-cuda.dll と、それが使う CUDA の実行時ライブラリ(cudart・cuBLAS)を入れる。本体の変換サーバーは、
+  版の札(asteria-cuda.txt)が本体の llama.cpp の版と合うときだけ読み込む(rewriter/llama_runtime.cc)。
+  作り方は build_addon.ps1。
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Asteria日本語入力 NVIDIA 高速化(CUDA)" Language="1041" Codepage="932"
+           Version="$(var.AddonVersion)" Manufacturer="Asteria Project"
+           UpgradeCode="7840965B-1096-4515-8C68-C435E8CD904D" InstallerVersion="500" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="より新しい NVIDIA 高速化(CUDA)が入っています。" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- 本体(Asteria64.msi、UpgradeCode は build_installer.py の Mozc 版)が入っているときだけ入れる。 -->
+    <Upgrade Id="45FB8DEB-0CFE-4924-96FB-9022888112E1">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" OnlyDetect="yes" Property="ASTERIA_FOUND" />
+    </Upgrade>
+    <Launch Condition="Privileged" Message="NVIDIA 高速化(CUDA)を入れるには管理者権限が必要です。" />
+    <Launch Condition="ASTERIA_FOUND OR Installed OR (REMOVE=&quot;ALL&quot;)"
+            Message="先に Asteria日本語入力(Asteria64.msi)を入れてください。" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="AsteriaDir" Name="Asteria">
+        <Directory Id="CudaDir" Name="cuda">
+          <Component Id="GgmlCuda" Guid="*"><File Source="$(var.SrcDir)\ggml-cuda.dll" KeyPath="yes" /></Component>
+          <Component Id="Cudart" Guid="*"><File Source="$(var.SrcDir)\cudart64_13.dll" KeyPath="yes" /></Component>
+          <Component Id="Cublas" Guid="*"><File Source="$(var.SrcDir)\cublas64_13.dll" KeyPath="yes" /></Component>
+          <Component Id="CublasLt" Guid="*"><File Source="$(var.SrcDir)\cublasLt64_13.dll" KeyPath="yes" /></Component>
+          <Component Id="Stamp" Guid="*"><File Source="$(var.SrcDir)\asteria-cuda.txt" KeyPath="yes" /></Component>
+          <Component Id="Notice" Guid="*"><File Source="$(var.SrcDir)\NOTICE-cuda.txt" KeyPath="yes" /></Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Cuda" Title="NVIDIA 高速化(CUDA)">
+      <ComponentRef Id="GgmlCuda" />
+      <ComponentRef Id="Cudart" />
+      <ComponentRef Id="Cublas" />
+      <ComponentRef Id="CublasLt" />
+      <ComponentRef Id="Stamp" />
+      <ComponentRef Id="Notice" />
+    </Feature>
+  </Package>
+</Wix>

@@ -44,6 +44,8 @@ jobs:
     name: Asteria64.msi (x64)
     runs-on: windows-2025
     timeout-minutes: 120
+    outputs:
+      tag: ${{ steps.version.outputs.TAG }}
     steps:
       # Windows のランナーは既定で改行を CRLF にするので、パッチが当たらなくなる。LF のまま取得する。
       - run: git config --global core.autocrlf false
@@ -60,6 +62,7 @@ jobs:
           persist-credentials: false
       # 版はビルドの前に決める(同じ版の正式版が既にあるときなどを、45 分のビルドの前に落とす)。
       - name: 版を決める
+        id: version
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         working-directory: kotori
@@ -68,7 +71,7 @@ jobs:
         run: |
           $out = python mozc/tools/release_tag.py --channel $env:CHANNEL --repo "https://github.com/$env:GITHUB_REPOSITORY"
           if ($LASTEXITCODE -ne 0) { throw "版を決められない(上のメッセージ)" }
-          $out | ForEach-Object { Write-Host $_; $_ >> $env:GITHUB_ENV }
+          $out | ForEach-Object { Write-Host $_; $_ >> $env:GITHUB_ENV; $_ >> $env:GITHUB_OUTPUT }
       - name: パッチを当てる
         shell: pwsh
         run: |
@@ -304,3 +307,53 @@ jobs:
             ${{ env.ASSET_NAMED }}.sha256
             Asteria64.msi
             Asteria64.msi.sha256
+
+  # NVIDIA の GPU 向けの追加パッケージ(docs/adr/0088)。llama.cpp の公式 CUDA 版から DLL を取り、版と SHA-256 を
+  # 固定して AsteriaCuda64.msi にする。本体のリリースには、同じ中身のものを毎回添付する。
+  cuda-addon:
+    name: AsteriaCuda64.msi (x64)
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: WiX を入れる
+        shell: pwsh
+        # 本体の MSI と同じ版(Mozc の MODULE.bazel の dotnet_tool_repository)。
+        run: dotnet tool install --global wix --version 5.0.2
+      - name: 追加パッケージを作る
+        shell: pwsh
+        run: pwsh mozc/cuda-addon/build_addon.ps1 -Out AsteriaCuda64.msi
+      # 管理者用の展開で中身と版の札を確かめる(CI の Windows には GPU がないので、読み込みは手元で確かめる)。
+      - name: 中身を確かめる
+        shell: pwsh
+        run: |
+          $x = Join-Path $env:RUNNER_TEMP 'cuda-addon-x'
+          $p = Start-Process msiexec.exe -ArgumentList "/a `"$(Resolve-Path AsteriaCuda64.msi)`" /qn TARGETDIR=`"$x`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "msiexec /a が $($p.ExitCode) で失敗した" }
+          $d = Join-Path $x 'PFiles\Asteria\cuda'
+          foreach ($f in 'ggml-cuda.dll','cudart64_13.dll','cublas64_13.dll','cublasLt64_13.dll','asteria-cuda.txt','NOTICE-cuda.txt') {
+            if (-not (Test-Path (Join-Path $d $f))) { throw "$f が入っていない" }
+          }
+          $stamp = Get-Content (Join-Path $d 'asteria-cuda.txt') -Raw
+          if ($stamp -notmatch '(?m)^llama=b11259\r?$') { throw "版の札が違う: $stamp" }
+          Get-ChildItem $d | ForEach-Object { Write-Host "$($_.Name) $($_.Length)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AsteriaCuda64.msi
+          path: AsteriaCuda64.msi
+          if-no-files-found: error
+      - name: リリースに添付する
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          $hash = (Get-FileHash AsteriaCuda64.msi -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'AsteriaCuda64.msi.sha256'), "$hash  AsteriaCuda64.msi`n", [Text.Encoding]::ASCII)
+          gh release upload $env:TAG AsteriaCuda64.msi AsteriaCuda64.msi.sha256 --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'リリースに添付できない' }

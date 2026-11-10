@@ -37,6 +37,15 @@
 | 初期変換の追加連語 | CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa) | zenz-v2.5-datasetのWikipedia学習区間01〜07。training/collocations/sources.jsonでrevision/範囲/SHAを固定 | 短い連語へ加工。Common Crawl/dev区間・評価参照表記は使用しない。元のMozc40件はBSD-3-Clause。fast_collocations.txt/jsonとNOTICE-fast-collocations.txtを同梱 |
 | 用例由来の追加連語 | BSD-2-Clause(Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo) | Japanese Usage Dictionary 2025-01-25。usage_dict.txtとLICENSE、Mozc cforms.defのSHAをsources.jsonで固定 | 引用用例だけから短い連語を抽出し、末尾を既存活用規則で展開。全文ライセンス・出典・変更はNOTICE-fast-collocations.txt |
 
+## NVIDIA の高速化の追加パッケージ(`AsteriaCuda64.msi`、docs/adr/0088)に同梱するもの
+
+本体の MSI には入れない。`mozc/cuda-addon/build_addon.ps1` が版と SHA-256 を固定した zip から取る。表示は `NOTICE-cuda.txt`。
+
+| もの | ライセンス | 取得元 | 備考 |
+| --- | --- | --- | --- |
+| llama.cpp / ggml(`ggml-cuda.dll`) | MIT | Windows ビルド b11259 の CUDA 13.4 版(`llama-b11259-bin-win-cuda-13.4-x64.zip`) | 変更なし。本体の `ggml-base.dll` と同じ版でだけ読む |
+| NVIDIA CUDA ランタイム(`cudart64_13.dll`)、cuBLAS(`cublas64_13.dll`、`cublasLt64_13.dll`) | NVIDIA CUDA Toolkit EULA(再配布を認められた部品) | llama.cpp b11259 の `cudart-llama-bin-win-cuda-13.4-x64.zip` | OSS ではない。変更なし。EULA は https://docs.nvidia.com/cuda/eula/index.html |
+
 ## 旧 Rust 版(`kotori-server`、TSF TIP)の配布物に同梱するもの
 
 | 構成要素 | ライセンス | 取得元・固定 | 備考 |

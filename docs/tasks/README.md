@@ -64,7 +64,7 @@
 
 済(`done/`、実機の確認は `docs/ACCEPTANCE.md`):
 
-[93: CUDA 版の計算](done/93-cuda-backend.md)（ADR 0088 を不採用。変換の中央値 −8〜−10% で条件の 30% に届かない）。
+[93: CUDA 版の計算](done/93-cuda-backend.md)（ADR 0088 を採用。追加パッケージ AsteriaCuda64.msi、変換の中央値 −25%）。
 
 [91: 回帰ゴールデンの運用](done/91-regression-golden.md)（PR #211、初期 3 問 3/3）。
 

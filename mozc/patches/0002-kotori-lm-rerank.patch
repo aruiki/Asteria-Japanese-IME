@@ -40553,16 +40553,17 @@ index 000000000..6d0878e23
 +}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..1c0d7536e
+index 000000000..475c15218
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,354 @@
+@@ -0,0 +1,428 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
 +
 +#include <atomic>
 +#include <cstdlib>
++#include <cstdio>
 +#include <cstring>
 +#include <string>
 +
@@ -40586,11 +40587,20 @@ index 000000000..1c0d7536e
 +// 内蔵 GPU を使ってよいか(設定の kotori_use_integrated_gpu。docs/adr/0078)。
 +std::atomic<bool> g_allow_integrated{false};
 +
++// Kotori: CUDA の機器か(ggml-cuda の機器の名前は CUDA0、CUDA1 …。docs/adr/0088)。
++bool IsCudaName(const char* name) {
++  return name != nullptr && std::strncmp(name, "CUDA", 4) == 0;
++}
++// 同じ GPU は CUDA と Vulkan の両方に出る(メモリの大きさの数え方が少し違う)。メモリの差がこれより
++// 小さければ CUDA を選ぶ。別の GPU なら、これまでどおりメモリの大きい方を選ぶ。
++constexpr size_t kCudaPreference = size_t{1} << 30;  // 1 GiB
++
 +// 機器の一覧から AI を載せる GPU を選ぶ(LlamaGpuDevice)。関数は Windows では DLL から引いた
 +// もの、それ以外は静的にリンクしたもの。integrated なら内蔵 GPU から選ぶ。
-+template <typename Count, typename Get, typename Type, typename Memory>
++template <typename Count, typename Get, typename Type, typename Memory,
++          typename Name>
 +ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory,
-+                             bool integrated) {
++                             Name name, bool integrated) {
 +  const char* env = std::getenv("KOTORI_LM_DEVICE");
 +  if (env != nullptr && std::strcmp(env, "cpu") == 0) return nullptr;
 +  const auto want =
@@ -40603,22 +40613,27 @@ index 000000000..1c0d7536e
 +    if (type(dev) != want) continue;
 +    size_t free = 0, total = 0;
 +    memory(dev, &free, &total);
-+    if (total >= min_memory && total > best_total) {
++    if (total < min_memory) continue;
++    const size_t rank = total + (IsCudaName(name(dev)) ? kCudaPreference : 0);
++    if (rank > best_total) {
 +      best = dev;
-+      best_total = total;
++      best_total = rank;
 +    }
 +  }
 +  return best;
 +}
 +
 +// 専用 GPU があればそれを、なければ(許されていれば)内蔵 GPU を返す。
-+template <typename Count, typename Get, typename Type, typename Memory>
++template <typename Count, typename Get, typename Type, typename Memory,
++          typename Name>
 +ggml_backend_dev_t PickGpu(Count count, Get get, Type type, Memory memory,
-+                           bool* integrated) {
-+  static ggml_backend_dev_t discrete = SelectGpu(count, get, type, memory, false);
++                           Name name, bool* integrated) {
++  static ggml_backend_dev_t discrete =
++      SelectGpu(count, get, type, memory, name, false);
 +  *integrated = false;
 +  if (discrete != nullptr || !g_allow_integrated.load()) return discrete;
-+  static ggml_backend_dev_t igpu = SelectGpu(count, get, type, memory, true);
++  static ggml_backend_dev_t igpu =
++      SelectGpu(count, get, type, memory, name, true);
 +  *integrated = igpu != nullptr;
 +  return igpu;
 +}
@@ -40641,21 +40656,29 @@ index 000000000..1c0d7536e
 +ggml_backend_dev_t LlamaGpuDevice() {
 +  bool integrated = false;
 +  return PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+                 ggml_backend_dev_memory, &integrated);
++                 ggml_backend_dev_memory, ggml_backend_dev_name, &integrated);
 +}
 +
 +bool LlamaGpuIsIntegrated() {
 +  bool integrated = false;
 +  PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+          ggml_backend_dev_memory, &integrated);
++          ggml_backend_dev_memory, ggml_backend_dev_name, &integrated);
 +  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
 +
++bool LlamaGpuIsCuda() {
++  ggml_backend_dev_t dev = LlamaGpuDevice();
++  return dev != nullptr && IsCudaName(ggml_backend_dev_name(dev));
++}
++
 +std::string LlamaGpuName() {
 +  ggml_backend_dev_t dev = LlamaGpuDevice();
-+  return dev != nullptr ? ggml_backend_dev_description(dev) : std::string();
++  if (dev == nullptr) return std::string();
++  std::string name = ggml_backend_dev_description(dev);
++  if (LlamaGpuIsCuda()) name += " (CUDA)";
++  return name;
 +}
 +
 +#else  // _WIN32
@@ -40706,6 +40729,9 @@ index 000000000..1c0d7536e
 +  decltype(&::ggml_backend_dev_type) dev_type = nullptr;
 +  decltype(&::ggml_backend_dev_memory) dev_memory = nullptr;
 +  decltype(&::ggml_backend_dev_description) dev_description = nullptr;
++  decltype(&::ggml_backend_dev_name) dev_name = nullptr;
++  // CUDA の追加パッケージを読む(ggml.dll。docs/adr/0088)。
++  decltype(&::ggml_backend_load) load_backend = nullptr;
 +};
 +
 +Api g_api;
@@ -40721,11 +40747,46 @@ index 000000000..1c0d7536e
 +  return w;
 +}
 +
++// 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
++constexpr DWORD kFlags =
++    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
++
++// Kotori: 本体に同梱した llama.cpp の版(MODULE.bazel の llama_cpp の取得先と同じ)。CUDA の
++// 追加パッケージの ggml-cuda.dll は、この版の ggml-base.dll に合わせて作られている。
++constexpr char kLlamaBuild[] = "b11259";
++
++// Kotori: NVIDIA の GPU 向けの追加パッケージ(docs/adr/0088)。インストール先の cuda フォルダに、
++// ggml-cuda.dll と、それが使う CUDA の実行時ライブラリ(cudart・cuBLAS)がある。版の札
++// (asteria-cuda.txt の「llama=<版>」の行)が本体と合わないとき、読み込めないとき(NVIDIA の GPU や
++// 新しいドライバーがない)は何もしない(これまでどおり Vulkan で動く)。
++// KOTORI_LM_CUDA=0 なら読まない(比べるため)。
++void LoadCuda(const std::string& dir, const std::wstring& wdir) {
++  const char* env = std::getenv("KOTORI_LM_CUDA");
++  if (env != nullptr && std::strcmp(env, "0") == 0) return;
++  const std::wstring cdir = wdir + L"\\cuda";
++  std::FILE* f = _wfopen((cdir + L"\\asteria-cuda.txt").c_str(), L"rb");
++  if (f == nullptr) return;
++  char buf[256] = {};
++  const size_t n = std::fread(buf, 1, sizeof(buf) - 1, f);
++  std::fclose(f);
++  const std::string stamp(buf, n);
++  const std::string want = std::string("llama=") + kLlamaBuild;
++  const size_t at = stamp.find(want);
++  const size_t end = at + want.size();
++  if (at == std::string::npos ||
++      (end < stamp.size() && stamp[end] != '\r' && stamp[end] != '\n')) {
++    return;
++  }
++  // cuBLAS などの依存は、ggml-cuda.dll と同じフォルダから読む(backend を読む LoadLibraryW は
++  // 依存の DLL のフォルダを足さないので、先にこちらで読んでおく)。
++  if (LoadLibraryExW((cdir + L"\\ggml-cuda.dll").c_str(), nullptr, kFlags) == nullptr) {
++    return;
++  }
++  g_api.load_backend((dir + "\\cuda\\ggml-cuda.dll").c_str());
++}
++
 +bool Load(const std::string& dir) {
 +  const std::wstring wdir = Widen(dir);
-+  // 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
-+  constexpr DWORD kFlags =
-+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
 +  // Kotori: baseを再構築してもCPU backendの依存を同梱先から先に読む。
 +  // backend側のLoadLibraryWは依存DLLのフォルダを追加しない。
 +  HMODULE omp =
@@ -40763,14 +40824,19 @@ index 000000000..1c0d7536e
 +      GetProcAddress(base, "ggml_backend_dev_memory"));
 +  g_api.dev_description = reinterpret_cast<decltype(g_api.dev_description)>(
 +      GetProcAddress(base, "ggml_backend_dev_description"));
++  g_api.dev_name = reinterpret_cast<decltype(g_api.dev_name)>(
++      GetProcAddress(base, "ggml_backend_dev_name"));
++  g_api.load_backend = reinterpret_cast<decltype(g_api.load_backend)>(
++      GetProcAddress(ggml, "ggml_backend_load"));
 +  if (g_api.dev_count == nullptr || g_api.dev_get == nullptr ||
 +      g_api.dev_type == nullptr || g_api.dev_memory == nullptr ||
-+      g_api.dev_description == nullptr) {
++      g_api.dev_description == nullptr || g_api.dev_name == nullptr) {
 +    return false;
 +  }
 +  g_api.llama_log_set(QuietLog, nullptr);
 +  // GPU(Vulkan)と CPU の DLL のうち、この PC で使えるものを読み込む。
 +  g_api.load_all(dir.c_str());
++  if (g_api.load_backend != nullptr) LoadCuda(dir, wdir);
 +  g_api.llama_backend_init();
 +  return true;
 +}
@@ -40789,22 +40855,30 @@ index 000000000..1c0d7536e
 +  if (!g_loaded) return nullptr;
 +  bool integrated = false;
 +  return PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
-+                 &integrated);
++                 g_api.dev_name, &integrated);
 +}
 +
 +bool LlamaGpuIsIntegrated() {
 +  if (!g_loaded) return false;
 +  bool integrated = false;
 +  PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
-+          &integrated);
++          g_api.dev_name, &integrated);
 +  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
 +
++bool LlamaGpuIsCuda() {
++  ggml_backend_dev_t dev = LlamaGpuDevice();
++  return dev != nullptr && IsCudaName(g_api.dev_name(dev));
++}
++
 +std::string LlamaGpuName() {
 +  ggml_backend_dev_t dev = LlamaGpuDevice();
-+  return dev != nullptr ? g_api.dev_description(dev) : std::string();
++  if (dev == nullptr) return std::string();
++  std::string name = g_api.dev_description(dev);
++  if (LlamaGpuIsCuda()) name += " (CUDA)";
++  return name;
 +}
 +
 +#endif  // _WIN32
@@ -40913,10 +40987,10 @@ index 000000000..1c0d7536e
 +#endif  // _WIN32
 diff --git a/src/rewriter/llama_runtime.h b/src/rewriter/llama_runtime.h
 new file mode 100644
-index 000000000..d946cb3a5
+index 000000000..018d2577d
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,49 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: llama.cpp の実行時の準備(docs/adr/0016)。
@@ -40957,7 +41031,10 @@ index 000000000..d946cb3a5
 +// (選んだ機器は変えない。設定の変更は再起動で反映する)。
 +void LlamaAllowIntegratedGpu(bool allow);
 +
-+// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。なければ空。
++// LlamaGpuDevice() が CUDA の機器か(追加パッケージを入れた NVIDIA の GPU。docs/adr/0088)。
++// 同じ GPU が CUDA と Vulkan の両方に出るときは CUDA を選ぶ。
++bool LlamaGpuIsCuda();
++// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。CUDA なら「(CUDA)」を付ける。なければ空。
 +std::string LlamaGpuName();
 +
 +}  // namespace mozc
@@ -48675,10 +48752,10 @@ index 1dafe70bd..f32bf61e3 100644
        ConversionRequestBuilder()
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..ffe0f0a20
+index 000000000..b6d01d186
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,894 @@
+@@ -0,0 +1,933 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -49166,6 +49243,33 @@ index 000000000..ffe0f0a20
 +  const llama_vocab* vocab = llama_model_get_vocab(model_);
 +  const int n_vocab = llama_vocab_n_tokens(vocab);
 +  llama_memory_t mem = llama_get_memory(ctx_);
++  // Kotori: CUDA では、生成への呼び出しをすべて 8 トークン・8 出力にそろえる(docs/adr/0088)。
++  // llama.cpp の CUDA 版は計算をまとめて GPU に渡す仕組み(CUDA グラフ)をコンテキストごとに 1 つしか
++  // 持たず、トークンの数が変わるたびに作り直す。足りない分は空きのシーケンスに捨てるトークンを足し、
++  // 長い前置きは 8 ずつに分ける。Vulkan では遅くなるので使わない。KOTORI_LM_FIXED_BATCH=N で
++  // 数を変える(0 で使わない。比べるため)。
++  static const int kFixed = [] {
++    const char* v = std::getenv("KOTORI_LM_FIXED_BATCH");
++    if (v != nullptr) return std::atoi(v);
++    return LlamaGpuIsCuda() ? 8 : 0;
++  }();
++  const int fixed = (kFixed > 0 && n_roots <= kFixed && kFixed <= total_beams &&
++                     kFixed <= kBatch)
++                        ? kFixed
++                        : 0;
++  // 空きのシーケンス dummy を空にし、捨てるトークンで b を fixed 個まで埋める。
++  auto pad = [&](llama_batch& b, int dummy) {
++    if (fixed == 0 || b.n_tokens >= fixed) return;
++    llama_memory_seq_rm(mem, dummy, -1, -1);
++    for (int k = 0; b.n_tokens < fixed; ++k) {
++      const int at = b.n_tokens++;
++      b.token[at] = b.token[0];
++      b.pos[at] = k;
++      b.n_seq_id[at] = 1;
++      b.seq_id[at][0] = dummy;
++      b.logits[at] = 1;
++    }
++  };
 +  // Kotori: 前置きの計算(docs/adr/0033)。根 0 の前置きの最後の 1 トークンより前はシーケンス 0 に置き、
 +  // 前回と同じ所は計算し直さない(打鍵ごとの予測では、前の文と変換の大半が同じ)。ほかの根は、根 0 と
 +  // 同じ先頭をシーケンス 0 から写し、残りだけを計算する。前置きの残りと、すべての根の最後のトークン
@@ -49191,12 +49295,14 @@ index 000000000..ffe0f0a20
 +    }
 +    // やめる関数があるときは 32 トークンずつ計算し、その間にやめられるようにする(CPU では前置きの
 +    // 計算が長い)。
-+    const int chunk = tl_cancel ? 32 : kBatch;
++    const int chunk = fixed > 0 ? fixed : (tl_cancel ? 32 : kBatch);
++    const int last_limit = fixed > 0 ? fixed : kBatch;
 +    llama_batch b = llama_batch_init(kBatch, 0, 1);
 +    b.n_tokens = 0;
 +    bool ok = true;
 +    auto flush = [&]() {
 +      if (b.n_tokens == 0) return true;
++      pad(b, n_roots);
 +      const int rc = Decode(ctx_, b, zenz_);
 +      b.n_tokens = 0;
 +      return rc == 0;
@@ -49207,7 +49313,7 @@ index 000000000..ffe0f0a20
 +      b.pos[at] = static_cast<llama_pos>(pos);
 +      b.n_seq_id[at] = 1;
 +      b.seq_id[at][0] = seq;
-+      b.logits[at] = logits ? 1 : 0;
++      b.logits[at] = (logits || fixed > 0) ? 1 : 0;
 +      return at;
 +    };
 +    for (int r = 0; r < n_roots && ok; ++r) {
@@ -49221,7 +49327,7 @@ index 000000000..ffe0f0a20
 +      }
 +    }
 +    // 最後のトークンは 1 回にまとめる(入りきらなければ先に流す)。
-+    if (ok && b.n_tokens + n_roots > kBatch) ok = flush();
++    if (ok && b.n_tokens + n_roots > last_limit) ok = flush();
 +    for (int r = 0; r < n_roots && ok; ++r) {
 +      const auto& pr = roots[r].prefix;
 +      first_logit[r] = add(pr.back(), pr.size() - 1, r, true);
@@ -49340,7 +49446,8 @@ index 000000000..ffe0f0a20
 +      }
 +    }
 +    if (batch.empty()) break;
-+    llama_batch b = llama_batch_init(batch.size(), 0, 1);
++    llama_batch b = llama_batch_init(
++        std::max(static_cast<int>(batch.size()), fixed), 0, 1);
 +    std::vector<int> used(n_roots, 0);
 +    for (size_t i = 0; i < batch.size(); ++i) {
 +      Grown& g = batch[i];
@@ -49357,6 +49464,15 @@ index 000000000..ffe0f0a20
 +      b.logits[i] = 1;
 +    }
 +    b.n_tokens = batch.size();
++    if (fixed > 0 && b.n_tokens < fixed) {
++      // 今の組で使っていないビームのシーケンスを、捨てるトークンの置き場にする。
++      for (int r = 0; r < n_roots; ++r) {
++        if (used[r] < roots[r].beams) {
++          pad(b, st[r].bank_start[st[r].bank] + used[r]);
++          break;
++        }
++      }
++    }
 +    const int rc = Decode(ctx_, b, zenz_);
 +    llama_batch_free(b);
 +    if (rc != 0) break;
