@@ -1068,6 +1068,21 @@ index 56e4a18d4..88ed2782e 100644
            CharacterFormManager::GetCharacterFormManager()->ConvertPreeditString(
                "．", &append_char);
            DCHECK(!append_char.empty());
+diff --git a/src/composer/composer.h b/src/composer/composer.h
+index b4d43b4f9..439de7c4b 100644
+--- a/src/composer/composer.h
++++ b/src/composer/composer.h
+@@ -76,6 +76,10 @@ class ComposerData {
+   ComposerData& operator=(ComposerData&&) = default;
+ 
+   transliteration::TransliterationType GetInputMode() const;
++  // Kotori: 入力欄の種類(パスワード欄では変換要求を学習・AI なしで扱う)。
++  commands::Context::InputFieldType GetInputFieldType() const {
++    return input_field_type_;
++  }
+ 
+   // Returns a preedit string with user's preferences.
+   std::string GetStringForPreedit() const;
 diff --git a/src/composer/composer_test.cc b/src/composer/composer_test.cc
 index 7893248f4..8959625e4 100644
 --- a/src/composer/composer_test.cc
@@ -35264,7 +35279,7 @@ index ad105b3d3..0dc08db8a 100644
  void GetScaledRendererStyle(::mozc::renderer::RendererStyle* style,
                              uint32_t dpi);
 diff --git a/src/request/conversion_request.h b/src/request/conversion_request.h
-index 0abfc1d88..dd7b2915c 100644
+index 0abfc1d88..4ebc49930 100644
 --- a/src/request/conversion_request.h
 +++ b/src/request/conversion_request.h
 @@ -31,6 +31,7 @@
@@ -35296,7 +35311,21 @@ index 0abfc1d88..dd7b2915c 100644
    using RequestType = ::mozc::RequestType;
    using enum ::mozc::RequestType;
  
-@@ -264,6 +279,7 @@ class ConversionRequest {
+@@ -193,8 +208,12 @@ class ConversionRequest {
+   // of Config::incognito_mode() or Request::is_incognito_mode(), as the
+   // incognito mode can also set via Options.
+   bool incognito_mode() const {
++    // Kotori: パスワード欄はシークレットと同じに扱い、学習も AI も使わない。欄の種類は
++    // セッションの composer が持ち、クライアントの context にはコマンドによって載らないので両方を見る。
+     return options_.incognito_mode || config_->incognito_mode() ||
+-           request_->is_incognito_mode();
++           request_->is_incognito_mode() ||
++           composer_data_->GetInputFieldType() == commands::Context::PASSWORD ||
++           context_->input_field_type() == commands::Context::PASSWORD;
+   }
+ 
+   absl::string_view key() const ABSL_ATTRIBUTE_LIFETIME_BOUND { return key_; }
+@@ -264,6 +283,7 @@ class ConversionRequest {
  
    // Options for conversion request.
    Options options_;
@@ -35304,7 +35333,7 @@ index 0abfc1d88..dd7b2915c 100644
  
    // Key used for conversion.
    // This is typically a Hiragana text to be converted to Kanji words.
-@@ -323,6 +339,7 @@ class ConversionRequestBuilder {
+@@ -323,6 +343,7 @@ class ConversionRequestBuilder {
      request_.config_ = base_convreq.config_;
      request_.history_result_ = base_convreq.history_result_;
      request_.options_ = base_convreq.options_;
@@ -35312,7 +35341,7 @@ index 0abfc1d88..dd7b2915c 100644
      request_.key_ = base_convreq.key_;
      return *this;
    }
-@@ -336,6 +353,7 @@ class ConversionRequestBuilder {
+@@ -336,6 +357,7 @@ class ConversionRequestBuilder {
      request_.context_.set_view(*base_convreq.context_);
      request_.config_.set_view(*base_convreq.config_);
      request_.options_ = base_convreq.options_;
@@ -35320,7 +35349,7 @@ index 0abfc1d88..dd7b2915c 100644
      request_.key_ = base_convreq.key_;
      request_.history_result_.set_view(*base_convreq.history_result_);
      return *this;
-@@ -409,6 +427,13 @@ class ConversionRequestBuilder {
+@@ -409,6 +431,13 @@ class ConversionRequestBuilder {
    ConversionRequestBuilder& SetEmptyHistoryResult() {
      return SetHistoryResultView(prediction::Result::DefaultResult());
    }
@@ -35335,10 +35364,54 @@ index 0abfc1d88..dd7b2915c 100644
      DCHECK_LE(stage_, 2);
      stage_ = 2;
 diff --git a/src/request/conversion_request_test.cc b/src/request/conversion_request_test.cc
-index 728f7f963..1e21bf5fd 100644
+index 728f7f963..3fb6872eb 100644
 --- a/src/request/conversion_request_test.cc
 +++ b/src/request/conversion_request_test.cc
-@@ -245,4 +245,31 @@ TEST(ConversionRequestTest, GetSurroundingContextTest) {
+@@ -226,6 +226,43 @@ TEST(ConversionRequestTest, IncognitoModeTest) {
+   }
+ }
+ 
++// Kotori: パスワード欄は、クライアントの context に欄の種類が載らないコマンド(確定など)でも
++// composer の欄の種類でシークレットと同じに扱う。派生した要求にも引き継ぐ。
++TEST(ConversionRequestTest, KotoriPasswordFieldIsIncognito) {
++  auto request = std::make_shared<commands::Request>();
++  auto config = std::make_shared<config::Config>();
++  auto table = std::make_shared<composer::Table>();
++  table->InitializeWithRequestAndConfig(*request, *config);
++  composer::Composer composer(table, request, config);
++  composer.SetPreeditTextForTestOnly("query");
++
++  const ConversionRequest normal = ConversionRequestBuilder()
++                                       .SetConfigView(*config)
++                                       .SetRequestView(*request)
++                                       .SetComposer(composer)
++                                       .Build();
++  EXPECT_FALSE(normal.incognito_mode());
++
++  composer.SetInputFieldType(commands::Context::PASSWORD);
++  const ConversionRequest password = ConversionRequestBuilder()
++                                         .SetConfigView(*config)
++                                         .SetRequestView(*request)
++                                         .SetComposer(composer)
++                                         .Build();
++  EXPECT_TRUE(password.incognito_mode());
++  EXPECT_TRUE(password.options().incognito_mode);
++
++  const ConversionRequest derived =
++      ConversionRequestBuilder().SetConversionRequestView(password).Build();
++  EXPECT_TRUE(derived.incognito_mode());
++
++  commands::Context context;
++  context.set_input_field_type(commands::Context::PASSWORD);
++  const ConversionRequest by_context =
++      ConversionRequestBuilder().SetContextView(context).Build();
++  EXPECT_TRUE(by_context.incognito_mode());
++}
++
+ TEST(ConversionRequestTest, GetSurroundingContextTest) {
+   {
+     commands::Context context;
+@@ -245,4 +282,31 @@ TEST(ConversionRequestTest, GetSurroundingContextTest) {
    }
  }
  
@@ -48423,7 +48496,7 @@ index b704fcba7..a4e8d4c62 100644
                                                kDisableUserBoundaryHistory) ||
        DisableLegacyRewriter(request, kDisableUserBoundaryHistory)) {
 diff --git a/src/rewriter/user_boundary_history_rewriter_test.cc b/src/rewriter/user_boundary_history_rewriter_test.cc
-index b3b9a0632..50c7c637a 100644
+index b3b9a0632..ec736995a 100644
 --- a/src/rewriter/user_boundary_history_rewriter_test.cc
 +++ b/src/rewriter/user_boundary_history_rewriter_test.cc
 @@ -39,6 +39,7 @@
@@ -48465,12 +48538,12 @@ index b3b9a0632..50c7c637a 100644
 +  config_.set_kotori_lm_enabled(true);
 +  EXPECT_FALSE(rewriter.CheckResizeSegmentsRequest(CreateConversionRequest(), segments)
 +                   .has_value());
-+  // 保護された欄では AI を使わないので、覚えた区切りを使う。
++  // 保護された欄はシークレットと同じに扱う(REQ-8-3)。覚えた区切りも使わない。
 +  commands::Context context;
 +  context.set_input_field_type(commands::Context::PASSWORD);
 +  const ConversionRequest password =
 +      ConversionRequestBuilder().SetConfig(config_).SetContext(context).Build();
-+  EXPECT_TRUE(rewriter.CheckResizeSegmentsRequest(password, segments).has_value());
++  EXPECT_FALSE(rewriter.CheckResizeSegmentsRequest(password, segments).has_value());
 +  config_.set_kotori_lm_enabled(false);
 +  EXPECT_TRUE(rewriter.CheckResizeSegmentsRequest(CreateConversionRequest(), segments)
 +                  .has_value());
@@ -50762,7 +50835,7 @@ index 000000000..344468822
 +}  // namespace
 +}  // namespace mozc::session
 diff --git a/src/session/session.cc b/src/session/session.cc
-index 8186b0a8d..f86318a5a 100644
+index 8186b0a8d..b75a8e06a 100644
 --- a/src/session/session.cc
 +++ b/src/session/session.cc
 @@ -44,6 +44,7 @@
@@ -50848,7 +50921,15 @@ index 8186b0a8d..f86318a5a 100644
      case commands::SessionCommand::REQUEST_NWP: {
        ConversionPreferences conversion_preferences =
            context_->converter().conversion_preferences();
-@@ -444,8 +485,7 @@ bool Session::TestSendKey(commands::Command* command) {
+@@ -412,6 +453,7 @@ bool Session::SendCommand(commands::Command* command) {
+ }
+ 
+ bool Session::TestSendKey(commands::Command* command) {
++  KotoriApplyInputFieldType(*command);
+   UpdateTime();
+   UpdatePreferences(command);
+   TransformInput(command->mutable_input());
+@@ -444,8 +486,7 @@ bool Session::TestSendKey(commands::Command* command) {
    // Precomposition
    if (state == ImeContext::PRECOMPOSITION) {
      keymap::PrecompositionState::Commands key_command;
@@ -50858,7 +50939,15 @@ index 8186b0a8d..f86318a5a 100644
      const bool result =
          is_suggestion ? keymap->GetCommandZeroQuerySuggestion(key, &key_command)
                        : keymap->GetCommandPrecomposition(key, &key_command);
-@@ -538,10 +578,165 @@ bool Session::SendKey(commands::Command* command) {
+@@ -508,6 +549,7 @@ bool Session::TestSendKey(commands::Command* command) {
+ }
+ 
+ bool Session::SendKey(commands::Command* command) {
++  KotoriApplyInputFieldType(*command);
+   UpdateTime();
+   UpdatePreferences(command);
+   TransformInput(command->mutable_input());
+@@ -538,10 +580,165 @@ bool Session::SendKey(commands::Command* command) {
        break;
    }
  
@@ -51024,7 +51113,7 @@ index 8186b0a8d..f86318a5a 100644
  bool Session::UpdateCompositionInternal(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
-@@ -604,7 +799,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
+@@ -604,7 +801,9 @@ bool Session::SendKeyDirectInputState(commands::Command* command) {
      case keymap::DirectInputState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::DirectInputState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -51035,7 +51124,7 @@ index 8186b0a8d..f86318a5a 100644
      case keymap::DirectInputState::NONE:
        return EchoBackAndClearUndoContext(command);
      case keymap::DirectInputState::RECONVERT:
-@@ -617,7 +814,7 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -617,7 +816,7 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
    keymap::PrecompositionState::Commands key_command;
    const keymap::KeyMapManager* keymap = &context_->GetKeyMapManager();
    const bool result =
@@ -51044,7 +51133,7 @@ index 8186b0a8d..f86318a5a 100644
            ? keymap->GetCommandZeroQuerySuggestion(command->input().key(),
                                                    &key_command)
            : keymap->GetCommandPrecomposition(command->input().key(),
-@@ -648,7 +845,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -648,7 +847,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::INSERT_FULL_SPACE:
        return InsertSpaceFullWidth(command);
      case keymap::PrecompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -51055,7 +51144,7 @@ index 8186b0a8d..f86318a5a 100644
      case keymap::PrecompositionState::REVERT:
        return Revert(command);
      case keymap::PrecompositionState::UNDO:
-@@ -667,7 +866,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
+@@ -667,7 +868,9 @@ bool Session::SendKeyPrecompositionState(commands::Command* command) {
      case keymap::PrecompositionState::COMPOSITION_MODE_FULL_ALPHANUMERIC:
        return CompositionModeFullASCII(command);
      case keymap::PrecompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -51066,7 +51155,7 @@ index 8186b0a8d..f86318a5a 100644
      case keymap::PrecompositionState::COMPOSITION_MODE_SWITCH_KANA_TYPE:
        return CompositionModeSwitchKanaType(command);
  
-@@ -709,7 +910,7 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -709,7 +912,7 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
    keymap::CompositionState::Commands key_command;
    const keymap::KeyMapManager* keymap = &context_->GetKeyMapManager();
    const bool result =
@@ -51075,7 +51164,7 @@ index 8186b0a8d..f86318a5a 100644
            ? keymap->GetCommandSuggestion(command->input().key(), &key_command)
            : keymap->GetCommandComposition(command->input().key(), &key_command);
  
-@@ -717,6 +918,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -717,6 +920,29 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
      return DoNothing(command);
    }
  
@@ -51105,7 +51194,7 @@ index 8186b0a8d..f86318a5a 100644
    switch (key_command) {
      case keymap::CompositionState::INSERT_CHARACTER:
        return InsertCharacter(command);
-@@ -821,7 +1045,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -821,7 +1047,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::CompositionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -51116,7 +51205,7 @@ index 8186b0a8d..f86318a5a 100644
  
      case keymap::CompositionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -836,7 +1062,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
+@@ -836,7 +1064,9 @@ bool Session::SendKeyCompositionState(commands::Command* command) {
        return CompositionModeFullASCII(command);
  
      case keymap::CompositionState::COMPOSITION_MODE_HALF_ALPHANUMERIC:
@@ -51127,7 +51216,7 @@ index 8186b0a8d..f86318a5a 100644
  
      case keymap::CompositionState::NONE:
        return DoNothing(command);
-@@ -966,7 +1194,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
+@@ -966,7 +1196,9 @@ bool Session::SendKeyConversionState(commands::Command* command) {
        return TranslateHalfASCII(command);
  
      case keymap::ConversionState::TOGGLE_ALPHANUMERIC_MODE:
@@ -51138,7 +51227,7 @@ index 8186b0a8d..f86318a5a 100644
  
      case keymap::ConversionState::COMPOSITION_MODE_HIRAGANA:
        return CompositionModeHiragana(command);
-@@ -1026,7 +1256,8 @@ bool Session::IMEOn(commands::Command* command) {
+@@ -1026,7 +1258,8 @@ bool Session::IMEOn(commands::Command* command) {
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
    if (command->input().has_key() && command->input().key().has_mode()) {
@@ -51148,7 +51237,7 @@ index 8186b0a8d..f86318a5a 100644
                           context_->mutable_composer());
    }
    OutputMode(command);
-@@ -1062,8 +1293,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
+@@ -1062,8 +1295,10 @@ bool Session::MakeSureIMEOn(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -51161,7 +51250,7 @@ index 8186b0a8d..f86318a5a 100644
    }
    OutputMode(command);
    return true;
-@@ -1087,8 +1320,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
+@@ -1087,8 +1322,10 @@ bool Session::MakeSureIMEOff(mozc::commands::Command* command) {
    }
    if (command->input().has_command() &&
        command->input().command().has_composition_mode()) {
@@ -51174,7 +51263,7 @@ index 8186b0a8d..f86318a5a 100644
    }
    OutputMode(command);
    return true;
-@@ -1388,9 +1623,11 @@ bool Session::CommitCandidate(commands::Command* command) {
+@@ -1388,9 +1625,11 @@ bool Session::CommitCandidate(commands::Command* command) {
    } else {
      // No candidate is focused.
      size_t consumed_key_size = 0;
@@ -51186,7 +51275,7 @@ index 8186b0a8d..f86318a5a 100644
        if (consumed_key_size < context_->composer().GetLength()) {
          // partial suggestion was committed.
          context_->mutable_composer()->DeleteRange(0, consumed_key_size);
-@@ -1523,6 +1760,10 @@ bool Session::InsertCharacter(commands::Command* command) {
+@@ -1523,6 +1762,10 @@ bool Session::InsertCharacter(commands::Command* command) {
  
    const std::string composition = context_->composer().GetQueryForConversion();
    bool should_commit = (context_->state() == ImeContext::CONVERSION);
@@ -51197,7 +51286,7 @@ index 8186b0a8d..f86318a5a 100644
  
    if (context_->GetRequest().space_on_alphanumeric() ==
            commands::Request::SPACE_OR_CONVERT_COMMITTING_COMPOSITION &&
-@@ -1780,10 +2021,30 @@ bool Session::CommitInternal(commands::Command* command,
+@@ -1780,10 +2023,30 @@ bool Session::CommitInternal(commands::Command* command,
  
    PushUndoContext();
  
@@ -51228,7 +51317,7 @@ index 8186b0a8d..f86318a5a 100644
      context_->mutable_converter()->Commit(context_->composer(),
                                            command->input().context());
    }
-@@ -1795,6 +2056,16 @@ bool Session::CommitInternal(commands::Command* command,
+@@ -1795,6 +2058,16 @@ bool Session::CommitInternal(commands::Command* command,
    }
  
    Output(command);
@@ -51245,7 +51334,7 @@ index 8186b0a8d..f86318a5a 100644
    // Copy the previous output for Undo.
    *context_->mutable_output() = command->output();
    return true;
-@@ -1827,6 +2098,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
+@@ -1827,6 +2100,25 @@ bool Session::CommitHead(size_t count, commands::Command* command) {
    return true;
  }
  
@@ -51271,7 +51360,7 @@ index 8186b0a8d..f86318a5a 100644
  bool Session::CommitFirstSuggestion(commands::Command* command) {
    if (!(context_->state() == ImeContext::COMPOSITION ||
          context_->state() == ImeContext::PRECOMPOSITION)) {
-@@ -1841,9 +2131,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
+@@ -1841,9 +2133,11 @@ bool Session::CommitFirstSuggestion(commands::Command* command) {
  
    constexpr int kFirstIndex = 0;
    size_t committed_key_size = 0;
@@ -51283,7 +51372,7 @@ index 8186b0a8d..f86318a5a 100644
  
    SetSessionState(ImeContext::PRECOMPOSITION, context_.get());
  
-@@ -1973,9 +2265,22 @@ bool SuppressSuggestion(const commands::Input& input) {
+@@ -1973,9 +2267,22 @@ bool SuppressSuggestion(const commands::Input& input) {
  }  // namespace
  
  bool Session::Suggest(const commands::Input& input) {
@@ -51307,7 +51396,7 @@ index 8186b0a8d..f86318a5a 100644
  
    // |request_suggestion| is not supposed to always ensure suppressing
    // suggestion since this field is used for performance improvement
-@@ -2158,6 +2463,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
+@@ -2158,6 +2465,25 @@ bool Session::CompositionModeHalfASCII(commands::Command* command) {
    return true;
  }
  
@@ -51333,7 +51422,7 @@ index 8186b0a8d..f86318a5a 100644
  bool Session::CompositionModeSwitchKanaType(commands::Command* command) {
    if (context_->state() != ImeContext::PRECOMPOSITION) {
      return DoNothing(command);
-@@ -2371,14 +2695,46 @@ bool Session::Convert(commands::Command* command) {
+@@ -2371,14 +2697,46 @@ bool Session::Convert(commands::Command* command) {
      }
    }
  
@@ -51384,7 +51473,7 @@ index 8186b0a8d..f86318a5a 100644
    Output(command);
    return true;
  }
-@@ -2389,16 +2745,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
+@@ -2389,16 +2747,7 @@ bool Session::ConvertWithoutHistory(commands::Command* command) {
    ConversionPreferences preferences =
        context_->converter().conversion_preferences();
    preferences.use_history = false;
@@ -51402,7 +51491,7 @@ index 8186b0a8d..f86318a5a 100644
  }
  
  bool Session::CommitIfPassword(commands::Command* command) {
-@@ -2676,7 +3023,7 @@ bool Session::ConvertCancel(commands::Command* command) {
+@@ -2676,7 +3025,7 @@ bool Session::ConvertCancel(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
  
    SetSessionState(ImeContext::COMPOSITION, context_.get());
@@ -51411,7 +51500,7 @@ index 8186b0a8d..f86318a5a 100644
    if (Suggest(command->input())) {
      Output(command);
    } else {
-@@ -2691,8 +3038,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
+@@ -2691,8 +3040,20 @@ bool Session::PredictAndConvert(commands::Command* command) {
    }
  
    command->mutable_output()->set_consumed(true);
@@ -51434,7 +51523,7 @@ index 8186b0a8d..f86318a5a 100644
      SetSessionState(ImeContext::CONVERSION, context_.get());
      Output(command);
    } else {
-@@ -2738,6 +3097,13 @@ void Session::OutputComposition(commands::Command* command) const {
+@@ -2738,6 +3099,13 @@ void Session::OutputComposition(commands::Command* command) const {
    OutputMode(command);
    context_->converter().FillPreedit(
        context_->composer(), command->mutable_output()->mutable_preedit());
@@ -51448,8 +51537,24 @@ index 8186b0a8d..f86318a5a 100644
  }
  
  void Session::OutputKey(commands::Command* command) const {
-@@ -2867,6 +3233,10 @@ void Session::TransformInput(commands::Input* input) {
+@@ -2865,8 +3233,26 @@ void Session::TransformInput(commands::Input* input) {
+   }
+ }
  
++// Asteria: Windows の TIP はキーごとに欄の種類を送る(パスワード欄を PASSWORD に)。
++// 送られたときだけ反映し、送らないクライアントでは SWITCH_INPUT_FIELD_TYPE の値を保つ。
++void Session::KotoriApplyInputFieldType(const commands::Command& command) {
++  if (!command.input().has_context() ||
++      !command.input().context().has_input_field_type()) {
++    return;
++  }
++  const commands::Context::InputFieldType type =
++      command.input().context().input_field_type();
++  if (context_->composer().GetInputFieldType() == type) return;
++  context_->mutable_converter()->KotoriInputFieldTypeChanged();
++  context_->mutable_composer()->SetInputFieldType(type);
++}
++
  bool Session::SwitchInputFieldType(commands::Command* command) {
    command->mutable_output()->set_consumed(true);
 +  if (context_->composer().GetInputFieldType() !=
@@ -51460,7 +51565,7 @@ index 8186b0a8d..f86318a5a 100644
        command->input().context().input_field_type());
    Output(command);
 diff --git a/src/session/session.h b/src/session/session.h
-index a9903ecd3..33d5db08b 100644
+index a9903ecd3..ccb614efd 100644
 --- a/src/session/session.h
 +++ b/src/session/session.h
 @@ -35,6 +35,7 @@
@@ -51497,7 +51602,15 @@ index a9903ecd3..33d5db08b 100644
  
    // Switch the composition mode.
    bool CompositionModeHiragana(mozc::commands::Command* command);
-@@ -275,6 +288,32 @@ class Session {
+@@ -211,6 +224,7 @@ class Session {
+ 
+   // Specify the input field type.
+   bool SwitchInputFieldType(mozc::commands::Command* command);
++  void KotoriApplyInputFieldType(const mozc::commands::Command& command);
+ 
+   // Let client launch config dialog
+   bool LaunchConfigDialog(mozc::commands::Command* command);
+@@ -275,6 +289,32 @@ class Session {
   private:
    friend class SessionTestPeer;
  
@@ -51876,7 +51989,7 @@ index 4d3669e06..d436673f7 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..aaa24e1c3 100644
+index 012d822a5..f85480e0a 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -27,6 +27,8 @@
@@ -52060,7 +52173,7 @@ index 012d822a5..aaa24e1c3 100644
  
    Segments segments;
    Segment* segment = segments.add_segment();
-@@ -9144,6 +9177,37 @@ TEST_F(SessionTest, SwitchInputFieldType) {
+@@ -9144,6 +9177,66 @@ TEST_F(SessionTest, SwitchInputFieldType) {
    }
  }
  
@@ -52095,10 +52208,39 @@ index 012d822a5..aaa24e1c3 100644
 +  EXPECT_EQ(changes, 2);
 +}
 +
++// Asteria: Windows の TIP はキーごとに欄の種類を送る。パスワード欄なら AI と学習を止めるため
++// PASSWORD に切り替え、普通の欄に戻れば NORMAL に戻す。送らないキーでは値を保つ。
++TEST_F(SessionTest, KotoriKeyContextSetsInputFieldType) {
++  MockEngine engine;
++  std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
++  Session session(engine);
++  InitSessionToPrecomposition(&session);
++  commands::Command command;
++
++  ASSERT_TRUE(SetSendKeyCommand("a", &command));
++  command.mutable_input()->mutable_context()->set_input_field_type(
++      commands::Context::PASSWORD);
++  session.TestSendKey(&command);
++  EXPECT_EQ(session.context().composer().GetInputFieldType(),
++            commands::Context::PASSWORD);
++
++  ASSERT_TRUE(SetSendKeyCommand("a", &command));
++  session.SendKey(&command);
++  EXPECT_EQ(session.context().composer().GetInputFieldType(),
++            commands::Context::PASSWORD);
++
++  ASSERT_TRUE(SetSendKeyCommand("Escape", &command));
++  command.mutable_input()->mutable_context()->set_input_field_type(
++      commands::Context::NORMAL);
++  session.SendKey(&command);
++  EXPECT_EQ(session.context().composer().GetInputFieldType(),
++            commands::Context::NORMAL);
++}
++
  TEST_F(SessionTest, CursorKeysInPasswordMode) {
    MockEngine engine;
    std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
-@@ -9805,6 +9869,11 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
+@@ -9805,6 +9898,11 @@ TEST_F(SessionTest, ModeChangeOfConvertAtPunctuations) {
  TEST_F(SessionTest, SuppressSuggestion) {
    Session session(*mock_data_engine_);
    InitSessionToPrecomposition(&session);
@@ -52110,7 +52252,7 @@ index 012d822a5..aaa24e1c3 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10563,842 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -10494,5 +10592,842 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -53385,10 +53527,22 @@ index d8dbb0b66..1029a1d48 100644
          "//win32/base:win32_window_util",
          "@com_google_absl//absl/base",
 diff --git a/src/win32/tip/tip_edit_session.cc b/src/win32/tip/tip_edit_session.cc
-index 35ffb0911..328acfcc6 100644
+index 35ffb0911..ad1f4bb5a 100644
 --- a/src/win32/tip/tip_edit_session.cc
 +++ b/src/win32/tip/tip_edit_session.cc
-@@ -209,8 +209,15 @@ class AsyncSwitchInputModeEditSessionImpl final
+@@ -145,6 +145,11 @@ class AsyncSetFocusEditSessionImpl final
+       TipRangeUtil::GetInputScopes(selection_range.get(), read_cookie,
+                                    &input_scopes);
+     }
++    if (TipPrivateContext* private_context =
++            text_service_->GetPrivateContext(context_.get());
++        private_context != nullptr) {
++      private_context->set_password_field(TipRangeUtil::IsPassword(input_scopes));
++    }
+     ITfThreadMgr* thread_manager = text_service_->GetThreadManager();
+     TipThreadContext* thread_context = text_service_->GetThreadContext();
+     DWORD system_input_mode = 0;
+@@ -209,8 +214,15 @@ class AsyncSwitchInputModeEditSessionImpl final
      if (!ConversionModeUtil::ToMozcMode(native_mode_, &mozc_mode)) {
        return E_FAIL;
      }
@@ -53405,7 +53559,7 @@ index 35ffb0911..328acfcc6 100644
        // The next on/off mode is OFF. Send TURN_OFF_IME to update the converter
        // state.
        SessionCommand command;
-@@ -298,6 +305,65 @@ class AsyncSessionCommandEditSessionImpl final
+@@ -298,6 +310,65 @@ class AsyncSessionCommandEditSessionImpl final
    SessionCommand session_command_;
  };
  
@@ -53471,7 +53625,7 @@ index 35ffb0911..328acfcc6 100644
  bool OnSessionCommandAsync(TipTextService* text_service, ITfContext* context,
                             const SessionCommand& session_command) {
    auto edit_session = MakeComPtr<AsyncSessionCommandEditSessionImpl>(
-@@ -488,6 +554,9 @@ enum EditSessionMode {
+@@ -488,6 +559,9 @@ enum EditSessionMode {
  
  bool OnOutputReceivedImpl(TipTextService* text_service, ITfContext* context,
                            Output new_output, EditSessionMode mode) {
@@ -53481,7 +53635,7 @@ index 35ffb0911..328acfcc6 100644
    if (new_output.has_callback() &&
        new_output.callback().has_session_command() &&
        new_output.callback().session_command().has_type()) {
-@@ -743,6 +812,20 @@ bool TipEditSession::OnRendererCallbackAsync(TipTextService* text_service,
+@@ -743,6 +817,20 @@ bool TipEditSession::OnRendererCallbackAsync(TipTextService* text_service,
    }
  }
  
@@ -53518,6 +53672,42 @@ index 640c76986..85af0dba3 100644
    // Begins an async edit session to cancel the current composition.
    static bool CancelCompositionAsync(TipTextService* text_service,
                                       ITfContext* context);
+diff --git a/src/win32/tip/tip_edit_session_impl.cc b/src/win32/tip/tip_edit_session_impl.cc
+index 4c0548761..c08ff9d79 100644
+--- a/src/win32/tip/tip_edit_session_impl.cc
++++ b/src/win32/tip/tip_edit_session_impl.cc
+@@ -504,6 +504,11 @@ HRESULT OnEndEditImpl(TipTextService* text_service, ITfContext* context,
+     std::vector<InputScope> input_scopes;
+     result = TipRangeUtil::GetInputScopes(selection_range.get(), write_cookie,
+                                           &input_scopes);
++    if (TipPrivateContext* private_context =
++            text_service->GetPrivateContext(context);
++        private_context != nullptr) {
++      private_context->set_password_field(TipRangeUtil::IsPassword(input_scopes));
++    }
+     TipInputModeManager* input_mode_manager =
+         text_service->GetThreadContext()->GetInputModeManager();
+     const auto actions = input_mode_manager->OnChangeInputScope(input_scopes);
+diff --git a/src/win32/tip/tip_keyevent_handler.cc b/src/win32/tip/tip_keyevent_handler.cc
+index 618c232e9..9b63adc99 100644
+--- a/src/win32/tip/tip_keyevent_handler.cc
++++ b/src/win32/tip/tip_keyevent_handler.cc
+@@ -140,6 +140,15 @@ void FillMozcContextCommon(TipTextService* text_service, ITfContext* context,
+   }
+   mozc_context->set_revision(
+       text_service->GetThreadContext()->GetFocusRevision());
++  // Asteria: パスワード欄では、サーバーの AI と学習(使用量・誤変換の報告を含む)を止める。
++  // 欄の種類は毎回送り、パスワード欄から普通の欄へ戻ったときも元に戻す。
++  if (const TipPrivateContext* private_context =
++          text_service->GetPrivateContext(context);
++      private_context != nullptr) {
++    mozc_context->set_input_field_type(private_context->password_field()
++                                           ? Context::PASSWORD
++                                           : Context::NORMAL);
++  }
+   wil::com_ptr_nothrow<ITfContextView> context_view;
+   if (FAILED(context->GetActiveView(&context_view))) {
+     return;
 diff --git a/src/win32/tip/tip_lang_bar.cc b/src/win32/tip/tip_lang_bar.cc
 index 7abe4099d..b94461c61 100644
 --- a/src/win32/tip/tip_lang_bar.cc
@@ -53544,6 +53734,86 @@ index 7abe4099d..b94461c61 100644
          {kTipLangBarItemTypeDefault, TipLangBarCallback::kDirect, IDS_DIRECT,
           IDI_DIRECT_NT, IDI_DIRECT},
          {kTipLangBarItemTypeSeparator, 0, 0, 0, 0},
+diff --git a/src/win32/tip/tip_private_context.cc b/src/win32/tip/tip_private_context.cc
+index 7f4581b20..caee1a2d9 100644
+--- a/src/win32/tip/tip_private_context.cc
++++ b/src/win32/tip/tip_private_context.cc
+@@ -61,6 +61,7 @@ class TipPrivateContext::InternalState {
+   commands::Output last_output_;
+   VirtualKey last_down_key_;
+   InputBehavior input_behavior_;
++  bool password_field_ = false;
+   TipUiElementManager ui_element_manager_;
+   VKBackBasedDeleter deleter_;
+ };
+@@ -134,6 +135,14 @@ InputBehavior* TipPrivateContext::mutable_input_behavior() {
+   return &state_->input_behavior_;
+ }
+ 
++bool TipPrivateContext::password_field() const {
++  return state_->password_field_;
++}
++
++void TipPrivateContext::set_password_field(bool password_field) {
++  state_->password_field_ = password_field;
++}
++
+ }  // namespace tsf
+ }  // namespace win32
+ }  // namespace mozc
+diff --git a/src/win32/tip/tip_private_context.h b/src/win32/tip/tip_private_context.h
+index 13f3b8d69..f7133a369 100644
+--- a/src/win32/tip/tip_private_context.h
++++ b/src/win32/tip/tip_private_context.h
+@@ -68,6 +68,10 @@ class TipPrivateContext {
+   VirtualKey* mutable_last_down_key();
+   const InputBehavior& input_behavior() const;
+   InputBehavior* mutable_input_behavior();
++  // Asteria: 入力欄が InputScope の IS_PASSWORD を持つか。サーバーへ PASSWORD として伝え、
++  // AI と学習を止める(パスワード欄で半角/全角キーを押して日本語入力にした場合も)。
++  bool password_field() const;
++  void set_password_field(bool password_field);
+ 
+  private:
+   class InternalState;
+diff --git a/src/win32/tip/tip_range_util.cc b/src/win32/tip/tip_range_util.cc
+index cb91ea4d9..e984b5d3d 100644
+--- a/src/win32/tip/tip_range_util.cc
++++ b/src/win32/tip/tip_range_util.cc
+@@ -37,6 +37,7 @@
+ 
+ #include <cstddef>
+ #include <iterator>
++#include <algorithm>
+ #include <limits>
+ #include <memory>
+ #include <string>
+@@ -190,6 +191,11 @@ HRESULT TipRangeUtil::GetText(ITfRange* range, TfEditCookie edit_cookie,
+   return S_OK;
+ }
+ 
++bool TipRangeUtil::IsPassword(const std::vector<InputScope>& input_scopes) {
++  return std::find(input_scopes.begin(), input_scopes.end(), IS_PASSWORD) !=
++         input_scopes.end();
++}
++
+ HRESULT TipRangeUtil::GetInputScopes(ITfRange* range, TfEditCookie read_cookie,
+                                      std::vector<InputScope>* input_scopes) {
+   if (input_scopes == nullptr) {
+diff --git a/src/win32/tip/tip_range_util.h b/src/win32/tip/tip_range_util.h
+index 8fae434c2..bd9b7c0c1 100644
+--- a/src/win32/tip/tip_range_util.h
++++ b/src/win32/tip/tip_range_util.h
+@@ -66,6 +66,9 @@ class TipRangeUtil {
+ 
+   // Retrieves the input scopes from |range| into |input_scopes|.
+   // Returns the general result code.
++  // Asteria: InputScope に IS_PASSWORD が含まれるか。
++  static bool IsPassword(const std::vector<InputScope>& input_scopes);
++
+   static HRESULT GetInputScopes(ITfRange* range, TfEditCookie read_cookie,
+                                 std::vector<InputScope>* input_scopes);
+ 
 diff --git a/src/win32/tip/tip_resource.rc b/src/win32/tip/tip_resource.rc
 index f6f2c38dc..3e2c1e865 100644
 --- a/src/win32/tip/tip_resource.rc
