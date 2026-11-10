@@ -5,6 +5,10 @@ ImeBench.exe(ImeBench.cs を csc で作る)に読みのローマ字を渡し、I
 NFKC で揃えてから比べる(IME の設定の違いで差が出ないように)。
 
 使い方: python eval/imebench/imebench.py <IME の名前> [--data セット.json ...] [--n 問の数] [--wait ms] [--label 版]
+           [--context] [--auto-conversion]
+  --context: 問の context_text を入力欄に置いてから打つ(前文を読む IME の比較。読まない IME は結果が変わらない)。
+  --auto-conversion: 句読点で自動変換する設定に合わせ、。？！ で終わる問は Space を押さずに確定する。
+  結果は問ごとの .tsv と、表記ゆれの採点(mozc/tools/lenient_score.py)に渡せる .json。
   IME の名前: google / msime / asteria(下の IMES)。結果は eval/imebench/out/<名前>[-<版>]_<セット>.tsv。
   同じ IME の版を比べるときは --label で出力を分ける(例: --label 6443)。
 計測の間、この PC のキーボード入力を使う(ほかの操作をしない)。
@@ -84,12 +88,15 @@ def main():
     ap.add_argument("--n", type=int, default=0)
     ap.add_argument("--wait", type=int, default=1200, help="Space を押してから Enter までの待ち(ms)")
     ap.add_argument("--label", default="", help="出力名に付ける版などの印")
+    ap.add_argument("--context", action="store_true", help="問の前文を入力欄に置いてから打つ")
+    ap.add_argument("--auto-conversion", action="store_true",
+                    help="。？！で終わる問は Space を押さない(句読点で自動変換する設定)")
     args = ap.parse_args()
     exe = HERE / "ImeBench.exe"
     (HERE / "out").mkdir(exist_ok=True)
     clsid, profile = IMES[args.ime]
     for data in args.data:
-        items = json.load(open(REPO / data, encoding="utf-8"))
+        items = json.load(open(Path(data) if Path(data).is_absolute() else REPO / data, encoding="utf-8"))
         if args.n:
             items = items[: args.n]
         name = Path(data).stem
@@ -107,7 +114,14 @@ def main():
                     skipped += 1
                     continue
                 rows.append((str(i), it))
-                f.write(f"{i}\t{r}\n")
+                extra = ""
+                context = it.get("context_text", "") if args.context else ""
+                no_space = args.auto_conversion and it["input"].endswith(("。", "？", "！", "?", "!"))
+                if context or no_space:
+                    extra = "\t" + context.replace("\t", " ").replace("\n", "")
+                if no_space:
+                    extra += "\tnospace"
+                f.write(f"{i}\t{r}{extra}\n")
         subprocess.run([str(exe), clsid, profile, str(tsv), str(res), str(args.wait)], check=False)
         err = Path(str(res) + ".error.txt")
         if err.exists():
@@ -134,6 +148,13 @@ def main():
                 for k, v in got.items():
                     f.write(f"{k}\t{v}\n")
         still = sum(1 for i, _ in rows if not got.get(i))
+        # 表記ゆれの採点(mozc/tools/lenient_score.py)に渡す形でも残す。
+        records = [dict(index=it.get("index", i), input=it["input"], context=it.get("context_text", ""),
+                        top1=norm(got.get(i, "")), expected=[norm(e) for e in it["expected_output"]],
+                        ok=norm(got.get(i, "")) in {norm(e) for e in it["expected_output"]})
+                   for i, it in rows]
+        json.dump(records, open(HERE / "out" / f"{who}_{name}.json", "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
         ok = sum(1 for i, it in rows if norm(got.get(i, "")) in {norm(e) for e in it["expected_output"]})
         print(f"{args.ime} {name}: {ok}/{len(rows)} = {100 * ok / max(1, len(rows)):.1f}%"
               f"(打てない文字で除いた問 {skipped}、やり直した問 {len(empty)}、空のまま {still})")

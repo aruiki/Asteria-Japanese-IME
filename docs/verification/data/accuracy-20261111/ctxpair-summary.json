@@ -1,0 +1,19 @@
+{
+ "stats": {
+  "phrases": 174951,
+  "reading_disagree": 6
+ },
+ "candidate_pairs": 788,
+ "sets": {
+  "asteria-ctxpair-judge.json": {
+   "pairs": 150,
+   "items": 300,
+   "sha256": "a448fd09439b56469686b58845f10b2627135c3629b5cbd72d81adf4ff4e2c21"
+  },
+  "asteria-ctxpair-dev.json": {
+   "pairs": 100,
+   "items": 200,
+   "sha256": "4807e6417f474aa98bb756e7b8890ab90c2014e0912e5d0825ff7062780713ed"
+  }
+ }
+}
