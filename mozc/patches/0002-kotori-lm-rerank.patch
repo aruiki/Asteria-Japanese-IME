@@ -54103,10 +54103,10 @@ index 684d46e93..b03135e3a 100644
  }  // namespace
 diff --git a/src/win32/tip/tip_shared_input_mode.cc b/src/win32/tip/tip_shared_input_mode.cc
 new file mode 100644
-index 000000000..a6a2de0a4
+index 000000000..facd24d48
 --- /dev/null
 +++ b/src/win32/tip/tip_shared_input_mode.cc
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,97 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "win32/tip/tip_shared_input_mode.h"
@@ -54122,6 +54122,16 @@ index 000000000..a6a2de0a4
 +// 書いた印。0 と区別し、古い版(印 0x40000000)の値とも区別する。
 +constexpr int32_t kMarkerMask = 0x7f000000;
 +constexpr int32_t kMarker = 0x2b000000;
++
++// 利用者が切り替えた変化か。TIP が利用者の操作を受けて書いたか、Windows が切り替えキーを
++// 処理して書いたか。
++bool IsUserToggle(const TipModeChange& change) {
++  if (change.written_by_tip) {
++    return change.ms_since_user_action <= kSharedModeUserActionWindowMs;
++  }
++  return change.toggle_key_down &&
++         change.ms_since_focus_event >= kSharedModeToggleMinMsAfterFocus;
++}
 +
 +}  // namespace
 +
@@ -54143,10 +54153,7 @@ index 000000000..a6a2de0a4
 +bool ShouldPublishSharedInputMode(const TipModeChange& change) {
 +  // アプリや OS が書いた値(Alt+Tab の直後に新しい窓の既定値でオフにされる、など)は、
 +  // キー操作の直後でも利用者の選択ではない。
-+  if (!change.written_by_tip) {
-+    return false;
-+  }
-+  if (change.ms_since_user_action > kSharedModeUserActionWindowMs) {
++  if (!IsUserToggle(change)) {
 +    return false;
 +  }
 +  if (!change.has_keyboard_focus) {
@@ -54166,7 +54173,7 @@ index 000000000..a6a2de0a4
 +    return false;
 +  }
 +  // 利用者の操作で変えたモードは戻さない(全体の値として書く側で扱う)。
-+  if (change.written_by_tip) {
++  if (IsUserToggle(change)) {
 +    return false;
 +  }
 +  // パスワード欄で OS やアプリが IME を切るのはそのままにする。欄を離れて次の
@@ -54180,15 +54187,29 @@ index 000000000..a6a2de0a4
 +  return change.restores_since_focus_event < kSharedModeMaxRestoresPerFocus;
 +}
 +
++int32_t EncodeSharedModeDecision(const TipModeChange& change, bool published,
++                                 bool restored) {
++  auto centis = [](uint64_t ms) -> int32_t {
++    const uint64_t value = ms / 10;
++    return static_cast<int32_t>(value > 255 ? 255 : value);
++  };
++  return (change.written_by_tip ? 1 : 0) | (change.toggle_key_down ? 2 : 0) |
++         (change.has_keyboard_focus ? 4 : 0) |
++         (change.overridden_by_input_scope ? 8 : 0) |
++         (change.password_field ? 16 : 0) | (published ? 32 : 0) |
++         (restored ? 64 : 0) | (centis(change.ms_since_user_action) << 8) |
++         (centis(change.ms_since_focus_event) << 16);
++}
++
 +}  // namespace tsf
 +}  // namespace win32
 +}  // namespace mozc
 diff --git a/src/win32/tip/tip_shared_input_mode.h b/src/win32/tip/tip_shared_input_mode.h
 new file mode 100644
-index 000000000..668c965a2
+index 000000000..dd0e0c62f
 --- /dev/null
 +++ b/src/win32/tip/tip_shared_input_mode.h
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,98 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +// Kotori: アプリをまたいで入力モードを 1 つに保つための判断(カード 84)。
@@ -54235,6 +54256,10 @@ index 000000000..668c965a2
 +  // この TIP 自身が、変換エンジンの出力や言語バー(タスクバーの「あ/A」)の操作を受けて
 +  // 書いた値と一致するか。アプリや OS が書いた変化、共有の値を当てはめた変化は false。
 +  bool written_by_tip = false;
++  // IME の切り替えキー(半角/全角、Alt+`、英数、IME オン/オフのキーなど)が押されている間の
++  // 変化か。日本語キーボードの 半角/全角 は Windows が切り替えのホットキーとして扱い、TIP を
++  // 通さずに compartment を書くので、written_by_tip だけでは利用者の切り替えを取りこぼす。
++  bool toggle_key_down = false;
 +  // 利用者のキー・言語バーの操作から経った時間(ミリ秒)。
 +  uint64_t ms_since_user_action = UINT64_MAX;
 +  // このスレッドがキーボードの入力を受けているか。
@@ -54254,16 +54279,29 @@ index 000000000..668c965a2
 +// フォーカスが変わってからこの時間内に、アプリや OS がスレッドのモードを変えたら、
 +// 共有の値に戻す(新しい入力欄の既定値でオフにされるのを防ぐ)。
 +inline constexpr uint64_t kSharedModeFocusGuardMs = 2000;
++// フォーカスが変わってからこの時間内の変化は、切り替えキーが押されていても利用者の切り替えと
++// みなさない。日本語キーボードには離した通知が来ず押されたままに見えるキーがあり(2026-11-10 の
++// 実機ではカタカナ/ひらがなキー)、新しい窓の既定値でオフにされたのを書いてしまうため。
++inline constexpr uint64_t kSharedModeToggleMinMsAfterFocus = 200;
 +// アプリと戻し合いにならないよう、1 回のフォーカスの変化で戻す回数の上限。
 +inline constexpr int kSharedModeMaxRestoresPerFocus = 3;
 +
-+// 変化を全体の値として書くか。利用者の操作で TIP が書いた変化だけを書く。
++// 変化を全体の値として書くか。利用者の操作で TIP が書いた変化と、切り替えキーで
++// Windows が書いた変化だけを書く。
 +bool ShouldPublishSharedInputMode(const TipModeChange& change);
 +
 +// アプリや OS が変えたモードを、共有の値に戻すか。
 +bool ShouldRestoreSharedInputMode(const TipModeChange& change,
 +                                  const TipSharedInputMode& current,
 +                                  const TipSharedInputMode& shared);
++
++// 最後の判断の記録(診断用)。グローバル compartment に置き、外から読めるようにする。
++// 下位から written_by_tip, toggle_key_down, has_keyboard_focus,
++// overridden_by_input_scope, password_field, published, restored の各 1 ビット、
++// 8 ビット目から利用者の操作からの時間(10 ミリ秒単位、最大 255)、16 ビット目から
++// フォーカスの変化からの時間(同じ)。
++int32_t EncodeSharedModeDecision(const TipModeChange& change, bool published,
++                                 bool restored);
 +
 +}  // namespace tsf
 +}  // namespace win32
@@ -54272,10 +54310,10 @@ index 000000000..668c965a2
 +#endif  // MOZC_WIN32_TIP_TIP_SHARED_INPUT_MODE_H_
 diff --git a/src/win32/tip/tip_shared_input_mode_test.cc b/src/win32/tip/tip_shared_input_mode_test.cc
 new file mode 100644
-index 000000000..b53630bbf
+index 000000000..e42474a6d
 --- /dev/null
 +++ b/src/win32/tip/tip_shared_input_mode_test.cc
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,178 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "win32/tip/tip_shared_input_mode.h"
@@ -54351,6 +54389,39 @@ index 000000000..b53630bbf
 +  EXPECT_FALSE(ShouldPublishSharedInputMode(ResetAfterFocus()));
 +}
 +
++TEST(TipSharedInputModeTest, PublishesToggleHandledByWindows) {
++  // 日本語キーボードの 半角/全角 は Windows がホットキーとして扱い、TIP は書かない。
++  // 窓を移った直後に切り替えても、戻さずに全体の値にする。
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  change.ms_since_focus_event = 300;
++  EXPECT_TRUE(ShouldPublishSharedInputMode(change));
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(true, kHiragana),
++                                            Mode(false, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, StuckKeyDoesNotPublishResetRightAfterFocus) {
++  // 2026-11-10 の実機: 押されたままに見えるキーがあると、窓を開いた 30 ms 後に OS が
++  // 既定値でオフにしたのを利用者の切り替えとして書いていた。
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  change.ms_since_focus_event = 30;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(change));
++  EXPECT_TRUE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                           Mode(true, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, DecisionRecordKeepsFlagsAndTimes) {
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  const int32_t record = EncodeSharedModeDecision(change, true, false);
++  EXPECT_EQ(record & 0xff, 2 | 4 | 32);
++  EXPECT_EQ((record >> 8) & 0xff, 5);   // 50 ms
++  EXPECT_EQ((record >> 16) & 0xff, 2);  // 20 ms
++  change.ms_since_focus_event = UINT64_MAX;
++  EXPECT_EQ((EncodeSharedModeDecision(change, false, false) >> 16) & 0xff, 255);
++}
++
 +TEST(TipSharedInputModeTest, DoesNotPublishWithoutRecentUserAction) {
 +  TipModeChange change = UserToggle();
 +  change.ms_since_user_action = kSharedModeUserActionWindowMs + 1;
@@ -54422,10 +54493,10 @@ index 000000000..b53630bbf
 +}  // namespace win32
 +}  // namespace mozc
 diff --git a/src/win32/tip/tip_status.cc b/src/win32/tip/tip_status.cc
-index 4bea39d46..0f99d32ca 100644
+index 4bea39d46..9d13afb6a 100644
 --- a/src/win32/tip/tip_status.cc
 +++ b/src/win32/tip/tip_status.cc
-@@ -34,14 +34,62 @@
+@@ -34,14 +34,70 @@
  #include <wil/resource.h>
  #include <windows.h>
  
@@ -54449,6 +54520,14 @@ index 4bea39d46..0f99d32ca 100644
 +    0x30c2,
 +    0x4b18,
 +    {0x8d, 0x16, 0x0d, 0x7e, 0xa1, 0xaf, 0xfb, 0x5f}};
++
++// 最後の判断の記録(診断用)。
++// {C3A1B7E2-5D4F-4A86-9B0E-2F6C8D1E7A35}
++constexpr GUID kKotoriSharedModeDecisionCompartment = {
++    0xc3a1b7e2,
++    0x5d4f,
++    0x4a86,
++    {0x9b, 0x0e, 0x2f, 0x6c, 0x8d, 0x1e, 0x7a, 0x35}};
 +
 +// TIP 自身が書いたモードの記録。compartment はスレッドごとなので thread_local に置く。
 +struct TipModeWrite {
@@ -54488,7 +54567,7 @@ index 4bea39d46..0f99d32ca 100644
  
  bool TipStatus::IsOpen(ITfThreadMgr* thread_mgr) {
    // Retrieve the compartment manager from the thread manager, which contains
-@@ -114,6 +162,7 @@ bool TipStatus::SetIMEOpen(ITfThreadMgr* thread_mgr, TfClientId client_id,
+@@ -114,6 +170,7 @@ bool TipStatus::SetIMEOpen(ITfThreadMgr* thread_mgr, TfClientId client_id,
    wil::unique_variant var;
    var.vt = VT_I4;
    var.lVal = open ? TRUE : FALSE;
@@ -54496,7 +54575,7 @@ index 4bea39d46..0f99d32ca 100644
    return TipCompartmentUtil::Set(thread_mgr,
                                   GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, client_id,
                                   std::move(var))
-@@ -125,12 +174,61 @@ bool TipStatus::SetInputModeConversion(ITfThreadMgr* thread_mgr,
+@@ -125,12 +182,77 @@ bool TipStatus::SetInputModeConversion(ITfThreadMgr* thread_mgr,
    wil::unique_variant var;
    var.vt = VT_I4;
    var.lVal = native_mode;
@@ -54539,6 +54618,22 @@ index 4bea39d46..0f99d32ca 100644
 +      .Succeeded();
 +}
 +
++void TipStatus::SetSharedModeDecision(ITfThreadMgr* thread_mgr,
++                                      TfClientId client_id, int32_t record) {
++  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
++      GetGlobalCompartmentMgr(thread_mgr);
++  if (!manager) {
++    return;
++  }
++  wil::unique_variant var;
++  var.vt = VT_I4;
++  var.lVal = record;
++  // 診断用なので、書けなくても入力には影響させない。
++  (void)TipCompartmentUtil::Set(manager.get(),
++                                kKotoriSharedModeDecisionCompartment, client_id,
++                                std::move(var));
++}
++
 +bool TipStatus::IsOpenCloseWrittenByTip(bool open) {
 +  return MatchesTipWrite(g_open_close_write, open ? TRUE : FALSE);
 +}
@@ -54559,13 +54654,14 @@ index 4bea39d46..0f99d32ca 100644
  }  // namespace win32
  }  // namespace mozc
 diff --git a/src/win32/tip/tip_status.h b/src/win32/tip/tip_status.h
-index 52b5ab884..999833798 100644
+index 52b5ab884..516d77b05 100644
 --- a/src/win32/tip/tip_status.h
 +++ b/src/win32/tip/tip_status.h
-@@ -33,6 +33,10 @@
+@@ -33,6 +33,11 @@
  #include <msctf.h>
  #include <windef.h>
  
++#include <cstdint>
 +#include <optional>
 +
 +#include "win32/tip/tip_shared_input_mode.h"
@@ -54573,7 +54669,7 @@ index 52b5ab884..999833798 100644
  namespace mozc {
  namespace win32 {
  namespace tsf {
-@@ -65,6 +69,27 @@ class TipStatus {
+@@ -65,6 +70,31 @@ class TipStatus {
    // Returns true if TSF conversion mode is updated.
    static bool SetInputModeConversion(ITfThreadMgr* thread_mgr, DWORD client_id,
                                       DWORD native_mode);
@@ -54588,6 +54684,10 @@ index 52b5ab884..999833798 100644
 +  // Kotori: このスレッドで TIP 自身が SetIMEOpen / SetInputModeConversion で書いた値か
 +  // (書いてから kSharedModeUserActionWindowMs 以内で、値が一致するか)。アプリや OS が
 +  // 書いた変化と区別する。共有の値を当てはめる間(ScopedSharedModeApply)の書き込みは数えない。
++  // Kotori: 最後の判断の記録(EncodeSharedModeDecision の値。診断用)をグローバル compartment に書く。
++  static void SetSharedModeDecision(ITfThreadMgr* thread_mgr,
++                                    TfClientId client_id, int32_t record);
++
 +  static bool IsOpenCloseWrittenByTip(bool open);
 +  static bool IsConversionModeWrittenByTip(DWORD native_mode);
 +
@@ -54602,7 +54702,7 @@ index 52b5ab884..999833798 100644
  
  }  // namespace tsf
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
-index beaef1a55..8c196cb68 100644
+index beaef1a55..53e323c83 100644
 --- a/src/win32/tip/tip_text_service.cc
 +++ b/src/win32/tip/tip_text_service.cc
 @@ -42,6 +42,7 @@
@@ -54764,7 +54864,7 @@ index beaef1a55..8c196cb68 100644
    void UpdateLangbar(bool enabled, uint32_t mozc_mode) override {
      langbar_.UpdateMenu(enabled, mozc_mode);
    }
-@@ -1002,6 +1061,143 @@ class TipTextServiceImpl
+@@ -1002,6 +1061,173 @@ class TipTextServiceImpl
      return static_cast<TipTextServiceImpl*>(::TlsGetValue(g_tls_index));
    }
  
@@ -54783,6 +54883,26 @@ index beaef1a55..8c196cb68 100644
 +    const HWND window = info.hwndFocus ? info.hwndFocus : info.hwndActive;
 +    return window != nullptr &&
 +           ::GetWindowThreadProcessId(window, nullptr) == ::GetCurrentThreadId();
++  }
++
++  // IME の切り替えキーが押されているか。日本語キーボードの 半角/全角 は Windows が
++  // ホットキーとして処理し、TIP を通さずに compartment を書く。その処理はキーのメッセージの
++  // 中で起きるので、このスレッドのキーの状態で見分ける。
++  static bool KotoriToggleKeyDown() {
++    // Windows が IME の切り替えとして扱うキーだけを見る。英数・カタカナ/ひらがな・変換などは
++    // TIP が処理する(written_by_tip で分かる)うえ、離した通知が来ずに押されたままに見える
++    // ことがある(2026-11-10 の実機でカタカナ/ひらがなキー)。
++    constexpr int kToggleKeys[] = {
++        VK_KANJI, VK_DBE_SBCSCHAR, VK_DBE_DBCSCHAR, VK_IME_ON, VK_IME_OFF,
++    };
++    for (const int key : kToggleKeys) {
++      if ((::GetKeyState(key) & 0x8000) != 0) {
++        return true;
++      }
++    }
++    // Alt+`(英語キーボードの IME の切り替え)。
++    return (::GetKeyState(VK_MENU) & 0x8000) != 0 &&
++           (::GetKeyState(VK_OEM_3) & 0x8000) != 0;
 +  }
 +
 +  // 利用者の操作(キー、タスクバーの入力モード)を受けた時刻を覚える。
@@ -54843,6 +54963,7 @@ index beaef1a55..8c196cb68 100644
 +        open_close
 +            ? TipStatus::IsOpenCloseWrittenByTip(current->open)
 +            : TipStatus::IsConversionModeWrittenByTip(current->conversion_mode);
++    change.toggle_key_down = KotoriToggleKeyDown();
 +    change.ms_since_user_action = now - kotori_last_user_action_;
 +    change.has_keyboard_focus = KotoriHasKeyboardFocus();
 +    change.overridden_by_input_scope =
@@ -54859,10 +54980,19 @@ index beaef1a55..8c196cb68 100644
 +      if (shared != current) {
 +        TipStatus::SetSharedInputMode(thread_mgr_.get(), client_id_, *current);
 +      }
++      TipStatus::SetSharedModeDecision(
++          thread_mgr_.get(), client_id_,
++          EncodeSharedModeDecision(change, /*published=*/true,
++                                   /*restored=*/false));
 +      return;
 +    }
-+    if (shared.has_value() &&
-+        ShouldRestoreSharedInputMode(change, *current, *shared)) {
++    const bool restore =
++        shared.has_value() &&
++        ShouldRestoreSharedInputMode(change, *current, *shared);
++    TipStatus::SetSharedModeDecision(
++        thread_mgr_.get(), client_id_,
++        EncodeSharedModeDecision(change, /*published=*/false, restore));
++    if (restore) {
 +      ++kotori_restores_since_focus_;
 +      // compartment の変更通知の中で同じ compartment を書き直さず、メッセージループに
 +      // 戻ってから当てはめる。
@@ -54908,7 +55038,7 @@ index beaef1a55..8c196cb68 100644
    HRESULT OnDocumentMgrChanged(ITfDocumentMgr* document_mgr) {
      // nullptr document is not an error.
      if (document_mgr != nullptr) {
-@@ -1332,6 +1528,7 @@ class TipTextServiceImpl
+@@ -1332,6 +1558,7 @@ class TipTextServiceImpl
      if (!::IsWindow(task_window_handle_)) {
        return S_FALSE;
      }
@@ -54916,7 +55046,7 @@ index beaef1a55..8c196cb68 100644
      ::DestroyWindow(task_window_handle_);
      task_window_handle_ = nullptr;
      return S_OK;
-@@ -1349,6 +1546,10 @@ class TipTextServiceImpl
+@@ -1349,6 +1576,10 @@ class TipTextServiceImpl
          self->OnUpdateUI();
          return 0;
        }
@@ -54927,7 +55057,7 @@ index beaef1a55..8c196cb68 100644
      }
      return ::DefWindowProcW(window_handle, message, wparam, lparam);
    }
-@@ -1452,6 +1653,14 @@ class TipTextServiceImpl
+@@ -1452,6 +1683,14 @@ class TipTextServiceImpl
    // Stores the flag passed to ActivateEx.
    DWORD activate_flags_;
  
@@ -54942,7 +55072,7 @@ index beaef1a55..8c196cb68 100644
    // Represents the cookie ID for the thread manager.
    DWORD thread_mgr_cookie_;
  
-@@ -1481,6 +1690,8 @@ class TipTextServiceImpl
+@@ -1481,6 +1720,8 @@ class TipTextServiceImpl
    PreservedKeyMap preserved_key_map_;
    std::unique_ptr<TipThreadContext> thread_context_;
    HWND task_window_handle_;
