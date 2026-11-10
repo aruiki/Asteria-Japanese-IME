@@ -14,8 +14,10 @@ installer_smoke も成功。
   installer_smoke の install/input/uninstall が成功(native_tsf、8 checks、errors 0)。
 - 導入確認: 同じコードのローカル MSI 3.34.6494.100 を実機へ導入し、実 TSF で
   `くうかんこうへんちょうき → 空間光変調器` が記録されることを確認(設定はオフに戻し、記録は消去)。
-- 残り: 書き出しの保存ダイアログの実保存、保護欄の AI/学習(CI でも未検証
-  `secure_field_internal_ai_or_learning_verified: false`)。導入したのは公開リリースではないローカルビルド。
+- 保護欄の AI/学習: #213(merge 03697d8)で、パスワード欄では変換要求をシークレットと同じに扱い、AI・学習・
+  覚えた区切りを使わないようにした(TIP が入力欄の種類を送り、`ConversionRequest::incognito_mode` で判定)。
+  単体テストは CI で成功。実機のパスワード欄での確認はまだ([追記](verification/recent-conversions-20261105.md))。
+- 残り: 書き出しの保存ダイアログの実保存。導入したのは公開リリースではないローカルビルド。
 
 ---
 
