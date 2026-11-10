@@ -53665,7 +53665,7 @@ index 486c37585..a5bcc8316 100644
  UINT __stdcall OpenUninstallSurveyPage(MSIHANDLE msi_handle);
  
 diff --git a/src/win32/tip/BUILD.bazel b/src/win32/tip/BUILD.bazel
-index d8dbb0b66..32941cc1d 100644
+index d8dbb0b66..8aecc263a 100644
 --- a/src/win32/tip/BUILD.bazel
 +++ b/src/win32/tip/BUILD.bazel
 @@ -214,6 +214,7 @@ mozc_cc_library(
@@ -53676,15 +53676,17 @@ index d8dbb0b66..32941cc1d 100644
          ":tip_status",
          ":tip_text_service",
          ":tip_thread_context",
-@@ -227,6 +228,7 @@ mozc_cc_library(
+@@ -226,7 +227,9 @@ mozc_cc_library(
+         "//base/win32:com_implements",
          "//base/win32:hresult",
          "//base/win32:hresultor",
++        "//bazel/win32:imm32",
          "//protocol:commands_cc_proto",
 +        "//win32/base:config_snapshot",
          "//win32/base:msctf_dll",  # buildcleaner: keep
          "//win32/base:win32_window_util",
          "@com_google_absl//absl/base",
-@@ -631,6 +633,26 @@ mozc_cc_library(
+@@ -631,6 +634,26 @@ mozc_cc_library(
      ],
  )
  
@@ -53711,7 +53713,7 @@ index d8dbb0b66..32941cc1d 100644
  mozc_cc_library(
      name = "tip_status",
      srcs = ["tip_status.cc"],
-@@ -639,6 +661,7 @@ mozc_cc_library(
+@@ -639,6 +662,7 @@ mozc_cc_library(
      target_compatible_with = ["@platforms//os:windows"],
      deps = [
          ":tip_compartment_util",
@@ -54702,10 +54704,18 @@ index 52b5ab884..516d77b05 100644
  
  }  // namespace tsf
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
-index beaef1a55..53e323c83 100644
+index beaef1a55..805343ed8 100644
 --- a/src/win32/tip/tip_text_service.cc
 +++ b/src/win32/tip/tip_text_service.cc
-@@ -42,6 +42,7 @@
+@@ -31,6 +31,7 @@
+ 
+ #include <ctffunc.h>
+ #include <ime.h>
++#include <imm.h>
+ #include <msctf.h>
+ #include <objbase.h>
+ #include <wil/com.h>
+@@ -42,6 +43,7 @@
  #include <cstddef>
  #include <cstdint>
  #include <memory>
@@ -54713,7 +54723,7 @@ index beaef1a55..53e323c83 100644
  #include <string>
  #include <utility>
  
-@@ -58,6 +59,7 @@
+@@ -58,6 +60,7 @@
  #include "base/win32/hresultor.h"
  #include "base/win32/win_util.h"
  #include "protocol/commands.pb.h"
@@ -54721,7 +54731,7 @@ index beaef1a55..53e323c83 100644
  #include "win32/base/win32_window_util.h"
  #include "win32/tip/tip_display_attributes.h"
  #include "win32/tip/tip_dll_module.h"
-@@ -72,6 +74,7 @@
+@@ -72,6 +75,7 @@
  #include "win32/tip/tip_private_context.h"
  #include "win32/tip/tip_reconvert_function.h"
  #include "win32/tip/tip_resource.h"
@@ -54729,7 +54739,7 @@ index beaef1a55..53e323c83 100644
  #include "win32/tip/tip_status.h"
  #include "win32/tip/tip_thread_context.h"
  #include "win32/tip/tip_ui_handler.h"
-@@ -111,6 +114,8 @@ volatile bool g_module_unloaded = false;
+@@ -111,6 +115,8 @@ volatile bool g_module_unloaded = false;
  volatile DWORD g_tls_index = TLS_OUT_OF_INDEXES;
  
  constexpr UINT kUpdateUIMessage = WM_USER;
@@ -54738,7 +54748,7 @@ index beaef1a55..53e323c83 100644
  
  #ifdef GOOGLE_JAPANESE_INPUT_BUILD
  
-@@ -613,6 +618,9 @@ class TipTextServiceImpl
+@@ -613,6 +619,9 @@ class TipTextServiceImpl
        LOG(WARNING) << "WriteActiveUsageInfo failed";
      }
  
@@ -54748,7 +54758,7 @@ index beaef1a55..53e323c83 100644
      // Copy the initial mode.
      DWORD native_mode = 0;
      if (TipStatus::GetInputModeConversion(thread_mgr, client_id,
-@@ -714,6 +722,10 @@ class TipTextServiceImpl
+@@ -714,6 +723,10 @@ class TipTextServiceImpl
    STDMETHODIMP OnSetFocus(ITfDocumentMgr* focused,
                            ITfDocumentMgr* previous) override {
      GetThreadContext()->IncrementFocusRevision();
@@ -54759,7 +54769,7 @@ index beaef1a55..53e323c83 100644
      OnDocumentMgrChanged(focused);
      return S_OK;
    }
-@@ -729,6 +741,8 @@ class TipTextServiceImpl
+@@ -729,6 +742,8 @@ class TipTextServiceImpl
    // ITfThreadFocusSink
    STDMETHODIMP OnSetThreadFocus() override {
      EnsureKanaLockUnlocked();
@@ -54768,7 +54778,7 @@ index beaef1a55..53e323c83 100644
  
      // A temporary workaround for b/24793812.  When previous attempt to
      // establish conection failed, retry again as if this was the first attempt.
-@@ -804,6 +818,7 @@ class TipTextServiceImpl
+@@ -804,6 +819,7 @@ class TipTextServiceImpl
        eaten = &dummy_eaten;
      }
      *eaten = FALSE;
@@ -54776,7 +54786,7 @@ index beaef1a55..53e323c83 100644
      return TipKeyeventHandler::OnKeyDown(this, context, wparam, lparam, eaten);
    }
    STDMETHODIMP OnKeyUp(ITfContext* context, WPARAM wparam, LPARAM lparam,
-@@ -813,6 +828,7 @@ class TipTextServiceImpl
+@@ -813,6 +829,7 @@ class TipTextServiceImpl
        eaten = &dummy_eaten;
      }
      *eaten = FALSE;
@@ -54784,7 +54794,7 @@ index beaef1a55..53e323c83 100644
      return TipKeyeventHandler::OnKeyUp(this, context, wparam, lparam, eaten);
    }
    STDMETHODIMP OnPreservedKey(ITfContext* context, REFGUID guid,
-@@ -827,6 +843,7 @@ class TipTextServiceImpl
+@@ -827,6 +844,7 @@ class TipTextServiceImpl
      if (it == preserved_key_map_.end()) {
        return result;
      }
@@ -54792,7 +54802,7 @@ index beaef1a55..53e323c83 100644
      const UINT vk = it->second;
      const UINT alt_down = (::GetKeyState(VK_MENU) & 0x8000) != 0 ? 1 : 0;
      const UINT scan_code = ::MapVirtualKey(VK_F10, 0);
-@@ -892,8 +909,10 @@ class TipTextServiceImpl
+@@ -892,8 +910,10 @@ class TipTextServiceImpl
      }
  
      if (::IsEqualGUID(guid, GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION)) {
@@ -54803,7 +54813,7 @@ index beaef1a55..53e323c83 100644
        TipEditSession::OnOpenCloseChangedAsync(this);
      }
      return S_OK;
-@@ -901,6 +920,7 @@ class TipTextServiceImpl
+@@ -901,6 +921,7 @@ class TipTextServiceImpl
  
    // TipLangBarCallback
    STDMETHODIMP OnMenuSelect(ItemId menu_id) override {
@@ -54811,7 +54821,7 @@ index beaef1a55..53e323c83 100644
      switch (menu_id) {
        case TipLangBarCallback::kDirect:
        case TipLangBarCallback::kHiragana:
-@@ -924,6 +944,7 @@ class TipTextServiceImpl
+@@ -924,6 +945,7 @@ class TipTextServiceImpl
      }
    }
    STDMETHODIMP OnItemClick(const wchar_t* description) override {
@@ -54819,7 +54829,7 @@ index beaef1a55..53e323c83 100644
      // Change input mode to be consistent with MSIME 2012 on Windows 8.
      const bool open =
          thread_context_->GetInputModeManager()->GetEffectiveOpenClose();
-@@ -973,6 +994,44 @@ class TipTextServiceImpl
+@@ -973,6 +995,44 @@ class TipTextServiceImpl
      PostMessageW(task_window_handle_, kUpdateUIMessage, 0, 0);
    }
  
@@ -54864,7 +54874,7 @@ index beaef1a55..53e323c83 100644
    void UpdateLangbar(bool enabled, uint32_t mozc_mode) override {
      langbar_.UpdateMenu(enabled, mozc_mode);
    }
-@@ -1002,6 +1061,173 @@ class TipTextServiceImpl
+@@ -1002,6 +1062,196 @@ class TipTextServiceImpl
      return static_cast<TipTextServiceImpl*>(::TlsGetValue(g_tls_index));
    }
  
@@ -55032,13 +55042,36 @@ index beaef1a55..53e323c83 100644
 +    if (TipStatus::IsOpen(thread_mgr_.get()) != shared->open) {
 +      TipStatus::SetIMEOpen(thread_mgr_.get(), client_id_, shared->open);
 +    }
++    KotoriSyncImmContext(*shared);
 +    kotori_applying_shared_mode_ = false;
++  }
++
++  // IMM32 の入力コンテキストを持つ窓(多くのデスクトップアプリ)では、IMM 側の状態も合わせる。
++  // TSF の compartment だけを書くと、Windows が 半角/全角 を処理するときに IMM 側に残った古い
++  // 値から切り替えるため、窓を移った後の最初の何回かは押しても変わらなかった(2026-11-11 の実機。
++  // 普通の文字を 1 つ打つと直った)。値が同じでも書き、IMM 側を TSF にそろえる。
++  static void KotoriSyncImmContext(const TipSharedInputMode& mode) {
++    const HWND focus = ::GetFocus();
++    if (focus == nullptr) {
++      return;
++    }
++    const HIMC himc = ::ImmGetContext(focus);
++    if (himc == nullptr) {
++      return;
++    }
++    DWORD conversion = 0;
++    DWORD sentence = 0;
++    if (::ImmGetConversionStatus(himc, &conversion, &sentence)) {
++      ::ImmSetConversionStatus(himc, mode.conversion_mode, sentence);
++    }
++    ::ImmSetOpenStatus(himc, mode.open ? TRUE : FALSE);
++    ::ImmReleaseContext(focus, himc);
 +  }
 +
    HRESULT OnDocumentMgrChanged(ITfDocumentMgr* document_mgr) {
      // nullptr document is not an error.
      if (document_mgr != nullptr) {
-@@ -1332,6 +1558,7 @@ class TipTextServiceImpl
+@@ -1332,6 +1582,7 @@ class TipTextServiceImpl
      if (!::IsWindow(task_window_handle_)) {
        return S_FALSE;
      }
@@ -55046,7 +55079,7 @@ index beaef1a55..53e323c83 100644
      ::DestroyWindow(task_window_handle_);
      task_window_handle_ = nullptr;
      return S_OK;
-@@ -1349,6 +1576,10 @@ class TipTextServiceImpl
+@@ -1349,6 +1600,10 @@ class TipTextServiceImpl
          self->OnUpdateUI();
          return 0;
        }
@@ -55057,7 +55090,7 @@ index beaef1a55..53e323c83 100644
      }
      return ::DefWindowProcW(window_handle, message, wparam, lparam);
    }
-@@ -1452,6 +1683,14 @@ class TipTextServiceImpl
+@@ -1452,6 +1707,14 @@ class TipTextServiceImpl
    // Stores the flag passed to ActivateEx.
    DWORD activate_flags_;
  
@@ -55072,7 +55105,7 @@ index beaef1a55..53e323c83 100644
    // Represents the cookie ID for the thread manager.
    DWORD thread_mgr_cookie_;
  
-@@ -1481,6 +1720,8 @@ class TipTextServiceImpl
+@@ -1481,6 +1744,8 @@ class TipTextServiceImpl
    PreservedKeyMap preserved_key_map_;
    std::unique_ptr<TipThreadContext> thread_context_;
    HWND task_window_handle_;
