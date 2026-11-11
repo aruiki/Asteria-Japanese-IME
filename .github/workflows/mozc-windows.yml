@@ -25,6 +25,8 @@ on:
       - '!mozc/tools/**'
       - '!mozc/eval_*.py'
       - '!mozc/patches/README.md'
+      # 導入した MSI の実入力の検査(installer_smoke.py --acceptance)がビルドして使う。
+      - eval/imebench/Ime*.cs
       - training/collocations/**
       - training/lexicon/**
 

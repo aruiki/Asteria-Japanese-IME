@@ -121,7 +121,7 @@ ACCEPTANCE_CHECKS = {
 }
 
 
-def validate_acceptance(report, install):
+def validate_acceptance(report, install, password_learning=True):
     """空の結果・一部だけの成功・違うTIPを受け入れない。内部privacyの証明ではない。"""
     checks = report.get("checks", [])
     if (report.get("complete") is not True or report.get("native_tsf") is not True or
@@ -135,8 +135,13 @@ def validate_acceptance(report, install):
     if report.get("secure_field_internal_ai_or_learning_verified") is not False:
         raise RuntimeError("保護欄の内部AI/学習を、この表示試験で検証済みにしてはいけません")
     # IS_PASSWORD の欄で日本語入力をオンにしても使用量(学習)が増えないこと。AI の停止は別に確かめる。
-    if report.get("password_scope_learning_verified") is not True:
-        raise RuntimeError("IS_PASSWORD の欄で学習が止まることを確かめていません")
+    # 固定の旧 MSI(2026-10-19、使用量の記録より前)では確かめられないので、飛ばしたことだけを受け入れる。
+    if password_learning:
+        if report.get("password_scope_learning_verified") is not True:
+            raise RuntimeError("IS_PASSWORD の欄で学習が止まることを確かめていません")
+    elif (report.get("password_scope_learning_verified") is not False or
+          report.get("password_scope_learning_skipped") is not True):
+        raise RuntimeError("旧 MSI で IS_PASSWORD の学習の確認を飛ばした記録がありません")
 
 
 def validate_duplicate_stress(report):
@@ -154,7 +159,7 @@ def validate_duplicate_stress(report):
         raise RuntimeError("二重入力の実TSF検査が未完了: " + json.dumps(stress, ensure_ascii=False))
 
 
-def run_acceptance(compiler, source, install, out, duplicate_stress=False):
+def run_acceptance(compiler, source, install, out, duplicate_stress=False, password_learning=True):
     exe, output = out / "ImeAcceptance.exe", out / "acceptance.json"
     run([str(compiler), "/nologo", "/target:winexe", "/platform:x64", "/main:Acceptance",
          "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll",
@@ -164,11 +169,15 @@ def run_acceptance(compiler, source, install, out, duplicate_stress=False):
     arguments = [str(exe), str(install), str(output)]
     if duplicate_stress:
         arguments.append("--duplicate-stress")
-    process = subprocess.run(arguments, capture_output=True, timeout=360 if duplicate_stress else 180)
+    env = dict(os.environ)
+    if not password_learning:
+        env["KOTORI_ACCEPTANCE_SKIP_PASSWORD_LEARNING"] = "legacy-candidate"
+    process = subprocess.run(arguments, capture_output=True, env=env,
+                             timeout=360 if duplicate_stress else 180)
     if not output.is_file():
         raise RuntimeError(f"実入力レポートがありません: exit {process.returncode}")
     report = json.loads(output.read_text(encoding="utf-8"))
-    validate_acceptance(report, install)
+    validate_acceptance(report, install, password_learning)
     if duplicate_stress:
         validate_duplicate_stress(report)
     if process.returncode != 0:
@@ -201,6 +210,8 @@ def main():
     ap.add_argument("--duplicate-stress", action="store_true", help="確定/候補クリック/フォーカスの二重挿入を実TSFで検査する")
     ap.add_argument("--browser-duplicate-stress", action="store_true", help="Edgeのtextarea/contenteditableで実TSFの二重入力を検査する")
     ap.add_argument("--reinstall", action="store_true", help="削除後、同じMSIを再導入して入力する（再起動はしない）")
+    ap.add_argument("--legacy-candidate", action="store_true",
+                    help="使用量の記録より前の固定MSI。IS_PASSWORD の学習の確認だけを飛ばす")
     args = ap.parse_args()
     if (sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true" or
             os.environ.get("KOTORI_DISPOSABLE_RUNNER") != "github-hosted"):
@@ -265,7 +276,8 @@ def main():
         result["input"] = True
         checkpoint("input_verified")
         if args.acceptance or args.duplicate_stress:
-            result["acceptance"] = run_acceptance(compiler, source, install, out, args.duplicate_stress)
+            result["acceptance"] = run_acceptance(compiler, source, install, out, args.duplicate_stress,
+                                                 not args.legacy_candidate)
             checkpoint("acceptance_verified")
         if args.browser_duplicate_stress:
             result["browser_duplicate"] = run_browser_duplicate_probe(compiler, source, install, out)

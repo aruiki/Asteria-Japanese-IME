@@ -28,6 +28,17 @@ class AcceptanceReceiptTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 validate_acceptance(dict(self.report, loaded_tip=str(other)), self.install)
 
+    def test_legacy_candidate_must_record_skip(self):
+        # 固定の旧 MSI は使用量を記録しないので、確認を飛ばしたことの記録だけを受け入れる。
+        skipped = dict(self.report, password_scope_learning_verified=False,
+                       password_scope_learning_skipped=True)
+        validate_acceptance(skipped, self.install, password_learning=False)
+        with self.assertRaises(RuntimeError):
+            validate_acceptance(skipped, self.install)
+        for variant in (self.report, dict(self.report, password_scope_learning_verified=False)):
+            with self.assertRaises(RuntimeError):
+                validate_acceptance(variant, self.install, password_learning=False)
+
     def test_incomplete_or_failed_receipts_are_rejected(self):
         variants = [dict(self.report, complete=False), dict(self.report, checks=[]),
                     dict(self.report, checks=self.report["checks"][:-1]),

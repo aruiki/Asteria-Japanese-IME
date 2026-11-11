@@ -284,6 +284,13 @@ sealed partial class Acceptance : Form {
       Check("password_scope_ime_on_not_learned", row => {
         // IS_PASSWORD の欄で日本語入力をオンにして変換・確定しても、使用量(学習)を増やさない。
         // 先に普通の欄で数が増えることを見て、増えないことが記録の止まりによると確かめる。
+        // 固定の旧 MSI(使用量の記録より前)の検査では installer_smoke.py が飛ばすよう指示する。
+        if (Environment.GetEnvironmentVariable("KOTORI_ACCEPTANCE_SKIP_PASSWORD_LEARNING") == "legacy-candidate") {
+          row["skipped"] = "legacy candidate MSI predates usage counting";
+          report["password_scope_learning_verified"] = false;
+          report["password_scope_learning_skipped"] = true;
+          return;
+        }
         int before = Conversions(); Convert(a, "nihonngo", "日本語");
         WaitUntil(() => Conversions() > before, "Usage did not count an ordinary conversion");
         int ordinary = Conversions(); row["usage_after_ordinary"] = ordinary;

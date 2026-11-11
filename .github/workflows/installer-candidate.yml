@@ -40,7 +40,7 @@ jobs:
           if ($hash -ne 'c21972edab537e1ea1473f63312f188b5b533baa700aa77fa9c3111364818c32') { throw '固定MSIのSHA-256が違う' }
       - name: Install, exercise native controls, reinstall and uninstall
         shell: pwsh
-        run: python -u -X utf8 mozc/tools/installer_smoke.py --msi installer/Asteria64.msi --out candidate-acceptance --acceptance --reinstall
+        run: python -u -X utf8 mozc/tools/installer_smoke.py --msi installer/Asteria64.msi --out candidate-acceptance --acceptance --reinstall --legacy-candidate
       - uses: actions/upload-artifact@v4
         if: always()
         with:
