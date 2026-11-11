@@ -35,8 +35,13 @@ installer_smoke も成功。
   installer_smoke の install/input/uninstall が成功(native_tsf、8 checks、errors 0)。
 - 導入確認: 同じコードのローカル MSI 3.34.6494.100 を実機へ導入し、実 TSF で
   `くうかんこうへんちょうき → 空間光変調器` が記録されることを確認(設定はオフに戻し、記録は消去)。
-- 残り: 書き出しの保存ダイアログの実保存、保護欄の AI/学習(CI でも未検証
-  `secure_field_internal_ai_or_learning_verified: false`)。導入したのは公開リリースではないローカルビルド。
+- 保護欄の AI/学習: #213(merge 03697d8)で、パスワード欄では変換要求をシークレットと同じに扱い、AI・学習・
+  覚えた区切りを使わないようにした(TIP が入力欄の種類を送り、`ConversionRequest::incognito_mode` で判定)。
+  単体テストは CI で成功。実機のパスワード欄での確認はまだ([追記](verification/recent-conversions-20261105.md))。
+- 起動: #214(merge 7a1be41)で、起動のたびにモデル全体の SHA-256 を計算しないようにした
+  ([記録](verification/startup-model-identity-20261110.md))。
+- CUDA: #217(ADR 0088 を採用、追加パッケージ `AsteriaCuda64.msi`)は CI 待ち。マージしたらここを更新する。
+- 残り: 書き出しの保存ダイアログの実保存。導入したのは公開リリースではないローカルビルド。
 
 ---
 
