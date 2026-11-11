@@ -4,7 +4,7 @@
 
 無料・オープンソース。オフラインで使えます。
 
-2026-10-21の正式v2.0.0公開に対応。採用済みの「月の余白」のブランドを引き継ぎ、累積したAI変換の更新と、保留確定時の表示残留修正を案内します。製品の実装・MSIの検証は[公開記録](../verification/release-v2.0.0-20261021.md)へ。
+2026-11-11の正式v5.2.0公開に対応(入力モードの保持、パスワード欄の保護、AI の準備の短縮、NVIDIA 向け追加パッケージ、今の版での精度の測り直し)。紹介画像(hero・social・portrait)の版の表記も v5.2.0 にした。
 
 ## そのまま使える素材
 
@@ -13,19 +13,20 @@
 | [横長画像](assets/social.png)・1200×630 | SNS・ブログ・記事の紹介画像 |
 | [縦長画像](assets/portrait.png)・1080×1350 | スマートフォン向け告知 |
 | [READMEヒーロー](assets/hero.png)・1600×720 | リポジトリの紹介 |
-| [短文・長文の告知コピー](announcements.md) | SNS・ブログ・配布先の紹介文 |
-| [現行Release本文](release-copy.md) | v2.0.0の紹介・更新内容・導入案内 |
+| [短文・長文の告知コピー](announcements.md) | v5.2.0 の SNS・ブログ・配布先の紹介文 |
+| [現行Release本文](release-copy.md) | Release の本文の置き場(mozc/release-notes.md) |
+| [紹介動画](assets/asteria-v3-promo.mp4) | 39 秒。比較グラフと設定画面は 2026-11-11 に更新([記録](../verification/promo-graph-20261111.md)) |
 | [導入ガイド](../INSTALL.md) | 未署名・SmartScreen・SHA-256の説明 |
 
 ![Asteria紹介画像。変換精度の高い日本語IME。無料・オープンソース。オフラインで使えます。](assets/social.png)
 
-画像だけを転載する場合も、**v2.0.0は正式版**と分かる文面と[配布ページ](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)へのリンクを添えてください。配布MSIは未署名です。
+画像だけを転載する場合も、v5.2.0 の[配布ページ](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v5.2.0)へのリンクを添えてください。配布MSIは未署名です。
 
 ## コピーの軸
 
 2026-10-22の利用者指定に従い、中心に置く価値は「変換精度の高い日本語IME」です。GPU・AI・文脈処理は実現手段として説明します。短い入力の辞書対策は開発中であり、未採用の辞書実験を公開版の改善として紹介しません。動作環境ではGPU用設定とCPU向けLowを分けて伝えます。
 
-94.0%を単独の広告見出しにしません。数値を引用する際は、Standard・AI準備後・前文あり・オフライン200問・RTX 3060という条件と[測定の説明](../BENCHMARKS.md)を添えます。[主張と出典](claims.md)。
+数値を引用する際は、[主張と出典](claims.md)の条件(同じ PC・同じ打ち方の実入力、測った版と日付)を添えます。
 
 ## 制作と再利用
 
@@ -34,8 +35,6 @@
 - `npm install --no-save playwright` の後、`node docs/marketing/render.mjs`。Chromiumの初回導入が必要な環境では `npx playwright install chromium`。Noto Serif JP / Yu Gothicが入ったWindowsで生成しています。
 - インストール済みEdgeを使う場合は環境変数 `ASTERIA_RENDER_CHANNEL=msedge`。任意のNodeパッケージ置き場を使う場合は `ASTERIA_RENDER_MODULE_ROOT` にpackage.jsonがあるディレクトリを指定します。
 - `?format=hero`、`?format=social`、`?format=portrait`で各アートボードを表示できます。これは画像制作の原稿で、公開Webサイトではありません。
-- 既存の実入力GIFは撮影済みの記録を保持しています。今回、v2.0.0の新しい実アプリ動画を撮影したとは扱いません。
+- 紹介動画とREADMEのGIFは実際の入力の録画。2026-11-11に比較グラフと設定画面の場面だけを差し替えた([記録](../verification/promo-graph-20261111.md))。
 
-添付していただいた紹介文の、大きなダウンロード案内、Windows対応・オフライン表示、公式配布元の確認、SmartScreenの説明、変更履歴を取り込みました。旧v1.1.1〜v1.1.3の変更内容は当時の履歴として[Releases](https://github.com/aruiki/Asteria-Japanese-IME/releases)へ案内し、v2.0.0の新機能として再掲していません。今回の案内はv2.0.0の明示URLに統一し、GitHubのLatestも同じ正式版へ揃えています。
 
-直前の紹介刷新での生成・リンク・画面と、当時の本体不変の確認は[過去の検証記録](../verification/marketing-refresh-20261021.md)へ。今回の修正・再ビルド・正式公開は[v2.0.0公開記録](../verification/release-v2.0.0-20261021.md)を参照してください。
