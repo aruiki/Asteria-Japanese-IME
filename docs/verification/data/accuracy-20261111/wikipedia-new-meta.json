@@ -1,0 +1,11 @@
+{
+ "api": "https://ja.wikipedia.org/w/api.php",
+ "user_agent": "AsteriaIME-eval-builder/0.1 (local evaluation set construction; contact via project maintainer)",
+ "start": "2024-03",
+ "end": "2026-09",
+ "per_month": 100,
+ "fetched_at": "2026-11-10T17:52:28.244624+00:00",
+ "titles": 3100,
+ "articles": 1813,
+ "license": "CC BY-SA 4.0 (Wikipedia text)"
+}

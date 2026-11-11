@@ -1,0 +1,76 @@
+{
+ "stats": {
+  "doc:accepted": 62282,
+  "doc:filtered": 55568,
+  "doc:junk": 954,
+  "doc:reading_disagree": 14845,
+  "doc:seen": 133718,
+  "doc:untypable": 69,
+  "names:accepted": 909,
+  "names:filtered": 395,
+  "names:reading_disagree": 310,
+  "names:seen": 1622,
+  "names:untypable": 8,
+  "short:accepted": 427694,
+  "short:filtered": 192245,
+  "short:junk": 14,
+  "short:reading_disagree": 20782,
+  "short:seen": 642508,
+  "short:untypable": 1773,
+  "tech:accepted": 719,
+  "tech:filtered": 296,
+  "tech:reading_disagree": 80,
+  "tech:seen": 1098,
+  "tech:untypable": 3
+ },
+ "sets": {
+  "asteria-doc-dev.json": {
+   "items": 300,
+   "pool": 31281,
+   "docs": 4125,
+   "sha256": "0eefc9c1a874515852966d3d4d79f069af815c8a9df919f9732bf4477eafb926"
+  },
+  "asteria-doc-judge.json": {
+   "items": 500,
+   "pool": 31001,
+   "docs": 4020,
+   "sha256": "9a22515352d807b946db47faaec0fadf4144bf4fa72364d72fa7bb42f5288e11"
+  },
+  "asteria-names-dev.json": {
+   "items": 300,
+   "pool": 438,
+   "docs": 355,
+   "sha256": "ad93994ea342f5b9f39695770c726ece306314d18eecee01be7af9fa0d0519f0"
+  },
+  "asteria-names-judge.json": {
+   "items": 471,
+   "pool": 471,
+   "docs": 395,
+   "sha256": "c77ccf482af63aa28edbce59160f2702ea7a9fadf6604ddd83d3bd9f8921130e"
+  },
+  "asteria-short-dev.json": {
+   "items": 300,
+   "pool": 212290,
+   "docs": 8836,
+   "sha256": "639491c6b9e167210221b523680fdd353fc564c34b2ca20cab89d9ebe62fa433"
+  },
+  "asteria-short-judge.json": {
+   "items": 500,
+   "pool": 215404,
+   "docs": 8806,
+   "sha256": "29ff5029a39e97c41f3a8c60c4a496c54f3032184de718deb859e37eadb08a09"
+  },
+  "asteria-tech-dev.json": {
+   "items": 300,
+   "pool": 322,
+   "docs": 84,
+   "sha256": "236b762e629238ace147c8b3dccd4547dcc303f099aa81581456490435ef21f2"
+  },
+  "asteria-tech-judge.json": {
+   "items": 397,
+   "pool": 397,
+   "docs": 120,
+   "sha256": "4f5e3e2e021ac35c79ebf8d9f7e8a49ecf772c63fa0b81241f15b05a3f94ca90"
+  }
+ }
+}

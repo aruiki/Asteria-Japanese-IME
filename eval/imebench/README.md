@@ -27,6 +27,14 @@ python eval/imebench/imebench.py msime      # Microsoft IME
 python eval/imebench/imebench.py kotori     # Kotori(インストール済みのもの)
 ```
 
+前文を読む IME の比較は `--context`(問の `context_text` を入力欄に置き、カーソルを末尾にしてから打つ)。
+句読点で自動変換する設定に合わせるときは `--auto-conversion`(。？！で終わる問は Space を押さない)。結果は問ごとの
+`.tsv` と、`mozc/tools/lenient_score.py` に渡せる `.json`。
+
+**どの IME が変換したかを必ず確かめる**: 続けて起動すると直前の IME のまま変換されることがある。計測の間を
+20 秒ほど空け、Asteria の `total_conversions`(`%USERPROFILE%\AppData\LocalLow\Asteria\asteria_usage.txt`)が
+Asteria の計測で問の数+2(慣らし)だけ増え、他の IME の計測で増えないことを見る(2026-11-11)。
+
 既定は AJIMEE-Bench と日常の文(`eval/sets/kotori-daily.json`)。1 つの IME で約 12 分かかる。**計測の間は
 キーボードとマウスを使わない**(キー入力を送るため)。結果は `eval/imebench/out/` に問ごとに残る。
 
