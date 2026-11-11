@@ -12,6 +12,7 @@ class AcceptanceReceiptTest(unittest.TestCase):
         self.report = dict(complete=True, native_tsf=True,
                            loaded_tip=str(self.install / "mozc_tip64.dll"),
                            secure_field_internal_ai_or_learning_verified=False,
+                           password_scope_learning_verified=True,
                            checks=[dict(name=name, passed=True) for name in ACCEPTANCE_CHECKS])
 
     def test_complete_receipt(self):
@@ -27,13 +28,25 @@ class AcceptanceReceiptTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 validate_acceptance(dict(self.report, loaded_tip=str(other)), self.install)
 
+    def test_legacy_candidate_must_record_skip(self):
+        # 固定の旧 MSI は使用量を記録しないので、確認を飛ばしたことの記録だけを受け入れる。
+        skipped = dict(self.report, password_scope_learning_verified=False,
+                       password_scope_learning_skipped=True)
+        validate_acceptance(skipped, self.install, password_learning=False)
+        with self.assertRaises(RuntimeError):
+            validate_acceptance(skipped, self.install)
+        for variant in (self.report, dict(self.report, password_scope_learning_verified=False)):
+            with self.assertRaises(RuntimeError):
+                validate_acceptance(variant, self.install, password_learning=False)
+
     def test_incomplete_or_failed_receipts_are_rejected(self):
         variants = [dict(self.report, complete=False), dict(self.report, checks=[]),
                     dict(self.report, checks=self.report["checks"][:-1]),
                     dict(self.report, error="native input failed"),
                     dict(self.report, loaded_tip=str(self.install / "other.dll")),
                     dict(self.report, native_tsf=False),
-                    dict(self.report, secure_field_internal_ai_or_learning_verified=True)]
+                    dict(self.report, secure_field_internal_ai_or_learning_verified=True),
+                    dict(self.report, password_scope_learning_verified=False)]
         failed = copy.deepcopy(self.report)
         failed["checks"][0]["passed"] = False
         variants.append(failed)
