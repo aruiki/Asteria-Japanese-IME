@@ -40553,16 +40553,17 @@ index 000000000..6d0878e23
 +}  // namespace mozc
 diff --git a/src/rewriter/llama_runtime.cc b/src/rewriter/llama_runtime.cc
 new file mode 100644
-index 000000000..1c0d7536e
+index 000000000..475c15218
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.cc
-@@ -0,0 +1,354 @@
+@@ -0,0 +1,428 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/llama_runtime.h"
 +
 +#include <atomic>
 +#include <cstdlib>
++#include <cstdio>
 +#include <cstring>
 +#include <string>
 +
@@ -40586,11 +40587,20 @@ index 000000000..1c0d7536e
 +// 内蔵 GPU を使ってよいか(設定の kotori_use_integrated_gpu。docs/adr/0078)。
 +std::atomic<bool> g_allow_integrated{false};
 +
++// Kotori: CUDA の機器か(ggml-cuda の機器の名前は CUDA0、CUDA1 …。docs/adr/0088)。
++bool IsCudaName(const char* name) {
++  return name != nullptr && std::strncmp(name, "CUDA", 4) == 0;
++}
++// 同じ GPU は CUDA と Vulkan の両方に出る(メモリの大きさの数え方が少し違う)。メモリの差がこれより
++// 小さければ CUDA を選ぶ。別の GPU なら、これまでどおりメモリの大きい方を選ぶ。
++constexpr size_t kCudaPreference = size_t{1} << 30;  // 1 GiB
++
 +// 機器の一覧から AI を載せる GPU を選ぶ(LlamaGpuDevice)。関数は Windows では DLL から引いた
 +// もの、それ以外は静的にリンクしたもの。integrated なら内蔵 GPU から選ぶ。
-+template <typename Count, typename Get, typename Type, typename Memory>
++template <typename Count, typename Get, typename Type, typename Memory,
++          typename Name>
 +ggml_backend_dev_t SelectGpu(Count count, Get get, Type type, Memory memory,
-+                             bool integrated) {
++                             Name name, bool integrated) {
 +  const char* env = std::getenv("KOTORI_LM_DEVICE");
 +  if (env != nullptr && std::strcmp(env, "cpu") == 0) return nullptr;
 +  const auto want =
@@ -40603,22 +40613,27 @@ index 000000000..1c0d7536e
 +    if (type(dev) != want) continue;
 +    size_t free = 0, total = 0;
 +    memory(dev, &free, &total);
-+    if (total >= min_memory && total > best_total) {
++    if (total < min_memory) continue;
++    const size_t rank = total + (IsCudaName(name(dev)) ? kCudaPreference : 0);
++    if (rank > best_total) {
 +      best = dev;
-+      best_total = total;
++      best_total = rank;
 +    }
 +  }
 +  return best;
 +}
 +
 +// 専用 GPU があればそれを、なければ(許されていれば)内蔵 GPU を返す。
-+template <typename Count, typename Get, typename Type, typename Memory>
++template <typename Count, typename Get, typename Type, typename Memory,
++          typename Name>
 +ggml_backend_dev_t PickGpu(Count count, Get get, Type type, Memory memory,
-+                           bool* integrated) {
-+  static ggml_backend_dev_t discrete = SelectGpu(count, get, type, memory, false);
++                           Name name, bool* integrated) {
++  static ggml_backend_dev_t discrete =
++      SelectGpu(count, get, type, memory, name, false);
 +  *integrated = false;
 +  if (discrete != nullptr || !g_allow_integrated.load()) return discrete;
-+  static ggml_backend_dev_t igpu = SelectGpu(count, get, type, memory, true);
++  static ggml_backend_dev_t igpu =
++      SelectGpu(count, get, type, memory, name, true);
 +  *integrated = igpu != nullptr;
 +  return igpu;
 +}
@@ -40641,21 +40656,29 @@ index 000000000..1c0d7536e
 +ggml_backend_dev_t LlamaGpuDevice() {
 +  bool integrated = false;
 +  return PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+                 ggml_backend_dev_memory, &integrated);
++                 ggml_backend_dev_memory, ggml_backend_dev_name, &integrated);
 +}
 +
 +bool LlamaGpuIsIntegrated() {
 +  bool integrated = false;
 +  PickGpu(ggml_backend_dev_count, ggml_backend_dev_get, ggml_backend_dev_type,
-+          ggml_backend_dev_memory, &integrated);
++          ggml_backend_dev_memory, ggml_backend_dev_name, &integrated);
 +  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
 +
++bool LlamaGpuIsCuda() {
++  ggml_backend_dev_t dev = LlamaGpuDevice();
++  return dev != nullptr && IsCudaName(ggml_backend_dev_name(dev));
++}
++
 +std::string LlamaGpuName() {
 +  ggml_backend_dev_t dev = LlamaGpuDevice();
-+  return dev != nullptr ? ggml_backend_dev_description(dev) : std::string();
++  if (dev == nullptr) return std::string();
++  std::string name = ggml_backend_dev_description(dev);
++  if (LlamaGpuIsCuda()) name += " (CUDA)";
++  return name;
 +}
 +
 +#else  // _WIN32
@@ -40706,6 +40729,9 @@ index 000000000..1c0d7536e
 +  decltype(&::ggml_backend_dev_type) dev_type = nullptr;
 +  decltype(&::ggml_backend_dev_memory) dev_memory = nullptr;
 +  decltype(&::ggml_backend_dev_description) dev_description = nullptr;
++  decltype(&::ggml_backend_dev_name) dev_name = nullptr;
++  // CUDA の追加パッケージを読む(ggml.dll。docs/adr/0088)。
++  decltype(&::ggml_backend_load) load_backend = nullptr;
 +};
 +
 +Api g_api;
@@ -40721,11 +40747,46 @@ index 000000000..1c0d7536e
 +  return w;
 +}
 +
++// 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
++constexpr DWORD kFlags =
++    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
++
++// Kotori: 本体に同梱した llama.cpp の版(MODULE.bazel の llama_cpp の取得先と同じ)。CUDA の
++// 追加パッケージの ggml-cuda.dll は、この版の ggml-base.dll に合わせて作られている。
++constexpr char kLlamaBuild[] = "b11259";
++
++// Kotori: NVIDIA の GPU 向けの追加パッケージ(docs/adr/0088)。インストール先の cuda フォルダに、
++// ggml-cuda.dll と、それが使う CUDA の実行時ライブラリ(cudart・cuBLAS)がある。版の札
++// (asteria-cuda.txt の「llama=<版>」の行)が本体と合わないとき、読み込めないとき(NVIDIA の GPU や
++// 新しいドライバーがない)は何もしない(これまでどおり Vulkan で動く)。
++// KOTORI_LM_CUDA=0 なら読まない(比べるため)。
++void LoadCuda(const std::string& dir, const std::wstring& wdir) {
++  const char* env = std::getenv("KOTORI_LM_CUDA");
++  if (env != nullptr && std::strcmp(env, "0") == 0) return;
++  const std::wstring cdir = wdir + L"\\cuda";
++  std::FILE* f = _wfopen((cdir + L"\\asteria-cuda.txt").c_str(), L"rb");
++  if (f == nullptr) return;
++  char buf[256] = {};
++  const size_t n = std::fread(buf, 1, sizeof(buf) - 1, f);
++  std::fclose(f);
++  const std::string stamp(buf, n);
++  const std::string want = std::string("llama=") + kLlamaBuild;
++  const size_t at = stamp.find(want);
++  const size_t end = at + want.size();
++  if (at == std::string::npos ||
++      (end < stamp.size() && stamp[end] != '\r' && stamp[end] != '\n')) {
++    return;
++  }
++  // cuBLAS などの依存は、ggml-cuda.dll と同じフォルダから読む(backend を読む LoadLibraryW は
++  // 依存の DLL のフォルダを足さないので、先にこちらで読んでおく)。
++  if (LoadLibraryExW((cdir + L"\\ggml-cuda.dll").c_str(), nullptr, kFlags) == nullptr) {
++    return;
++  }
++  g_api.load_backend((dir + "\\cuda\\ggml-cuda.dll").c_str());
++}
++
 +bool Load(const std::string& dir) {
 +  const std::wstring wdir = Widen(dir);
-+  // 同梱の DLL だけを探す(カレントディレクトリや PATH の DLL を読まない)。
-+  constexpr DWORD kFlags =
-+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
 +  // Kotori: baseを再構築してもCPU backendの依存を同梱先から先に読む。
 +  // backend側のLoadLibraryWは依存DLLのフォルダを追加しない。
 +  HMODULE omp =
@@ -40763,14 +40824,19 @@ index 000000000..1c0d7536e
 +      GetProcAddress(base, "ggml_backend_dev_memory"));
 +  g_api.dev_description = reinterpret_cast<decltype(g_api.dev_description)>(
 +      GetProcAddress(base, "ggml_backend_dev_description"));
++  g_api.dev_name = reinterpret_cast<decltype(g_api.dev_name)>(
++      GetProcAddress(base, "ggml_backend_dev_name"));
++  g_api.load_backend = reinterpret_cast<decltype(g_api.load_backend)>(
++      GetProcAddress(ggml, "ggml_backend_load"));
 +  if (g_api.dev_count == nullptr || g_api.dev_get == nullptr ||
 +      g_api.dev_type == nullptr || g_api.dev_memory == nullptr ||
-+      g_api.dev_description == nullptr) {
++      g_api.dev_description == nullptr || g_api.dev_name == nullptr) {
 +    return false;
 +  }
 +  g_api.llama_log_set(QuietLog, nullptr);
 +  // GPU(Vulkan)と CPU の DLL のうち、この PC で使えるものを読み込む。
 +  g_api.load_all(dir.c_str());
++  if (g_api.load_backend != nullptr) LoadCuda(dir, wdir);
 +  g_api.llama_backend_init();
 +  return true;
 +}
@@ -40789,22 +40855,30 @@ index 000000000..1c0d7536e
 +  if (!g_loaded) return nullptr;
 +  bool integrated = false;
 +  return PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
-+                 &integrated);
++                 g_api.dev_name, &integrated);
 +}
 +
 +bool LlamaGpuIsIntegrated() {
 +  if (!g_loaded) return false;
 +  bool integrated = false;
 +  PickGpu(g_api.dev_count, g_api.dev_get, g_api.dev_type, g_api.dev_memory,
-+          &integrated);
++          g_api.dev_name, &integrated);
 +  return integrated;
 +}
 +
 +bool LlamaHasGpu() { return LlamaGpuDevice() != nullptr; }
 +
++bool LlamaGpuIsCuda() {
++  ggml_backend_dev_t dev = LlamaGpuDevice();
++  return dev != nullptr && IsCudaName(g_api.dev_name(dev));
++}
++
 +std::string LlamaGpuName() {
 +  ggml_backend_dev_t dev = LlamaGpuDevice();
-+  return dev != nullptr ? g_api.dev_description(dev) : std::string();
++  if (dev == nullptr) return std::string();
++  std::string name = g_api.dev_description(dev);
++  if (LlamaGpuIsCuda()) name += " (CUDA)";
++  return name;
 +}
 +
 +#endif  // _WIN32
@@ -40913,10 +40987,10 @@ index 000000000..1c0d7536e
 +#endif  // _WIN32
 diff --git a/src/rewriter/llama_runtime.h b/src/rewriter/llama_runtime.h
 new file mode 100644
-index 000000000..d946cb3a5
+index 000000000..018d2577d
 --- /dev/null
 +++ b/src/rewriter/llama_runtime.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,49 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: llama.cpp の実行時の準備(docs/adr/0016)。
@@ -40957,7 +41031,10 @@ index 000000000..d946cb3a5
 +// (選んだ機器は変えない。設定の変更は再起動で反映する)。
 +void LlamaAllowIntegratedGpu(bool allow);
 +
-+// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。なければ空。
++// LlamaGpuDevice() が CUDA の機器か(追加パッケージを入れた NVIDIA の GPU。docs/adr/0088)。
++// 同じ GPU が CUDA と Vulkan の両方に出るときは CUDA を選ぶ。
++bool LlamaGpuIsCuda();
++// LlamaGpuDevice() の名前(設定画面の AI の状態に出す)。CUDA なら「(CUDA)」を付ける。なければ空。
 +std::string LlamaGpuName();
 +
 +}  // namespace mozc
@@ -48675,10 +48752,10 @@ index 1dafe70bd..f32bf61e3 100644
        ConversionRequestBuilder()
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..ffe0f0a20
+index 000000000..b6d01d186
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,894 @@
+@@ -0,0 +1,933 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -49166,6 +49243,33 @@ index 000000000..ffe0f0a20
 +  const llama_vocab* vocab = llama_model_get_vocab(model_);
 +  const int n_vocab = llama_vocab_n_tokens(vocab);
 +  llama_memory_t mem = llama_get_memory(ctx_);
++  // Kotori: CUDA では、生成への呼び出しをすべて 8 トークン・8 出力にそろえる(docs/adr/0088)。
++  // llama.cpp の CUDA 版は計算をまとめて GPU に渡す仕組み(CUDA グラフ)をコンテキストごとに 1 つしか
++  // 持たず、トークンの数が変わるたびに作り直す。足りない分は空きのシーケンスに捨てるトークンを足し、
++  // 長い前置きは 8 ずつに分ける。Vulkan では遅くなるので使わない。KOTORI_LM_FIXED_BATCH=N で
++  // 数を変える(0 で使わない。比べるため)。
++  static const int kFixed = [] {
++    const char* v = std::getenv("KOTORI_LM_FIXED_BATCH");
++    if (v != nullptr) return std::atoi(v);
++    return LlamaGpuIsCuda() ? 8 : 0;
++  }();
++  const int fixed = (kFixed > 0 && n_roots <= kFixed && kFixed <= total_beams &&
++                     kFixed <= kBatch)
++                        ? kFixed
++                        : 0;
++  // 空きのシーケンス dummy を空にし、捨てるトークンで b を fixed 個まで埋める。
++  auto pad = [&](llama_batch& b, int dummy) {
++    if (fixed == 0 || b.n_tokens >= fixed) return;
++    llama_memory_seq_rm(mem, dummy, -1, -1);
++    for (int k = 0; b.n_tokens < fixed; ++k) {
++      const int at = b.n_tokens++;
++      b.token[at] = b.token[0];
++      b.pos[at] = k;
++      b.n_seq_id[at] = 1;
++      b.seq_id[at][0] = dummy;
++      b.logits[at] = 1;
++    }
++  };
 +  // Kotori: 前置きの計算(docs/adr/0033)。根 0 の前置きの最後の 1 トークンより前はシーケンス 0 に置き、
 +  // 前回と同じ所は計算し直さない(打鍵ごとの予測では、前の文と変換の大半が同じ)。ほかの根は、根 0 と
 +  // 同じ先頭をシーケンス 0 から写し、残りだけを計算する。前置きの残りと、すべての根の最後のトークン
@@ -49191,12 +49295,14 @@ index 000000000..ffe0f0a20
 +    }
 +    // やめる関数があるときは 32 トークンずつ計算し、その間にやめられるようにする(CPU では前置きの
 +    // 計算が長い)。
-+    const int chunk = tl_cancel ? 32 : kBatch;
++    const int chunk = fixed > 0 ? fixed : (tl_cancel ? 32 : kBatch);
++    const int last_limit = fixed > 0 ? fixed : kBatch;
 +    llama_batch b = llama_batch_init(kBatch, 0, 1);
 +    b.n_tokens = 0;
 +    bool ok = true;
 +    auto flush = [&]() {
 +      if (b.n_tokens == 0) return true;
++      pad(b, n_roots);
 +      const int rc = Decode(ctx_, b, zenz_);
 +      b.n_tokens = 0;
 +      return rc == 0;
@@ -49207,7 +49313,7 @@ index 000000000..ffe0f0a20
 +      b.pos[at] = static_cast<llama_pos>(pos);
 +      b.n_seq_id[at] = 1;
 +      b.seq_id[at][0] = seq;
-+      b.logits[at] = logits ? 1 : 0;
++      b.logits[at] = (logits || fixed > 0) ? 1 : 0;
 +      return at;
 +    };
 +    for (int r = 0; r < n_roots && ok; ++r) {
@@ -49221,7 +49327,7 @@ index 000000000..ffe0f0a20
 +      }
 +    }
 +    // 最後のトークンは 1 回にまとめる(入りきらなければ先に流す)。
-+    if (ok && b.n_tokens + n_roots > kBatch) ok = flush();
++    if (ok && b.n_tokens + n_roots > last_limit) ok = flush();
 +    for (int r = 0; r < n_roots && ok; ++r) {
 +      const auto& pr = roots[r].prefix;
 +      first_logit[r] = add(pr.back(), pr.size() - 1, r, true);
@@ -49340,7 +49446,8 @@ index 000000000..ffe0f0a20
 +      }
 +    }
 +    if (batch.empty()) break;
-+    llama_batch b = llama_batch_init(batch.size(), 0, 1);
++    llama_batch b = llama_batch_init(
++        std::max(static_cast<int>(batch.size()), fixed), 0, 1);
 +    std::vector<int> used(n_roots, 0);
 +    for (size_t i = 0; i < batch.size(); ++i) {
 +      Grown& g = batch[i];
@@ -49357,6 +49464,15 @@ index 000000000..ffe0f0a20
 +      b.logits[i] = 1;
 +    }
 +    b.n_tokens = batch.size();
++    if (fixed > 0 && b.n_tokens < fixed) {
++      // 今の組で使っていないビームのシーケンスを、捨てるトークンの置き場にする。
++      for (int r = 0; r < n_roots; ++r) {
++        if (used[r] < roots[r].beams) {
++          pad(b, st[r].bank_start[st[r].bank] + used[r]);
++          break;
++        }
++      }
++    }
 +    const int rc = Decode(ctx_, b, zenz_);
 +    llama_batch_free(b);
 +    if (rc != 0) break;
@@ -51989,7 +52105,7 @@ index 4d3669e06..d436673f7 100644
  
  }  // namespace session
 diff --git a/src/session/session_test.cc b/src/session/session_test.cc
-index 012d822a5..f85480e0a 100644
+index 012d822a5..e06eeb5b5 100644
 --- a/src/session/session_test.cc
 +++ b/src/session/session_test.cc
 @@ -27,6 +27,8 @@
@@ -52252,7 +52368,41 @@ index 012d822a5..f85480e0a 100644
  
    commands::Command command;
    SendKey("a", &session, &command);
-@@ -10494,5 +10592,842 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
+@@ -9972,6 +10070,33 @@ TEST_F(SessionTest, IndirectImeOnOff) {
+   }
+ }
+ 
++// Kotori: アプリや入力欄を移って新しいセッションができても、TIP が渡す全体の入力モード
++// (オンと変換モード)で始まり、英字(直接入力)に戻らない(カード 84)。
++TEST_F(SessionTest, KotoriNewSessionStartsInSharedInputMode) {
++  MockEngine engine;
++  std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
++
++  for (const commands::CompositionMode mode :
++       {commands::HIRAGANA, commands::FULL_KATAKANA}) {
++    Session session(engine);
++    commands::Command command;
++    SendKeyWithModeAndActivated("a", true, mode, &session, &command);
++    EXPECT_TRUE(command.output().consumed());
++    ASSERT_TRUE(command.output().has_status());
++    EXPECT_TRUE(command.output().status().activated());
++    EXPECT_EQ(command.output().status().mode(), mode);
++  }
++  {
++    // 全体の値がオフなら、新しいセッションもオフのまま。
++    Session session(engine);
++    commands::Command command;
++    SendKeyWithModeAndActivated("a", false, commands::HIRAGANA, &session,
++                                &command);
++    EXPECT_FALSE(command.output().consumed());
++    EXPECT_FALSE(command.output().status().activated());
++  }
++}
++
+ TEST_F(SessionTest, MakeSureIMEOn) {
+   MockEngine engine;
+   std::shared_ptr<MockConverter> converter = CreateEngineConverterMock(&engine);
+@@ -10494,5 +10619,842 @@ TEST_F(SessionTest, MultiSegmentSelectionCancel) {
              "わたしのなまえはなかのです");
  }
  
@@ -53515,17 +53665,62 @@ index 486c37585..a5bcc8316 100644
  UINT __stdcall OpenUninstallSurveyPage(MSIHANDLE msi_handle);
  
 diff --git a/src/win32/tip/BUILD.bazel b/src/win32/tip/BUILD.bazel
-index d8dbb0b66..1029a1d48 100644
+index d8dbb0b66..8aecc263a 100644
 --- a/src/win32/tip/BUILD.bazel
 +++ b/src/win32/tip/BUILD.bazel
-@@ -227,6 +227,7 @@ mozc_cc_library(
+@@ -214,6 +214,7 @@ mozc_cc_library(
+         ":tip_private_context_h",
+         ":tip_reconvert_function",
+         ":tip_resource",
++        ":tip_shared_input_mode",
+         ":tip_status",
+         ":tip_text_service",
+         ":tip_thread_context",
+@@ -226,7 +227,9 @@ mozc_cc_library(
+         "//base/win32:com_implements",
          "//base/win32:hresult",
          "//base/win32:hresultor",
++        "//bazel/win32:imm32",
          "//protocol:commands_cc_proto",
 +        "//win32/base:config_snapshot",
          "//win32/base:msctf_dll",  # buildcleaner: keep
          "//win32/base:win32_window_util",
          "@com_google_absl//absl/base",
+@@ -631,6 +634,26 @@ mozc_cc_library(
+     ],
+ )
+ 
++mozc_cc_library(
++    name = "tip_shared_input_mode",
++    srcs = ["tip_shared_input_mode.cc"],
++    hdrs = ["tip_shared_input_mode.h"],
++    tags = MOZC_TAGS.WIN_ONLY,
++    target_compatible_with = ["@platforms//os:windows"],
++)
++
++mozc_cc_test(
++    name = "tip_shared_input_mode_test",
++    size = "small",
++    srcs = ["tip_shared_input_mode_test.cc"],
++    tags = MOZC_TAGS.WIN_ONLY,
++    target_compatible_with = ["@platforms//os:windows"],
++    deps = [
++        ":tip_shared_input_mode",
++        "//testing:gunit_main",
++    ],
++)
++
+ mozc_cc_library(
+     name = "tip_status",
+     srcs = ["tip_status.cc"],
+@@ -639,6 +662,7 @@ mozc_cc_library(
+     target_compatible_with = ["@platforms//os:windows"],
+     deps = [
+         ":tip_compartment_util",
++        ":tip_shared_input_mode",
+         "@com_microsoft_wil//:wil",
+     ],
+ )
 diff --git a/src/win32/tip/tip_edit_session.cc b/src/win32/tip/tip_edit_session.cc
 index 35ffb0911..ad1f4bb5a 100644
 --- a/src/win32/tip/tip_edit_session.cc
@@ -53908,25 +54103,457 @@ index 684d46e93..b03135e3a 100644
  #endif  // GOOGLE_JAPANESE_INPUT_BUILD
  
  }  // namespace
+diff --git a/src/win32/tip/tip_shared_input_mode.cc b/src/win32/tip/tip_shared_input_mode.cc
+new file mode 100644
+index 000000000..facd24d48
+--- /dev/null
++++ b/src/win32/tip/tip_shared_input_mode.cc
+@@ -0,0 +1,97 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++
++#include "win32/tip/tip_shared_input_mode.h"
++
++#include <cstdint>
++#include <optional>
++
++namespace mozc {
++namespace win32 {
++namespace tsf {
++namespace {
++
++// 書いた印。0 と区別し、古い版(印 0x40000000)の値とも区別する。
++constexpr int32_t kMarkerMask = 0x7f000000;
++constexpr int32_t kMarker = 0x2b000000;
++
++// 利用者が切り替えた変化か。TIP が利用者の操作を受けて書いたか、Windows が切り替えキーを
++// 処理して書いたか。
++bool IsUserToggle(const TipModeChange& change) {
++  if (change.written_by_tip) {
++    return change.ms_since_user_action <= kSharedModeUserActionWindowMs;
++  }
++  return change.toggle_key_down &&
++         change.ms_since_focus_event >= kSharedModeToggleMinMsAfterFocus;
++}
++
++}  // namespace
++
++int32_t EncodeSharedInputMode(const TipSharedInputMode& mode) {
++  return kMarker | static_cast<int32_t>((mode.conversion_mode & 0xffff) << 1) |
++         (mode.open ? 1 : 0);
++}
++
++std::optional<TipSharedInputMode> DecodeSharedInputMode(int32_t value) {
++  if ((value & kMarkerMask) != kMarker) {
++    return std::nullopt;
++  }
++  TipSharedInputMode mode;
++  mode.open = (value & 1) != 0;
++  mode.conversion_mode = static_cast<uint32_t>((value >> 1) & 0xffff);
++  return mode;
++}
++
++bool ShouldPublishSharedInputMode(const TipModeChange& change) {
++  // アプリや OS が書いた値(Alt+Tab の直後に新しい窓の既定値でオフにされる、など)は、
++  // キー操作の直後でも利用者の選択ではない。
++  if (!IsUserToggle(change)) {
++    return false;
++  }
++  if (!change.has_keyboard_focus) {
++    return false;
++  }
++  // パスワード欄・URL 欄などで入力欄の種類に合わせたモードは、その欄だけのもの。
++  if (change.overridden_by_input_scope || change.password_field) {
++    return false;
++  }
++  return true;
++}
++
++bool ShouldRestoreSharedInputMode(const TipModeChange& change,
++                                  const TipSharedInputMode& current,
++                                  const TipSharedInputMode& shared) {
++  if (current == shared) {
++    return false;
++  }
++  // 利用者の操作で変えたモードは戻さない(全体の値として書く側で扱う)。
++  if (IsUserToggle(change)) {
++    return false;
++  }
++  // パスワード欄で OS やアプリが IME を切るのはそのままにする。欄を離れて次の
++  // フォーカスの変化が来たときに、共有の値へ戻る。
++  if (change.password_field) {
++    return false;
++  }
++  if (change.ms_since_focus_event > kSharedModeFocusGuardMs) {
++    return false;
++  }
++  return change.restores_since_focus_event < kSharedModeMaxRestoresPerFocus;
++}
++
++int32_t EncodeSharedModeDecision(const TipModeChange& change, bool published,
++                                 bool restored) {
++  auto centis = [](uint64_t ms) -> int32_t {
++    const uint64_t value = ms / 10;
++    return static_cast<int32_t>(value > 255 ? 255 : value);
++  };
++  return (change.written_by_tip ? 1 : 0) | (change.toggle_key_down ? 2 : 0) |
++         (change.has_keyboard_focus ? 4 : 0) |
++         (change.overridden_by_input_scope ? 8 : 0) |
++         (change.password_field ? 16 : 0) | (published ? 32 : 0) |
++         (restored ? 64 : 0) | (centis(change.ms_since_user_action) << 8) |
++         (centis(change.ms_since_focus_event) << 16);
++}
++
++}  // namespace tsf
++}  // namespace win32
++}  // namespace mozc
+diff --git a/src/win32/tip/tip_shared_input_mode.h b/src/win32/tip/tip_shared_input_mode.h
+new file mode 100644
+index 000000000..dd0e0c62f
+--- /dev/null
++++ b/src/win32/tip/tip_shared_input_mode.h
+@@ -0,0 +1,98 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++
++// Kotori: アプリをまたいで入力モードを 1 つに保つための判断(カード 84)。
++// COM に触れない純粋な関数だけを置き、単体テストで確かめる。
++//
++// 全体の値(TSF のグローバル compartment)を書き換えてよいのは、利用者が IME を操作した
++// ときだけにする。以前は「キー操作から 1 秒以内に起きた変化」をすべて利用者の選択として
++// 書いていたため、Alt+Tab の直後に OS やアプリがスレッドの IME を閉じると、その「オフ」が
++// 全体に広がり、以後どのアプリに移っても英字(直接入力)にされていた(2026-11-10 に実機で
++// 全体の値がオフのまま固まっているのを確認)。
++
++#ifndef MOZC_WIN32_TIP_TIP_SHARED_INPUT_MODE_H_
++#define MOZC_WIN32_TIP_TIP_SHARED_INPUT_MODE_H_
++
++#include <cstdint>
++#include <optional>
++
++namespace mozc {
++namespace win32 {
++namespace tsf {
++
++struct TipSharedInputMode {
++  bool open = false;
++  // TF_CONVERSIONMODE_*(IME_CMODE_*)の値。16 ビットに収まる。
++  uint32_t conversion_mode = 0;
++
++  friend bool operator==(const TipSharedInputMode& a,
++                         const TipSharedInputMode& b) {
++    return a.open == b.open && a.conversion_mode == b.conversion_mode;
++  }
++  friend bool operator!=(const TipSharedInputMode& a,
++                         const TipSharedInputMode& b) {
++    return !(a == b);
++  }
++};
++
++// グローバル compartment に置く VT_I4 の値。「書いた印 | 変換モード << 1 | オン」。
++// 印がなければ(まだ誰も書いていない)nullopt。
++int32_t EncodeSharedInputMode(const TipSharedInputMode& mode);
++std::optional<TipSharedInputMode> DecodeSharedInputMode(int32_t value);
++
++// スレッドの compartment が変わったときの状況。
++struct TipModeChange {
++  // この TIP 自身が、変換エンジンの出力や言語バー(タスクバーの「あ/A」)の操作を受けて
++  // 書いた値と一致するか。アプリや OS が書いた変化、共有の値を当てはめた変化は false。
++  bool written_by_tip = false;
++  // IME の切り替えキー(半角/全角、Alt+`、英数、IME オン/オフのキーなど)が押されている間の
++  // 変化か。日本語キーボードの 半角/全角 は Windows が切り替えのホットキーとして扱い、TIP を
++  // 通さずに compartment を書くので、written_by_tip だけでは利用者の切り替えを取りこぼす。
++  bool toggle_key_down = false;
++  // 利用者のキー・言語バーの操作から経った時間(ミリ秒)。
++  uint64_t ms_since_user_action = UINT64_MAX;
++  // このスレッドがキーボードの入力を受けているか。
++  bool has_keyboard_focus = false;
++  // 入力欄の種類(URL・数字・パスワードなど)で実際のモードが上書きされているか。
++  bool overridden_by_input_scope = false;
++  // フォーカスのある入力欄がパスワード欄か。
++  bool password_field = false;
++  // 窓・入力欄・スレッドのフォーカスが変わってから経った時間(ミリ秒)。
++  uint64_t ms_since_focus_event = UINT64_MAX;
++  // 直前のフォーカスの変化の後に、共有の値へ戻した回数。
++  int restores_since_focus_event = 0;
++};
++
++// 利用者の操作から、この時間内に TIP が書いた変化だけを利用者の選択とみなす。
++inline constexpr uint64_t kSharedModeUserActionWindowMs = 1000;
++// フォーカスが変わってからこの時間内に、アプリや OS がスレッドのモードを変えたら、
++// 共有の値に戻す(新しい入力欄の既定値でオフにされるのを防ぐ)。
++inline constexpr uint64_t kSharedModeFocusGuardMs = 2000;
++// フォーカスが変わってからこの時間内の変化は、切り替えキーが押されていても利用者の切り替えと
++// みなさない。日本語キーボードには離した通知が来ず押されたままに見えるキーがあり(2026-11-10 の
++// 実機ではカタカナ/ひらがなキー)、新しい窓の既定値でオフにされたのを書いてしまうため。
++inline constexpr uint64_t kSharedModeToggleMinMsAfterFocus = 200;
++// アプリと戻し合いにならないよう、1 回のフォーカスの変化で戻す回数の上限。
++inline constexpr int kSharedModeMaxRestoresPerFocus = 3;
++
++// 変化を全体の値として書くか。利用者の操作で TIP が書いた変化と、切り替えキーで
++// Windows が書いた変化だけを書く。
++bool ShouldPublishSharedInputMode(const TipModeChange& change);
++
++// アプリや OS が変えたモードを、共有の値に戻すか。
++bool ShouldRestoreSharedInputMode(const TipModeChange& change,
++                                  const TipSharedInputMode& current,
++                                  const TipSharedInputMode& shared);
++
++// 最後の判断の記録(診断用)。グローバル compartment に置き、外から読めるようにする。
++// 下位から written_by_tip, toggle_key_down, has_keyboard_focus,
++// overridden_by_input_scope, password_field, published, restored の各 1 ビット、
++// 8 ビット目から利用者の操作からの時間(10 ミリ秒単位、最大 255)、16 ビット目から
++// フォーカスの変化からの時間(同じ)。
++int32_t EncodeSharedModeDecision(const TipModeChange& change, bool published,
++                                 bool restored);
++
++}  // namespace tsf
++}  // namespace win32
++}  // namespace mozc
++
++#endif  // MOZC_WIN32_TIP_TIP_SHARED_INPUT_MODE_H_
+diff --git a/src/win32/tip/tip_shared_input_mode_test.cc b/src/win32/tip/tip_shared_input_mode_test.cc
+new file mode 100644
+index 000000000..e42474a6d
+--- /dev/null
++++ b/src/win32/tip/tip_shared_input_mode_test.cc
+@@ -0,0 +1,178 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++
++#include "win32/tip/tip_shared_input_mode.h"
++
++#include <cstdint>
++#include <optional>
++
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace win32 {
++namespace tsf {
++namespace {
++
++// TF_CONVERSIONMODE_NATIVE | TF_CONVERSIONMODE_FULLSHAPE(ひらがな)。
++constexpr uint32_t kHiragana = 0x9;
++// NATIVE | KATAKANA | FULLSHAPE(全角カタカナ)。
++constexpr uint32_t kFullKatakana = 0xb;
++
++TipSharedInputMode Mode(bool open, uint32_t conversion_mode) {
++  TipSharedInputMode mode;
++  mode.open = open;
++  mode.conversion_mode = conversion_mode;
++  return mode;
++}
++
++// 利用者が 半角/全角 キーで切り替え、TIP が書いた変化。
++TipModeChange UserToggle() {
++  TipModeChange change;
++  change.written_by_tip = true;
++  change.ms_since_user_action = 30;
++  change.has_keyboard_focus = true;
++  change.ms_since_focus_event = 10000;
++  return change;
++}
++
++// 窓を切り替えた直後に、アプリや OS が新しい窓の既定値で書いた変化。
++TipModeChange ResetAfterFocus() {
++  TipModeChange change;
++  change.written_by_tip = false;
++  change.ms_since_user_action = 50;  // Alt+Tab の Alt を離した直後
++  change.has_keyboard_focus = true;
++  change.ms_since_focus_event = 20;
++  return change;
++}
++
++TEST(TipSharedInputModeTest, EncodeDecodeRoundTrip) {
++  for (const bool open : {false, true}) {
++    for (const uint32_t conversion_mode : {0u, kHiragana, kFullKatakana}) {
++      const TipSharedInputMode mode = Mode(open, conversion_mode);
++      const std::optional<TipSharedInputMode> decoded =
++          DecodeSharedInputMode(EncodeSharedInputMode(mode));
++      ASSERT_TRUE(decoded.has_value());
++      EXPECT_EQ(*decoded, mode);
++    }
++  }
++}
++
++TEST(TipSharedInputModeTest, UnsetOrOldValueIsIgnored) {
++  // まだ誰も書いていない。
++  EXPECT_FALSE(DecodeSharedInputMode(0).has_value());
++  // 英字に戻る不具合のあった古い版の書式(印 0x40000000)は読まない。
++  EXPECT_FALSE(DecodeSharedInputMode(0x40000000 | (kHiragana << 1)).has_value());
++}
++
++TEST(TipSharedInputModeTest, PublishesUserToggle) {
++  EXPECT_TRUE(ShouldPublishSharedInputMode(UserToggle()));
++}
++
++TEST(TipSharedInputModeTest, DoesNotPublishResetByAppOrOsAfterKeyPress) {
++  // 以前はキー操作から 1 秒以内の変化をすべて書いていたため、Alt+Tab の直後に新しい窓で
++  // オフにされると、それが全体の値になり、どのアプリも英字で始まっていた。
++  EXPECT_FALSE(ShouldPublishSharedInputMode(ResetAfterFocus()));
++}
++
++TEST(TipSharedInputModeTest, PublishesToggleHandledByWindows) {
++  // 日本語キーボードの 半角/全角 は Windows がホットキーとして扱い、TIP は書かない。
++  // 窓を移った直後に切り替えても、戻さずに全体の値にする。
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  change.ms_since_focus_event = 300;
++  EXPECT_TRUE(ShouldPublishSharedInputMode(change));
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(true, kHiragana),
++                                            Mode(false, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, StuckKeyDoesNotPublishResetRightAfterFocus) {
++  // 2026-11-10 の実機: 押されたままに見えるキーがあると、窓を開いた 30 ms 後に OS が
++  // 既定値でオフにしたのを利用者の切り替えとして書いていた。
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  change.ms_since_focus_event = 30;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(change));
++  EXPECT_TRUE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                           Mode(true, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, DecisionRecordKeepsFlagsAndTimes) {
++  TipModeChange change = ResetAfterFocus();
++  change.toggle_key_down = true;
++  const int32_t record = EncodeSharedModeDecision(change, true, false);
++  EXPECT_EQ(record & 0xff, 2 | 4 | 32);
++  EXPECT_EQ((record >> 8) & 0xff, 5);   // 50 ms
++  EXPECT_EQ((record >> 16) & 0xff, 2);  // 20 ms
++  change.ms_since_focus_event = UINT64_MAX;
++  EXPECT_EQ((EncodeSharedModeDecision(change, false, false) >> 16) & 0xff, 255);
++}
++
++TEST(TipSharedInputModeTest, DoesNotPublishWithoutRecentUserAction) {
++  TipModeChange change = UserToggle();
++  change.ms_since_user_action = kSharedModeUserActionWindowMs + 1;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(change));
++}
++
++TEST(TipSharedInputModeTest, DoesNotPublishFromBackgroundThread) {
++  TipModeChange change = UserToggle();
++  change.has_keyboard_focus = false;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(change));
++}
++
++TEST(TipSharedInputModeTest, DoesNotPublishFieldSpecificMode) {
++  TipModeChange password = UserToggle();
++  password.password_field = true;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(password));
++  TipModeChange url = UserToggle();
++  url.overridden_by_input_scope = true;
++  EXPECT_FALSE(ShouldPublishSharedInputMode(url));
++}
++
++TEST(TipSharedInputModeTest, RestoresResetRightAfterFocusChange) {
++  EXPECT_TRUE(ShouldRestoreSharedInputMode(
++      ResetAfterFocus(), Mode(false, kHiragana), Mode(true, kHiragana)));
++  // 変換モードだけを既定値に戻された場合も戻す。
++  EXPECT_TRUE(ShouldRestoreSharedInputMode(
++      ResetAfterFocus(), Mode(true, kHiragana), Mode(true, kFullKatakana)));
++}
++
++TEST(TipSharedInputModeTest, DoesNotRestoreWhenAlreadyShared) {
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(
++      ResetAfterFocus(), Mode(true, kHiragana), Mode(true, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, DoesNotRestoreUserToggle) {
++  TipModeChange change = UserToggle();
++  change.ms_since_focus_event = 100;  // 窓を移ってすぐに利用者が切り替えた
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                            Mode(true, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, LeavesPasswordFieldToOs) {
++  TipModeChange change = ResetAfterFocus();
++  change.password_field = true;
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                            Mode(true, kHiragana)));
++}
++
++TEST(TipSharedInputModeTest, AppChangeLongAfterFocusIsKeptLocally) {
++  TipModeChange change = ResetAfterFocus();
++  change.ms_since_focus_event = kSharedModeFocusGuardMs + 1;
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                            Mode(true, kHiragana)));
++  EXPECT_FALSE(ShouldPublishSharedInputMode(change));
++}
++
++TEST(TipSharedInputModeTest, StopsFightingWithApp) {
++  TipModeChange change = ResetAfterFocus();
++  change.restores_since_focus_event = kSharedModeMaxRestoresPerFocus - 1;
++  EXPECT_TRUE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                           Mode(true, kHiragana)));
++  change.restores_since_focus_event = kSharedModeMaxRestoresPerFocus;
++  EXPECT_FALSE(ShouldRestoreSharedInputMode(change, Mode(false, kHiragana),
++                                            Mode(true, kHiragana)));
++}
++
++}  // namespace
++}  // namespace tsf
++}  // namespace win32
++}  // namespace mozc
 diff --git a/src/win32/tip/tip_status.cc b/src/win32/tip/tip_status.cc
-index 4bea39d46..a320497e9 100644
+index 4bea39d46..9d13afb6a 100644
 --- a/src/win32/tip/tip_status.cc
 +++ b/src/win32/tip/tip_status.cc
-@@ -42,6 +42,29 @@
+@@ -34,14 +34,70 @@
+ #include <wil/resource.h>
+ #include <windows.h>
+ 
++#include <optional>
+ #include <utility>
+ 
+ #include "base/win32/hresultor.h"
+ #include "win32/tip/tip_compartment_util.h"
++#include "win32/tip/tip_shared_input_mode.h"
+ 
  namespace mozc {
  namespace win32 {
  namespace tsf {
 +namespace {
 +
-+// Kotori: 共有する入力モードの compartment(カード 84)。
-+// {6A3E5C21-8F4B-4D7E-9C2A-1B5D7E9F3A41}
++// Kotori: 共有する入力モードの compartment(カード 84)。古い版(英字に戻る不具合のあった
++// {6A3E5C21-...})とは別の GUID にし、更新前の DLL が動いているアプリが書いた値を読まない。
++// {9E988F7C-30C2-4B18-8D16-0D7EA1AFFB5F}
 +constexpr GUID kKotoriSharedInputModeCompartment = {
-+    0x6a3e5c21,
-+    0x8f4b,
-+    0x4d7e,
-+    {0x9c, 0x2a, 0x1b, 0x5d, 0x7e, 0x9f, 0x3a, 0x41}};
-+// 値は「書いた印 | 変換モード << 1 | オン」。変換モードは IME_CMODE_* の 16 ビットに収まる。
-+constexpr LONG kSharedInputModeMarker = 0x40000000;
++    0x9e988f7c,
++    0x30c2,
++    0x4b18,
++    {0x8d, 0x16, 0x0d, 0x7e, 0xa1, 0xaf, 0xfb, 0x5f}};
++
++// 最後の判断の記録(診断用)。
++// {C3A1B7E2-5D4F-4A86-9B0E-2F6C8D1E7A35}
++constexpr GUID kKotoriSharedModeDecisionCompartment = {
++    0xc3a1b7e2,
++    0x5d4f,
++    0x4a86,
++    {0x9b, 0x0e, 0x2f, 0x6c, 0x8d, 0x1e, 0x7a, 0x35}};
++
++// TIP 自身が書いたモードの記録。compartment はスレッドごとなので thread_local に置く。
++struct TipModeWrite {
++  bool valid = false;
++  LONG value = 0;
++  ULONGLONG tick = 0;
++};
++thread_local TipModeWrite g_open_close_write;
++thread_local TipModeWrite g_conversion_write;
++thread_local int g_applying_shared_mode = 0;
++
++void RecordTipWrite(TipModeWrite* write, LONG value) {
++  if (g_applying_shared_mode > 0) {
++    return;
++  }
++  write->valid = true;
++  write->value = value;
++  write->tick = ::GetTickCount64();
++}
++
++bool MatchesTipWrite(const TipModeWrite& write, LONG value) {
++  return write.valid && write.value == value &&
++         ::GetTickCount64() - write.tick <= kSharedModeUserActionWindowMs;
++}
 +
 +wil::com_ptr_nothrow<ITfCompartmentMgr> GetGlobalCompartmentMgr(
 +    ITfThreadMgr* thread_mgr) {
@@ -53942,31 +54569,43 @@ index 4bea39d46..a320497e9 100644
  
  bool TipStatus::IsOpen(ITfThreadMgr* thread_mgr) {
    // Retrieve the compartment manager from the thread manager, which contains
-@@ -131,6 +154,42 @@ bool TipStatus::SetInputModeConversion(ITfThreadMgr* thread_mgr,
+@@ -114,6 +170,7 @@ bool TipStatus::SetIMEOpen(ITfThreadMgr* thread_mgr, TfClientId client_id,
+   wil::unique_variant var;
+   var.vt = VT_I4;
+   var.lVal = open ? TRUE : FALSE;
++  RecordTipWrite(&g_open_close_write, var.lVal);
+   return TipCompartmentUtil::Set(thread_mgr,
+                                  GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, client_id,
+                                  std::move(var))
+@@ -125,12 +182,77 @@ bool TipStatus::SetInputModeConversion(ITfThreadMgr* thread_mgr,
+   wil::unique_variant var;
+   var.vt = VT_I4;
+   var.lVal = native_mode;
++  RecordTipWrite(&g_conversion_write, var.lVal);
+   return TipCompartmentUtil::Set(thread_mgr,
+                                  GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION,
+                                  client_id, std::move(var))
        .Succeeded();
  }
  
-+bool TipStatus::GetSharedInputMode(ITfThreadMgr* thread_mgr, bool* open,
-+                                   DWORD* native_mode) {
++std::optional<TipSharedInputMode> TipStatus::GetSharedInputMode(
++    ITfThreadMgr* thread_mgr) {
 +  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
 +      GetGlobalCompartmentMgr(thread_mgr);
 +  if (!manager) {
-+    return false;
++    return std::nullopt;
 +  }
 +  HResultOr<wil::unique_variant> var = TipCompartmentUtil::Get(
 +      manager.get(), kKotoriSharedInputModeCompartment);
-+  if (!var.has_value() || var->vt != VT_I4 ||
-+      (var->lVal & kSharedInputModeMarker) == 0) {
-+    return false;
++  if (!var.has_value() || var->vt != VT_I4) {
++    return std::nullopt;
 +  }
-+  *open = (var->lVal & 1) != 0;
-+  *native_mode = static_cast<DWORD>((var->lVal >> 1) & 0xffff);
-+  return true;
++  return DecodeSharedInputMode(var->lVal);
 +}
 +
 +bool TipStatus::SetSharedInputMode(ITfThreadMgr* thread_mgr,
-+                                   TfClientId client_id, bool open,
-+                                   DWORD native_mode) {
++                                   TfClientId client_id,
++                                   const TipSharedInputMode& mode) {
 +  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
 +      GetGlobalCompartmentMgr(thread_mgr);
 +  if (!manager) {
@@ -53974,40 +54613,117 @@ index 4bea39d46..a320497e9 100644
 +  }
 +  wil::unique_variant var;
 +  var.vt = VT_I4;
-+  var.lVal = kSharedInputModeMarker |
-+             static_cast<LONG>((native_mode & 0xffff) << 1) | (open ? 1 : 0);
++  var.lVal = EncodeSharedInputMode(mode);
 +  return TipCompartmentUtil::Set(manager.get(),
 +                                 kKotoriSharedInputModeCompartment, client_id,
 +                                 std::move(var))
 +      .Succeeded();
 +}
 +
++void TipStatus::SetSharedModeDecision(ITfThreadMgr* thread_mgr,
++                                      TfClientId client_id, int32_t record) {
++  wil::com_ptr_nothrow<ITfCompartmentMgr> manager =
++      GetGlobalCompartmentMgr(thread_mgr);
++  if (!manager) {
++    return;
++  }
++  wil::unique_variant var;
++  var.vt = VT_I4;
++  var.lVal = record;
++  // 診断用なので、書けなくても入力には影響させない。
++  (void)TipCompartmentUtil::Set(manager.get(),
++                                kKotoriSharedModeDecisionCompartment, client_id,
++                                std::move(var));
++}
++
++bool TipStatus::IsOpenCloseWrittenByTip(bool open) {
++  return MatchesTipWrite(g_open_close_write, open ? TRUE : FALSE);
++}
++
++bool TipStatus::IsConversionModeWrittenByTip(DWORD native_mode) {
++  return MatchesTipWrite(g_conversion_write, static_cast<LONG>(native_mode));
++}
++
++TipStatus::ScopedSharedModeApply::ScopedSharedModeApply() {
++  ++g_applying_shared_mode;
++}
++
++TipStatus::ScopedSharedModeApply::~ScopedSharedModeApply() {
++  --g_applying_shared_mode;
++}
++
  }  // namespace tsf
  }  // namespace win32
  }  // namespace mozc
 diff --git a/src/win32/tip/tip_status.h b/src/win32/tip/tip_status.h
-index 52b5ab884..7777c43e6 100644
+index 52b5ab884..516d77b05 100644
 --- a/src/win32/tip/tip_status.h
 +++ b/src/win32/tip/tip_status.h
-@@ -65,6 +65,13 @@ class TipStatus {
+@@ -33,6 +33,11 @@
+ #include <msctf.h>
+ #include <windef.h>
+ 
++#include <cstdint>
++#include <optional>
++
++#include "win32/tip/tip_shared_input_mode.h"
++
+ namespace mozc {
+ namespace win32 {
+ namespace tsf {
+@@ -65,6 +70,31 @@ class TipStatus {
    // Returns true if TSF conversion mode is updated.
    static bool SetInputModeConversion(ITfThreadMgr* thread_mgr, DWORD client_id,
                                       DWORD native_mode);
 +
 +  // Kotori: 全アプリで共有する入力モード(カード 84)。TSF のグローバル compartment に置くので、
-+  // 別のプロセス(サンドボックスのアプリを含む)からも読める。まだ書かれていなければ false。
-+  static bool GetSharedInputMode(ITfThreadMgr* thread_mgr, bool* open,
-+                                 DWORD* native_mode);
++  // 別のプロセス(サンドボックスのアプリを含む)からも読める。まだ書かれていなければ nullopt。
++  static std::optional<TipSharedInputMode> GetSharedInputMode(
++      ITfThreadMgr* thread_mgr);
 +  static bool SetSharedInputMode(ITfThreadMgr* thread_mgr, TfClientId client_id,
-+                                 bool open, DWORD native_mode);
++                                 const TipSharedInputMode& mode);
++
++  // Kotori: このスレッドで TIP 自身が SetIMEOpen / SetInputModeConversion で書いた値か
++  // (書いてから kSharedModeUserActionWindowMs 以内で、値が一致するか)。アプリや OS が
++  // 書いた変化と区別する。共有の値を当てはめる間(ScopedSharedModeApply)の書き込みは数えない。
++  // Kotori: 最後の判断の記録(EncodeSharedModeDecision の値。診断用)をグローバル compartment に書く。
++  static void SetSharedModeDecision(ITfThreadMgr* thread_mgr,
++                                    TfClientId client_id, int32_t record);
++
++  static bool IsOpenCloseWrittenByTip(bool open);
++  static bool IsConversionModeWrittenByTip(DWORD native_mode);
++
++  class ScopedSharedModeApply {
++   public:
++    ScopedSharedModeApply();
++    ~ScopedSharedModeApply();
++    ScopedSharedModeApply(const ScopedSharedModeApply&) = delete;
++    ScopedSharedModeApply& operator=(const ScopedSharedModeApply&) = delete;
++  };
  };
  
  }  // namespace tsf
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
-index beaef1a55..2b1fd63f8 100644
+index beaef1a55..805343ed8 100644
 --- a/src/win32/tip/tip_text_service.cc
 +++ b/src/win32/tip/tip_text_service.cc
-@@ -58,6 +58,7 @@
+@@ -31,6 +31,7 @@
+ 
+ #include <ctffunc.h>
+ #include <ime.h>
++#include <imm.h>
+ #include <msctf.h>
+ #include <objbase.h>
+ #include <wil/com.h>
+@@ -42,6 +43,7 @@
+ #include <cstddef>
+ #include <cstdint>
+ #include <memory>
++#include <optional>
+ #include <string>
+ #include <utility>
+ 
+@@ -58,6 +60,7 @@
  #include "base/win32/hresultor.h"
  #include "base/win32/win_util.h"
  #include "protocol/commands.pb.h"
@@ -54015,7 +54731,15 @@ index beaef1a55..2b1fd63f8 100644
  #include "win32/base/win32_window_util.h"
  #include "win32/tip/tip_display_attributes.h"
  #include "win32/tip/tip_dll_module.h"
-@@ -111,6 +112,8 @@ volatile bool g_module_unloaded = false;
+@@ -72,6 +75,7 @@
+ #include "win32/tip/tip_private_context.h"
+ #include "win32/tip/tip_reconvert_function.h"
+ #include "win32/tip/tip_resource.h"
++#include "win32/tip/tip_shared_input_mode.h"
+ #include "win32/tip/tip_status.h"
+ #include "win32/tip/tip_thread_context.h"
+ #include "win32/tip/tip_ui_handler.h"
+@@ -111,6 +115,8 @@ volatile bool g_module_unloaded = false;
  volatile DWORD g_tls_index = TLS_OUT_OF_INDEXES;
  
  constexpr UINT kUpdateUIMessage = WM_USER;
@@ -54024,26 +54748,37 @@ index beaef1a55..2b1fd63f8 100644
  
  #ifdef GOOGLE_JAPANESE_INPUT_BUILD
  
-@@ -613,6 +616,9 @@ class TipTextServiceImpl
+@@ -613,6 +619,9 @@ class TipTextServiceImpl
        LOG(WARNING) << "WriteActiveUsageInfo failed";
      }
  
 +    // Kotori: 新しく入力を始めたアプリも、最後に使った入力モードで始める(カード 84)。
-+    KotoriApplySharedInputMode();
++    KotoriOnFocusEvent();
 +
      // Copy the initial mode.
      DWORD native_mode = 0;
      if (TipStatus::GetInputModeConversion(thread_mgr, client_id,
-@@ -729,6 +735,8 @@ class TipTextServiceImpl
+@@ -714,6 +723,10 @@ class TipTextServiceImpl
+   STDMETHODIMP OnSetFocus(ITfDocumentMgr* focused,
+                           ITfDocumentMgr* previous) override {
+     GetThreadContext()->IncrementFocusRevision();
++    // Kotori: 同じアプリの中で入力欄を移ったときも、最後に使った入力モードに合わせる。
++    // 入力欄ごとに IME の状態を持つアプリ(IMM32 の入力コンテキスト)は、新しい欄で
++    // オフに戻すため(カード 84)。
++    KotoriOnFocusEvent();
+     OnDocumentMgrChanged(focused);
+     return S_OK;
+   }
+@@ -729,6 +742,8 @@ class TipTextServiceImpl
    // ITfThreadFocusSink
    STDMETHODIMP OnSetThreadFocus() override {
      EnsureKanaLockUnlocked();
 +    // Kotori: アプリを切り替えたら、最後に使った入力モードに合わせる(カード 84)。
-+    KotoriApplySharedInputMode();
++    KotoriOnFocusEvent();
  
      // A temporary workaround for b/24793812.  When previous attempt to
      // establish conection failed, retry again as if this was the first attempt.
-@@ -804,6 +812,7 @@ class TipTextServiceImpl
+@@ -804,6 +819,7 @@ class TipTextServiceImpl
        eaten = &dummy_eaten;
      }
      *eaten = FALSE;
@@ -54051,7 +54786,7 @@ index beaef1a55..2b1fd63f8 100644
      return TipKeyeventHandler::OnKeyDown(this, context, wparam, lparam, eaten);
    }
    STDMETHODIMP OnKeyUp(ITfContext* context, WPARAM wparam, LPARAM lparam,
-@@ -813,6 +822,7 @@ class TipTextServiceImpl
+@@ -813,6 +829,7 @@ class TipTextServiceImpl
        eaten = &dummy_eaten;
      }
      *eaten = FALSE;
@@ -54059,7 +54794,7 @@ index beaef1a55..2b1fd63f8 100644
      return TipKeyeventHandler::OnKeyUp(this, context, wparam, lparam, eaten);
    }
    STDMETHODIMP OnPreservedKey(ITfContext* context, REFGUID guid,
-@@ -827,6 +837,7 @@ class TipTextServiceImpl
+@@ -827,6 +844,7 @@ class TipTextServiceImpl
      if (it == preserved_key_map_.end()) {
        return result;
      }
@@ -54067,18 +54802,18 @@ index beaef1a55..2b1fd63f8 100644
      const UINT vk = it->second;
      const UINT alt_down = (::GetKeyState(VK_MENU) & 0x8000) != 0 ? 1 : 0;
      const UINT scan_code = ::MapVirtualKey(VK_F10, 0);
-@@ -892,8 +903,10 @@ class TipTextServiceImpl
+@@ -892,8 +910,10 @@ class TipTextServiceImpl
      }
  
      if (::IsEqualGUID(guid, GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION)) {
-+      KotoriPublishInputMode();
++      KotoriOnModeCompartmentChanged(/*open_close=*/false);
        TipEditSession::OnModeChangedAsync(this);
      } else if (::IsEqualGUID(guid, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)) {
-+      KotoriPublishInputMode();
++      KotoriOnModeCompartmentChanged(/*open_close=*/true);
        TipEditSession::OnOpenCloseChangedAsync(this);
      }
      return S_OK;
-@@ -901,6 +914,7 @@ class TipTextServiceImpl
+@@ -901,6 +921,7 @@ class TipTextServiceImpl
  
    // TipLangBarCallback
    STDMETHODIMP OnMenuSelect(ItemId menu_id) override {
@@ -54086,7 +54821,7 @@ index beaef1a55..2b1fd63f8 100644
      switch (menu_id) {
        case TipLangBarCallback::kDirect:
        case TipLangBarCallback::kHiragana:
-@@ -924,6 +938,7 @@ class TipTextServiceImpl
+@@ -924,6 +945,7 @@ class TipTextServiceImpl
      }
    }
    STDMETHODIMP OnItemClick(const wchar_t* description) override {
@@ -54094,7 +54829,7 @@ index beaef1a55..2b1fd63f8 100644
      // Change input mode to be consistent with MSIME 2012 on Windows 8.
      const bool open =
          thread_context_->GetInputModeManager()->GetEffectiveOpenClose();
-@@ -973,6 +988,44 @@ class TipTextServiceImpl
+@@ -973,6 +995,44 @@ class TipTextServiceImpl
      PostMessageW(task_window_handle_, kUpdateUIMessage, 0, 0);
    }
  
@@ -54139,7 +54874,7 @@ index beaef1a55..2b1fd63f8 100644
    void UpdateLangbar(bool enabled, uint32_t mozc_mode) override {
      langbar_.UpdateMenu(enabled, mozc_mode);
    }
-@@ -1002,6 +1055,84 @@ class TipTextServiceImpl
+@@ -1002,6 +1062,196 @@ class TipTextServiceImpl
      return static_cast<TipTextServiceImpl*>(::TlsGetValue(g_tls_index));
    }
  
@@ -54160,41 +54895,128 @@ index beaef1a55..2b1fd63f8 100644
 +           ::GetWindowThreadProcessId(window, nullptr) == ::GetCurrentThreadId();
 +  }
 +
++  // IME の切り替えキーが押されているか。日本語キーボードの 半角/全角 は Windows が
++  // ホットキーとして処理し、TIP を通さずに compartment を書く。その処理はキーのメッセージの
++  // 中で起きるので、このスレッドのキーの状態で見分ける。
++  static bool KotoriToggleKeyDown() {
++    // Windows が IME の切り替えとして扱うキーだけを見る。英数・カタカナ/ひらがな・変換などは
++    // TIP が処理する(written_by_tip で分かる)うえ、離した通知が来ずに押されたままに見える
++    // ことがある(2026-11-10 の実機でカタカナ/ひらがなキー)。
++    constexpr int kToggleKeys[] = {
++        VK_KANJI, VK_DBE_SBCSCHAR, VK_DBE_DBCSCHAR, VK_IME_ON, VK_IME_OFF,
++    };
++    for (const int key : kToggleKeys) {
++      if ((::GetKeyState(key) & 0x8000) != 0) {
++        return true;
++      }
++    }
++    // Alt+`(英語キーボードの IME の切り替え)。
++    return (::GetKeyState(VK_MENU) & 0x8000) != 0 &&
++           (::GetKeyState(VK_OEM_3) & 0x8000) != 0;
++  }
++
 +  // 利用者の操作(キー、タスクバーの入力モード)を受けた時刻を覚える。
 +  void KotoriMarkUserAction() { kotori_last_user_action_ = ::GetTickCount64(); }
 +
-+  // このスレッドで変わったオン/オフと変換モードを共有の値に書く。利用者がキーやタスクバーで
-+  // 切り替えた直後だけ書き、アプリや窓が自分で変えたモード(インストーラーの画面が IME を
-+  // 切る、など)は共有しない。入力の種類(パスワード欄など)で強制されている間も書かない。
-+  void KotoriPublishInputMode() {
-+    constexpr ULONGLONG kUserActionWindowMs = 1000;
-+    if (!thread_mgr_ || !KotoriShareInputModeEnabled() ||
-+        !KotoriHasKeyboardFocus() ||
-+        ::GetTickCount64() - kotori_last_user_action_ > kUserActionWindowMs) {
++  // このスレッドの今のオン/オフと変換モード。
++  std::optional<TipSharedInputMode> KotoriCurrentInputMode() {
++    DWORD native_mode = 0;
++    if (!TipStatus::GetInputModeConversion(thread_mgr_.get(), client_id_,
++                                           &native_mode)) {
++      return std::nullopt;
++    }
++    TipSharedInputMode mode;
++    mode.open = TipStatus::IsOpen(thread_mgr_.get());
++    mode.conversion_mode = native_mode;
++    return mode;
++  }
++
++  // フォーカスのある入力欄がパスワード欄か。
++  bool KotoriFocusedPasswordField() {
++    wil::com_ptr_nothrow<ITfDocumentMgr> document_mgr;
++    if (FAILED(thread_mgr_->GetFocus(&document_mgr)) || !document_mgr) {
++      return false;
++    }
++    wil::com_ptr_nothrow<ITfContext> context;
++    if (FAILED(document_mgr->GetBase(&context)) || !context) {
++      return false;
++    }
++    const TipPrivateContext* private_context = GetPrivateContext(context.get());
++    return private_context != nullptr && private_context->password_field();
++  }
++
++  // アプリの起動・切り替え、入力欄の移動。共有の値を当てはめ、直後に OS やアプリが新しい
++  // 窓・欄の既定値(オフ)で上書きしたら戻せるように時刻を覚える。
++  void KotoriOnFocusEvent() {
++    kotori_last_focus_event_ = ::GetTickCount64();
++    kotori_restores_since_focus_ = 0;
++    KotoriApplySharedInputMode();
++  }
++
++  // スレッドのオン/オフか変換モードが変わった。利用者が TIP で選んだモードなら全体の値に書き、
++  // フォーカスの変化の直後にアプリや OS が変えたのなら全体の値に戻す。それ以外(アプリが入力中に
++  // 自分で変えたモード)はその場だけのものとし、全体の値は変えない。
++  void KotoriOnModeCompartmentChanged(bool open_close) {
++    if (!thread_mgr_ || kotori_applying_shared_mode_ ||
++        !KotoriShareInputModeEnabled()) {
++      return;
++    }
++    const std::optional<TipSharedInputMode> current = KotoriCurrentInputMode();
++    if (!current.has_value()) {
 +      return;
 +    }
 +    const TipInputModeManager* manager =
 +        GetThreadContext()->GetInputModeManager();
-+    if (manager->GetEffectiveOpenClose() != manager->GetTsfOpenClose() ||
++    const ULONGLONG now = ::GetTickCount64();
++    TipModeChange change;
++    change.written_by_tip =
++        open_close
++            ? TipStatus::IsOpenCloseWrittenByTip(current->open)
++            : TipStatus::IsConversionModeWrittenByTip(current->conversion_mode);
++    change.toggle_key_down = KotoriToggleKeyDown();
++    change.ms_since_user_action = now - kotori_last_user_action_;
++    change.has_keyboard_focus = KotoriHasKeyboardFocus();
++    change.overridden_by_input_scope =
++        manager->GetEffectiveOpenClose() != manager->GetTsfOpenClose() ||
 +        manager->GetEffectiveConversionMode() !=
-+            manager->GetTsfConversionMode()) {
++            manager->GetTsfConversionMode();
++    change.password_field = KotoriFocusedPasswordField();
++    change.ms_since_focus_event = now - kotori_last_focus_event_;
++    change.restores_since_focus_event = kotori_restores_since_focus_;
++
++    const std::optional<TipSharedInputMode> shared =
++        TipStatus::GetSharedInputMode(thread_mgr_.get());
++    if (ShouldPublishSharedInputMode(change)) {
++      if (shared != current) {
++        TipStatus::SetSharedInputMode(thread_mgr_.get(), client_id_, *current);
++      }
++      TipStatus::SetSharedModeDecision(
++          thread_mgr_.get(), client_id_,
++          EncodeSharedModeDecision(change, /*published=*/true,
++                                   /*restored=*/false));
 +      return;
 +    }
-+    DWORD native_mode = 0;
-+    if (!TipStatus::GetInputModeConversion(thread_mgr_.get(), client_id_,
-+                                           &native_mode)) {
-+      return;
++    const bool restore =
++        shared.has_value() &&
++        ShouldRestoreSharedInputMode(change, *current, *shared);
++    TipStatus::SetSharedModeDecision(
++        thread_mgr_.get(), client_id_,
++        EncodeSharedModeDecision(change, /*published=*/false, restore));
++    if (restore) {
++      ++kotori_restores_since_focus_;
++      // compartment の変更通知の中で同じ compartment を書き直さず、メッセージループに
++      // 戻ってから当てはめる。
++      ::SetTimer(nullptr, 0, 0, &TipTextServiceImpl::KotoriRestoreTimerProc);
 +    }
-+    const bool open = TipStatus::IsOpen(thread_mgr_.get());
-+    bool shared_open = false;
-+    DWORD shared_mode = 0;
-+    if (TipStatus::GetSharedInputMode(thread_mgr_.get(), &shared_open,
-+                                      &shared_mode) &&
-+        shared_open == open && shared_mode == native_mode) {
-+      return;
++  }
++
++  static void CALLBACK KotoriRestoreTimerProc(HWND window, UINT message,
++                                              UINT_PTR id, DWORD time) {
++    ::KillTimer(nullptr, id);
++    TipTextServiceImpl* self = Self();
++    if (self != nullptr) {
++      self->KotoriApplySharedInputMode();
 +    }
-+    TipStatus::SetSharedInputMode(thread_mgr_.get(), client_id_, open,
-+                                  native_mode);
 +  }
 +
 +  // 共有の値をこのスレッドの compartment に書く。compartment の変化は OnChange から
@@ -54203,28 +55025,53 @@ index beaef1a55..2b1fd63f8 100644
 +    if (!thread_mgr_ || !KotoriShareInputModeEnabled()) {
 +      return;
 +    }
-+    bool shared_open = false;
-+    DWORD shared_mode = 0;
-+    if (!TipStatus::GetSharedInputMode(thread_mgr_.get(), &shared_open,
-+                                       &shared_mode)) {
++    const std::optional<TipSharedInputMode> shared =
++        TipStatus::GetSharedInputMode(thread_mgr_.get());
++    if (!shared.has_value()) {
 +      return;
 +    }
++    TipStatus::ScopedSharedModeApply scoped_apply;
++    kotori_applying_shared_mode_ = true;
 +    DWORD native_mode = 0;
 +    if (TipStatus::GetInputModeConversion(thread_mgr_.get(), client_id_,
 +                                          &native_mode) &&
-+        native_mode != shared_mode) {
++        native_mode != shared->conversion_mode) {
 +      TipStatus::SetInputModeConversion(thread_mgr_.get(), client_id_,
-+                                        shared_mode);
++                                        shared->conversion_mode);
 +    }
-+    if (TipStatus::IsOpen(thread_mgr_.get()) != shared_open) {
-+      TipStatus::SetIMEOpen(thread_mgr_.get(), client_id_, shared_open);
++    if (TipStatus::IsOpen(thread_mgr_.get()) != shared->open) {
++      TipStatus::SetIMEOpen(thread_mgr_.get(), client_id_, shared->open);
 +    }
++    KotoriSyncImmContext(*shared);
++    kotori_applying_shared_mode_ = false;
++  }
++
++  // IMM32 の入力コンテキストを持つ窓(多くのデスクトップアプリ)では、IMM 側の状態も合わせる。
++  // TSF の compartment だけを書くと、Windows が 半角/全角 を処理するときに IMM 側に残った古い
++  // 値から切り替えるため、窓を移った後の最初の何回かは押しても変わらなかった(2026-11-11 の実機。
++  // 普通の文字を 1 つ打つと直った)。値が同じでも書き、IMM 側を TSF にそろえる。
++  static void KotoriSyncImmContext(const TipSharedInputMode& mode) {
++    const HWND focus = ::GetFocus();
++    if (focus == nullptr) {
++      return;
++    }
++    const HIMC himc = ::ImmGetContext(focus);
++    if (himc == nullptr) {
++      return;
++    }
++    DWORD conversion = 0;
++    DWORD sentence = 0;
++    if (::ImmGetConversionStatus(himc, &conversion, &sentence)) {
++      ::ImmSetConversionStatus(himc, mode.conversion_mode, sentence);
++    }
++    ::ImmSetOpenStatus(himc, mode.open ? TRUE : FALSE);
++    ::ImmReleaseContext(focus, himc);
 +  }
 +
    HRESULT OnDocumentMgrChanged(ITfDocumentMgr* document_mgr) {
      // nullptr document is not an error.
      if (document_mgr != nullptr) {
-@@ -1332,6 +1463,7 @@ class TipTextServiceImpl
+@@ -1332,6 +1582,7 @@ class TipTextServiceImpl
      if (!::IsWindow(task_window_handle_)) {
        return S_FALSE;
      }
@@ -54232,7 +55079,7 @@ index beaef1a55..2b1fd63f8 100644
      ::DestroyWindow(task_window_handle_);
      task_window_handle_ = nullptr;
      return S_OK;
-@@ -1349,6 +1481,10 @@ class TipTextServiceImpl
+@@ -1349,6 +1600,10 @@ class TipTextServiceImpl
          self->OnUpdateUI();
          return 0;
        }
@@ -54243,17 +55090,22 @@ index beaef1a55..2b1fd63f8 100644
      }
      return ::DefWindowProcW(window_handle, message, wparam, lparam);
    }
-@@ -1452,6 +1588,9 @@ class TipTextServiceImpl
+@@ -1452,6 +1707,14 @@ class TipTextServiceImpl
    // Stores the flag passed to ActivateEx.
    DWORD activate_flags_;
  
 +  // Kotori: 利用者がキーやタスクバーで操作した時刻(GetTickCount64。カード 84)。
 +  ULONGLONG kotori_last_user_action_ = 0;
++  // Kotori: 最後にフォーカスが変わった時刻と、その後に共有の値へ戻した回数。
++  ULONGLONG kotori_last_focus_event_ = 0;
++  int kotori_restores_since_focus_ = 0;
++  // Kotori: 共有の値を当てはめている間(その変更通知では書きも戻しもしない)。
++  bool kotori_applying_shared_mode_ = false;
 +
    // Represents the cookie ID for the thread manager.
    DWORD thread_mgr_cookie_;
  
-@@ -1481,6 +1620,8 @@ class TipTextServiceImpl
+@@ -1481,6 +1744,8 @@ class TipTextServiceImpl
    PreservedKeyMap preserved_key_map_;
    std::unique_ptr<TipThreadContext> thread_context_;
    HWND task_window_handle_;

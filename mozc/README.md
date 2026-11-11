@@ -92,6 +92,8 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `KOTORI_ZENZ_MODEL`、`KOTORI_LLM_MODEL` | zenz / LLM のモデルのパス |
 | `KOTORI_MODEL_DIR`、`KOTORI_RUNTIME_DIR` | モデルのフォルダ、llama.cpp の DLL のフォルダ(既定は mozc_server と同じ所) |
 | `KOTORI_LM_DEVICE=cpu` | GPU を使わない(ノート PC の再現、docs/adr/0024) |
+| `KOTORI_LM_CUDA=0` | CUDA の追加パッケージ(インストール先の `cuda\`)があっても読まず、Vulkan で動かす(比べるため、docs/adr/0088) |
+| `KOTORI_LM_FIXED_BATCH=N` | 生成への呼び出しを N トークンにそろえる。既定は CUDA のとき 8、それ以外は 0(そろえない。docs/adr/0088) |
 | `KOTORI_LM_PRELOAD=0` | 起動時に裏で読み込まず、要求の中で読み込む(評価。状態のファイルも書かない) |
 | `KOTORI_LM_BEAMS`、`KOTORI_LM_LLM_TOP`、`KOTORI_LM_K`、`KOTORI_LM_NSENT` | 生成する文の数、LLM で採点する数、文節ごとに並べ替える数、ラティスの文全体の候補の数 |
 | `KOTORI_LM_LLM_WEIGHT`、`KOTORI_LM_WEIGHTS`、`KOTORI_LM_GEN_PENALTY`、`KOTORI_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 1.2。前文なしでzenz得点が過半なら最大0.7)と、生成した文の減点(LLMの有無によらず0.5) |

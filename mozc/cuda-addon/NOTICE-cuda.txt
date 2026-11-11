@@ -1,0 +1,13 @@
+Asteria日本語入力 NVIDIA 高速化(CUDA)に含まれるもの
+
+■ llama.cpp / ggml b11259(ggml-cuda.dll)
+  MIT License。Copyright (c) 2023-2026 The ggml authors
+  https://github.com/ggml-org/llama.cpp (llama-b11259-bin-win-cuda-13.4-x64.zip をそのまま使っています)
+
+■ NVIDIA CUDA ランタイム(cudart64_13.dll)、cuBLAS(cublas64_13.dll、cublasLt64_13.dll)
+  NVIDIA Corporation の CUDA Toolkit End User License Agreement で再配布が認められた部品です。
+  https://docs.nvidia.com/cuda/eula/index.html
+  (llama.cpp の公式配布物 cudart-llama-bin-win-cuda-13.4-x64.zip をそのまま使っています)
+  これらの部品の著作権は NVIDIA Corporation にあります。逆アセンブルや改変はできません。
+
+このパッケージは、Asteria日本語入力の本体と同じ llama.cpp の版(b11259)にだけ使えます。
