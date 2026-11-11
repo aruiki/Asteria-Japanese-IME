@@ -281,14 +281,14 @@ sealed partial class Acceptance : Form {
                 "Password host accepted composition instead of literal ASCII keys");
         Convert(a, "nihonngo", "日本語");
       });
-      Check("password_scope_ime_on_not_learned", row => {
+      Check("scoped_field_not_counted", row => {
         // IS_PASSWORD の欄で日本語入力をオンにして変換・確定しても、使用量(学習)を増やさない。
         // 先に普通の欄で数が増えることを見て、増えないことが記録の止まりによると確かめる。
         // 固定の旧 MSI(使用量の記録より前)の検査では installer_smoke.py が飛ばすよう指示する。
         if (Environment.GetEnvironmentVariable("KOTORI_ACCEPTANCE_SKIP_PASSWORD_LEARNING") == "legacy-candidate") {
           row["skipped"] = "legacy candidate MSI predates usage counting";
-          report["password_scope_learning_verified"] = false;
-          report["password_scope_learning_skipped"] = true;
+          report["scoped_field_verified"] = false;
+          report["scoped_field_skipped"] = true;
           return;
         }
         int before = Conversions(); Convert(a, "nihonngo", "日本語");
@@ -304,7 +304,7 @@ sealed partial class Acceptance : Form {
         Press(0x20); Thread.Sleep(1500); Press(0x0D); Thread.Sleep(3000);
         row["scoped_text"] = TextOf(s); row["usage_after_password"] = Conversions();
         Require(Conversions() == ordinary, "Usage counted a conversion in the IS_PASSWORD field");
-        report["password_scope_learning_verified"] = true;
+        report["scoped_field_verified"] = true;
       });
       Require(checks.Count == 9, "Incomplete acceptance suite");
       if (duplicateStress) RunDuplicateStress();

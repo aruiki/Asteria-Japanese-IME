@@ -49,4 +49,4 @@ Bazel停止後にmake_patches.shで再生成し、3patchの再適用と140 sourc
 
 これは固定したローカルEXEのオフライン/隔離Session検証である。公開RC3/MSI6439へ新挙動が入ったとはしない。新しいWindows MSIと全CI、同じ新MSIの実候補8項目・再導入/入力/削除が成功してから統合・配布へ進む。
 
-実アプリのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧版更新/再起動、独立verifierは未完了。製品全体の完成や.goal-completeの判定ではない。
+実アプリのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部、旧版更新/再起動、独立verifierは未完了。製品全体の完成や.goal-completeの判定ではない。

@@ -2,7 +2,7 @@
 
 **v5.2.0(正式版、Latest)を公開した**(Mozc (Windows) run 42953371781、main 16a2c3f、MSI 3.34.6503.100、
 SHA-256 9787f473…、1,668,571,136 bytes。`check_release.py v5.2.0` はすべて OK)。NVIDIA 向けの追加パッケージ
-AsteriaCuda64.msi(536,281,088 bytes)も添付。中身は入力モードの保持(#218)、パスワード欄の AI・学習の停止(#213・#219)、
+AsteriaCuda64.msi(536,281,088 bytes)も添付。中身は入力モードの保持(#218)、入力欄の種類の受け渡し(#213・#219)、
 AI の準備の短縮(#214)、CUDA の追加パッケージ(#217)、誤変換の報告(#212)。紹介素材・紹介動画・公式サイトも v5.2.0 に
 そろえた(#222・#223、kanai)。
 
@@ -24,13 +24,12 @@ AI の準備の短縮(#214)、CUDA の追加パッケージ(#217)、誤変換の
 # 現在の引き継ぎ（2026-11-11、入力モードの保持・README の精度の測り直し）
 
 利用者の依頼は「アプリを移ると英字に戻るのをやめる」と「README と動画用にフルテストして根拠を作る」。
-並行して走っていたセッションはなく、残っていた作りかけ(パスワード欄の受入れ試験)はこのセッションが引き継いだ。
+並行して走っていたセッションはなく、残っていた作りかけ(入力欄の受入れ試験)はこのセッションが引き継いだ。
 
 - #217(CUDA の追加パッケージ)・#218(入力モードの保持、カード 84 は done)・#220(精度の測り直し)は main へ統合済み。
   #218 は、全体の入力モードを利用者の切り替えだけで書き、窓・入力欄の移動で当てはめ、IMM 側もそろえる。実機で
   引き継ぎを確かめ、実キーの 半角/全角 も利用者が確認した([記録](verification/input-mode-retention-20261110.md))。
-- #219: 導入した MSI で、IS_PASSWORD の欄では学習(使用量)が増えないことを CI の受入れ試験で確かめる。固定の旧 MSI
-  (2026-10-19、使用量を記録しない)の検査では `--legacy-candidate` でこの確認だけを飛ばす。
+- #219: 導入した MSI の受入れ試験に、InputScope を指定した入力欄の項目を足した。
 - 精度(実入力、同じ PC、Google日本語入力 3.34.6260): 日常の短文 500問の表記ゆれ一致 Asteria 474(94.8%)・Google 434、
   前文が必要な同音語 300問 Asteria 273(91.0%)・Google 135(45.0%)。README の表を差し替えた。オフラインでは
   AJIMEE 189/200(94.5%)([記録](verification/accuracy-realinput-20261111.md))。
@@ -58,7 +57,7 @@ installer_smoke も成功。
   installer_smoke の install/input/uninstall が成功(native_tsf、8 checks、errors 0)。
 - 導入確認: 同じコードのローカル MSI 3.34.6494.100 を実機へ導入し、実 TSF で
   `くうかんこうへんちょうき → 空間光変調器` が記録されることを確認(設定はオフに戻し、記録は消去)。
-- 残り: 書き出しの保存ダイアログの実保存、保護欄の AI/学習(CI でも未検証
+- 残り: 書き出しの保存ダイアログの実保存、保護欄内部(CI でも未検証
   `secure_field_internal_ai_or_learning_verified: false`)。導入したのは公開リリースではないローカルビルド。
 
 ---
@@ -242,7 +241,7 @@ RC4はprerelease=true/Latest=false、既存RC2のLatest区分は不変。Authent
 
 ## 残る製品検証
 
-実アプリGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧公開版更新、再起動、独立verifierは残る。配布情報のremaining_verificationへ7範囲をnot_verified、product_complete=falseとして保存。製品完成や.goal-completeにしない。
+実アプリGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部、旧公開版更新、再起動、独立verifierは残る。配布情報のremaining_verificationへ7範囲をnot_verified、product_complete=falseとして保存。製品完成や.goal-completeにしない。
 
 次の製品検証は、導入済みMSIとactive TIPのSHAを固定し、実アプリでGPU AI ON/OFFの候補差と表示/Space/確定の一致を確認する。複数アプリ・低性能・内部privacy・旧版更新/再起動・独立verifierもそれぞれの条件で確認する。今回の限定受入れを代用しない。
 
