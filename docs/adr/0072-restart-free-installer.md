@@ -2,7 +2,7 @@
 
 - 状態: 採用
 - 日付: 2026-10-24
-- 関係: docs/adr/0012(Mozc をベースにする)、docs/tasks/84-input-mode-consistency.md
+- 関係: docs/adr/0012(Mozc をベースにする)、docs/tasks/done/84-input-mode-consistency.md
 
 ## 背景
 
