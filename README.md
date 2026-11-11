@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=3.0.0">
+  <a href="https://aruiki.github.io/kanai/asteria-v3-promo.mp4?v=20261111">
     <img src="docs/images/promo-preview.gif" alt="Wordで107文字をローマ字で続けて打ち、Spaceを1回押すと「来月から始まる新しいプロジェクトの計画について部長と相談した結果…」と正しく変換される実際の録画と、Google日本語入力との比較グラフ" width="100%">
   </a>
 </p>
