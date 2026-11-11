@@ -101,6 +101,12 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   ではなく直前の IME で変換されることがあり、`GetActiveProfile` では分からない。計測の間を 20 秒ほど空け、
   Asteria の使用量(`asteria_usage.txt` の `total_conversions`)が Asteria の計測で問の数だけ増え、他の IME の計測で
   増えないことを必ず確かめる([記録](docs/verification/accuracy-realinput-20261111.md))。
+- **Claude デスクトップアプリの中から動かすと AppData が別の場所になる(2026-11-11)**: アプリは MSIX パッケージなので、
+  そのシェルから起動したプロセス(mozc_tool・計測の道具・それが起こした mozc_server)が `%USERPROFILE%\AppData\LocalLow\Asteria`
+  に書くと `AppData\Local\Packages\Claude_*\LocalCache\LocalLow\Asteria` に振り向けられ、読むときもそちらが優先される。
+  利用者の設定画面(累計 122)と自分で起動した設定画面(134)の数字が食い違い、利用者のプロファイルを「戻した」つもりの写しも
+  そちらに入った。本物のファイルを見るには、パッケージの外でプロセスを起こす
+  (`Invoke-CimMethod Win32_Process -MethodName Create` で `cmd /c copy … D:\…`)。製品の不具合と決める前に確かめる。
 - 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」。
 
 ## コーディング規約
