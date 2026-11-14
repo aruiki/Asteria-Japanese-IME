@@ -78,8 +78,10 @@ installer_smoke も成功。
   載せた(判定用の文脈の選択 225 → 228)。High は同じモデルの Q3_K_M(225 → 229)。置き場は aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF。
 - 道具: `consistency_check.py`(押し方・学習の有無で 1 番目が変わらないか)、`oracle_check.py`(外れを作る側/採点に分ける)。
   記録: docs/verification/v501-consistency-20261104.md。Mozc の作業ツリーは `~/ag16` の枝 `asteria/candidate-order`。
-- 残り: 文脈の選択の外れ 62 のうち 44 は候補にあるのに点で負けた(合わせ方の改善)。この PC の Claude アプリの入力欄で
-  前の文が IME に届いているかは未確認。Word の実入力。
+- 公開: PR #209 を統合し、v5.1.0 を stable で出す(配布名 Asteria-5.1.0-x64.msi と同じ中身の Asteria64.msi。Kotori64.msi は
+  やめた)。前の文が IME に届くことを Edge で確かめた(`browser_context_probe.py`)。設定画面の操作は `settings_ui_probe.py`。
+- 残り: 文脈の選択の外れ 62 のうち 44 は候補にあるのに点で負けた(Standard の合わせ方の改善)。Word の実入力(この PC の
+  Office はライセンス切れ)。
 
 ---
 

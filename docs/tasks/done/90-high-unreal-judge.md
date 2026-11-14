@@ -31,4 +31,5 @@ aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF@a6258e14 に元の規約の文面と一緒
 ## 完了条件
 - [x] 候補の LLM ごとの数値を docs/verification/v501-consistency-20261104.md に記録
 - [x] 表(URL・大きさ・SHA-256・VRAM・ライセンス)に足した。開発用の木で、プロファイルの models に置いて Unreal を選ぶと判定役が働く
-- [ ] 設定画面の受け取り・削除を本物の MSI で確かめる
+- [x] 設定画面の受け取り・選択・削除を、導入した MSI(3.34.6489・6491)の本物の画面で確かめた
+  (`mozc/tools/settings_ui_probe.py`)。削除後に画面が古いままになる不具合を直した
