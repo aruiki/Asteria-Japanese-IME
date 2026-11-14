@@ -49,4 +49,4 @@ check_release.py --local --previous-local（実公開RC3/MSI6439）--require-gen
 
 詳細なGPU比較は固定ローカルEXEのオフライン/隔離Session検査。同じMSIのEDIT/RichEdit受入れと区別し、導入済みTSFのGPU AI寄与を直接確認した検査とはしない。
 
-未検証: 実アプリGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧公開版更新、再起動、独立verifier。製品全体の完成や.goal-completeの判定ではない。
+未検証: 実アプリGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部、旧公開版更新、再起動、独立verifier。製品全体の完成や.goal-completeの判定ではない。

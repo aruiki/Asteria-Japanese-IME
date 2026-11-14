@@ -40,7 +40,7 @@ Windows 10 / 11・64bit向け。GPU AIはVulkan対応の専用GPU（VRAM 3 GiB�
 
 固定した開発評価の94.0%（AJIMEE Standard、前文あり188/200）はRC4の測定値で、全アプリ・全入力の正解率ではありません。今回の修正はランキング・辞書・モデルを変更していません。
 
-導入済みTSFのGPU AI ON/OFF寄与、低性能実機、保護欄内部のAI/学習、旧公開版からの更新、再起動、独立した製品完成判定は未検証です。正式版としての公開は、これらをすべて検証済みとする宣言ではありません。
+導入済みTSFのGPU AI ON/OFF寄与、低性能実機、保護欄内部、旧公開版からの更新、再起動、独立した製品完成判定は未検証です。正式版としての公開は、これらをすべて検証済みとする宣言ではありません。
 
 [紹介・使い方](https://github.com/aruiki/Asteria-Japanese-IME#readme) ／ [更新履歴](https://github.com/aruiki/Asteria-Japanese-IME/releases) ／ [不具合・誤変換を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
 
