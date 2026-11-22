@@ -216,6 +216,43 @@ jobs:
           p.write_text(s.replace(old, new, 1), encoding='utf-8', newline='\n')
           print('Updated LLVM_WIN to 23.1.6')
           PY
+      # LLVM 23.1.6 の `clang-cl -v` は 1 行目が「clang version 23.1.6 (…)」のように版の後ろにも語が続く。
+      # 固定コミットの rules_cc 0.2.17 は最後の語を版とみなすため、組み込みヘッダーの場所
+      # (lib/clang/23/include)を取り違え、llama.cpp の gguf.cpp などが「absolute path inclusion(s) found」で止まる。
+      # 上流 rules_cc 0.2.22 の修正(「Fix clang version parsing on Windows.」、上流 Mozc 1527a4cd12 が採用)と
+      # 同じ読み方を、Mozc が rules_cc に当てるパッチへ足す。
+      - name: rules_cc の clang の版の読み方を LLVM 23 に合わせる
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('mozc-src/src/bazel/rules_cc_windows_cc_configure.bzl.patch')
+          s = p.read_text(encoding='utf-8')
+          header = (
+              "--- cc/private/toolchain/windows_cc_configure.bzl\n"
+              "+++ cc/private/toolchain/windows_cc_configure.bzl\n"
+          )
+          hunk = r'''@@ -617,10 +617,10 @@ def _get_clang_version(repository_ctx, clang_cl):
+               result = repository_ctx.execute([clang_cl, "-v"])
+               first_line = result.stderr.strip().splitlines()[0].strip()
+
+          -    # The first line of stderr should look like "[vendor ]clang version X.X.X"
+          +    # The first line of stderr should look like "[vendor ]clang version X.X.X[ vendor]"
+               if result.return_code != 0 or first_line.find("clang version ") == -1:
+                   auto_configure_fail("Failed to get clang version by running \"%s -v\"" % clang_cl)
+          -    return first_line.split(" ")[-1]
+          +    return first_line[first_line.find("clang version ") + len("clang version "):].split(" ")[0]
+
+           def _get_clang_dir(repository_ctx, llvm_path, clang_version):
+               """Get the clang installation directory."""
+          '''
+          assert s.startswith(header), 'rules_cc_windows_cc_configure.bzl.patch header changed'
+          assert '@@ -920,11 +920,13 @@' in s, 'existing rules_cc hunk changed'
+          assert '_get_clang_version' not in s, 'clang version fix already present'
+          p.write_text(header + hunk + s[len(header):], encoding='utf-8', newline='\n')
+          print(p.read_text(encoding='utf-8'))
+          PY
       - uses: actions/cache@v4
         with:
           path: mozc-src/src/third_party_cache
