@@ -27509,7 +27509,7 @@ index ec0faf7e7..a75b28272 100644
  
    std::unique_ptr<config::Config> default_config;
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..774af56e8 100644
+index abbf55d68..7fc92d607 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,63 @@
@@ -27685,7 +27685,7 @@ index abbf55d68..774af56e8 100644
  
    punctuationsSettingComboBox->addItem(QString::fromUtf8("、。"));
    punctuationsSettingComboBox->addItem(QString::fromUtf8("，．"));
-@@ -152,6 +275,523 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +275,526 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -28120,6 +28120,8 @@ index abbf55d68..774af56e8 100644
 +      QString words = QString::fromUtf8("AIの状態を確かめています");
 +      if (sample->ai_state == "llm" || sample->ai_state == "zenz")
 +        words = QString::fromUtf8("いつでも使えます");
++      else if (sample->ai_state == "degraded")
++        words = QString::fromUtf8("一部のAIモデルが不足しています");
 +      else if (sample->ai_state == "loading")
 +        words = QString::fromUtf8("AIを準備しています…");
 +      else if (sample->ai_state == "sleep")
@@ -28128,10 +28130,11 @@ index abbf55d68..774af56e8 100644
 +        words = QString::fromUtf8("AIを使わずに変換しています");
 +      else if (sample->ai_state == "error")
 +        words = QString::fromUtf8("AIが動いていません（入力は続けられます）");
-+      // 使える=緑、準備中=黄、止まっている=赤、それ以外=灰の印。ハイコントラストでは色を付けない。
++      // 使える=緑、準備中・縮小動作=黄、止まっている=赤、それ以外=灰の印。ハイコントラストでは色を付けない。
 +      QString dot = "#8A8A8A";
 +      if (sample->ai_state == "llm" || sample->ai_state == "zenz") dot = "#107C10";
-+      else if (sample->ai_state == "loading" || sample->ai_state == "sleep") dot = "#C19C00";
++      else if (sample->ai_state == "loading" || sample->ai_state == "sleep" ||
++               sample->ai_state == "degraded") dot = "#C19C00";
 +      else if (sample->ai_state == "error") dot = "#C42B1C";
 +      headline->setText(
 +          KotoriHighContrast()
@@ -28209,7 +28212,7 @@ index abbf55d68..774af56e8 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +857,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +860,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -28224,7 +28227,7 @@ index abbf55d68..774af56e8 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +898,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +901,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28239,7 +28242,7 @@ index abbf55d68..774af56e8 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +951,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +954,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28289,7 +28292,7 @@ index abbf55d68..774af56e8 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -312,6 +1007,7 @@ ConfigDialog::ConfigDialog()
+@@ -312,6 +1010,7 @@ ConfigDialog::ConfigDialog()
  #endif  // __linux__
  
    GuiUtil::ReplaceWidgetLabels(this);
@@ -28297,7 +28300,7 @@ index abbf55d68..774af56e8 100644
  
    Reload();
  
-@@ -324,6 +1020,278 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1023,278 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28576,7 +28579,7 @@ index abbf55d68..774af56e8 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1351,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1354,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28604,7 +28607,7 @@ index abbf55d68..774af56e8 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1394,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1397,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28629,7 +28632,7 @@ index abbf55d68..774af56e8 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1419,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1422,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28639,7 +28642,7 @@ index abbf55d68..774af56e8 100644
    return true;
  }
  
-@@ -524,6 +1516,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1519,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28666,7 +28669,7 @@ index abbf55d68..774af56e8 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -571,6 +1583,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -571,6 +1586,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
  
    suggestionsSizeSpinBox->setValue(
        std::clamp<int>(config.suggestions_size(), 1, 9));
@@ -28675,7 +28678,7 @@ index abbf55d68..774af56e8 100644
  
    // tab5
    SetSendStatsCheckBox();
-@@ -612,6 +1626,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1629,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28699,7 +28702,7 @@ index abbf55d68..774af56e8 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -664,6 +1695,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -664,6 +1698,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
  
    config->set_suggestions_size(
        static_cast<uint32_t>(suggestionsSizeSpinBox->value()));
@@ -28708,7 +28711,7 @@ index abbf55d68..774af56e8 100644
  
    // tab5
    GetSendStatsCheckBox();
-@@ -846,6 +1879,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1882,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28833,10 +28836,10 @@ index 115c7c46b..289f7b205 100644
  }
 diff --git a/src/gui/config_dialog/kotori_dashboard_test.cc b/src/gui/config_dialog/kotori_dashboard_test.cc
 new file mode 100644
-index 000000000..a67f5b873
+index 000000000..718f6b9f5
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_dashboard_test.cc
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,440 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include <QApplication>
 +#include <QDir>
@@ -29260,6 +29263,19 @@ index 000000000..a67f5b873
 +  EXPECT_EQ(FormatKotoriAiStatus(status),
 +            "AI の状態: 動いています(変換用の AI と日本語 LLM、判定役 "
 +            "llama-3.1-swallow-8b-v0.5-q4_k_m.gguf、GPU: NVIDIA GeForce RTX 3060)。");
++}
++
++// Asteria: 品質設定に必要なモデルが欠落し縮小動作している場合は警告文を返す。
++TEST(KotoriAiStatusTextTest, ShowsWarningWhenRequiredModelsAreMissing) {
++  KotoriStatus status;
++  status["state"] = "zenz";
++  status["device"] = "NVIDIA GeForce RTX 3060";
++  status["zenz"] = "zenz-v2.5-small-q8_0.gguf";
++  status["missing"] = "genmai-310M-q8_0.gguf,tinyswallow-1.5b-q5_k_m.gguf";
++  const std::string text = FormatKotoriAiStatus(status);
++  EXPECT_NE(text.find("縮小動作中"), std::string::npos);
++  EXPECT_NE(text.find("genmai-310M-q8_0.gguf,tinyswallow-1.5b-q5_k_m.gguf"),
++            std::string::npos);
 +}
 +
 +}  // namespace
@@ -30822,10 +30838,10 @@ index 000000000..2cdcc29b1
 +}  // namespace mozc
 diff --git a/src/gui/config_dialog/kotori_settings_data.cc b/src/gui/config_dialog/kotori_settings_data.cc
 new file mode 100644
-index 000000000..fbe5ff96e
+index 000000000..6ea5615c2
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_data.cc
-@@ -0,0 +1,422 @@
+@@ -0,0 +1,430 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// 設定画面(Qt の画面と HTML の画面)が共有する、AI の状態・GPU・使い方の数字(docs/adr/0084)。
 +
@@ -30971,7 +30987,12 @@ index 000000000..fbe5ff96e
 +std::string FormatKotoriAiStatus(KotoriStatus kv) {
 +  const std::string &state = kv["state"];
 +  const std::string &device = kv["device"];
++  const std::string &missing = kv["missing"];
 +  const std::string where = device == "CPU" ? "CPU で動作" : "GPU: " + device;
++  if ((state == "llm" || state == "zenz") && !missing.empty()) {
++    return "AI の状態: 一部のモデルが見つからず縮小動作中(" + missing +
++           " が不足、" + where + ")。入れ直すと直ります。";
++  }
 +  if (state == "llm") {
 +    // Asteria: High・Unreal で判定役が動いていれば、それも書く(報告で見分けるため。カード 90)。
 +    const std::string &judge = kv["judge"];
@@ -31078,6 +31099,9 @@ index 000000000..fbe5ff96e
 +  if (active) {
 +    ai = QString::fromUtf8(FormatKotoriAiStatus(status).c_str());
 +    ai_state = value("state");
++    if ((ai_state == "llm" || ai_state == "zenz") && !value("missing").isEmpty()) {
++      ai_state = "degraded";
++    }
 +    QStringList names;
 +    if (!value("zenz").isEmpty()) names << value("zenz");
 +    if (!value("llm").isEmpty()) names << value("llm");
@@ -32907,10 +32931,10 @@ index 000000000..1913ea553
 +.recent-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
 new file mode 100644
-index 000000000..1b14842b5
+index 000000000..b95b20c3d
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.js
-@@ -0,0 +1,1397 @@
+@@ -0,0 +1,1398 @@
 +// Asteria の設定画面(docs/adr/0084)。
 +// 設定は変えたらすぐ保存する(元に戻すときは同じ所で戻す)。保存・読み込みは WebView2 の
 +// メッセージで mozc_tool の KotoriSettingsBridge に頼む。WebView2 の外(ブラウザーでの確認)では
@@ -33736,8 +33760,8 @@ index 000000000..1b14842b5
 +      const desc = row.querySelector('.row-desc:not([id="' + item.id + '"])');
 +      if (desc) desc.textContent = gpuChips().join(' ・ ');
 +      const st = state.status;
-+      // 動いていないときだけ理由の文を出し、ふだんは短い言葉にする。
-+      status.textContent = !st ? '確かめています' : st.state === 'error' ? st.ai : (STATE_WORDS[st.state] || ['確かめています'])[0];
++      // 動いていない・縮小動作中のときだけ理由の文を出し、ふだんは短い言葉にする。
++      status.textContent = !st ? '確かめています' : (st.state === 'error' || st.state === 'degraded') ? st.ai : (STATE_WORDS[st.state] || ['確かめています'])[0];
 +    };
 +    return row;
 +  }
@@ -34081,6 +34105,7 @@ index 000000000..1b14842b5
 +  const STATE_WORDS = {
 +    llm: ['いつでも使えます', 'ok'],
 +    zenz: ['いつでも使えます', 'ok'],
++    degraded: ['一部の AI モデルが不足しています', 'wait'],
 +    loading: ['AI を準備しています…', 'wait'],
 +    sleep: ['AI はひと休み中です', 'wait'],
 +    off: ['AI を使わずに変換しています', ''],
@@ -34118,8 +34143,8 @@ index 000000000..1b14842b5
 +    const [words, kind] = (s && STATE_WORDS[s.state]) || ['確かめています', ''];
 +    homeEls.state.textContent = words;
 +    homeEls.dot.className = `dot ${kind}`;
-+    // 動いていないときだけ、理由の文を出す。
-+    homeEls.ai.hidden = !(s && s.state === 'error');
++    // 動いていない・縮小動作中のときだけ、理由の文を出す。
++    homeEls.ai.hidden = !(s && (s.state === 'error' || s.state === 'degraded'));
 +    homeEls.ai.textContent = s ? s.ai : '';
 +    const chips = gpuChips();
 +    if (s && s.memoryGb !== undefined) chips.push(`メモリ ${s.memoryGb.toFixed(1)} GB`);
@@ -37553,16 +37578,17 @@ index 000000000..fb3fa7cdf
 +{"りょうしゃ", "両者", "両社", "対立、関係、主張、間、合意、比較、中立、直接、溝"},
 diff --git a/src/rewriter/kotori_context_history.cc b/src/rewriter/kotori_context_history.cc
 new file mode 100644
-index 000000000..ca4dede9e
+index 000000000..40e68df0b
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history.cc
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,357 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習(kotori_context_history.h、docs/adr/0075)。
 +
 +#include "rewriter/kotori_context_history.h"
 +
 +#include <algorithm>
++#include <cmath>
 +#include <cstdint>
 +#include <string>
 +#include <utility>
@@ -37607,6 +37633,50 @@ index 000000000..ca4dede9e
 +  return absl::StrContains(s, '\t') || absl::StrContains(s, '\n') || absl::StrContains(s, '\r');
 +}
 +
++// Asteria: 学習の半減期(30日、SPEC 8.2)と文完全一致の有効期限(90日)。
++constexpr double kDecayHalfLifeSec = 30.0 * 24.0 * 3600.0;
++constexpr int64_t kExactSentenceTtlSec = 90LL * 24 * 3600;
++constexpr size_t kMinShortExactChars = 5;
++
++bool IsSingleKanji(absl::string_view s) {
++  const std::u32string u = Util::Utf8ToUtf32(s);
++  return u.size() == 1 && IsKanji(u[0]);
++}
++
++// Asteria: text の中で needle が独立した表記として現れるバイト位置を返す。
++// needle が 1 文字の漢字(石・足など)のときは、直前・直後が漢字(石油・満足など)なら
++// 別の熟語の一部とみなして一致させない。
++size_t FindSurfaceMatch(absl::string_view text, absl::string_view needle) {
++  if (needle.empty()) return absl::string_view::npos;
++  if (!IsSingleKanji(needle)) return text.find(needle);
++  size_t pos = 0;
++  while ((pos = text.find(needle, pos)) != absl::string_view::npos) {
++    bool left_kanji = false;
++    if (pos > 0) {
++      size_t prev = pos - 1;
++      while (prev > 0 && (static_cast<unsigned char>(text[prev]) & 0xC0) == 0x80) {
++        --prev;
++      }
++      const std::u32string c = Util::Utf8ToUtf32(text.substr(prev, pos - prev));
++      left_kanji = !c.empty() && IsKanji(c.back());
++    }
++    bool right_kanji = false;
++    const size_t after = pos + needle.size();
++    if (after < text.size()) {
++      size_t next_end = after + 1;
++      while (next_end < text.size() &&
++             (static_cast<unsigned char>(text[next_end]) & 0xC0) == 0x80) {
++        ++next_end;
++      }
++      const std::u32string c = Util::Utf8ToUtf32(text.substr(after, next_end - after));
++      right_kanji = !c.empty() && IsKanji(c.front());
++    }
++    if (!left_kanji && !right_kanji) return pos;
++    pos = after;
++  }
++  return absl::string_view::npos;
++}
++
 +}  // namespace
 +
 +ContextHistory::ContextHistory(std::string path) : path_(std::move(path)) { Load(); }
@@ -37639,6 +37709,8 @@ index 000000000..ca4dede9e
 +                           absl::string_view rejected, const std::vector<std::string>& cues,
 +                           int64_t now) {
 +  if (reading.empty() || chosen.empty() || rejected.empty() || chosen == rejected) return;
++  // Asteria: 1 文字の読み(「き」「い」など)はあらゆる文の読みに部分一致してしまうため覚えない。
++  if (Util::CharsLen(reading) < 2) return;
 +  if (Unsafe(reading) || Unsafe(chosen) || Unsafe(rejected)) return;
 +  // ひらがなのまま確定した(漢字の候補を退けてひらがなを選んだ)選択は覚えない。F6 などで読みのまま
 +  // 確定することは多く、覚えると次の変換までひらがなになる(v3.0.0 の点検で見つけた)。
@@ -37674,7 +37746,8 @@ index 000000000..ca4dede9e
 +
 +bool ContextHistory::Applies(const Entry& e, absl::string_view input_reading,
 +                             absl::string_view context, absl::string_view text) const {
-+  if (e.count <= 0 || e.reading == kSentenceReading || !absl::StrContains(input_reading, e.reading)) {
++  if (e.count <= 0 || e.reading == kSentenceReading || Util::CharsLen(e.reading) < 2 ||
++      !absl::StrContains(input_reading, e.reading)) {
 +    return false;
 +  }
 +  for (const std::string& c : e.cues) {
@@ -37692,6 +37765,12 @@ index 000000000..ca4dede9e
 +void ContextHistory::LearnSentence(absl::string_view input_reading, absl::string_view context,
 +                                   const Sentence& sentence, int64_t now) {
 +  if (input_reading.empty() || sentence.keys.empty() || sentence.keys.size() != sentence.values.size()) {
++    return;
++  }
++  // Asteria: 文脈が空の短い単独語(4 文字以下・1 文節)を完全一致へ覚えると、
++  // 以降ずっと AI をバイパスして古い候補に固定されてしまうため覚えない。
++  if (context.empty() && Util::CharsLen(input_reading) < kMinShortExactChars &&
++      sentence.keys.size() <= 1) {
 +    return;
 +  }
 +  const std::string sep(1, kSentenceSeparator);
@@ -37718,11 +37797,14 @@ index 000000000..ca4dede9e
 +}
 +
 +std::optional<ContextHistory::Sentence> ContextHistory::ExactSentence(
-+    absl::string_view input_reading, absl::string_view context) const {
++    absl::string_view input_reading, absl::string_view context, int64_t now) const {
 +  absl::ReaderMutexLock lock(&mutex_);
 +  const std::string exact = ExactCue(input_reading, context);
 +  for (const Entry& e : entries_) {
 +    if (e.reading != kSentenceReading || e.count <= 0 || e.cues.empty() || e.cues.front() != exact) {
++      continue;
++    }
++    if (now > 0 && e.last > 0 && now - e.last > kExactSentenceTtlSec) {
 +      continue;
 +    }
 +    Sentence out;
@@ -37732,20 +37814,28 @@ index 000000000..ca4dede9e
 +    if (out.keys.size() != out.values.size() || absl::StrJoin(out.keys, "") != input_reading) {
 +      return std::nullopt;
 +    }
++    if (context.empty() && Util::CharsLen(input_reading) < kMinShortExactChars &&
++        out.keys.size() <= 1) {
++      return std::nullopt;
++    }
 +    return out;
 +  }
 +  return std::nullopt;
 +}
 +
 +double ContextHistory::Score(absl::string_view input_reading, absl::string_view context,
-+                             absl::string_view text) const {
++                             absl::string_view text, int64_t now) const {
 +  absl::ReaderMutexLock lock(&mutex_);
 +  double s = 0;
 +  for (const Entry& e : entries_) {
 +    if (!Applies(e, input_reading, context, text)) continue;
-+    const double w = weight_ * std::min(e.count, 3);
-+    const bool has_chosen = absl::StrContains(text, e.chosen);
-+    const bool has_rejected = absl::StrContains(text, e.rejected) && !absl::StrContains(e.chosen, e.rejected);
++    const double decay = (now > 0 && e.last > 0 && now > e.last)
++                             ? std::pow(0.5, static_cast<double>(now - e.last) / kDecayHalfLifeSec)
++                             : 1.0;
++    const double w = weight_ * std::min(e.count, 3) * decay;
++    const bool has_chosen = FindSurfaceMatch(text, e.chosen) != absl::string_view::npos;
++    const bool has_rejected = FindSurfaceMatch(text, e.rejected) != absl::string_view::npos &&
++                              !absl::StrContains(e.chosen, e.rejected);
 +    if (has_chosen) {
 +      s += w;
 +    } else if (has_rejected) {
@@ -37762,8 +37852,10 @@ index 000000000..ca4dede9e
 +  std::vector<std::string> out;
 +  for (const Entry& e : entries_) {
 +    if (!Applies(e, input_reading, context, text)) continue;
-+    const size_t at = text.find(e.rejected);
-+    if (at == absl::string_view::npos || absl::StrContains(text, e.chosen)) continue;
++    const size_t at = FindSurfaceMatch(text, e.rejected);
++    if (at == absl::string_view::npos || FindSurfaceMatch(text, e.chosen) != absl::string_view::npos) {
++      continue;
++    }
 +    std::string v(text);
 +    v.replace(at, e.rejected.size(), e.chosen);
 +    if (std::find(out.begin(), out.end(), v) == out.end()) out.push_back(std::move(v));
@@ -37849,10 +37941,10 @@ index 000000000..ca4dede9e
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_context_history.h b/src/rewriter/kotori_context_history.h
 new file mode 100644
-index 000000000..759aebe36
+index 000000000..1ed4dac29
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,109 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習(docs/adr/0075)。利用者が AI の 1 番目と違う語を選んで確定したとき、
 +// 読み・選んだ表記・退けた表記・その場の手がかりの語を PC の中に覚え、次に同じ読みと手がかりが
@@ -37901,8 +37993,9 @@ index 000000000..759aebe36
 +
 +  // input_reading(打った読み全体)と context(前の文)のもとで、文 text に足す点。手がかりの語が
 +  // context か text にある組だけを見る。選んだ表記を含めば +、退けた表記だけを含めば -。
++  // now > 0 のときは最後に学習した時刻からの経過日数で 30 日半減期の時間減衰を掛ける。
 +  double Score(absl::string_view input_reading, absl::string_view context,
-+               absl::string_view text) const;
++               absl::string_view text, int64_t now = 0) const;
 +
 +  // text に退けた表記があり、手がかりがそろう組があれば、選んだ表記に置き換えた文を返す
 +  // (AI が選んだ表記の文を作らなかったときに、採点の対象へ足すため)。
@@ -37919,7 +38012,8 @@ index 000000000..759aebe36
 +  void LearnSentence(absl::string_view input_reading, absl::string_view context,
 +                     const Sentence& sentence, int64_t now);
 +  std::optional<Sentence> ExactSentence(absl::string_view input_reading,
-+                                        absl::string_view context) const;
++                                        absl::string_view context,
++                                        int64_t now = 0) const;
 +  // LearnSentence の組の読み(打つ読みには現れない印)。Forget で取り消すときに使う。
 +  static constexpr char kSentenceReading[] = "#文";
 +  // 文の組の chosen(表記)・rejected(読み)を文節ごとに区切る文字。
@@ -37962,10 +38056,10 @@ index 000000000..759aebe36
 +#endif  // MOZC_REWRITER_KOTORI_CONTEXT_HISTORY_H_
 diff --git a/src/rewriter/kotori_context_history_test.cc b/src/rewriter/kotori_context_history_test.cc
 new file mode 100644
-index 000000000..d1b08d7cb
+index 000000000..ba58fbb01
 --- /dev/null
 +++ b/src/rewriter/kotori_context_history_test.cc
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,219 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 文脈つきの学習の流れ(docs/adr/0075)。
 +
@@ -38126,6 +38220,60 @@ index 000000000..d1b08d7cb
 +    h.Clear();
 +    EXPECT_FALSE(h.ExactSentence(reading, "").has_value());
 +  }
++}
++
++// Asteria: 30 日半減期の時間減衰と既定データ(last=0)の非減衰。
++TEST(ContextHistoryTest, TimeDecayHalvesWeightEvery30Days) {
++  ContextHistory h("");
++  h.set_weight(2.0);
++  const int64_t t0 = 1700000000;
++  const int64_t k30Days = 30LL * 24 * 3600;
++  h.Learn("はかる", "計る", "測る", {"時間"}, t0);
++  EXPECT_NEAR(h.Score("はかる", "時間", "計る", t0), 2.0, 1e-6);
++  EXPECT_NEAR(h.Score("はかる", "時間", "計る", t0 + k30Days), 1.0, 1e-6);
++  EXPECT_NEAR(h.Score("はかる", "時間", "計る", t0 + 2 * k30Days), 0.5, 1e-6);
++  // 既定データ(AddDefault、last=0)は時間経過で減衰しない。
++  ContextHistory defaults("");
++  defaults.set_weight(1.0);
++  defaults.AddDefault("はかる", "計る", "測る", "時間");
++  EXPECT_DOUBLE_EQ(defaults.Score("はかる", "時間", "計る", t0 + 10 * k30Days), 1.0);
++}
++
++// Asteria: 1 文字漢字の表記は別の漢字熟語の中で誤発火しない。
++TEST(ContextHistoryTest, SingleKanjiSurfaceRespectsKanjiBoundaries) {
++  ContextHistory h("");
++  h.Learn("いし", "石", "医師", {"河原"}, 1);
++  EXPECT_GT(h.Score("かわらでいしをひろう", "", "河原で石を拾う"), 0);
++  // 「石油」「磁石」の中の「石」には反応しない。
++  EXPECT_EQ(h.Score("かわらのいしきせきゆ", "", "河原の意識石油"), 0);
++  EXPECT_EQ(h.Score("かわらのじしゃくいし", "", "河原の磁石医師"), -2.0);
++  // 2 文字熟語は複合語の中でも一致する。
++  h.Learn("いどう", "異動", "移動", {"人事"}, 1);
++  EXPECT_GT(h.Score("じんじいどう", "", "人事異動"), 0);
++}
++
++// Asteria: 1 文字の読みは部分一致で暴発するため覚えない。
++TEST(ContextHistoryTest, RejectsSingleCharReading) {
++  ContextHistory h("");
++  h.Learn("き", "木", "気", {"公園"}, 1);
++  EXPECT_EQ(h.size(), 0);
++}
++
++// Asteria: 文脈が空の短い単独語は完全一致へ覚えず、長文完全一致も 90 日で期限切れになる。
++TEST(ContextHistoryTest, ExactSentenceSkipsShortContextlessAndExpiresAfter90Days) {
++  ContextHistory h("");
++  const int64_t t0 = 1700000000;
++  const int64_t k91Days = 91LL * 24 * 3600;
++  // 空文脈の短い 1 文節(4 文字以下)は覚えない。
++  h.LearnSentence("いし", "", {{"いし"}, {"石"}}, t0);
++  EXPECT_FALSE(h.ExactSentence("いし", "", t0).has_value());
++  h.LearnSentence("こうせい", "", {{"こうせい"}, {"校正"}}, t0);
++  EXPECT_FALSE(h.ExactSentence("こうせい", "", t0).has_value());
++  // 文脈があれば短くても覚える。
++  h.LearnSentence("いし", "河原で拾った", {{"いし"}, {"石"}}, t0);
++  ASSERT_TRUE(h.ExactSentence("いし", "河原で拾った", t0).has_value());
++  // 90 日を超えると期限切れで返さない。
++  EXPECT_FALSE(h.ExactSentence("いし", "河原で拾った", t0 + k91Days).has_value());
 +}
 +
 +}  // namespace
@@ -41357,10 +41505,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..2f67a8cd9
+index 000000000..2a2c61ffd
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5091 @@
+@@ -0,0 +1,5144 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -41622,8 +41770,7 @@ index 000000000..2f67a8cd9
 +}
 +
 +std::string Tail(const std::string& s) {
-+  return s.size() > kMaxContextBytes ? s.substr(s.size() - kMaxContextBytes)
-+                                     : s;
++  return kotori_internal::Utf8Tail(s, kMaxContextBytes);
 +}
 +
 +std::string ConversionReading(const Segments& segments);
@@ -42474,6 +42621,49 @@ index 000000000..2f67a8cd9
 +}
 +
 +
++std::string Utf8Tail(absl::string_view s, size_t max_bytes) {
++  if (s.size() <= max_bytes) return std::string(s);
++  size_t start = s.size() - max_bytes;
++  // UTF-8 の継続バイト(10xxxxxx)の途中から切らないよう、次の先頭バイトまで進める。
++  while (start < s.size() &&
++         (static_cast<unsigned char>(s[start]) & 0xC0) == 0x80) {
++    ++start;
++  }
++  return std::string(s.substr(start));
++}
++
++size_t ApplyJudgeScores(const std::vector<size_t>& close,
++                        const std::vector<float>& judged, double judge_weight,
++                        size_t top, std::vector<double>* joint_scores) {
++  if (joint_scores == nullptr || close.empty() || judged.size() != close.size() ||
++      top >= joint_scores->size()) {
++    return top;
++  }
++  size_t best_index = top;
++  double best_raw = -std::numeric_limits<double>::infinity();
++  std::optional<double> old_top_raw;
++  std::vector<double> raw(close.size(), -std::numeric_limits<double>::infinity());
++  for (size_t j = 0; j < close.size(); ++j) {
++    const size_t idx = close[j];
++    if (idx >= joint_scores->size() || !std::isfinite((*joint_scores)[idx]) ||
++        !std::isfinite(judged[j])) {
++      continue;
++    }
++    raw[j] = (*joint_scores)[idx] + judge_weight * judged[j];
++    if (idx == top) old_top_raw = raw[j];
++    if (raw[j] > best_raw) {
++      best_raw = raw[j];
++      best_index = idx;
++    }
++  }
++  if (!old_top_raw.has_value() || !std::isfinite(best_raw)) return top;
++  const double offset = (*joint_scores)[top] - *old_top_raw;
++  for (size_t j = 0; j < close.size(); ++j) {
++    if (std::isfinite(raw[j])) (*joint_scores)[close[j]] = raw[j] + offset;
++  }
++  return best_index;
++}
++
 +void DiffSpans(absl::string_view a, absl::string_view b, std::string* x, std::string* y) {
 +  const std::u32string s = Util::Utf8ToUtf32(a), t = Util::Utf8ToUtf32(b);
 +  size_t head = 0;
@@ -43264,6 +43454,8 @@ index 000000000..2f67a8cd9
 +  if (llm_ != nullptr) line("llm", base(llm_path_));
 +  // Asteria: High・Unreal の判定役(カード 90)。報告の「AI の状態」で、判定役が動いているかを見分ける。
 +  if (judge_ != nullptr) line("judge", base(judge_path_));
++  // Asteria: 品質設定に対してモデルファイルが不足し縮退動作している場合、欠落ファイル名を記録する。
++  if (!missing_models_.empty()) line("missing", absl::StrJoin(missing_models_, ","));
 +  // Kotori: 状態と計算量のみ。入力文・読み・文脈は記録しない。
 +  line("stats", ZenzScorer::Stats());
 +#ifdef _WIN32
@@ -43345,6 +43537,7 @@ index 000000000..2f67a8cd9
 +    loaded_path_.clear();
 +    llm_path_.clear();
 +    extra_path_.clear();
++    missing_models_.clear();
 +    gen_cache_.reset();
 +    sleeping_ = true;
 +    WriteStatus(config, "sleep");
@@ -43425,6 +43618,7 @@ index 000000000..2f67a8cd9
 +                                   size_t* llm_top, bool for_predict,
 +                                   bool may_load, size_t reading_chars) const {
 +  *llm = nullptr;
++  missing_models_.clear();
 +  if (!config.kotori_lm_enabled()) return nullptr;
 +  LlamaAllowIntegratedGpu(config.kotori_use_integrated_gpu());
 +  // GPU のない PC(内蔵 GPU だけの PC を含む)では、品質の設定に関係なく Low にする。LLM は
@@ -43440,6 +43634,9 @@ index 000000000..2f67a8cd9
 +  if (path.empty()) {
 +    path = FileUtil::JoinPath(model_dir_, quality.model);
 +    if (!FileUtil::FileExists(path).ok()) {
++      if (std::string(quality.model) != kDefaultModelName) {
++        missing_models_.push_back(quality.model);
++      }
 +      path = FileUtil::JoinPath(model_dir_, kDefaultModelName);
 +    }
 +  }
@@ -43573,6 +43770,9 @@ index 000000000..2f67a8cd9
 +      }
 +    }
 +    if (llm_path.empty()) llm_path = FileUtil::JoinPath(model_dir_, kLlmModelName);
++    if (!llm_path.empty() && !FileUtil::FileExists(llm_path).ok()) {
++      missing_models_.push_back(FileUtil::Basename(llm_path));
++    }
 +    if (!may_load && !(llm_loaded_ && llm_path_ == llm_path)) {
 +      RequestLoad(config);
 +      return main_scorer;
@@ -43853,8 +44053,8 @@ index 000000000..2f67a8cd9
 +    sentence.values = committed;
 +    const std::string chosen = absl::StrJoin(committed, "");
 +    const std::string rejected = absl::StrJoin(best.values, "");
-+    if (!hiragana_commit && !chosen.empty() && japanese::FullWidthAsciiToHalfWidthAscii(chosen) !=
-+                               japanese::FullWidthAsciiToHalfWidthAscii(rejected)) {
++    if (!hiragana_commit && !chosen.empty() && japanese::FullWidthToHalfWidth(chosen) !=
++                               japanese::FullWidthToHalfWidth(rejected)) {
 +      if (debug) {
 +        std::fprintf(stderr, "[context_history] learn sentence %s<-%s\n", chosen.c_str(), rejected.c_str());
 +      }
@@ -43921,15 +44121,20 @@ index 000000000..2f67a8cd9
 +  // ないので、この判定は文全体の候補を見る前に行う。
 +  if (context_history_ != nullptr && LearnsContext(request)) {
 +    const std::string exact_reading = ConversionReading(segments);
-+    if (const auto exact = context_history_->ExactSentence(exact_reading, HistoryContext(request, segments))) {
++    const std::string exact_context = HistoryContext(request, segments);
++    const int64_t exact_now = absl::ToUnixSeconds(absl::Now());
++    if (const auto exact =
++            context_history_->ExactSentence(exact_reading, exact_context, exact_now)) {
 +      if (Env("KOTORI_LM_DEBUG") != nullptr) {
 +        std::fprintf(stderr, "[context_history] exact %s\n", absl::StrJoin(exact->values, "").c_str());
 +      }
-+      const std::string exact_context = HistoryContext(request, segments);
 +      Best best{exact_reading, exact_context, exact->keys, exact->values};
 +      // AI の結果と同じ道筋(覚えておいた結果を、文節を切り直した後の変換で当てはめる)で出す。
 +      StoreMemo(MemoKey(request.config(), exact_reading, exact_context), best, false, [] { return false; });
-+      best_ = best;
++      if (mutex_.TryLock()) {
++        best_ = best;
++        mutex_.Unlock();
++      }
 +      return ResizeFor(best, segments);
 +    }
 +  }
@@ -44138,7 +44343,7 @@ index 000000000..2f67a8cd9
 +                        over, &fixed)) {
 +      Best english{reading, context, {reading}, {fixed}};
 +      english.keep_ascii = true;
-+      if (!StoreMemo(MemoKey(request.config(), reading, context), english, background, over)) {
++      if (!StoreMemo(MemoKey(request.config(), reading, context), english, background, cancelled)) {
 +        return std::nullopt;
 +      }
 +      best_ = english;
@@ -44414,13 +44619,14 @@ index 000000000..2f67a8cd9
 +  // context_margin_ を超えて低い点なら、学習を使わない(AI の強い確信を古い選択で覆さない)。
 +  if (use_history) {
 +    // 学習の点は 1 番目の文からも引かれるので、学習後の点どうしで 1 番目を選び直す。
++    const int64_t history_now = absl::ToUnixSeconds(absl::Now());
 +    size_t learned_top = top;
 +    double learned_score = -std::numeric_limits<double>::infinity();
 +    std::vector<double> learned(values.size());
 +    for (size_t i = 0; i < values.size(); ++i) {
 +      learned[i] = joint_scores[i];
 +      for (const kotori::ContextHistory* h : histories) {
-+        learned[i] += h->Score(reading, context, values[i]);
++        learned[i] += h->Score(reading, context, values[i], history_now);
 +      }
 +      if (learned[i] > learned_score) {
 +        learned_top = i;
@@ -44479,20 +44685,15 @@ index 000000000..2f67a8cd9
 +      std::vector<std::string> subset;
 +      for (size_t i : close) subset.push_back(values[i]);
 +      if (const auto judged = judge_->Score(context, reading, subset)) {
-+        size_t best_index = top;
-+        double best_score = -std::numeric_limits<double>::infinity();
-+        for (size_t j = 0; j < close.size(); ++j) {
-+          const double s = joint_scores[close[j]] + judge_weight_ * (*judged)[j];
-+          if (debug) {
++        if (debug) {
++          for (size_t j = 0; j < close.size(); ++j) {
 +            std::fprintf(stderr, "[judge] %s %.2f + %.2f\n", values[close[j]].c_str(),
 +                         joint_scores[close[j]], (*judged)[j]);
 +          }
-+          if (s > best_score) {
-+            best_score = s;
-+            best_index = close[j];
-+          }
 +        }
-+        top = best_index;
++        top = kotori_internal::ApplyJudgeScores(close, *judged, judge_weight_,
++                                                top, &joint_scores);
++        top_score = joint_scores[top];
 +      }
 +    }
 +  }
@@ -44641,8 +44842,9 @@ index 000000000..2f67a8cd9
 +                 fixed.empty() ? 0 : 1);
 +  }
 +  // 今の区切りと同じなら、切り直さずに Rewrite で先頭を入れ替える。
++  // Asteria: 時間上限(over)で途中終了しても採点済みの最良文を保存し、入力変更(cancelled)のときだけ捨てる。
 +  if (!StoreMemo(MemoKey(request.config(), reading, context), best,
-+                 background, over)) return std::nullopt;
++                 background, cancelled)) return std::nullopt;
 +  best_ = best;
 +  return ResizeFor(best, segments);
 +}
@@ -46074,10 +46276,9 @@ index 000000000..2f67a8cd9
 +    }
 +    return false;
 +  }
-+  // Kotori: キーの単位・複数か所の補正(docs/adr/0074)は、手が止まった間の裏の仕事でだけ使う。
-+  // その場の変換(Space を押して待っている)では、数百 ms かかる探索で待たせないよう、
-+  // これまでどおりかなの 1 か所の書き換えだけにする。
-+  const bool keys_mode = typo_keys_ && g_background_job && !g_typo_quick;
++  // Asteria: キーの単位・複数か所の補正(docs/adr/0074)は Space 押下時も裏の仕事と同じ経路で
++  // 動かし、押す時刻による結果の食い違いを防ぐ(カード 89)。通常文は直後の関所で即座に戻る。
++  const bool keys_mode = typo_keys_ && !g_typo_quick;
 +  // 選んだ文が十分に自然なら(読み 1 文字あたりの点が typo_gate_ 以上)、試さない。打ち間違いのある
 +  // 読みの文は不自然になりやすい。ふつうの文で毎回試すと、Space が遅くなるため。
 +  const double per_char = chosen_score / std::max<size_t>(1, Util::CharsLen(reading));
@@ -46454,10 +46655,10 @@ index 000000000..2f67a8cd9
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..4f084c762
+index 000000000..d8cda8873
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,681 @@
+@@ -0,0 +1,692 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -46494,6 +46695,15 @@ index 000000000..4f084c762
 +namespace mozc {
 +
 +namespace kotori_internal {
++
++// Asteria: UTF-8 の文字境界を壊さずに末尾 max_bytes バイト以内を返す。
++std::string Utf8Tail(absl::string_view s, size_t max_bytes);
++
++// Asteria: 判定役(High・Unreal)の再採点結果を joint_scores へ相対反映し、最良候補の添字を返す。
++// 元の 1 位のスコアを基準にオフセットを合わせることで、alternatives の順位と alt_margin_ 判定を保つ。
++size_t ApplyJudgeScores(const std::vector<size_t>& close,
++                        const std::vector<float>& judged, double judge_weight,
++                        size_t top, std::vector<double>* joint_scores);
 +
 +// 元の辞書候補に近い表記を、生成候補だけで埋まった採点対象へ少数補う。
 +size_t PrefixNormalizedTop(const std::vector<std::string>& values,
@@ -46967,6 +47177,8 @@ index 000000000..4f084c762
 +  mutable std::string llm_path_ ABSL_GUARDED_BY(mutex_);
 +  mutable bool llm_loaded_ ABSL_GUARDED_BY(mutex_) = false;
 +  mutable std::unique_ptr<ZenzScorer> llm_ ABSL_GUARDED_BY(mutex_);
++  // Asteria: 設定された品質に必要なモデルが見つからず縮退動作しているときの欠落ファイル名一覧。
++  mutable std::vector<std::string> missing_models_ ABSL_GUARDED_BY(mutex_);
 +  // Asteria: High・Unreal の判定役(カード 90)。Standard の採点(genmai と LLM)はそのままにし、1 番目との点差が
 +  // judge_margin_ 以内の上位 judge_top_ 件だけを、大きな LLM で採点し直して judge_weight_ 倍を足す。
 +  // 開発では KOTORI_LM_JUDGE(ファイル)・_MARGIN・_WEIGHT・_TOP で試す。
@@ -47141,10 +47353,10 @@ index 000000000..4f084c762
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..434e88c6e
+index 000000000..0f381f84f
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1363 @@
+@@ -0,0 +1,1408 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -48505,6 +48717,51 @@ index 000000000..434e88c6e
 +  EXPECT_FALSE(CachedOnlyConversion(request, &material));
 +  EXPECT_EQ(material.kotori_ai_status(), Segments::KotoriAiStatus::kUnavailable);
 +  EXPECT_EQ(material.conversion_segment(0).candidate(0).value, "失礼医");
++}
++
++// Asteria: UTF-8 境界を壊さずに末尾を切り出す。
++TEST(LmRewriterUtilTest, Utf8TailPreservesCharacterBoundaries) {
++  EXPECT_EQ(kotori_internal::Utf8Tail("abcdef", 10), "abcdef");
++  EXPECT_EQ(kotori_internal::Utf8Tail("abcdef", 3), "def");
++  EXPECT_EQ(kotori_internal::Utf8Tail("abcdef", 0), "");
++  // 「あいうえお」は 15 バイト。末尾 7 バイトは「う」の途中を飛ばして「えお」(6 バイト)になる。
++  const std::string jp = "あいうえお";
++  const std::string cut7 = kotori_internal::Utf8Tail(jp, 7);
++  EXPECT_EQ(cut7, "えお");
++  EXPECT_TRUE(Util::IsValidUtf8(cut7));
++  EXPECT_LE(cut7.size(), 7u);
++  // ASCII + 日本語混在 + 4 バイト絵文字でも常に正しい UTF-8 を返す。
++  const std::string mixed = "a日本語テスト🌙終了";
++  for (size_t max_bytes = 0; max_bytes <= mixed.size() + 2; ++max_bytes) {
++    const std::string tail = kotori_internal::Utf8Tail(mixed, max_bytes);
++    EXPECT_TRUE(Util::IsValidUtf8(tail)) << "max_bytes=" << max_bytes;
++    EXPECT_LE(tail.size(), max_bytes);
++    EXPECT_TRUE(absl::EndsWith(mixed, tail));
++  }
++}
++
++// Asteria: 判定役の再採点結果が joint_scores へ相対反映され、新 1 位のスコアが最高になる。
++TEST(LmRewriterUtilTest, ApplyJudgeScoresUpdatesJointScoresAndTop) {
++  std::vector<double> joint = {-10.0, -11.0, -15.0};
++  const std::vector<size_t> close = {0, 1};
++  const std::vector<float> judged = {-5.0f, -2.0f};  // weight 2.0 -> diff +6.0 vs -1.0 = +5.0
++  const size_t new_top =
++      kotori_internal::ApplyJudgeScores(close, judged, 2.0, 0, &joint);
++  EXPECT_EQ(new_top, 1u);
++  EXPECT_DOUBLE_EQ(joint[0], -10.0);
++  EXPECT_DOUBLE_EQ(joint[1], -5.0);
++  EXPECT_DOUBLE_EQ(joint[2], -15.0);
++  EXPECT_GT(joint[new_top], joint[0]);
++}
++
++TEST(LmRewriterUtilTest, ApplyJudgeScoresIgnoresInvalidInputs) {
++  std::vector<double> joint = {-10.0, -11.0};
++  EXPECT_EQ(kotori_internal::ApplyJudgeScores(
++                {0, 1}, {std::numeric_limits<float>::quiet_NaN(), -1.0f}, 2.0, 0,
++                &joint),
++            0u);
++  EXPECT_DOUBLE_EQ(joint[0], -10.0);
++  EXPECT_DOUBLE_EQ(joint[1], -11.0);
 +}
 +
 +}  // namespace mozc
