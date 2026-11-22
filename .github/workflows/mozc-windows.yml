@@ -188,6 +188,34 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -X utf8 -m unittest discover -s training/lexicon -p 'test_*.py' -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # windows-2025 ランナーが Visual Studio 2026 (MSVC 14.52+) へ更新され、STL の yvals_core.h が
+      # Clang 22 以上を要求するため、固定コミットの LLVM 20.1.1 を上流 Mozc (1527a4cd12) と同じ 23.1.6 に合わせる。
+      - name: LLVM を VS 2026 (MSVC 14.52+) 対応版に合わせる
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('mozc-src/src/build_tools/update_deps.py')
+          s = p.read_text(encoding='utf-8')
+          old = (
+              "LLVM_WIN = ArchiveInfo(\n"
+              "    url='https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.1/clang+llvm-20.1.1-x86_64-pc-windows-msvc.tar.xz',\n"
+              "    size=939286624,\n"
+              "    sha256='f8114cb674317e8a303731b1f9d22bf37b8c571b64f600abe528e92275ed4ace',\n"
+              ")"
+          )
+          new = (
+              "LLVM_WIN = ArchiveInfo(\n"
+              "    url='https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/clang+llvm-23.1.6-x86_64-pc-windows-msvc.tar.xz',\n"
+              "    size=901284676,\n"
+              "    sha256='16af05919cf36958dfb4ddaa4fc4d9d4ff577f5daeb76bc112ea49cd8ced82b2',\n"
+              ")"
+          )
+          assert old in s, 'LLVM_WIN 20.1.1 block not found in update_deps.py'
+          p.write_text(s.replace(old, new, 1), encoding='utf-8', newline='\n')
+          print('Updated LLVM_WIN to 23.1.6')
+          PY
       - uses: actions/cache@v4
         with:
           path: mozc-src/src/third_party_cache
