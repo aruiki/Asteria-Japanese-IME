@@ -33,6 +33,22 @@ cd src && python build_tools/update_deps.py && python build_tools/build_qt.py --
 
 ### 1.3 ビルドと確かめ方
 
+**ふだんの 1 改善はこの 3 段で行う**(2026-11-23。手で評価のループを書かない。AGENTS.md の「はまりどころ」):
+
+```powershell
+# 1. 作業ツリー(初回だけ。google/mozc の固定コミット + 指定の版のパッチ、third_party は接合点、データはリンク)
+powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -AsteriaRef origin/main
+# 2. 変更の前と後で、converter_main と session_handler_main を名前を付けて保存する(D:\dev\bins\<名前>)
+powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -Snapshot before
+powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -Snapshot after
+# 3. 前後比較(GPU が空くのを待ち、同時に 1 つだけ流す。表と入れ替わった問と時間を summary.md に出す)
+python mozc/tools/ab_suite.py --out D:/dev/ab/<名前> --variant before D:/dev/bins/before --variant after D:/dev/bins/after
+```
+
+- `--suite wide` で中立な長い前の文・表記・打ち間違い・回帰ゴールデンまで。`--session`(`--timing immediate|gap150`)は
+  製品と同じ session の経路で、リリースの前に前の版と比べる。環境変数は変種の後ろに `KEY=値`(`MODELS=<フォルダ>` でモデルの場所)。
+- 判定用(heldout・judge)のセットは調整に使わない。`--sets` で報告のときだけ流す。
+
 Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付ける(`//` が書き換えられるため)。
 
 | やること | コマンド(`~/mz/src` で) |

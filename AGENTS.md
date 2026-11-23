@@ -107,6 +107,17 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   利用者の設定画面(累計 122)と自分で起動した設定画面(134)の数字が食い違い、利用者のプロファイルを「戻した」つもりの写しも
   そちらに入った。本物のファイルを見るには、パッケージの外でプロセスを起こす
   (`Invoke-CimMethod Win32_Process -MethodName Create` で `cmd /c copy … D:\…`)。製品の不具合と決める前に確かめる。
+- **評価は道具で流す(2026-11-23)**: 手で評価のループを書くと、`KOTORI_LM_PRELOAD=0` の付け忘れ(AI が動かず
+  前後が同じ数になる)、パスの書き間違い、`--profile` の使い回し(前の回の学習が残る)を起こした。作業ツリーとバイナリは
+  `mozc/tools/setup_mozc_tree.ps1`、前後比較は `mozc/tools/ab_suite.py`(`docs/DEVELOPMENT.md` の 1.3)。
+- **GPU の取り合いで正解数が下がる(2026-11-23)**: 別のアプリが GPU を使っている間に測ると、AI が時間内に終わらない問が出て
+  AJIMEE が 189 → 165/200 に下がった(変更のせいではない)。`ab_suite.py` は GPU の使用率を見て待ち、同時に 1 つしか流さない。
+  並行のセッションでは GPU を使う評価をしない。
+- **`converter_main` は製品の経路の一部だけ**: `eval_baseline.py`(converter_main、KOTORI_LM_PRELOAD=0)は先回りの変換・
+  入力中の取り直し・Space 直後の打ち間違いの補正を通らない。リリースの前は `ab_suite.py --session`(session_eval.py)で
+  前の版と比べる。
+- **MSI の CI の最中に push しない**: 同じ PR に文書だけの commit を push すると、40 分の MSI のビルドが最初からやり直しになる
+  (`cancel-in-progress`)。文書は push の前にまとめる。
 - 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」。
 
 ## コーディング規約
