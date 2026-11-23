@@ -41505,10 +41505,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..2a2c61ffd
+index 000000000..0ff7e8243
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5144 @@
+@@ -0,0 +1,5198 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -41733,6 +41733,17 @@ index 000000000..2a2c61ffd
 +// 汎用の LLM(TinySwallow-1.5B、Apache-2.0)。GPU 向け(docs/adr/0016)。
 +constexpr char kLlmModelName[] = "tinyswallow-1.5b-q5_k_m.gguf";
 +constexpr size_t kMaxContextBytes = 240;  // 40 文字ぶん以上
++// Asteria: 文全体の候補を LLM(TinySwallow・判定役)で採点するときだけ渡す、長い前の文(約 256 文字)。
++// 話題を決める語は 1〜2 文前にあることが多く、末尾 80 文字では届かない。覚えた結果の鍵・文脈の学習の
++// 照合・繰り返し癖の判定は従来の kMaxContextBytes のままにし、遠くの語での誤発火を増やさない。
++// zenz(genmai)へは文全体の候補の生成・採点のときだけ末尾 kZenzSentenceContextChars 文字を渡す。
++constexpr size_t kMaxLlmContextBytes = 768;
++// Asteria: 文全体の候補を zenz(genmai)で生成・採点するときの前の文の文字数(既定は 40)。
++// 長い文脈の開発セット(asteria-longcontext-dev)で、LLM だけ長くすると 27 → 32/52、zenz も 120 文字にすると 35/52。
++// 話題に無関係な長い文を前に置いた既存セット 346 問は 120 文字まで変わらず、160 文字では日常 77 → 74/81 と
++// 表記が崩れた(学習の形式から外れる)。
++// KOTORI_ZENZ_CONTEXT_CHARS で変えられる(評価)。
++constexpr size_t kZenzSentenceContextChars = 120;
 +
 +// 品質の段階ごとの処理量(docs/adr/0018)。
 +struct Quality {
@@ -41772,6 +41783,22 @@ index 000000000..2a2c61ffd
 +std::string Tail(const std::string& s) {
 +  return kotori_internal::Utf8Tail(s, kMaxContextBytes);
 +}
++
++// Asteria: この範囲の間だけ、zenz に渡す前の文を kZenzSentenceContextChars 文字にする。
++class ScopedSentenceZenzContext {
++ public:
++  ScopedSentenceZenzContext() {
++    static const size_t chars = [] {
++      const char* v = Env("KOTORI_ZENZ_CONTEXT_CHARS");
++      return v != nullptr && std::atoi(v) > 0 ? static_cast<size_t>(std::atoi(v))
++                                              : kZenzSentenceContextChars;
++    }();
++    ZenzScorer::SetThreadContextChars(chars);
++  }
++  ~ScopedSentenceZenzContext() { ZenzScorer::SetThreadContextChars(0); }
++  ScopedSentenceZenzContext(const ScopedSentenceZenzContext&) = delete;
++  ScopedSentenceZenzContext& operator=(const ScopedSentenceZenzContext&) = delete;
++};
 +
 +std::string ConversionReading(const Segments& segments);
 +
@@ -42532,20 +42559,34 @@ index 000000000..2a2c61ffd
 +
 +// 左の文脈。アプリが渡す直前の文(TSF の preceding_text)があればそれを使い、
 +// なければ確定済みの文節(履歴)の値をつなぐ。KOTORI_LM_PRECEDING は評価用。
-+std::string HistoryContext(const ConversionRequest& request,
-+                           const Segments& segments) {
-+  if (const char* v = Env("KOTORI_LM_PRECEDING")) return Tail(v);
++std::string HistoryContextOf(const ConversionRequest& request,
++                             const Segments& segments, size_t max_bytes) {
++  if (const char* v = Env("KOTORI_LM_PRECEDING")) {
++    return kotori_internal::Utf8Tail(v, max_bytes);
++  }
 +  if (!ContextMap().empty()) {
 +    const auto it = ContextMap().find(ConversionReading(segments));
-+    return it == ContextMap().end() ? std::string() : Tail(it->second);
++    return it == ContextMap().end() ? std::string()
++                                    : kotori_internal::Utf8Tail(it->second, max_bytes);
 +  }
 +  std::string preceding = request.GetSurroundingContext().first;
-+  if (!preceding.empty()) return Tail(preceding);
++  if (!preceding.empty()) return kotori_internal::Utf8Tail(preceding, max_bytes);
 +  std::string context;
 +  for (const Segment& seg : segments.history_segments()) {
 +    if (seg.candidates_size() > 0) context += seg.candidate(0).value;
 +  }
-+  return Tail(context);
++  return kotori_internal::Utf8Tail(context, max_bytes);
++}
++
++std::string HistoryContext(const ConversionRequest& request,
++                           const Segments& segments) {
++  return HistoryContextOf(request, segments, kMaxContextBytes);
++}
++
++// Asteria: LLM の採点に渡す長い前の文(kMaxLlmContextBytes)。末尾は HistoryContext と同じ。
++std::string LlmHistoryContext(const ConversionRequest& request,
++                              const Segments& segments) {
++  return HistoryContextOf(request, segments, kMaxLlmContextBytes);
 +}
 +
 +std::string ConversionReading(const Segments& segments) {
@@ -44183,6 +44224,7 @@ index 000000000..2a2c61ffd
 +          MemoKey(job_->config, job_->reading, job_->context) == memo_key)) {
 +      job_ = Job{reading, context, request.config(), false,
 +                 std::make_shared<Segments>(segments), input};
++      job_->llm_context = LlmHistoryContext(request, segments);
 +      job_->queued_us = SteadyNowUs();
 +      job_->raw_keys = request.composer().GetRawString();
 +      conversion_waiting_ = true;
@@ -44192,7 +44234,7 @@ index 000000000..2a2c61ffd
 +    return std::nullopt;
 +  }
 +  const std::optional<ResizeSegmentsRequest> resize =
-+      SelectSentence(request, segments, reading, context, key);
++      SelectSentence(request, segments, reading, LlmHistoryContext(request, segments), key);
 +  // Kotori: モデルの準備中・ロック待ち・時間切れは結果ではない。
 +  // 失敗を保存すると、同じ読みの取り直しでも永久に再評価できなくなる。
 +  return resize;
@@ -44234,9 +44276,12 @@ index 000000000..2a2c61ffd
 +std::optional<RewriterInterface::ResizeSegmentsRequest>
 +LmRewriter::SelectSentence(const ConversionRequest& request,
 +                           const Segments& segments, const std::string& reading,
-+                           const std::string& context,
++                           const std::string& llm_context,
 +                           const std::string& key, bool background,
 +                           bool* retry) const {
++  // Asteria: llm_context は LLM の採点に渡す長い前の文。覚えた結果の鍵・文脈の学習・繰り返し癖の判定などは
++  // 従来どおり末尾 kMaxContextBytes の context を使う。
++  const std::string context = Tail(llm_context);
 +  if (retry) *retry = false;
 +  const std::vector<converter::Candidate>& sentences =
 +      segments.kotori_sentences();
@@ -44361,7 +44406,8 @@ index 000000000..2a2c61ffd
 +        gen_cache_->model == ModelKey(scorer, llm)) {
 +      generated = gen_cache_->texts;  // 先回りの変換で作ったもの
 +    } else {
-+      generated = GenerateCandidates(scorer, llm, context, reading, beams, gen_over);
++      ScopedSentenceZenzContext zenz_context;
++      generated = GenerateCandidates(scorer, llm, llm_context, reading, beams, gen_over);
 +      // 裏の先回りの変換が同じ読みを作り直さないように残す(途中でやめたものは残さない)。
 +      if (!gen_over()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), generated};
 +    }
@@ -44473,8 +44519,10 @@ index 000000000..2a2c61ffd
 +  }
 +  // 点数 = zenz の log P(文 | 読み、前の文) + LLM の log P(文 | 前の文)(docs/adr/0016)。
 +  // LLM がないときは zenz だけで選ぶ。
-+  const std::optional<std::vector<float>> zlogp =
-+      scorer->Score(context, reading, values);
++  const std::optional<std::vector<float>> zlogp = [&] {
++    ScopedSentenceZenzContext zenz_context;
++    return scorer->Score(llm_context, reading, values);
++  }();
 +  if (!zlogp) return std::nullopt;
 +  const auto t_zenz = std::chrono::steady_clock::now();
 +  // LLM は zenz の点数の上位 llm_top 件だけを採点する(速さのため)。ほかは選ばない。
@@ -44507,7 +44555,7 @@ index 000000000..2a2c61ffd
 +    }
 +    std::vector<std::string> subset;
 +    for (size_t i : order) subset.push_back(values[i]);
-+    if (auto sub = llm->Score(context, reading, subset)) {
++    if (auto sub = llm->Score(llm_context, reading, subset)) {
 +      llogp.emplace(values.size(), -std::numeric_limits<float>::infinity());
 +      for (size_t j = 0; j < order.size(); ++j) (*llogp)[order[j]] = (*sub)[j];
 +    }
@@ -44684,7 +44732,7 @@ index 000000000..2a2c61ffd
 +    if (close.size() >= 2) {
 +      std::vector<std::string> subset;
 +      for (size_t i : close) subset.push_back(values[i]);
-+      if (const auto judged = judge_->Score(context, reading, subset)) {
++      if (const auto judged = judge_->Score(llm_context, reading, subset)) {
 +        if (debug) {
 +          for (size_t j = 0; j < close.size(); ++j) {
 +            std::fprintf(stderr, "[judge] %s %.2f + %.2f\n", values[close[j]].c_str(),
@@ -45594,6 +45642,7 @@ index 000000000..2a2c61ffd
 +      !(job_ && job_->prediction_key == key && job_->input_generation.IsSame(input))) {
 +    Job job{reading, HistoryContext(request, *segments), request.config(), false,
 +            std::make_shared<Segments>(*segments), input};
++    job.llm_context = LlmHistoryContext(request, *segments);
 +    job.prediction_key = key;
 +    job.prediction_context = request.context();
 +    job.prediction_request = request.request();
@@ -45686,6 +45735,7 @@ index 000000000..2a2c61ffd
 +        (HasGpu() || rchars.size() <= kMaxCpuChars)) {
 +      std::lock_guard<std::mutex> lock(job_mu_);
 +      job_ = Job{reading, context, config, true};
++      job_->llm_context = LlmHistoryContext(request, *segments);
 +      new_job_ = true;
 +      job_cv_.notify_one();
 +    } else {
@@ -45777,8 +45827,11 @@ index 000000000..2a2c61ffd
 +    if (scorer != nullptr && beams > 0 &&
 +        !(gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
 +          gen_cache_->model == ModelKey(scorer, llm))) {
++      // Asteria: Space の変換(SelectSentence)と同じ前の文の長さで作る(gen_cache_ を使い回すため)。
++      ScopedSentenceZenzContext zenz_context;
 +      const auto texts = GenerateCandidates(
-+          scorer, llm, job.context, job.reading, beams, cancelled);
++          scorer, llm, job.llm_context.empty() ? job.context : job.llm_context,
++          job.reading, beams, cancelled);
 +      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), texts};
 +    }
 +  }
@@ -45947,7 +46000,8 @@ index 000000000..2a2c61ffd
 +      g_timeline_queued_us = job.queued_us;
 +      g_job_raw_keys = job.raw_keys;
 +      g_background_job = true;
-+      SelectSentence(request, *job.preview, job.reading, job.context,
++      SelectSentence(request, *job.preview, job.reading,
++                     job.llm_context.empty() ? job.context : job.llm_context,
 +                     job.reading + "\t" + job.context, true, &retry);
 +      g_job_raw_keys.clear();
 +      g_background_job = false;
@@ -46655,10 +46709,10 @@ index 000000000..2a2c61ffd
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..d8cda8873
+index 000000000..4aa34d809
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,692 @@
+@@ -0,0 +1,694 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -47005,7 +47059,7 @@ index 000000000..d8cda8873
 +  bool LearnsContext(const ConversionRequest& request) const;
 +  std::optional<ResizeSegmentsRequest> SelectSentence(
 +      const ConversionRequest& request, const Segments& segments,
-+      const std::string& reading, const std::string& context,
++      const std::string& reading, const std::string& llm_context,
 +      const std::string& key, bool background = false,
 +      bool* retry = nullptr) const;
 +  bool PreviewUnavailable(const std::string& key,
@@ -47044,6 +47098,8 @@ index 000000000..d8cda8873
 +    // Kotori: 打ったローマ字。裏の仕事の要求は打った状態(composer)を持たないので、打ち間違いの
 +    // 補正のために写しておく(docs/adr/0074)。
 +    std::string raw_keys;
++    // Asteria: 文全体の候補を LLM で採点するときの長い前の文(空なら context を使う)。
++    std::string llm_context;
 +  };
 +  // 先回りの変換で生成した文(読みと前の文ごと)。
 +  struct Generated {
@@ -47353,10 +47409,10 @@ index 000000000..d8cda8873
 +#endif  // MOZC_REWRITER_LM_REWRITER_H_
 diff --git a/src/rewriter/lm_rewriter_test.cc b/src/rewriter/lm_rewriter_test.cc
 new file mode 100644
-index 000000000..0f381f84f
+index 000000000..1747aabd0
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter_test.cc
-@@ -0,0 +1,1408 @@
+@@ -0,0 +1,1429 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -48720,6 +48776,27 @@ index 000000000..0f381f84f
 +}
 +
 +// Asteria: UTF-8 境界を壊さずに末尾を切り出す。
++// Asteria: zenz の前の文は既定で末尾 40 文字。文全体の候補の生成・採点の間だけ長くでき、戻すと 40 文字に戻る。
++TEST(LmRewriterUtilTest, ZenzPromptContextCharsCanBeWidenedPerThread) {
++  std::string context;
++  for (int i = 0; i < 200; ++i) context += (i % 2 == 0) ? "あ" : "い";
++  context += "末尾";
++  const auto prompt_context_chars = [](const std::string& prompt) {
++    // v2.5: U+EE00 読み U+EE02 左文脈 U+EE01。左文脈の文字数を数える。
++    const size_t begin = prompt.find("\xEE\xB8\x82");
++    const size_t end = prompt.rfind("\xEE\xB8\x81");
++    if (begin == std::string::npos || end == std::string::npos) return size_t{0};
++    return Util::CharsLen(prompt.substr(begin + 3, end - begin - 3));
++  };
++  EXPECT_EQ(prompt_context_chars(ZenzScorer::Prompt(context, "よみ")), 40u);
++  ZenzScorer::SetThreadContextChars(120);
++  const std::string wide = ZenzScorer::Prompt(context, "よみ");
++  EXPECT_EQ(prompt_context_chars(wide), 120u);
++  EXPECT_NE(wide.find("末尾"), std::string::npos);
++  ZenzScorer::SetThreadContextChars(0);
++  EXPECT_EQ(prompt_context_chars(ZenzScorer::Prompt(context, "よみ")), 40u);
++}
++
 +TEST(LmRewriterUtilTest, Utf8TailPreservesCharacterBoundaries) {
 +  EXPECT_EQ(kotori_internal::Utf8Tail("abcdef", 10), "abcdef");
 +  EXPECT_EQ(kotori_internal::Utf8Tail("abcdef", 3), "def");
@@ -49009,10 +49086,10 @@ index 1dafe70bd..f32bf61e3 100644
        ConversionRequestBuilder()
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..b6d01d186
+index 000000000..fba04f625
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,933 @@
+@@ -0,0 +1,938 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -49044,6 +49121,8 @@ index 000000000..b6d01d186
 +
 +// このスレッドの生成を途中でやめるかを返す関数(ZenzScorer::SetThreadCancel)。
 +thread_local std::function<bool()> tl_cancel;
++// Asteria: このスレッドで zenz に渡す前の文の文字数(0 なら kMaxContextChars。ZenzScorer::SetThreadContextChars)。
++thread_local size_t tl_context_chars = 0;
 +
 +constexpr uint32_t kNumContext = 2048;
 +// 1 回の計算で扱うトークン数。大きいと、結果(ロジット)を受け取る領域が語彙数 × この数だけ要る
@@ -49206,11 +49285,14 @@ index 000000000..b6d01d186
 +  return buf;
 +}
 +
++void ZenzScorer::SetThreadContextChars(size_t chars) { tl_context_chars = chars; }
++
 +std::string ZenzScorer::Prompt(absl::string_view left_context,
 +                               absl::string_view reading, bool v3) {
++  const size_t max_chars = tl_context_chars > 0 ? tl_context_chars : kMaxContextChars;
 +  std::vector<std::string> ctx = SplitChars(Normalize(left_context));
-+  if (ctx.size() > kMaxContextChars) {
-+    ctx.erase(ctx.begin(), ctx.end() - kMaxContextChars);
++  if (ctx.size() > max_chars) {
++    ctx.erase(ctx.begin(), ctx.end() - max_chars);
 +  }
 +  std::string context;
 +  if (!ctx.empty()) {
@@ -49948,10 +50030,10 @@ index 000000000..b6d01d186
 +}  // namespace mozc
 diff --git a/src/rewriter/zenz_scorer.h b/src/rewriter/zenz_scorer.h
 new file mode 100644
-index 000000000..a36e3d5fb
+index 000000000..18b1378d0
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.h
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,152 @@
 +// Copyright 2026, Kotori IME contributors
 +// All rights reserved.
 +//
@@ -50002,6 +50084,9 @@ index 000000000..a36e3d5fb
 +  // このスレッドの生成(Generate・Continue)を、1 トークンごとに途中でやめるかを返す関数。
 +  // 裏の予測で使い、変換の要求が来たらすぐ GPU を譲る。空の関数なら止めない。
 +  static void SetThreadCancel(std::function<bool()> cancel);
++  // Asteria: このスレッドで zenz のプロンプトに入れる前の文の文字数を変える(0 で既定の 40 文字に戻す)。
++  // 文全体の候補の生成・採点だけを長くし、打ち間違いの補正などは学習の形式どおりの長さのままにするため。
++  static void SetThreadContextChars(size_t chars);
 +  // このスレッドでやめる関数が真を返すか(辞書を引く長い CPU の計算の途中で見る)。
 +  static bool ThreadCancelled();
 +
@@ -54960,6 +55045,31 @@ index 52b5ab884..516d77b05 100644
  };
  
  }  // namespace tsf
+diff --git a/src/win32/tip/tip_surrounding_text.cc b/src/win32/tip/tip_surrounding_text.cc
+index af4753385..d9148841d 100644
+--- a/src/win32/tip/tip_surrounding_text.cc
++++ b/src/win32/tip/tip_surrounding_text.cc
+@@ -55,6 +55,11 @@ namespace tsf {
+ namespace {
+ 
+ constexpr int kMaxSurroundingLength = 20;
++// Asteria: カーソルの前の文は長めに取る(Mozc は 20 文字)。AI の採点が 1〜2 文前の話題の語を見られるようにする
++// (変換器の LLM へは末尾 768 バイトまで。lm_rewriter.cc の kMaxLlmContextBytes)。Mozc 本体の前の文の使い方
++// (履歴の作り直し・予測の学習)はどれも末尾だけを見るので、長くしても結果は変わらない。
++// 後ろの文(カーソルの後ろ)は 20 文字のまま。
++constexpr int kMaxPrecedingLength = 256;
+ constexpr int kMaxCharacterLength = 1024 * 1024;
+ 
+ class SurroudingTextUpdater final : public TipComImplements<ITfEditSession> {
+@@ -105,7 +110,7 @@ class SurroudingTextUpdater final : public TipComImplements<ITfEditSession> {
+       if (SUCCEEDED(selected_range->Clone(&preceding_range)) &&
+           SUCCEEDED(preceding_range->Collapse(edit_cookie, TF_ANCHOR_START)) &&
+           SUCCEEDED(preceding_range->ShiftStart(
+-              edit_cookie, -kMaxSurroundingLength, &preceding_range_shifted,
++              edit_cookie, -kMaxPrecedingLength, &preceding_range_shifted,
+               &halt_cond))) {
+         HRESULT result = TipRangeUtil::GetText(
+             preceding_range.get(), edit_cookie, &result_.preceding_text);
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
 index beaef1a55..805343ed8 100644
 --- a/src/win32/tip/tip_text_service.cc
