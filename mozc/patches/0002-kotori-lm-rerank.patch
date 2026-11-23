@@ -39448,10 +39448,10 @@ index 000000000..00e40c95e
 +{"苺", "いちご", 0.7500f},  // 40
 diff --git a/src/rewriter/kotori_nuance_rewriter.cc b/src/rewriter/kotori_nuance_rewriter.cc
 new file mode 100644
-index 000000000..315af4f83
+index 000000000..392e15b51
 --- /dev/null
 +++ b/src/rewriter/kotori_nuance_rewriter.cc
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,133 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include "rewriter/kotori_nuance_rewriter.h"
 +
@@ -39480,6 +39480,22 @@ index 000000000..315af4f83
 +      {{"関心", "興味を持つこと"}, {"感心", "優れたものと認めること"}},
 +  };
 +  return groups;
++}
++
++// Asteria: text[begin, end) の直前・直後の文字が漢字か。漢字なら、その語は別の熟語の一部
++// (「無関心」の「関心」、「意思疎通」の「意思」)なので、入れ替えると誤った語になる。
++bool TouchesKanji(const std::string& text, size_t begin, size_t end) {
++  if (begin > 0) {
++    size_t prev = begin - 1;
++    while (prev > 0 && (static_cast<unsigned char>(text[prev]) & 0xC0) == 0x80) --prev;
++    if (Util::GetScriptType(text.substr(prev, begin - prev)) == Util::KANJI) return true;
++  }
++  if (end < text.size()) {
++    size_t next = end + 1;
++    while (next < text.size() && (static_cast<unsigned char>(text[next]) & 0xC0) == 0x80) ++next;
++    if (Util::GetScriptType(text.substr(end, next - end)) == Util::KANJI) return true;
++  }
++  return false;
 +}
 +}  // namespace
 +
@@ -39516,6 +39532,11 @@ index 000000000..315af4f83
 +    for (const Choice& from : group) {
 +      size_t position = 0;
 +      while ((position = original.find(from.word, position)) != std::string::npos) {
++        const size_t word_end = position + std::char_traits<char>::length(from.word);
++        if (TouchesKanji(original, position, word_end)) {
++          position = word_end;
++          continue;
++        }
 +        for (const Choice& to : group) {
 +          if (from.word == to.word || std::string(from.word) == to.word) continue;
 +          std::string text = original;
@@ -39585,12 +39606,14 @@ index 000000000..7be2ddeaa
 +#endif  // MOZC_REWRITER_KOTORI_NUANCE_REWRITER_H_
 diff --git a/src/rewriter/kotori_nuance_rewriter_test.cc b/src/rewriter/kotori_nuance_rewriter_test.cc
 new file mode 100644
-index 000000000..dc7e7466c
+index 000000000..2efb21acf
 --- /dev/null
 +++ b/src/rewriter/kotori_nuance_rewriter_test.cc
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,208 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +#include "rewriter/kotori_nuance_rewriter.h"
++#include <utility>
++#include <vector>
 +#include "converter/attribute.h"
 +#include "converter/segments.h"
 +#include "protocol/commands.pb.h"
@@ -39633,6 +39656,24 @@ index 000000000..dc7e7466c
 +  EXPECT_FALSE(rewriter.Rewrite(Conversion(), &segments));
 +  EXPECT_EQ(head.candidates_size(), 3);
 +}
++// Asteria: 別の熟語の一部(前後が漢字)は入れ替えない。「無関心」→「無感心」、「意思疎通」→「意志疎通」にしない。
++TEST(KotoriNuanceRewriterTest, SkipsWordsInsideLongerCompounds) {
++  KotoriNuanceRewriter rewriter;
++  for (const auto& [key, value] : std::vector<std::pair<const char*, const char*>>{
++           {"むかんしんだ", "無関心だ"}, {"いしそつうがだいじ", "意思疎通が大事"},
++           {"たいしょうがい", "対象外"}}) {
++    Segments segments;
++    Add(segments, key, value);
++    EXPECT_FALSE(rewriter.Rewrite(Conversion(), &segments)) << value;
++    EXPECT_EQ(segments.conversion_segment(0).candidates_size(), 1) << value;
++  }
++  // かなや記号に挟まれた語は今までどおり選択肢を出す。
++  Segments segments;
++  Add(segments, "かんしんがある。", "関心がある。");
++  ASSERT_TRUE(rewriter.Rewrite(Conversion(), &segments));
++  EXPECT_EQ(segments.conversion_segment(0).candidate(1).value, "感心がある。");
++}
++
 +TEST(KotoriNuanceRewriterTest, ReplacesOneOccurrenceAtATime) {
 +  Segments segments;
 +  Add(segments, "とくちょうととくちょう", "特徴と特徴");
@@ -39770,7 +39811,8 @@ index 000000000..dc7e7466c
 +  KotoriNuanceRewriter rewriter;
 +  Segments unrelated; Add(unrelated, "わたしはねこがすきです", "私は猫が好きです");
 +  EXPECT_FALSE(rewriter.Rewrite(Conversion(), &unrelated));
-+  Segments many; Add(many, "とくちょう", "特徴特徴特徴特徴特徴特徴特徴特徴");
++  // 語は「と」で区切る(漢字に挟まれた語は別の熟語の一部とみなして入れ替えない)。
++  Segments many; Add(many, "とくちょう", "特徴と特徴と特徴と特徴と特徴と特徴と特徴と特徴");
 +  ASSERT_TRUE(rewriter.Rewrite(Conversion(), &many));
 +  EXPECT_EQ(many.conversion_segment(0).candidates_size(), 7);
 +}
@@ -41505,10 +41547,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..0ff7e8243
+index 000000000..a9c3066e3
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5198 @@
+@@ -0,0 +1,5197 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -43741,13 +43783,12 @@ index 000000000..0ff7e8243
 +    if (extra.empty() && quality.extra != nullptr) {
 +      extra = FileUtil::JoinPath(model_dir_, quality.extra);
 +    }
-+    // Keep the original generator and scorer. The learned model only adds
-+    // candidates when it is present in the bundle; loading stays asynchronous.
-+    const bool learned_default = extra.empty() && gpu && *llm_top > 0 &&
-+                                 UsesLlm(config);
-+    if (learned_default) {
-+      extra = FileUtil::JoinPath(model_dir_, kLearnedGeneratorModelName);
-+    }
++    // Asteria: 学習済みの追加生成モデル(zenz-v2.5-native-generator、91M)は既定では使わない。
++    // 変換の中心が zenz-small だった 2026-10-18 に候補を増やすため入れたが、genmai-310M(docs/adr/0085)の後は
++    // AJIMEE・文脈の選択・文章・日常・短文・同音語・長い前の文の 1,033 問で正解が 1 問も変わらず、
++    // AI の時間は中央値 279 → 209 ms・p95 533 → 393 ms(LLM の採点数が 32 → 4 に戻る)。
++    // 比べるときは KOTORI_ZENZ_EXTRA_MODEL にこのモデルを指定する。
++    const bool learned_default = false;
 +    if (!(extra_loaded_ && extra_path_ == extra)) {
 +      if (!may_load && !extra.empty()) {
 +        RequestLoad(config);
