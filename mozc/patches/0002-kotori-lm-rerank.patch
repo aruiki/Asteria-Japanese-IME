@@ -39981,10 +39981,10 @@ index 000000000..3f2d754ce
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_typo_model.cc b/src/rewriter/kotori_typo_model.cc
 new file mode 100644
-index 000000000..8db0fbcf8
+index 000000000..a918dc0fa
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model.cc
-@@ -0,0 +1,532 @@
+@@ -0,0 +1,540 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -40349,6 +40349,14 @@ index 000000000..8db0fbcf8
 +      is(b[head - 1], {"き", "し", "ち", "に", "ひ", "み", "り", "ぎ", "じ", "ぢ", "び", "ぴ"})) {
 +    return slip;
 +  }
++  // Asteria: 同じかなを 1 つ余分に打った(おりまます → おります、カード 96)。キーで見ると 2 つ以上の余分になり
++  // ほぼ起きないことにされていたが、同じかなの綴りを 2 回打つ 1 回の誤り。余分なキーの率(Dhakal ら)と同じと見る
++  // (かなの単位の重ねの公開の率はない。ADR0076 の仮定と同じ扱い)。
++  if (na == 1 && nb == 0 &&
++      ((head > 0 && a[head - 1] == a[head]) || (head + 1 < a.size() && a[head + 1] == a[head]))) {
++    return std::log(ch.insertion) -
++        std::log(1.0 - ch.substitution - ch.omission - ch.insertion - ch.transposition);
++  }
 +  // 隣どうしのかなの入れ替え(ござまいせん → ございません)。ローマ字で打つ人はかなを 1 つずつ打つので、
 +  // かなの入れ替えを 1 回の入れ替え(Grudin 1983 の入れ替えの率)と見る。キーで見ると 2 か所以上になる。
 +  if (na == 2 && nb == 2 && a[head] == b[head + 1] && a[head + 1] == b[head] &&
@@ -40604,10 +40612,10 @@ index 000000000..7fabbbc57
 +#endif  // MOZC_REWRITER_KOTORI_TYPO_MODEL_H_
 diff --git a/src/rewriter/kotori_typo_model_test.cc b/src/rewriter/kotori_typo_model_test.cc
 new file mode 100644
-index 000000000..6d0878e23
+index 000000000..a2f153529
 --- /dev/null
 +++ b/src/rewriter/kotori_typo_model_test.cc
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,139 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +// Asteria: 打ち間違いの起こりやすさ(docs/adr/0076)。
 +
@@ -40674,6 +40682,12 @@ index 000000000..6d0878e23
 +  EXPECT_DOUBLE_EQ(KanaSlipLogRatio("ぱん", "はん"), slip);
 +  EXPECT_EQ(KanaSlipLogRatio("さいます", "ざいもす"), -INFINITY);  // 2 か所
 +  EXPECT_EQ(KanaSlipLogRatio("さ", "た"), -INFINITY);  // 濁点の違いではない
++  // Asteria: 同じかなを 1 つ余分に打った(おりまます → おります)は 1 回の余分なキー(カード 96)。
++  const double repeat = std::log(0.0067) - std::log(1 - 0.0336);
++  EXPECT_NEAR(KanaSlipLogRatio("おりまます", "おります"), repeat, 0.05);
++  EXPECT_NEAR(KanaSlipLogRatio("ささくら", "さくら"), repeat, 0.05);
++  EXPECT_EQ(KanaSlipLogRatio("おりまむす", "おります"), -INFINITY);  // 隣と違うかなの余分
++  EXPECT_EQ(KanaSlipLogRatio("おります", "おりまます"), -INFINITY);  // 抜けは対象外
 +}
 +
 +TEST(TypoModelTest, ReadingToKeys) {
@@ -41547,10 +41561,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..037ff8132
+index 000000000..7bb508336
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5197 @@
+@@ -0,0 +1,5205 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -46732,6 +46746,14 @@ index 000000000..037ff8132
 +    if (post[i + 1] > post[top + 1]) top = i;
 +  }
 +  const bool apply = post[top + 1] >= typo_posterior_;
++  if (Env("KOTORI_LM_DEBUG") != nullptr) {
++    // Asteria: 仮説ごとの文と点(どの読みのどの文に負けたかを見るため。カード 96)。
++    for (size_t h = 0; h < hyp_readings.size(); ++h) {
++      std::fprintf(stderr, "[typo]   hyp %s -> %s lp=%.2f ch=%.2f post=%.3f\n",
++                   hyp_readings[h].c_str(), h == 0 ? chosen.c_str() : texts[h - 1].c_str(),
++                   text_lp[h], hyp[h] - text_lp[h], post[h]);
++    }
++  }
 +  if (Env("KOTORI_LM_DEBUG") != nullptr || Env("KOTORI_LM_TIME") != nullptr) {
 +    std::fprintf(stderr,
 +                 "[typo] %s cost=%d variants=%zu gen=%zu best=%s lp=%.2f ch=%.2f vs %s lp=%.2f "
