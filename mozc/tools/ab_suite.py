@@ -141,7 +141,13 @@ def resolve_exe(folder, session):
 
 def run_one(args, variant, set_path, label, out_dir):
     name, folder, env_items = variant
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", KOTORI_LM_PRELOAD="0", KOTORI_LM_TIME="1")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", KOTORI_LM_TIME="1")
+    if not args.session:
+        # converter_main は要求の中でモデルを読む(評価専用)。session の経路は製品と同じく起動時に裏で読む
+        # (付けると AI の状態が立たず、session_eval.py が止まる)。
+        env["KOTORI_LM_PRELOAD"] = "0"
+    else:
+        env.pop("KOTORI_LM_PRELOAD", None)
     extra = dict(e.split("=", 1) for e in env_items)
     models = extra.pop("MODELS", DEFAULT_MODELS)
     env.update(KOTORI_MODEL_DIR=models, KOTORI_RUNTIME_DIR=models)
