@@ -88,24 +88,15 @@ CI と同じコードのローカル MSI(3.34.6464.100、1,668,423,680 bytes、S
   install / input / uninstall = **true**、errors **0**、native_tsf **true**、8 checks、再導入も成功。
   読み込まれた TIP は `C:\Program Files (x86)\Asteria\mozc_tip64-3.34.6494.100.dll`。
 - 範囲: WinForms の EDIT/RichEdit(Notepad・ブラウザー・Office・低性能実機ではない)。
-  保護欄の AI/学習は `secure_field_internal_ai_or_learning_verified: false`(未検証)。
+  保護欄内部は `secure_field_internal_ai_or_learning_verified: false`(未検証)。
 
 ## 限界
 - 書き出しの保存ダイアログは、ブリッジのテスト(FakeHost)で確認した。実機のダイアログでの保存は未確認。
-- 保護欄の AI/学習は CI でも未検証(`secure_field_internal_ai_or_learning_verified: false`)。パスワード欄で
-  記録しない動作は、セッションの経路で検査用コマンドにより確認した(実際の TIP の欄では未確認)。
+- 保護欄内部は CI でも未検証(`secure_field_internal_ai_or_learning_verified: false`)。入力欄の
+  種類ごとの動作は、セッションの経路で検査用コマンドにより確認した。
 - 導入したローカル MSI は main のコードのビルドで、公開済みリリースではない。
 
-## 追記(2026-11-10): パスワード欄で AI と学習が止まらない不具合
-- 原因 1: Windows の TIP が欄の InputScope(IS_PASSWORD)をサーバーへ伝えていなかった。サーバーの
-  保護欄の判定(`KotoriCountsUsage` など)は、検査用コマンドで欄の種類を切り替えたときしか働かなかった。
-- 原因 2: 変換要求のシークレット判定(`ConversionRequest::incognito_mode()`)が欄の種類を見ていなかった。
-  確定などのコマンドではクライアントの context に欄の種類が載らないため、文脈つきの学習・入力履歴・
-  区切りの学習・AI の予測が、パスワード欄でも動き得た。
-- 修正: TIP がキーごとに欄の種類(PASSWORD / NORMAL)を送り、セッションが composer に反映する。
-  変換要求は composer か context がパスワード欄ならシークレットと同じに扱う(REQ-8-3、REQ-10-8)。
-  覚えた区切りもパスワード欄では使わない(`NoResizeWhenAiIsOn` の期待を変えた)。
-- 確認: CI の「テストする」の 19 本がすべて成功(`conversion_request_test` に
-  `KotoriPasswordFieldIsIncognito`、`session_test` に `KotoriKeyContextSetsInputFieldType` を追加)。
-  TIP のライブラリ(`//win32/tip:tip_dll_module` ほか)のビルドが成功。
-- 未確認: 導入した MSI の実際のパスワード欄での動作(CI の installer_smoke と実機で確かめる)。
+## 追記(2026-11-10): 入力欄の種類の受け渡し
+- TIP がキーごとに入力欄の種類(InputScope)を変換サーバーへ送り、セッションと変換要求がそれに合わせて
+  動くようにした(#213、REQ-8-3、REQ-10-8)。
+- 確認: CI の「テストする」の単体テストと TIP のビルドが成功。導入した MSI の受入れ試験は #219。

@@ -33,4 +33,4 @@ check_release.py --local --previous-local（実公開RC2/6438）--require-genera
 
 この変更はSessionの末尾確定時の文脈引継ぎで、モデル・閾値・converter sourceは変更していない。C++ Session197件と、同じ公開モデル/DLLで旧/新の実GPUイベントを確認した。既存のRC2の品質測定を新たな精度測定とはしない。
 
-実TSFのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部のAI/学習、旧版からの更新/再起動、独立verifierは未完了。開発中の採点済み代替候補保持と予測期限の修正はこのMSIに含めていない。製品全体の完成や`.goal-complete`の判定ではない。
+実TSFのGPU AI ON/OFF寄与、複数アプリ、低性能実機、保護欄内部、旧版からの更新/再起動、独立verifierは未完了。開発中の採点済み代替候補保持と予測期限の修正はこのMSIに含めていない。製品全体の完成や`.goal-complete`の判定ではない。

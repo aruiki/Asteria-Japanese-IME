@@ -44,7 +44,7 @@ check_release.py --local --previous-local（実RC4 MSI）--require-generator --r
 
 RC4の固定開発評価（Standard AJIMEE前文あり188/200、94.0%等）は履歴として保持する。converter_mainはRC4評価時と全バイト同一。今回の修正から第一候補の精度向上や速度向上を主張しない。
 
-未検証は、導入済みTSFのGPU AI ON/OFF寄与、Officeなど今回対象外のアプリ、低性能実機、保護欄内部のAI/学習、旧公開版更新、再起動、独立verifier。添付配布情報の7項目をnot_verified、product_complete=falseとし、過去の独立FAILと.goal-complete不作成を保持する。
+未検証は、導入済みTSFのGPU AI ON/OFF寄与、Officeなど今回対象外のアプリ、低性能実機、保護欄内部、旧公開版更新、再起動、独立verifier。添付配布情報の7項目をnot_verified、product_complete=falseとし、過去の独立FAILと.goal-complete不作成を保持する。
 
 原票: target/accuracy-guide/ci-artifact-39582216741/、edge-fixed-original-order-39614663634/、release-v2-assets-v1/、public-v2-check-v1/。初回ローカルpreflightは同梱検査成功後にPowerShell5/7のmodule混在で署名コマンドが停止した。失敗ログを保持し、完了済み検査を再実行せず適切なpwshで署名照合以降を再開して成功した。
 

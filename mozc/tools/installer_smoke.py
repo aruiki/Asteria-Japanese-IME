@@ -117,7 +117,7 @@ ACCEPTANCE_CHECKS = {
     "plain_preedit_space_commit", "richedit_preedit_space_commit",
     "candidate_down_page_roundtrip_commit", "cancel_and_resume",
     "backspace_and_continue", "f6_to_f10", "focus_between_ordinary_fields",
-    "password_host_visible_behavior", "password_scope_ime_on_not_learned",
+    "password_host_visible_behavior", "scoped_field_not_counted",
 }
 
 
@@ -133,15 +133,15 @@ def validate_acceptance(report, install, password_learning=True):
     if not asteria_paths.is_tip_module(report.get("loaded_tip", "") or "-", install):
         raise RuntimeError("入力ホストが導入したTIPを読み込んでいません")
     if report.get("secure_field_internal_ai_or_learning_verified") is not False:
-        raise RuntimeError("保護欄の内部AI/学習を、この表示試験で検証済みにしてはいけません")
+        raise RuntimeError("保護欄内部を、この表示試験で検証済みにしてはいけません")
     # IS_PASSWORD の欄で日本語入力をオンにしても使用量(学習)が増えないこと。AI の停止は別に確かめる。
     # 固定の旧 MSI(2026-10-19、使用量の記録より前)では確かめられないので、飛ばしたことだけを受け入れる。
     if password_learning:
-        if report.get("password_scope_learning_verified") is not True:
-            raise RuntimeError("IS_PASSWORD の欄で学習が止まることを確かめていません")
-    elif (report.get("password_scope_learning_verified") is not False or
-          report.get("password_scope_learning_skipped") is not True):
-        raise RuntimeError("旧 MSI で IS_PASSWORD の学習の確認を飛ばした記録がありません")
+        if report.get("scoped_field_verified") is not True:
+            raise RuntimeError("InputScope を指定した欄の確認がありません")
+    elif (report.get("scoped_field_verified") is not False or
+          report.get("scoped_field_skipped") is not True):
+        raise RuntimeError("旧 MSI で InputScope の欄の確認を飛ばした記録がありません")
 
 
 def validate_duplicate_stress(report):
@@ -211,7 +211,7 @@ def main():
     ap.add_argument("--browser-duplicate-stress", action="store_true", help="Edgeのtextarea/contenteditableで実TSFの二重入力を検査する")
     ap.add_argument("--reinstall", action="store_true", help="削除後、同じMSIを再導入して入力する（再起動はしない）")
     ap.add_argument("--legacy-candidate", action="store_true",
-                    help="使用量の記録より前の固定MSI。IS_PASSWORD の学習の確認だけを飛ばす")
+                    help="使用量の記録より前の固定MSI。InputScope の欄の確認だけを飛ばす")
     args = ap.parse_args()
     if (sys.platform != "win32" or os.environ.get("GITHUB_ACTIONS") != "true" or
             os.environ.get("KOTORI_DISPOSABLE_RUNNER") != "github-hosted"):
