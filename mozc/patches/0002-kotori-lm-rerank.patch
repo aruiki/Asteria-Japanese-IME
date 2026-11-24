@@ -35026,7 +35026,7 @@ index 17723c3b7..4f68213de 100644
 +    deps = [":win32_dpi_util", "//protocol:renderer_cc_proto", "//renderer:renderer_style_handler", "//bazel/win32:user32", "//testing:gunit_main"],
 +)
 diff --git a/src/renderer/win32/candidate_window.cc b/src/renderer/win32/candidate_window.cc
-index d50162f2b..30cdabb6b 100644
+index d50162f2b..7e800c616 100644
 --- a/src/renderer/win32/candidate_window.cc
 +++ b/src/renderer/win32/candidate_window.cc
 @@ -35,6 +35,8 @@
@@ -35057,7 +35057,38 @@ index d50162f2b..30cdabb6b 100644
    return 0;
  }
  
-@@ -843,6 +857,20 @@ void CandidateWindow::DrawSelectedRect(HDC dc) {
+@@ -381,14 +395,22 @@ void CandidateWindow::OnPaint(HDC dc) {
+   HDC target_dc = paint_dc.is_valid() ? paint_dc.get() : dc;
+ 
+   // Render to offline bitmap first to avoid tearing.
+-  wil::unique_hdc memdc(::CreateCompatibleDC(target_dc));
+-  wil::unique_hbitmap bitmap(::CreateCompatibleBitmap(
+-      target_dc, client_rect.Width(), client_rect.Height()));
+-  wil::unique_select_object old_bitmap =
+-      wil::SelectObject(memdc.get(), bitmap.get());
+-  DoPaint(memdc.get());
+-  ::BitBlt(target_dc, client_rect.left, client_rect.top, client_rect.Width(),
+-           client_rect.Height(), memdc.get(), 0, 0, SRCCOPY);
++  // Asteria: 裏の画面(DC とビットマップ)は使い回し、窓の大きさが変わったときだけ作り直す
++  // (打鍵ごとの再描画で GDI の確保と解放をしない。Phase 3)。
++  const int width = client_rect.Width();
++  const int height = client_rect.Height();
++  if (!back_dc_ || back_width_ < width || back_height_ < height) {
++    back_select_.reset();
++    back_bitmap_.reset();
++    back_dc_.reset(::CreateCompatibleDC(target_dc));
++    back_width_ = std::max(width, back_width_);
++    back_height_ = std::max(height, back_height_);
++    back_bitmap_.reset(::CreateCompatibleBitmap(target_dc, back_width_, back_height_));
++    back_select_ = wil::SelectObject(back_dc_.get(), back_bitmap_.get());
++  }
++  DoPaint(back_dc_.get());
++  ::BitBlt(target_dc, client_rect.left, client_rect.top, width, height,
++           back_dc_.get(), 0, 0, SRCCOPY);
+ }
+ 
+ void CandidateWindow::OnPrintClient(HDC dc, UINT uFlags) { OnPaint(dc); }
+@@ -843,6 +865,20 @@ void CandidateWindow::DrawSelectedRect(HDC dc) {
      ::SetDCBrushColor(dc, ToColorRef(style_.focused_border_color()));
      ::FrameRect(dc, &selected_rect,
                  static_cast<HBRUSH>(::GetStockObject(DC_BRUSH)));
@@ -35078,6 +35109,23 @@ index d50162f2b..30cdabb6b 100644
    }
  }
  
+diff --git a/src/renderer/win32/candidate_window.h b/src/renderer/win32/candidate_window.h
+index 9b41931a8..d39b986f6 100644
+--- a/src/renderer/win32/candidate_window.h
++++ b/src/renderer/win32/candidate_window.h
+@@ -198,6 +198,12 @@ class CandidateWindow : public ATL::CWindowImpl<CandidateWindow, ATL::CWindow,
+ 
+   std::unique_ptr<commands::CandidateWindow> candidate_window_;
+   wil::unique_hbitmap footer_logo_;
++  // Asteria: OnPaint の裏の画面(大きさが足りないときだけ作り直す)。
++  wil::unique_hdc back_dc_;
++  wil::unique_hbitmap back_bitmap_;
++  wil::unique_select_object back_select_;
++  int back_width_ = 0;
++  int back_height_ = 0;
+   Size footer_logo_display_size_;
+   client::SendCommandInterface* send_command_interface_;
+   std::unique_ptr<TableLayout> table_layout_;
 diff --git a/src/renderer/win32/kotori_candidate_snapshot.cc b/src/renderer/win32/kotori_candidate_snapshot.cc
 new file mode 100644
 index 000000000..833710ac9
@@ -41945,10 +41993,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..40b5b167b
+index 000000000..596e91af5
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5318 @@
+@@ -0,0 +1,5422 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -42015,6 +42063,27 @@ index 000000000..40b5b167b
 +
 +namespace mozc {
 +namespace {
++
++// Asteria: 短く待つ(Phase 2-1)。Windows の Sleep は 15.6 ms 単位に丸められ、1 ms のつもりで 15 ms
++// 待つことがある。高分解能の待ち受けタイマー(Windows 10 1803 以降)で、指定の時間だけ待つ。
++void ShortSleep(std::chrono::microseconds d) {
++#ifdef _WIN32
++#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
++#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
++#endif
++  thread_local HANDLE timer = CreateWaitableTimerExW(
++      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
++  if (timer != nullptr) {
++    LARGE_INTEGER due;
++    due.QuadPart = -static_cast<LONGLONG>(d.count()) * 10;  // 100 ns 単位、相対
++    if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE)) {
++      WaitForSingleObject(timer, INFINITE);
++      return;
++    }
++  }
++#endif
++  std::this_thread::sleep_for(d);
++}
 +
 +// これより長い読みは、zenz に文を書かせない(ラティスの文を採点するだけにする)。
 +constexpr size_t kMaxGenerateChars = 120;
@@ -43851,6 +43920,7 @@ index 000000000..40b5b167b
 +    max_sentences_ = std::max(1, std::atoi(v));
 +  }
 +  if (const char* v = Env("KOTORI_LM_LLM_WEIGHT")) lambda_llm_ = std::atof(v);
++  if (const char* v = Env("KOTORI_LM_PRESCORE")) prescore_llm_ = std::atoi(v) != 0;
 +  if (const char* v = Env("KOTORI_LM_SWAP_LLM_WEIGHT")) swap_llm_weight_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_CONFIDENCE_GUARD")) confidence_guard_ = *v == '1';
 +  if (const char* v = Env("KOTORI_LM_GEN_PENALTY")) gen_penalty_ = std::atof(v);
@@ -43906,7 +43976,12 @@ index 000000000..40b5b167b
 +
 +void LmRewriter::WriteStatus(const config::Config& config,
 +                             const char* state) const {
-+  if (sync_load_) return;  // 評価では書かない
++  WriteStatusFile(StatusText(config, state));
++}
++
++std::string LmRewriter::StatusText(const config::Config& config,
++                                   const char* state) const {
++  if (sync_load_) return std::string();  // 評価では書かない
 +  // 1 行に 1 項目(キー=値)。入力した文字は書かない。
 +  std::string text;
 +  auto line = [&](absl::string_view key, absl::string_view value) {
@@ -43953,6 +44028,13 @@ index 000000000..40b5b167b
 +    line("process_started", std::to_string(ticks));
 +  }
 +#endif
++  return text;
++}
++
++void LmRewriter::WriteStatusFile(const std::string& text) {
++  // Asteria: ファイルへの書き込みはモデルのロック(mutex_)の外で行う(書き込みが遅いと、その間の
++  // 変換が AI を使えない。Phase 3)。
++  if (text.empty()) return;
 +  const std::string path = FileUtil::JoinPath(
 +      SystemUtil::GetUserProfileDirectory(), "kotori_ai_status.txt");
 +  const std::string temporary = path + ".tmp";
@@ -44045,7 +44127,7 @@ index 000000000..40b5b167b
 +    if (loading_.load() || std::chrono::steady_clock::now() > deadline) {
 +      return false;
 +    }
-+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
++    ShortSleep(std::chrono::microseconds(250));
 +  }
 +  return true;
 +}
@@ -44277,7 +44359,8 @@ index 000000000..40b5b167b
 +std::vector<std::string> LmRewriter::GenerateCandidates(
 +    ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
 +    const std::string& reading, int beams,
-+    const std::function<bool()>& cancelled) const {
++    const std::function<bool()>& cancelled,
++    const std::vector<std::string>* drafts) const {
 +  CancelScope cancel(cancelled);
 +  // Kotori: 2 つの生成器(zenz と学習済みの生成器)は別のモデル・別の計算の場所を持つので、
 +  // 同時に動かす。1 回の計算は GPU を使い切らないため、順に動かすより待ちが短い。
@@ -44289,7 +44372,7 @@ index 000000000..40b5b167b
 +      return extra_->Generate(context, reading, beams);
 +    });
 +  }
-+  std::vector<std::string> values = scorer->Generate(context, reading, beams);
++  std::vector<std::string> values = scorer->Generate(context, reading, beams, drafts);
 +  if (extra.valid()) {
 +    for (std::string& value : extra.get()) {
 +      if (std::find(values.begin(), values.end(), value) == values.end()) {
@@ -44298,6 +44381,17 @@ index 000000000..40b5b167b
 +    }
 +  }
 +  return values;
++}
++
++std::vector<std::string> LmRewriter::GenerationDrafts(
++    const std::vector<std::string>& lattice) const {
++  std::vector<std::string> drafts = lattice;
++  if (gen_cache_) {
++    for (const std::string& t : gen_cache_->texts) {
++      if (std::find(drafts.begin(), drafts.end(), t) == drafts.end()) drafts.push_back(t);
++    }
++  }
++  return drafts;
 +}
 +
 +std::string LmRewriter::ModelKey(const ZenzScorer* scorer,
@@ -44844,13 +44938,24 @@ index 000000000..40b5b167b
 +  const size_t lattice_kana =
 +      values.empty() ? SIZE_MAX : CountKana(values.front());
 +  std::vector<std::string> generated;
++  std::future<std::pair<std::vector<std::string>, std::optional<std::vector<float>>>> lattice_llm;
 +  if (beams > 0 && Util::CharsLen(reading) <= kMaxGenerateChars) {
 +    if (gen_cache_ && gen_cache_->key == key && gen_cache_->beams == beams &&
 +        gen_cache_->model == ModelKey(scorer, llm)) {
 +      generated = gen_cache_->texts;  // 先回りの変換で作ったもの
 +    } else {
 +      ScopedSentenceZenzContext zenz_context;
-+      generated = GenerateCandidates(scorer, llm, llm_context, reading, beams, gen_over);
++      const std::vector<std::string> drafts = GenerationDrafts(values);
++      // Asteria: 生成の間に、ラティスの文を LLM で先に採点しておく(LLM は生成とは別のモデル・別の
++      // 計算の場所なので、GPU の上で重ねられる。Phase 2)。後の採点では、ここで済んだ文を採点し直さない。
++      if (llm != nullptr && values.size() >= 2 && prescore_llm_) {
++        lattice_llm = std::async(std::launch::async, [&, lattice = values] {
++          CancelScope llm_cancel(gen_over);
++          return std::make_pair(lattice, llm->Score(llm_context, reading, lattice));
++        });
++      }
++      generated = GenerateCandidates(scorer, llm, llm_context, reading, beams, gen_over,
++                                     &drafts);
 +      // 裏の先回りの変換が同じ読みを作り直さないように残す(途中でやめたものは残さない)。
 +      if (!gen_over()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), generated};
 +    }
@@ -44971,7 +45076,28 @@ index 000000000..40b5b167b
 +  // LLM は zenz の点数の上位 llm_top 件だけを採点する(速さのため)。ほかは選ばない。
 +  // 時間の上限を超えていたら使わない。
 +  std::optional<std::vector<float>> llogp;
-+  if (llm != nullptr && !over()) {
++  // Asteria: zenz が十分に確かなときは LLM の採点を省く(Phase 2-5)。ラティスの 1 位と zenz の 1 位が
++  // 同じで、2 位との差が KOTORI_LM_SKIP_LLM_MARGIN(既定 0 = 省かない)以上、表記の言い換えを
++  // 足していないとき。
++  static const double skip_llm_margin = [] {
++    const char* v = std::getenv("KOTORI_LM_SKIP_LLM_MARGIN");
++    return v != nullptr ? std::atof(v) : 0.0;
++  }();
++  bool skip_llm = false;
++  if (llm != nullptr && skip_llm_margin > 0 && cands.front() != nullptr &&
++      std::find(notation_variant.begin(), notation_variant.end(), true) ==
++          notation_variant.end()) {
++    size_t z_top = 0;
++    for (size_t i = 1; i < zlogp->size(); ++i) {
++      if ((*zlogp)[i] > (*zlogp)[z_top]) z_top = i;
++    }
++    double second = -std::numeric_limits<double>::infinity();
++    for (size_t i = 0; i < zlogp->size(); ++i) {
++      if (i != z_top) second = std::max(second, static_cast<double>((*zlogp)[i]));
++    }
++    skip_llm = z_top == 0 && (*zlogp)[0] - second >= skip_llm_margin;
++  }
++  if (llm != nullptr && !over() && !skip_llm) {
 +    std::vector<size_t> order(values.size());
 +    std::iota(order.begin(), order.end(), 0);
 +    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
@@ -44996,11 +45122,34 @@ index 000000000..40b5b167b
 +        order.push_back(i);
 +      }
 +    }
++    // Asteria: 生成の間に済ませた採点を使い、残りだけを採点する。
++    std::vector<std::optional<float>> known(order.size());
++    if (lattice_llm.valid()) {
++      auto [lattice, scores] = lattice_llm.get();
++      if (scores) {
++        for (size_t j = 0; j < order.size(); ++j) {
++          const auto it = std::find(lattice.begin(), lattice.end(), values[order[j]]);
++          if (it != lattice.end()) known[j] = (*scores)[it - lattice.begin()];
++        }
++      }
++    }
 +    std::vector<std::string> subset;
-+    for (size_t i : order) subset.push_back(values[i]);
-+    if (auto sub = llm->Score(llm_context, reading, subset)) {
++    std::vector<size_t> subset_at;
++    for (size_t j = 0; j < order.size(); ++j) {
++      if (known[j]) continue;
++      subset.push_back(values[order[j]]);
++      subset_at.push_back(j);
++    }
++    std::optional<std::vector<float>> sub;
++    if (subset.empty()) {
++      sub.emplace();
++    } else {
++      sub = llm->Score(llm_context, reading, subset);
++    }
++    if (sub) {
++      for (size_t k = 0; k < subset_at.size(); ++k) known[subset_at[k]] = (*sub)[k];
 +      llogp.emplace(values.size(), -std::numeric_limits<float>::infinity());
-+      for (size_t j = 0; j < order.size(); ++j) (*llogp)[order[j]] = (*sub)[j];
++      for (size_t j = 0; j < order.size(); ++j) (*llogp)[order[j]] = *known[j];
 +    }
 +  }
 +  const auto t_llm = std::chrono::steady_clock::now();
@@ -45087,7 +45236,7 @@ index 000000000..40b5b167b
 +      if (alt == values.size() || joint_scores[i] > joint_scores[alt]) alt = i;
 +    }
 +    if (alt != values.size()) {
-+      if (const auto free = llm->Score("", reading, {values[top], values[alt]})) {
++      if (const auto free = llm->ScoreIsolated("", reading, {values[top], values[alt]})) {
 +        const double s_top = joint_scores[top] + ranking_llm_weight * ((*free)[0] - (*llogp)[top]);
 +        const double s_alt = joint_scores[alt] + ranking_llm_weight * ((*free)[1] - (*llogp)[alt]);
 +        if (debug) {
@@ -46255,7 +46404,7 @@ index 000000000..40b5b167b
 +  };
 +  while (urgent_.load() > 0 || now_us() - last_request_us_.load() < 150000) {
 +    if (stop_.load() || new_job_.load()) return;
-+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
++    ShortSleep(std::chrono::milliseconds(1));
 +  }
 +  {
 +    std::lock_guard<std::mutex> lock(job_mu_);
@@ -46281,9 +46430,10 @@ index 000000000..40b5b167b
 +          gen_cache_->model == ModelKey(scorer, llm))) {
 +      // Asteria: Space の変換(SelectSentence)と同じ前の文の長さで作る(gen_cache_ を使い回すため)。
 +      ScopedSentenceZenzContext zenz_context;
++      const std::vector<std::string> drafts = GenerationDrafts({});
 +      const auto texts = GenerateCandidates(
 +          scorer, llm, job.llm_context.empty() ? job.context : job.llm_context,
-+          job.reading, beams, cancelled);
++          job.reading, beams, cancelled, &drafts);
 +      if (!cancelled()) gen_cache_ = Generated{key, beams, ModelKey(scorer, llm), texts};
 +    }
 +  }
@@ -46301,8 +46451,9 @@ index 000000000..40b5b167b
 +  while (true) {
 +    // Kotori: 状態ファイルの書き込みは非同期ワーカーだけで毎秒最大1回。
 +    if (last_config && SteadyNowUs() - last_status_us >= 1000000 && mutex_.TryLock()) {
-+      WriteStatus(*last_config, sleeping_.load() ? "sleep" : "ready");
++      const std::string text = StatusText(*last_config, sleeping_.load() ? "sleep" : "ready");
 +      mutex_.Unlock();
++      WriteStatusFile(text);
 +      last_status_us = SteadyNowUs();
 +      status_pending = false;
 +    }
@@ -46318,8 +46469,9 @@ index 000000000..40b5b167b
 +        lock.unlock();
 +        UnloadIfIdle(*last_config);
 +        if (mutex_.TryLock()) {
-+          WriteStatus(*last_config, sleeping_.load() ? "sleep" : "ready");
++          const std::string text = StatusText(*last_config, sleeping_.load() ? "sleep" : "ready");
 +          mutex_.Unlock();
++          WriteStatusFile(text);
 +          last_status_us = SteadyNowUs();
 +          status_pending = false;
 +        }
@@ -46533,7 +46685,7 @@ index 000000000..40b5b167b
 +        if (retried || stop_.load() || new_job_.load()) break;
 +        retried = true;
 +        while (urgent_.load() > 0 && !stop_.load() && !new_job_.load()) {
-+          std::this_thread::sleep_for(std::chrono::milliseconds(5));
++          ShortSleep(std::chrono::milliseconds(1));
 +        }
 +        if (stop_.load() || new_job_.load()) break;
 +        redo = true;
@@ -47269,10 +47421,10 @@ index 000000000..40b5b167b
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..b730167ac
+index 000000000..7e760a949
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,714 @@
+@@ -0,0 +1,725 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -47569,7 +47721,12 @@ index 000000000..b730167ac
 +  std::vector<std::string> GenerateCandidates(
 +      ZenzScorer* scorer, ZenzScorer* llm, const std::string& context,
 +      const std::string& reading, int beams,
-+      const std::function<bool()>& cancelled) const
++      const std::function<bool()>& cancelled,
++      const std::vector<std::string>* drafts = nullptr) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  // Asteria: 生成の下書き(ラティスの文と、前の打鍵で生成した文。Phase 2-6)。
++  std::vector<std::string> GenerationDrafts(
++      const std::vector<std::string>& lattice) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 +  std::string ModelKey(const ZenzScorer* scorer, const ZenzScorer* llm) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -47581,6 +47738,10 @@ index 000000000..b730167ac
 +  // (設定画面が読んで表示する。docs/adr/0026)。state は loading / ready。
 +  void WriteStatus(const config::Config& config, const char* state) const
 +      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  // Asteria: 状態の文(ロックの中で作る)と、ファイルへの書き込み(ロックの外でよい。Phase 3)。
++  std::string StatusText(const config::Config& config, const char* state) const
++      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
++  static void WriteStatusFile(const std::string& text);
 +  // 裏のスレッドにモデルの読み込みを頼む。
 +  void RequestLoad(const config::Config& config) const;
 +  // 要求が来たことを記録し、モデルを外していれば裏で読み込み直させる。
@@ -47945,6 +48106,8 @@ index 000000000..b730167ac
 +  bool right_context_ = true;
 +  double lambda_lm_ = 1.0;
 +  double lambda_llm_ = 1.2;
++  // Asteria: 生成の間にラティスの文を LLM で先に採点する(KOTORI_LM_PRESCORE=0 で使わない)。
++  bool prescore_llm_ = true;
 +  // Kotori: 漢字の語を別の漢字の語に入れ替えた文どうし(解放/開放、家事/火事)を比べるときの LLM の重み
 +  // (KOTORI_LM_SWAP_LLM_WEIGHT。docs/adr/0075)。書き方の違い(がん/癌)には使わない。
 +  double swap_llm_weight_ = 2.0;
@@ -49758,10 +49921,10 @@ index 1dafe70bd..f32bf61e3 100644
        ConversionRequestBuilder()
 diff --git a/src/rewriter/zenz_scorer.cc b/src/rewriter/zenz_scorer.cc
 new file mode 100644
-index 000000000..fba04f625
+index 000000000..8b645737e
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.cc
-@@ -0,0 +1,938 @@
+@@ -0,0 +1,1342 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/zenz_scorer.h"
@@ -49780,7 +49943,18 @@ index 000000000..fba04f625
 +#include <string>
 +#include <tuple>
 +#include <utility>
++#include <thread>
 +#include <vector>
++
++#if defined(__x86_64__) || defined(_M_X64)
++#include <immintrin.h>
++#endif
++#ifdef _WIN32
++#ifndef NOMINMAX
++#define NOMINMAX
++#endif
++#include <windows.h>
++#endif
 +
 +#include "absl/strings/string_view.h"
 +#include "base/file_util.h"
@@ -49864,9 +50038,48 @@ index 000000000..fba04f625
 +// log Σ exp(logits)。対数確率は logits[t] - LogSumExp。
 +// 最大値より 20 以上小さい値は足さない(exp(-20) ≈ 2e-9。語彙が 15 万でも誤差は 3e-4 以下)。
 +// LLM は語彙が大きく、すべての exp を計算すると CPU の時間の大半になるため。
++#if defined(__x86_64__) || defined(_M_X64)
++// Asteria: AVX2 で最大値を求め、境目を超える値のある 8 個の組だけを順に足す(Phase 1-4)。
++// 足す値と順はスカラーの版と同じなので、結果も同じ。
++__attribute__((target("avx2"))) float LogSumExpAvx2(const float* logits, int n,
++                                                     bool exact) {
++  int i = 0;
++  __m256 vmax = _mm256_set1_ps(-std::numeric_limits<float>::infinity());
++  for (; i + 8 <= n; i += 8) vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(logits + i));
++  alignas(32) float lanes[8];
++  _mm256_store_ps(lanes, vmax);
++  float max = *std::max_element(lanes, lanes + 8);
++  for (int j = i; j < n; ++j) max = std::max(max, logits[j]);
++  const float cut = exact ? -std::numeric_limits<float>::infinity() : max - 20.f;
++  const __m256 vcut = _mm256_set1_ps(cut);
++  float sum = 0;
++  i = 0;
++  for (; i + 8 <= n; i += 8) {
++    const __m256 v = _mm256_loadu_ps(logits + i);
++    if (_mm256_movemask_ps(_mm256_cmp_ps(v, vcut, _CMP_GT_OQ)) == 0) continue;
++    for (int j = i; j < i + 8; ++j) {
++      if (logits[j] > cut) sum += std::exp(logits[j] - max);
++    }
++  }
++  for (; i < n; ++i) {
++    if (logits[i] > cut) sum += std::exp(logits[i] - max);
++  }
++  return max + std::log(sum);
++}
++#endif
++
 +float LogSumExp(const float* logits, int n) {
-+  const float max = *std::max_element(logits, logits + n);
 +  static const bool exact = std::getenv("KOTORI_LM_EXACT_LSE") != nullptr;
++#if defined(__x86_64__) || defined(_M_X64)
++#ifdef _WIN32
++  // PF_AVX2_INSTRUCTIONS_AVAILABLE(OS が AVX の状態を保存するかも含めて見る)。
++  static const bool avx2 = IsProcessorFeaturePresent(40) != 0;
++#else
++  static const bool avx2 = __builtin_cpu_supports("avx2");
++#endif
++  if (avx2) return LogSumExpAvx2(logits, n, exact);
++#endif
++  const float max = *std::max_element(logits, logits + n);
 +  const float cut = exact ? -std::numeric_limits<float>::infinity() : max - 20.f;
 +  float sum = 0;
 +  for (int i = 0; i < n; ++i) {
@@ -49922,6 +50135,32 @@ index 000000000..fba04f625
 +  Counters& c_;
 +  int64_t t0_;
 +};
++
++// Asteria: まとめて計算するときのスレッド数。物理コアの数(2〜16)。KOTORI_LM_BATCH_THREADS で変える。
++int BatchThreads() {
++  static const int n = [] {
++    if (const char* v = std::getenv("KOTORI_LM_BATCH_THREADS")) return std::max(1, std::atoi(v));
++    int cores = 0;
++#ifdef _WIN32
++    DWORD len = 0;
++    GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &len);
++    std::vector<char> buf(len);
++    if (len > 0 && GetLogicalProcessorInformationEx(
++                       RelationProcessorCore,
++                       reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buf.data()),
++                       &len)) {
++      for (DWORD off = 0; off < len;) {
++        auto* info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buf.data() + off);
++        if (info->Relationship == RelationProcessorCore) ++cores;
++        off += info->Size;
++      }
++    }
++#endif
++    if (cores <= 0) cores = static_cast<int>(std::thread::hardware_concurrency() / 2);
++    return std::clamp(cores, 2, 16);
++  }();
++  return n;
++}
 +
 +int Decode(llama_context* ctx, const llama_batch& b, bool zenz) {
 +  Counters& c = g_stats[zenz ? 0 : 1];
@@ -50003,8 +50242,22 @@ index 000000000..fba04f625
 +  cp.n_ubatch = kBatch;
 +  cp.n_seq_max = kMaxCandidates + 1;
 +  cp.n_threads = threads;
-+  cp.n_threads_batch = threads;
++  // Asteria: まとめて計算する前置き・採点は、物理コアまで使う(1 トークンずつの生成は帯域で
++  // 頭打ちになるので threads のまま。Phase 1-3)。
++  cp.n_threads_batch = std::max(threads, BatchThreads());
 +  cp.kv_unified = true;
++  cp.no_perf = true;
++  // Asteria: Flash Attention と KV の型は評価で決める(KOTORI_LM_FLASH=0/1、KOTORI_LM_KV=q8_0)。
++  // 既定で有効(1,033 問で入れ替わりなし、変換の中央値 -3%)。
++  cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
++  if (const char* v = std::getenv("KOTORI_LM_FLASH")) {
++    cp.flash_attn_type = std::atoi(v) != 0 ? LLAMA_FLASH_ATTN_TYPE_ENABLED
++                                           : LLAMA_FLASH_ATTN_TYPE_DISABLED;
++  }
++  if (const char* v = std::getenv("KOTORI_LM_KV"); v != nullptr && std::string(v) == "q8_0") {
++    cp.type_k = GGML_TYPE_Q8_0;
++    cp.type_v = GGML_TYPE_Q8_0;
++  }
 +  llama_context* ctx = llama_init_from_model(model, cp);
 +  if (ctx == nullptr) {
 +    llama_model_free(model);
@@ -50035,6 +50288,18 @@ index 000000000..fba04f625
 +std::optional<std::vector<float>> ZenzScorer::Score(
 +    absl::string_view left_context, absl::string_view reading,
 +    const std::vector<std::string>& candidates) {
++  return ScoreImpl(left_context, reading, candidates, false);
++}
++
++std::optional<std::vector<float>> ZenzScorer::ScoreIsolated(
++    absl::string_view left_context, absl::string_view reading,
++    const std::vector<std::string>& candidates) {
++  return ScoreImpl(left_context, reading, candidates, true);
++}
++
++std::optional<std::vector<float>> ZenzScorer::ScoreImpl(
++    absl::string_view left_context, absl::string_view reading,
++    const std::vector<std::string>& candidates, bool isolated) {
 +  WorkTimer timer(zenz_);
 +  if (candidates.empty() ||
 +      candidates.size() > static_cast<size_t>(max_seq_)) {
@@ -50073,7 +50338,15 @@ index 000000000..fba04f625
 +  // 候補は木(トライ)にまとめ、共通の先頭は 1 回だけ計算する(docs/adr/0024)。トークンは、
 +  // そこを通る候補のシーケンス(1..n)すべてに属させる。前置きの最後のトークンも各組で計算し、
 +  // 最初のトークンの分布を得る。候補が 1 回の計算(kBatch トークン)に収まらなければ組に分ける。
-+  if (!UsePrefix(prefix)) return std::nullopt;
++  // Asteria: isolated なら、前置きを最後のシーケンス(base)に置き、シーケンス 0 の前置き
++  // (前の文の KV、cached_)には触れない(Phase 2-2)。
++  const int base = isolated ? max_seq_ : 0;
++  const int max_cands = isolated ? max_seq_ - 1 : max_seq_;
++  if (isolated) {
++    if (!PrefillSeq(prefix, base)) return std::nullopt;
++  } else if (!UsePrefix(prefix)) {
++    return std::nullopt;
++  }
 +  const int last_pos = static_cast<int>(prefix.size()) - 1;
 +  std::vector<float> scores(cands.size(), 0.f);
 +  llama_memory_t mem = llama_get_memory(ctx_);
@@ -50090,7 +50363,7 @@ index 000000000..fba04f625
 +    std::vector<Node> nodes;
 +    std::vector<std::vector<int>> path;  // 候補ごとの節の番号
 +    size_t end_c = start;
-+    while (end_c < cands.size() && end_c - start < static_cast<size_t>(max_seq_)) {
++    while (end_c < cands.size() && end_c - start < static_cast<size_t>(max_cands)) {
 +      std::vector<Node> trial = nodes;
 +      std::vector<int> p;
 +      int parent = -1;
@@ -50112,7 +50385,10 @@ index 000000000..fba04f625
 +        p.push_back(found);
 +        parent = found;
 +      }
-+      if (trial.size() + 1 > static_cast<size_t>(kBatch)) break;
++      // Asteria: 計算に入れるのは子を持つ節だけ(葉の確率は親の結果から取る。Phase 1-1)。
++      size_t internal = 0;
++      for (const Node& n : trial) internal += n.has_child;
++      if (internal + 1 > static_cast<size_t>(kBatch)) break;
 +      nodes = std::move(trial);
 +      path.push_back(std::move(p));
 +      ++end_c;
@@ -50124,9 +50400,16 @@ index 000000000..fba04f625
 +    const int n_seq = static_cast<int>(end_c - start);
 +    for (int q = 1; q <= n_seq; ++q) {
 +      llama_memory_seq_rm(mem, q, -1, -1);
-+      llama_memory_seq_cp(mem, 0, q, -1, -1);
++      llama_memory_seq_cp(mem, base, q, -1, -1);
 +    }
-+    llama_batch b = llama_batch_init(nodes.size() + 1, 0, n_seq);
++    // Asteria: 葉(子のない節)は計算しない。葉の後ろを見るトークンはないので、結果は同じ
++    // (Phase 1-1)。node_at[n] は節 n の計算の中の位置(葉は -1)。
++    std::vector<int> node_at(nodes.size(), -1);
++    int n_tokens = 1;
++    for (size_t n = 0; n < nodes.size(); ++n) {
++      if (nodes[n].has_child) node_at[n] = n_tokens++;
++    }
++    llama_batch b = llama_batch_init(n_tokens, 0, n_seq);
 +    b.token[0] = prefix.back();
 +    b.pos[0] = last_pos;
 +    b.n_seq_id[0] = n_seq;
@@ -50134,15 +50417,17 @@ index 000000000..fba04f625
 +    b.logits[0] = 1;
 +    for (size_t n = 0; n < nodes.size(); ++n) {
 +      const Node& node = nodes[n];
-+      b.token[n + 1] = node.token;
-+      b.pos[n + 1] = last_pos + 1 + node.depth;
-+      b.n_seq_id[n + 1] = static_cast<int>(node.seqs.size());
++      const int at = node_at[n];
++      if (at < 0) continue;
++      b.token[at] = node.token;
++      b.pos[at] = last_pos + 1 + node.depth;
++      b.n_seq_id[at] = static_cast<int>(node.seqs.size());
 +      for (size_t q = 0; q < node.seqs.size(); ++q) {
-+        b.seq_id[n + 1][q] = node.seqs[q];
++        b.seq_id[at][q] = node.seqs[q];
 +      }
-+      b.logits[n + 1] = node.has_child;
++      b.logits[at] = 1;
 +    }
-+    b.n_tokens = static_cast<int>(nodes.size()) + 1;
++    b.n_tokens = n_tokens;
 +    const int rc = Decode(ctx_, b, zenz_);
 +    llama_batch_free(b);
 +    if (rc != 0) {
@@ -50150,7 +50435,7 @@ index 000000000..fba04f625
 +      return std::nullopt;
 +    }
 +    // 節ごとの log Σ exp は 1 回だけ計算する。
-+    std::vector<float> lse(nodes.size() + 1, std::nanf(""));
++    std::vector<float> lse(n_tokens, std::nanf(""));
 +    auto logp_at = [&](int batch_index, llama_token t) {
 +      const float* l = llama_get_logits_ith(ctx_, batch_index);
 +      if (std::isnan(lse[batch_index])) lse[batch_index] = LogSumExp(l, n_vocab);
@@ -50160,14 +50445,42 @@ index 000000000..fba04f625
 +      float logp = 0;
 +      for (int n : path[q]) {
 +        const int parent = nodes[n].parent;
-+        logp += logp_at(parent < 0 ? 0 : parent + 1, nodes[n].token);
++        logp += logp_at(parent < 0 ? 0 : node_at[parent], nodes[n].token);
 +      }
 +      scores[start + q] = logp;
 +    }
 +    start = end_c;
 +  }
-+  KeepPrefix(prefix);
++  if (isolated) {
++    for (int q = 1; q <= max_seq_; ++q) llama_memory_seq_rm(mem, q, -1, -1);
++  } else {
++    KeepPrefix(prefix);
++  }
 +  return scores;
++}
++
++bool ZenzScorer::PrefillSeq(const std::vector<llama_token>& prefix, int seq) {
++  // prefix の最後の 1 トークンより前を seq に計算する(ほかのシーケンスには触れない)。
++  llama_memory_t mem = llama_get_memory(ctx_);
++  for (int q = 1; q <= max_seq_; ++q) llama_memory_seq_rm(mem, q, -1, -1);
++  const size_t want = prefix.size() - 1;
++  llama_batch b = llama_batch_init(kBatch, 0, 1);
++  bool ok = true;
++  for (size_t i = 0; i < want && ok;) {
++    b.n_tokens = 0;
++    for (; i < want && b.n_tokens < kBatch; ++i) {
++      const int at = b.n_tokens++;
++      b.token[at] = prefix[i];
++      b.pos[at] = static_cast<llama_pos>(i);
++      b.n_seq_id[at] = 1;
++      b.seq_id[at][0] = seq;
++      b.logits[at] = 0;
++    }
++    ok = Decode(ctx_, b, zenz_) == 0 && !(tl_cancel && tl_cancel());
++  }
++  llama_batch_free(b);
++  if (!ok) llama_memory_seq_rm(mem, seq, -1, -1);
++  return ok;
 +}
 +
 +bool ZenzScorer::UsePrefix(const std::vector<llama_token>& prefix) {
@@ -50234,7 +50547,8 @@ index 000000000..fba04f625
 +std::vector<std::vector<std::vector<llama_token>>> ZenzScorer::BeamSearch(
 +    const std::vector<Root>& roots,
 +    const std::function<bool(llama_token)>& is_end, bool finish_at_max,
-+    bool include_end_token) {
++    bool include_end_token,
++    const std::vector<std::vector<llama_token>>* drafts) {
 +  WorkTimer timer(zenz_);
 +  const int n_roots = static_cast<int>(roots.size());
 +  std::vector<std::vector<std::vector<llama_token>>> result(n_roots);
@@ -50350,6 +50664,23 @@ index 000000000..fba04f625
 +      return result;
 +    }
 +    cached_.assign(p0.begin(), p0.begin() + want0);
++  }
++
++  // Asteria: 下書きがあれば、下書きの続きを先に確かめながら進める(docs/adr/0090)。
++  // CUDA の呼び出しの形をそろえる経路(fixed)では使わない。KOTORI_LM_DRAFT=0 で使わない。
++  static const int kDraftTokens = [] {
++    const char* v = std::getenv("KOTORI_LM_DRAFT");
++    return v != nullptr ? std::max(0, std::atoi(v)) : 10;
++  }();
++  if (drafts != nullptr && !drafts->empty() && n_roots == 1 && fixed == 0 &&
++      kDraftTokens > 0 && 1 + 2 * roots[0].beams <= max_seq_ + 1 &&
++      roots[0].beams * (1 + kDraftTokens) <= kBatch) {
++    auto found = DraftedBeamSearch(roots[0], first_logit[0], *drafts, kDraftTokens,
++                                   is_end, finish_at_max, include_end_token);
++    if (!found) return result;  // やめた・計算に失敗した(KV は消してある)
++    result[0] = std::move(*found);
++    KeepPrefix(roots[0].prefix);
++    return result;
 +  }
 +
 +  struct Beam {
@@ -50509,6 +50840,229 @@ index 000000000..fba04f625
 +  return result;
 +}
 +
++std::optional<std::vector<std::vector<llama_token>>> ZenzScorer::DraftedBeamSearch(
++    const Root& root, int first_logit,
++    const std::vector<std::vector<llama_token>>& drafts, int draft_tokens,
++    const std::function<bool(llama_token)>& is_end, bool finish_at_max,
++    bool include_end_token) {
++  // Asteria: 下書きで確かめながら進めるビームサーチ(Phase 2-6)。ふつうのビームサーチと同じく、
++  // 1 ステップごとに各ビームの次のトークンの上位 beams 件から全体の上位 beams 本を選ぶ。違うのは、
++  // 計算するビームに下書きの続き(最大 draft_tokens 個)を同じシーケンスに並べて一緒に計算すること。
++  // 選ばれたトークンが下書きの次のトークンと同じなら、その続きの結果はもう手元にあるので計算しない。
++  // すべてのビームの結果が手元にあるステップでは GPU を呼ばない。選び方は変えないので、
++  // 結果は(計算の誤差を除き)下書きなしと同じ。
++  const llama_vocab* vocab = llama_model_get_vocab(model_);
++  const int n_vocab = llama_vocab_n_tokens(vocab);
++  llama_memory_t mem = llama_get_memory(ctx_);
++  const int beams = root.beams;
++  const int base_pos = static_cast<int>(root.prefix.size());
++  // 次のトークンの上位 beams 件(トークンと対数確率)。
++  using Dist = std::vector<std::pair<llama_token, float>>;
++  std::vector<int> idx;
++  auto make_dist = [&](int index) {
++    const float* l = llama_get_logits_ith(ctx_, index);
++    const float lse = LogSumExp(l, n_vocab);
++    TopK(l, n_vocab, beams, &idx);
++    auto d = std::make_shared<Dist>();
++    d->reserve(idx.size());
++    for (int t : idx) d->push_back({t, l[t] - lse});
++    return d;
++  };
++  struct DBeam {
++    std::vector<llama_token> tokens;
++    float logp = 0;
++    int seq = 0;  // 前置き + tokens(+ chain)の KV を持つシーケンス
++    std::shared_ptr<Dist> dist;  // tokens の次の分布
++    // tokens の後ろに計算済みの下書きのトークンと、その次の分布。
++    std::vector<std::pair<llama_token, std::shared_ptr<Dist>>> chain;
++  };
++  // 下書きの続きを探す。まず tokens を先頭に持つ下書き、なければ tokens の末尾(最大 4 トークン)と
++  // 同じ並びを持つ下書きの、その後ろ(位置が近いもの)。読みに沿った文なので、1 字違いの後も
++  // 下書きの続きに戻ることが多い。
++  auto find_draft = [&](const std::vector<llama_token>& t) {
++    std::vector<llama_token> out;
++    const size_t len = t.size();
++    for (const auto& d : drafts) {
++      if (d.size() > len && std::equal(t.begin(), t.end(), d.begin())) {
++        for (size_t j = len; j < d.size() && out.size() < static_cast<size_t>(draft_tokens); ++j) {
++          out.push_back(d[j]);
++        }
++        return out;
++      }
++    }
++    for (size_t m = std::min<size_t>(4, len); m >= 1; --m) {
++      const llama_token* tail = t.data() + len - m;
++      int best_gap = std::numeric_limits<int>::max();
++      const std::vector<llama_token>* best_d = nullptr;
++      size_t best_j = 0;
++      for (const auto& d : drafts) {
++        for (size_t j = m; j < d.size(); ++j) {
++          if (!std::equal(tail, tail + m, d.begin() + (j - m))) continue;
++          const int gap = std::abs(static_cast<int>(j) - static_cast<int>(len));
++          if (gap < best_gap) {
++            best_gap = gap;
++            best_d = &d;
++            best_j = j;
++          }
++        }
++      }
++      if (best_d != nullptr) {
++        for (size_t j = best_j; j < best_d->size() && out.size() < static_cast<size_t>(draft_tokens); ++j) {
++          out.push_back((*best_d)[j]);
++        }
++        return out;
++      }
++      if (m == 1) break;
++    }
++    return out;
++  };
++
++  // シーケンス 1..2*beams を使う(0 は前置き)。
++  std::vector<int> free_seqs;
++  for (int q = 2 * beams; q >= 1; --q) {
++    llama_memory_seq_rm(mem, q, -1, -1);
++    free_seqs.push_back(q);
++  }
++  std::vector<DBeam> live(1);
++  live[0].seq = 0;
++  live[0].dist = make_dist(first_logit);
++  std::vector<std::pair<float, std::vector<llama_token>>> done;
++
++  for (int step = 0;; ++step) {
++    if (tl_cancel && tl_cancel()) {
++      ResetMemory();
++      return std::nullopt;
++    }
++    if (step >= root.max_len || live.empty()) break;
++    struct Next {
++      float logp;
++      size_t parent;
++      llama_token token;
++    };
++    std::vector<Next> next;
++    for (size_t p = 0; p < live.size(); ++p) {
++      for (const auto& [tok, lp] : *live[p].dist) {
++        next.push_back({live[p].logp + lp, p, tok});
++      }
++    }
++    std::sort(next.begin(), next.end(),
++              [](const Next& a, const Next& b) { return a.logp > b.logp; });
++    std::vector<DBeam> grown;
++    std::vector<size_t> parents;
++    for (const Next& n : next) {
++      if (static_cast<int>(grown.size()) + static_cast<int>(done.size()) >= beams) break;
++      std::vector<llama_token> t = live[n.parent].tokens;
++      if (is_end(n.token)) {
++        const size_t token_count = t.size() + 1;
++        if (include_end_token && n.token != llama_vocab_eos(vocab) &&
++            !llama_vocab_is_eog(vocab, n.token)) {
++          t.push_back(n.token);
++        }
++        if (!t.empty()) done.push_back({n.logp / token_count, std::move(t)});
++        continue;
++      }
++      t.push_back(n.token);
++      DBeam g;
++      g.tokens = std::move(t);
++      g.logp = n.logp;
++      grown.push_back(std::move(g));
++      parents.push_back(n.parent);
++    }
++    if (grown.empty()) break;
++    if (step + 1 == root.max_len) {
++      if (finish_at_max) {
++        for (const DBeam& g : grown) done.push_back({g.logp / g.tokens.size(), g.tokens});
++      }
++      break;
++    }
++    // 下書きどおりに伸びたビームは、親のシーケンスと計算済みの続きを引き継ぐ。
++    std::vector<bool> follows(grown.size(), false);
++    std::vector<bool> inherited(live.size(), false);
++    for (size_t i = 0; i < grown.size(); ++i) {
++      const DBeam& par = live[parents[i]];
++      if (!par.chain.empty() && par.chain[0].first == grown[i].tokens.back() &&
++          !inherited[parents[i]]) {
++        follows[i] = true;
++        inherited[parents[i]] = true;
++      }
++    }
++    // 計算が要るビームは、新しいシーケンスに親の KV(新しいトークンの位置の手前まで)を写す。
++    // 親のシーケンスを消す・引き継ぐ前に写す。
++    std::vector<size_t> todo;
++    for (size_t i = 0; i < grown.size(); ++i) {
++      if (follows[i]) continue;
++      if (free_seqs.empty()) {  // 起こらないはず(使うのは高々 2 * beams)
++        ResetMemory();
++        return std::nullopt;
++      }
++      const int seq = free_seqs.back();
++      free_seqs.pop_back();
++      const int pos = base_pos + static_cast<int>(grown[i].tokens.size()) - 1;
++      llama_memory_seq_rm(mem, seq, -1, -1);
++      llama_memory_seq_cp(mem, live[parents[i]].seq, seq, 0, pos);
++      grown[i].seq = seq;
++      todo.push_back(i);
++    }
++    for (size_t i = 0; i < grown.size(); ++i) {
++      if (!follows[i]) continue;
++      DBeam& par = live[parents[i]];
++      grown[i].seq = par.seq;
++      grown[i].dist = par.chain[0].second;
++      grown[i].chain.assign(par.chain.begin() + 1, par.chain.end());
++    }
++    for (size_t p = 0; p < live.size(); ++p) {
++      if (inherited[p] || live[p].seq == 0) continue;
++      llama_memory_seq_rm(mem, live[p].seq, -1, -1);
++      free_seqs.push_back(live[p].seq);
++    }
++    if (!todo.empty()) {
++      std::vector<std::vector<llama_token>> chains(todo.size());
++      int n_tokens = 0;
++      for (size_t k = 0; k < todo.size(); ++k) {
++        chains[k] = find_draft(grown[todo[k]].tokens);
++        n_tokens += 1 + static_cast<int>(chains[k].size());
++      }
++      llama_batch b = llama_batch_init(n_tokens, 0, 1);
++      std::vector<int> at(todo.size());
++      int n = 0;
++      for (size_t k = 0; k < todo.size(); ++k) {
++        const DBeam& g = grown[todo[k]];
++        const int pos = base_pos + static_cast<int>(g.tokens.size()) - 1;
++        at[k] = n;
++        auto add = [&](llama_token t, int p) {
++          b.token[n] = t;
++          b.pos[n] = p;
++          b.n_seq_id[n] = 1;
++          b.seq_id[n][0] = g.seq;
++          b.logits[n] = 1;
++          ++n;
++        };
++        add(g.tokens.back(), pos);
++        for (size_t j = 0; j < chains[k].size(); ++j) {
++          add(chains[k][j], pos + 1 + static_cast<int>(j));
++        }
++      }
++      b.n_tokens = n;
++      const int rc = Decode(ctx_, b, zenz_);
++      llama_batch_free(b);
++      if (rc != 0) break;
++      for (size_t k = 0; k < todo.size(); ++k) {
++        DBeam& g = grown[todo[k]];
++        g.dist = make_dist(at[k]);
++        for (size_t j = 0; j < chains[k].size(); ++j) {
++          g.chain.push_back({chains[k][j], make_dist(at[k] + 1 + static_cast<int>(j))});
++        }
++      }
++    }
++    live = std::move(grown);
++  }
++  std::stable_sort(done.begin(), done.end(),
++                   [](const auto& a, const auto& b) { return a.first > b.first; });
++  std::vector<std::vector<llama_token>> out;
++  for (auto& d : done) out.push_back(std::move(d.second));
++  return out;
++}
++
 +size_t ZenzScorer::CountTokens(absl::string_view text) {
 +  return Tokenize(llama_model_get_vocab(model_), std::string(text)).size();
 +}
@@ -50524,15 +51078,15 @@ index 000000000..fba04f625
 +  return text;
 +}
 +
-+std::vector<std::string> ZenzScorer::Generate(absl::string_view left_context,
-+                                              absl::string_view reading,
-+                                              int beams) {
-+  return GenerateMany(left_context, {std::string(reading)}, beams)[0];
++std::vector<std::string> ZenzScorer::Generate(
++    absl::string_view left_context, absl::string_view reading, int beams,
++    const std::vector<std::string>* drafts) {
++  return GenerateMany(left_context, {std::string(reading)}, beams, drafts)[0];
 +}
 +
 +std::vector<std::vector<std::string>> ZenzScorer::GenerateMany(
 +    absl::string_view left_context, const std::vector<std::string>& readings,
-+    int beams) {
++    int beams, const std::vector<std::string>* drafts) {
 +  std::vector<std::vector<std::string>> out(readings.size());
 +  if (!zenz_ || readings.empty()) return out;
 +  const llama_vocab* vocab = llama_model_get_vocab(model_);
@@ -50547,8 +51101,21 @@ index 000000000..fba04f625
 +    roots.push_back({std::move(prefix),
 +                     static_cast<int>(SplitChars(reading).size()) + 8, beams});
 +  }
++  // Asteria: 下書きを zenz のトークンにする(生成と同じ表記の正規化。終わりの </s> は付けない)。
++  std::vector<std::vector<llama_token>> draft_tokens;
++  if (drafts != nullptr && readings.size() == 1) {
++    for (const std::string& d : *drafts) {
++      if (d.empty()) continue;
++      std::vector<llama_token> t = Tokenize(vocab, Normalize(d));
++      if (!t.empty() && std::find(draft_tokens.begin(), draft_tokens.end(), t) ==
++                            draft_tokens.end()) {
++        draft_tokens.push_back(std::move(t));
++      }
++    }
++  }
 +  const auto found = BeamSearch(
-+      roots, [eos](llama_token t) { return t == eos; }, false);
++      roots, [eos](llama_token t) { return t == eos; }, false, false,
++      draft_tokens.empty() ? nullptr : &draft_tokens);
 +  for (size_t r = 0; r < found.size(); ++r) {
 +    for (const auto& tokens : found[r]) {
 +      std::string text = Detokenize(tokens);
@@ -50702,10 +51269,10 @@ index 000000000..fba04f625
 +}  // namespace mozc
 diff --git a/src/rewriter/zenz_scorer.h b/src/rewriter/zenz_scorer.h
 new file mode 100644
-index 000000000..18b1378d0
+index 000000000..ac9b60591
 --- /dev/null
 +++ b/src/rewriter/zenz_scorer.h
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,175 @@
 +// Copyright 2026, Kotori IME contributors
 +// All rights reserved.
 +//
@@ -50767,15 +51334,24 @@ index 000000000..18b1378d0
 +      absl::string_view left_context, absl::string_view reading,
 +      const std::vector<std::string>& candidates);
 +
++  // Asteria: Score と同じだが、シーケンス 0 に残した前置き(前の文の KV)を消さない。
++  // 前の文と関係のない短い採点(コピー癖の確かめ)で、次の変換の前置きの計算をやり直させない(Phase 2-2)。
++  std::optional<std::vector<float>> ScoreIsolated(
++      absl::string_view left_context, absl::string_view reading,
++      const std::vector<std::string>& candidates);
++
 +  // zenz で読みから文を生成する(ビームサーチ)。よい順に最大 beams 件。zenz でなければ空。
-+  std::vector<std::string> Generate(absl::string_view left_context,
-+                                    absl::string_view reading, int beams);
++  // Asteria: drafts(ラティスの文や前の打鍵の生成結果)は下書き。下書きの続きを 1 回の計算で
++  // 先に確かめ、ビームが下書きどおりに伸びるステップでは GPU を呼ばない(結果は下書きなしと同じ)。
++  std::vector<std::string> Generate(
++      absl::string_view left_context, absl::string_view reading, int beams,
++      const std::vector<std::string>* drafts = nullptr);
 +
 +  // 複数の読みを 1 回のビームサーチでまとめて生成する(GPU を呼ぶ回数を減らすため)。
-+  // 結果は読みごと。
++  // 結果は読みごと。下書きは読みが 1 つのときだけ使う。
 +  std::vector<std::vector<std::string>> GenerateMany(
 +      absl::string_view left_context, const std::vector<std::string>& readings,
-+      int beams);
++      int beams, const std::vector<std::string>* drafts = nullptr);
 +
 +  // 汎用の LLM で text の続きを生成する(ビームサーチ、句読点や改行の手前まで)。
 +  // よい順に最大 beams 件。zenz なら空。
@@ -50832,7 +51408,21 @@ index 000000000..18b1378d0
 +  std::vector<std::vector<std::vector<llama_token>>> BeamSearch(
 +      const std::vector<Root>& roots,
 +      const std::function<bool(llama_token)>& is_end, bool finish_at_max,
-+      bool include_end_token = false);
++      bool include_end_token = false,
++      const std::vector<std::vector<llama_token>>* drafts = nullptr);
++  // Asteria: 根が 1 つのビームサーチを、下書きの続きを先に確かめながら進める(BeamSearch から呼ぶ。
++  // 前置きの計算は済んでいる)。first_logit は前置きの最後のトークンの結果の位置。
++  // やめたとき・計算に失敗したときは KV を消して nullopt。
++  std::optional<std::vector<std::vector<llama_token>>> DraftedBeamSearch(
++      const Root& root, int first_logit,
++      const std::vector<std::vector<llama_token>>& drafts, int draft_tokens,
++      const std::function<bool(llama_token)>& is_end, bool finish_at_max,
++      bool include_end_token);
++  std::optional<std::vector<float>> ScoreImpl(
++      absl::string_view left_context, absl::string_view reading,
++      const std::vector<std::string>& candidates, bool isolated);
++  // prefix の最後の 1 トークンより前を seq に計算する(シーケンス 0 と cached_ には触れない)。
++  bool PrefillSeq(const std::vector<llama_token>& prefix, int seq);
 +  // シーケンス 0 に prefix の最後の 1 トークンより前を置き、ほかのシーケンスを空にする。
 +  // 前回と同じ先頭は計算し直さない(同じ前の文・読みでの採点や生成が続くため)。
 +  bool UsePrefix(const std::vector<llama_token>& prefix);
@@ -55718,10 +56308,21 @@ index 52b5ab884..516d77b05 100644
  
  }  // namespace tsf
 diff --git a/src/win32/tip/tip_surrounding_text.cc b/src/win32/tip/tip_surrounding_text.cc
-index af4753385..d9148841d 100644
+index af4753385..c95fb194f 100644
 --- a/src/win32/tip/tip_surrounding_text.cc
 +++ b/src/win32/tip/tip_surrounding_text.cc
-@@ -55,6 +55,11 @@ namespace tsf {
+@@ -33,7 +33,10 @@
+ #include <wil/com.h>
+ #include <windows.h>
+ 
++#include <atomic>
++#include <chrono>
+ #include <cstddef>
++#include <cstdint>
+ #include <memory>
+ #include <optional>
+ #include <string>
+@@ -55,6 +58,28 @@ namespace tsf {
  namespace {
  
  constexpr int kMaxSurroundingLength = 20;
@@ -55730,18 +56331,49 @@ index af4753385..d9148841d 100644
 +// (履歴の作り直し・予測の学習)はどれも末尾だけを見るので、長くしても結果は変わらない。
 +// 後ろの文(カーソルの後ろ)は 20 文字のまま。
 +constexpr int kMaxPrecedingLength = 256;
++// Asteria: 前の文を読むのが遅いアプリ(巨大な文書など)では、読む長さを 256 → 64 → 20 に縮める。
++// 直近の読み取りの時間の移動平均(μs)が 12 ms を超えたら 1 段縮め、2 ms を下回ったら 1 段戻す
++// (打鍵ごとの同期の読み取りでキーの処理を待たせない。Phase 3)。
++std::atomic<int> g_preceding_length{kMaxPrecedingLength};
++std::atomic<int64_t> g_read_avg_us{0};
++
++void RecordReadTime(int64_t us) {
++  const int64_t avg = (g_read_avg_us.load() * 2 + us) / 3;
++  g_read_avg_us.store(avg);
++  const int len = g_preceding_length.load();
++  if (avg > 12000 && len > 20) {
++    g_preceding_length.store(len > 64 ? 64 : 20);
++    g_read_avg_us.store(0);
++  } else if (avg < 2000 && len < kMaxPrecedingLength) {
++    g_preceding_length.store(len < 64 ? 64 : kMaxPrecedingLength);
++  }
++}
  constexpr int kMaxCharacterLength = 1024 * 1024;
  
  class SurroudingTextUpdater final : public TipComImplements<ITfEditSession> {
-@@ -105,7 +110,7 @@ class SurroudingTextUpdater final : public TipComImplements<ITfEditSession> {
+@@ -105,7 +130,7 @@ class SurroudingTextUpdater final : public TipComImplements<ITfEditSession> {
        if (SUCCEEDED(selected_range->Clone(&preceding_range)) &&
            SUCCEEDED(preceding_range->Collapse(edit_cookie, TF_ANCHOR_START)) &&
            SUCCEEDED(preceding_range->ShiftStart(
 -              edit_cookie, -kMaxSurroundingLength, &preceding_range_shifted,
-+              edit_cookie, -kMaxPrecedingLength, &preceding_range_shifted,
++              edit_cookie, -g_preceding_length.load(), &preceding_range_shifted,
                &halt_cond))) {
          HRESULT result = TipRangeUtil::GetText(
              preceding_range.get(), edit_cookie, &result_.preceding_text);
+@@ -275,9 +300,13 @@ bool TipSurroundingText::Get(TipTextService* text_service, ITfContext* context,
+   auto updater = MakeComPtr<SurroudingTextUpdater>(full_context, false);
+ 
+   HRESULT edit_session_result = S_OK;
++  const auto t0 = std::chrono::steady_clock::now();
+   const HRESULT hr = full_context->RequestEditSession(
+       text_service->GetClientID(), updater.get(), TF_ES_SYNC | TF_ES_READ,
+       &edit_session_result);
++  RecordReadTime(std::chrono::duration_cast<std::chrono::microseconds>(
++                     std::chrono::steady_clock::now() - t0)
++                     .count());
+   if (FAILED(hr)) {
+     return false;
+   }
 diff --git a/src/win32/tip/tip_text_service.cc b/src/win32/tip/tip_text_service.cc
 index beaef1a55..805343ed8 100644
 --- a/src/win32/tip/tip_text_service.cc
