@@ -1183,6 +1183,18 @@ index ef97855c1..bd645efc4 100644
  TEST_F(CharacterFormManagerTest, MixedFormTest) {
    CharacterFormManager* manager =
        CharacterFormManager::GetCharacterFormManager();
+diff --git a/src/converter/BUILD.bazel b/src/converter/BUILD.bazel
+index e28482f5f..5502cdd5d 100644
+--- a/src/converter/BUILD.bazel
++++ b/src/converter/BUILD.bazel
+@@ -262,6 +262,7 @@ mozc_cc_library(
+         "//data_manager:__pkg__",
+         "//engine:__pkg__",
+         "//prediction:__pkg__",
++        "//rewriter:__pkg__",
+     ],
+     deps = [
+         "//base:bits",
 diff --git a/src/converter/candidate.cc b/src/converter/candidate.cc
 index 18a83698f..bc10c35c0 100644
 --- a/src/converter/candidate.cc
@@ -27509,7 +27521,7 @@ index ec0faf7e7..a75b28272 100644
  
    std::unique_ptr<config::Config> default_config;
 diff --git a/src/gui/config_dialog/config_dialog.cc b/src/gui/config_dialog/config_dialog.cc
-index abbf55d68..7fc92d607 100644
+index abbf55d68..b5ba4ac29 100644
 --- a/src/gui/config_dialog/config_dialog.cc
 +++ b/src/gui/config_dialog/config_dialog.cc
 @@ -30,12 +30,63 @@
@@ -27685,7 +27697,7 @@ index abbf55d68..7fc92d607 100644
  
    punctuationsSettingComboBox->addItem(QString::fromUtf8("、。"));
    punctuationsSettingComboBox->addItem(QString::fromUtf8("，．"));
-@@ -152,6 +275,526 @@ ConfigDialog::ConfigDialog()
+@@ -152,6 +275,537 @@ ConfigDialog::ConfigDialog()
    symbolsSettingComboBox->addItem(QString::fromUtf8("「」／"));
    symbolsSettingComboBox->addItem(QString::fromUtf8("[]・"));
  
@@ -27793,14 +27805,23 @@ index abbf55d68..7fc92d607 100644
 +      kotoriLmPredictCheckBox_ =
 +          new QCheckBox(QString::fromUtf8("入力中に AI の予測を出す"), page);
 +      kotoriLmPredictCheckBox_->setVisible(false);
-+      kotoriLmCorrectionCheckBox_ = new QCheckBox(QString::fromUtf8("入力中に文章の誤変換を補正する"), page);
++      kotoriLmCorrectionCheckBox_ = new QCheckBox(QString::fromUtf8("打ち間違いを補正する"), page);
 +      kotoriLmCorrectionCheckBox_->setObjectName("kotoriLmCorrection");
 +      kotoriLmCorrectionCheckBox_->setStyleSheet("font-weight: 600;");
 +      l->addWidget(kotoriLmCorrectionCheckBox_);
-+      auto *correction_note = new QLabel(QString::fromUtf8("日本語LLMが使えるとき、手が止まった間に補正します。数字・名前・登録語を保ち、確かな改善だけを候補に反映します。Space を押して待っている間は補正を省き、すぐに候補を出します。"), page);
++      auto *correction_note = new QLabel(QString::fromUtf8("ありがとうごさいます → ありがとうございます のような打ち間違いを、辞書と打ち間違いの起こりやすさで直します。AI を使わないので、変換の速さは変わりません。"), page);
 +      correction_note->setWordWrap(true);
 +      correction_note->setProperty("kotoriNote", true);
 +      l->addWidget(correction_note);
++      // Asteria: AI での打ち間違いの補正(docs/adr/0089)。Space の待ちが延びるので既定はオフ。
++      kotoriAiTypoCorrectionCheckBox_ = new QCheckBox(QString::fromUtf8("AI で打ち間違いを補正する(変換が遅くなります)"), page);
++      kotoriAiTypoCorrectionCheckBox_->setObjectName("kotoriAiTypoCorrection");
++      kotoriAiTypoCorrectionCheckBox_->setStyleSheet("font-weight: 600;");
++      l->addWidget(kotoriAiTypoCorrectionCheckBox_);
++      auto *ai_correction_note = new QLabel(QString::fromUtf8("AI が直した文を作って確かめるので、キーの打ち違いが複数あっても直せます。その分、Space を押してから候補が出るまでが長くなります。"), page);
++      ai_correction_note->setWordWrap(true);
++      ai_correction_note->setProperty("kotoriNote", true);
++      l->addWidget(ai_correction_note);
 +      // Asteria: ライブ変換(docs/adr/0077)。既定はオフ。
 +      kotoriLiveConversionCheckBox_ = new QCheckBox(QString::fromUtf8("ライブ変換(入力中に変換した文字を表示する)"), page);
 +      kotoriLiveConversionCheckBox_->setObjectName("kotoriLiveConversion");
@@ -27983,6 +28004,8 @@ index abbf55d68..7fc92d607 100644
 +    QObject::connect(kotoriHomophoneHintsCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriRomajiEnglishCheckBox_, SIGNAL(stateChanged(int)), this,
++                     SLOT(EnableApplyButton()));
++    QObject::connect(kotoriAiTypoCorrectionCheckBox_, SIGNAL(stateChanged(int)), this,
 +                     SLOT(EnableApplyButton()));
 +    QObject::connect(kotoriLmModelPathEdit_, SIGNAL(textChanged(QString)), this,
 +                     SLOT(EnableApplyButton()));
@@ -28212,7 +28235,7 @@ index abbf55d68..7fc92d607 100644
    keymapSettingComboBox->addItem(tr("Custom keymap"));
    keymapSettingComboBox->addItem(tr("ATOK"));
    keymapSettingComboBox->addItem(tr("MS-IME"));
-@@ -217,6 +860,14 @@ ConfigDialog::ConfigDialog()
+@@ -217,6 +871,14 @@ ConfigDialog::ConfigDialog()
        ->setText(tr("Cancel"));
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
  
@@ -28227,7 +28250,7 @@ index abbf55d68..7fc92d607 100644
    // signal/slot
    QObject::connect(configDialogButtonBox, SIGNAL(clicked(QAbstractButton *)),
                     this, SLOT(clicked(QAbstractButton *)));
-@@ -250,8 +901,12 @@ ConfigDialog::ConfigDialog()
+@@ -250,8 +912,12 @@ ConfigDialog::ConfigDialog()
                     SIGNAL(clicked()), this, SLOT(LaunchAdministrationDialog()));
  
    // Event handlers to enable 'Apply' button.
@@ -28242,7 +28265,7 @@ index abbf55d68..7fc92d607 100644
    Connect(findChildren<QCheckBox *>(), SIGNAL(clicked()), this,
            SLOT(EnableApplyButton()));
    Connect(findChildren<QComboBox *>(), SIGNAL(activated(int)), this,
-@@ -299,6 +954,49 @@ ConfigDialog::ConfigDialog()
+@@ -299,6 +965,49 @@ ConfigDialog::ConfigDialog()
    dictionaryPreloadingAndUACLabel->setVisible(false);
  #endif  // _WIN32
  
@@ -28292,7 +28315,7 @@ index abbf55d68..7fc92d607 100644
  #ifdef __linux__
    // On Linux, disable all fields for UsageStats
    usageStatsLabel->setEnabled(false);
-@@ -312,6 +1010,7 @@ ConfigDialog::ConfigDialog()
+@@ -312,6 +1021,7 @@ ConfigDialog::ConfigDialog()
  #endif  // __linux__
  
    GuiUtil::ReplaceWidgetLabels(this);
@@ -28300,7 +28323,7 @@ index abbf55d68..7fc92d607 100644
  
    Reload();
  
-@@ -324,6 +1023,278 @@ ConfigDialog::ConfigDialog()
+@@ -324,6 +1034,278 @@ ConfigDialog::ConfigDialog()
  #ifdef CHANNEL_DEV
    usageStatsCheckBox->setEnabled(false);
  #endif  // CHANNEL_DEV
@@ -28579,7 +28602,7 @@ index abbf55d68..7fc92d607 100644
  }
  
  bool ConfigDialog::SetConfig(const config::Config &config) {
-@@ -383,6 +1354,27 @@ bool ConfigDialog::Update() {
+@@ -383,6 +1365,27 @@ bool ConfigDialog::Update() {
      return false;
    }
  
@@ -28607,7 +28630,7 @@ index abbf55d68..7fc92d607 100644
  #if defined(_WIN32)
    if ((initial_preedit_method_ != static_cast<int>(config.preedit_method())) ||
        (initial_use_keyboard_to_change_preedit_method_ !=
-@@ -405,16 +1397,16 @@ bool ConfigDialog::Update() {
+@@ -405,16 +1408,16 @@ bool ConfigDialog::Update() {
    }
  #endif  // _WIN32
  
@@ -28632,7 +28655,7 @@ index abbf55d68..7fc92d607 100644
    }
  #endif  // _WIN32
  
-@@ -430,6 +1422,9 @@ bool ConfigDialog::Update() {
+@@ -430,6 +1433,9 @@ bool ConfigDialog::Update() {
    }
  #endif  // __APPLE__
  
@@ -28642,7 +28665,7 @@ index abbf55d68..7fc92d607 100644
    return true;
  }
  
-@@ -524,6 +1519,26 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -524,6 +1530,27 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
    custom_keymap_table_ = config.custom_keymap_table();
    custom_roman_table_ = config.custom_roman_table();
  
@@ -28657,6 +28680,7 @@ index abbf55d68..7fc92d607 100644
 +  kotoriLmPredictCheckBox_->setChecked(config.kotori_lm_predict());
 +  kotoriShareInputModeCheckBox_->setChecked(config.kotori_share_input_mode());
 +  kotoriLmCorrectionCheckBox_->setChecked(config.kotori_lm_correction());
++  kotoriAiTypoCorrectionCheckBox_->setChecked(config.kotori_ai_typo_correction());
 +  kotoriLiveConversionCheckBox_->setChecked(config.kotori_live_conversion());
 +  kotoriIntegratedGpuCheckBox_->setChecked(config.kotori_use_integrated_gpu());
 +  kotoriHomophoneHintsCheckBox_->setChecked(config.kotori_homophone_hints());
@@ -28669,7 +28693,7 @@ index abbf55d68..7fc92d607 100644
    // tab2
    SET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -571,6 +1586,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
+@@ -571,6 +1598,8 @@ void ConfigDialog::ConvertFromProto(const config::Config &config) {
  
    suggestionsSizeSpinBox->setValue(
        std::clamp<int>(config.suggestions_size(), 1, 9));
@@ -28678,7 +28702,7 @@ index abbf55d68..7fc92d607 100644
  
    // tab5
    SetSendStatsCheckBox();
-@@ -612,6 +1629,23 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -612,6 +1641,24 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
      config->set_custom_roman_table(custom_roman_table_);
    }
  
@@ -28692,6 +28716,7 @@ index abbf55d68..7fc92d607 100644
 +  config->set_kotori_share_input_mode(
 +      kotoriShareInputModeCheckBox_->isChecked());
 +  config->set_kotori_lm_correction(kotoriLmCorrectionCheckBox_->isChecked());
++  config->set_kotori_ai_typo_correction(kotoriAiTypoCorrectionCheckBox_->isChecked());
 +  config->set_kotori_live_conversion(kotoriLiveConversionCheckBox_->isChecked());
 +  config->set_kotori_use_integrated_gpu(kotoriIntegratedGpuCheckBox_->isChecked());
 +  config->set_kotori_homophone_hints(kotoriHomophoneHintsCheckBox_->isChecked());
@@ -28702,7 +28727,7 @@ index abbf55d68..7fc92d607 100644
    // tab2
    GET_COMBOBOX(historyLearningLevelComboBox, HistoryLearningLevel,
                 history_learning_level);
-@@ -664,6 +1698,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
+@@ -664,6 +1711,8 @@ void ConfigDialog::ConvertToProto(config::Config *config) const {
  
    config->set_suggestions_size(
        static_cast<uint32_t>(suggestionsSizeSpinBox->value()));
@@ -28711,7 +28736,7 @@ index abbf55d68..7fc92d607 100644
  
    // tab5
    GetSendStatsCheckBox();
-@@ -846,6 +1882,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
+@@ -846,6 +1895,11 @@ void ConfigDialog::LaunchAdministrationDialog() {
  
  void ConfigDialog::EnableApplyButton() {
    configDialogButtonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
@@ -28724,7 +28749,7 @@ index abbf55d68..7fc92d607 100644
  
  // Catch MouseButtonRelease event to toggle the CheckBoxes
 diff --git a/src/gui/config_dialog/config_dialog.h b/src/gui/config_dialog/config_dialog.h
-index 85e1c0075..222e5bc8e 100644
+index 85e1c0075..6d613b963 100644
 --- a/src/gui/config_dialog/config_dialog.h
 +++ b/src/gui/config_dialog/config_dialog.h
 @@ -33,6 +33,12 @@
@@ -28740,7 +28765,7 @@ index 85e1c0075..222e5bc8e 100644
  #include <QTimer>
  #include <map>
  #include <memory>
-@@ -48,6 +54,31 @@ namespace gui {
+@@ -48,6 +54,32 @@ namespace gui {
  class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    Q_OBJECT;
  
@@ -28755,6 +28780,7 @@ index 85e1c0075..222e5bc8e 100644
 +  // Asteria: GitHub での応援のお願い(通知)を表示するか。support-reminder.ini に保存する。
 +  QCheckBox *kotoriSupportReminderCheckBox_ = nullptr;
 +  QCheckBox *kotoriLmCorrectionCheckBox_ = nullptr;
++  QCheckBox *kotoriAiTypoCorrectionCheckBox_ = nullptr;
 +  // Asteria: ライブ変換と内蔵 GPU(docs/adr/0077、0078)。
 +  QCheckBox *kotoriLiveConversionCheckBox_ = nullptr;
 +  QCheckBox *kotoriIntegratedGpuCheckBox_ = nullptr;
@@ -28772,7 +28798,7 @@ index 85e1c0075..222e5bc8e 100644
   public:
    ConfigDialog();
  
-@@ -80,6 +111,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
+@@ -80,6 +112,7 @@ class ConfigDialog : public QDialog, private Ui::ConfigDialog {
    bool eventFilter(QObject *obj, QEvent *event) override;
  
   private:
@@ -29558,10 +29584,10 @@ index 000000000..9d49397b8
 +#endif  // MOZC_GUI_CONFIG_DIALOG_KOTORI_MODEL_DOWNLOAD_H_
 diff --git a/src/gui/config_dialog/kotori_settings_bridge.cc b/src/gui/config_dialog/kotori_settings_bridge.cc
 new file mode 100644
-index 000000000..b1cc9e722
+index 000000000..df4b7c5cf
 --- /dev/null
 +++ b/src/gui/config_dialog/kotori_settings_bridge.cc
-@@ -0,0 +1,734 @@
+@@ -0,0 +1,735 @@
 +// Copyright 2026, Asteria contributors (BSD-3-Clause, same as Mozc)
 +// HTML の設定画面と変換サーバーの間で、設定と状態を JSON でやり取りする(docs/adr/0084)。
 +
@@ -29651,6 +29677,7 @@ index 000000000..b1cc9e722
 +    {"kotori_lm_quality", 0, 3},
 +    {"kotori_lm_model", 0, 2},
 +    {"kotori_lm_correction", 0, 0},
++    {"kotori_ai_typo_correction", 0, 0},
 +    {"kotori_live_conversion", 0, 0},
 +    {"kotori_homophone_hints", 0, 0},
 +    {"kotori_romaji_english", 0, 0},
@@ -32931,10 +32958,10 @@ index 000000000..1913ea553
 +.recent-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 diff --git a/src/gui/config_dialog/web/settings.js b/src/gui/config_dialog/web/settings.js
 new file mode 100644
-index 000000000..b95b20c3d
+index 000000000..4b6550de5
 --- /dev/null
 +++ b/src/gui/config_dialog/web/settings.js
-@@ -0,0 +1,1398 @@
+@@ -0,0 +1,1404 @@
 +// Asteria の設定画面(docs/adr/0084)。
 +// 設定は変えたらすぐ保存する(元に戻すときは同じ所で戻す)。保存・読み込みは WebView2 の
 +// メッセージで mozc_tool の KotoriSettingsBridge に頼む。WebView2 の外(ブラウザーでの確認)では
@@ -33074,9 +33101,15 @@ index 000000000..b95b20c3d
 +              example: 'きょうはいいてんき → 今日はいい天気', disabledWhen: () => !cfg().kotori_lm_enabled,
 +            },
 +            {
-+              type: 'switch', key: 'kotori_lm_correction', label: '入力中に誤変換を補正する',
-+              desc: '数字・名前・登録した語は変えません。',
++              type: 'switch', key: 'kotori_lm_correction', label: '打ち間違いを補正する',
++              desc: '辞書と打ち間違いの起こりやすさで直します。AI を使わないので、変換の速さは変わりません。',
++              example: 'ありがとうごさいます → ありがとうございます',
 +              disabledWhen: () => !cfg().kotori_lm_enabled,
++            },
++            {
++              type: 'switch', key: 'kotori_ai_typo_correction', label: 'AI で打ち間違いを補正する',
++              desc: 'キーの打ち違いが複数あっても直せます。その分、Space を押してから候補が出るまでが長くなります。',
++              disabledWhen: () => !cfg().kotori_lm_enabled || !cfg().kotori_lm_correction,
 +            },
 +            {
 +              type: 'switch', key: 'kotori_homophone_hints', label: '同音語のヒント',
@@ -34267,7 +34300,7 @@ index 000000000..b95b20c3d
 +      auto_conversion_key: 13, shift_key_mode_switch: 1, use_mode_indicator: true, kotori_share_input_mode: true,
 +      use_history_suggest: true, use_dictionary_suggest: true, suggestions_size: 3, kotori_suggest_min_chars: 3,
 +      incognito_mode: false, presentation_mode: false, check_default: true, kotori_lm_enabled: true,
-+      kotori_lm_quality: 1, kotori_lm_model: 0, kotori_lm_correction: true, kotori_live_conversion: false,
++      kotori_lm_quality: 1, kotori_lm_model: 0, kotori_lm_correction: true, kotori_ai_typo_correction: false, kotori_live_conversion: false,
 +      kotori_homophone_hints: false, kotori_romaji_english: false, kotori_use_integrated_gpu: false,
 +      kotori_lm_model_path: '', use_local_usage_dictionary: true, kotori_recent_conversions: false,
 +      character_form_rules: [
@@ -34854,7 +34887,7 @@ index b0c1e6cf6..d26d16a67 100644
    required CommandType type = 1;
  
 diff --git a/src/protocol/config.proto b/src/protocol/config.proto
-index 7d735374e..b59c6b31d 100644
+index 7d735374e..897c231b3 100644
 --- a/src/protocol/config.proto
 +++ b/src/protocol/config.proto
 @@ -221,7 +221,7 @@ message Config {
@@ -34866,7 +34899,7 @@ index 7d735374e..b59c6b31d 100644
  
    // Shift key mode switch
    enum ShiftKeyModeSwitch {
-@@ -360,6 +360,58 @@ message Config {
+@@ -360,6 +360,63 @@ message Config {
    // Use mode indicator feature.
    optional bool use_mode_indicator = 120 [default = true];
  
@@ -34893,6 +34926,8 @@ index 7d735374e..b59c6b31d 100644
 +  // 入力中に AI の予測(文の続き)を候補に出す。Tab の予測も含む(docs/adr/0019、0021)。
 +  optional bool kotori_lm_predict = 204 [default = true];
 +  // Kotori: 非同期の文章補正。数字・登録語・文法を保護し、強い改善だけ採用する。
++  // Asteria: 打ち間違いの補正のスイッチ。既定では AI を使わない軽い補正(打ち間違いの起こりやすさ × Mozc の
++  // 言語モデル)を行う。AI(zenz・LLM)での補正は kotori_ai_typo_correction で別にオンにする。
 +  optional bool kotori_lm_correction = 205 [default = true];
 +  // Kotori: 変換候補の末尾の文字種メニューを表示しない。F6〜F10は維持。
 +  optional bool kotori_hide_character_types = 206 [default = true];
@@ -34921,6 +34956,9 @@ index 7d735374e..b59c6b31d 100644
 +  // Asteria: 誤変換の報告用に、直近の変換(読み・前の文・候補・確定した語)をこの PC に残す
 +  // (docs/adr/0087、カード 92)。既定はオフ。外へは送らず、設定画面から書き出し・消去できる。
 +  optional bool kotori_recent_conversions = 215 [default = false];
++  // Asteria: 打ち間違いの補正に AI(zenz で文を作り LLM で採点する。docs/adr/0074・0076)を使う。Space の待ちが
++  // 延びるので既定はオフ。オフのときは AI を使わない軽い補正(docs/adr/0089)。kotori_lm_correction がオンのときだけ効く。
++  optional bool kotori_ai_typo_correction = 216 [default = false];
 +
    //////////////////////////////////////////////////////////////
    //
@@ -35490,7 +35528,7 @@ index 0d2eb3455..ce3cdfd4f 100644
    // For example, "私の" is created from composition "わたしのなまえ".
    bool create_partial_candidates = false;
 diff --git a/src/rewriter/BUILD.bazel b/src/rewriter/BUILD.bazel
-index 4bbcddeca..a27958a95 100644
+index 4bbcddeca..dac8697b6 100644
 --- a/src/rewriter/BUILD.bazel
 +++ b/src/rewriter/BUILD.bazel
 @@ -193,6 +193,7 @@ mozc_cc_library(
@@ -35573,7 +35611,7 @@ index 4bbcddeca..a27958a95 100644
          ":merger_rewriter",
          ":number_rewriter",
          ":remove_redundant_candidate_rewriter",
-@@ -1743,3 +1772,276 @@ mozc_cc_test(
+@@ -1743,3 +1772,305 @@ mozc_cc_test(
          "//testing:gunit_main",
      ],
  )
@@ -35802,6 +35840,7 @@ index 4bbcddeca..a27958a95 100644
 +    visibility = ["//converter:__pkg__"],
 +    deps = [
 +        ":kotori_context_history",
++        ":kotori_light_lattice",
 +        ":kotori_model_catalog",
 +        ":kotori_romaji_english",
 +        ":kotori_typo_model",
@@ -35834,6 +35873,34 @@ index 4bbcddeca..a27958a95 100644
 +        "//bazel/cc_target_os:windows": ["//base/win32:wide_char"],
 +        "//conditions:default": [],
 +    }),
++)
++
++mozc_cc_library(
++    name = "kotori_light_lattice",
++    srcs = ["kotori_light_lattice.cc"],
++    hdrs = ["kotori_light_lattice.h"],
++    deps = [
++        "//base:util",
++        "//converter:connector",
++        "//dictionary:dictionary_interface",
++        "//dictionary:dictionary_token",
++        "@com_google_absl//absl/container:flat_hash_map",
++        "@com_google_absl//absl/strings",
++    ],
++)
++
++mozc_cc_test(
++    name = "kotori_light_lattice_test",
++    size = "small",
++    srcs = ["kotori_light_lattice_test.cc"],
++    deps = [
++        ":kotori_light_lattice",
++        "//converter:connector",
++        "//data_manager/testing:mock_data_manager",
++        "//dictionary:dictionary_mock",
++        "//dictionary:dictionary_token",
++        "//testing:gunit_main",
++    ],
 +)
 +
 +mozc_cc_binary(
@@ -38460,6 +38527,323 @@ index 000000000..778c9973f
 +}
 +
 +}  // namespace
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_light_lattice.cc b/src/rewriter/kotori_light_lattice.cc
+new file mode 100644
+index 000000000..8d5853cc0
+--- /dev/null
++++ b/src/rewriter/kotori_light_lattice.cc
+@@ -0,0 +1,137 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++// Asteria: AI を使わない軽い打ち間違いの補正(docs/adr/0089)のための、読みのいちばん安い道。
++
++#include "rewriter/kotori_light_lattice.h"
++
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++#include <optional>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/strings/string_view.h"
++#include "base/util.h"
++#include "converter/connector.h"
++#include "dictionary/dictionary_interface.h"
++#include "dictionary/dictionary_token.h"
++
++namespace mozc {
++namespace kotori_internal {
++namespace {
++
++class TokenCollector : public dictionary::DictionaryInterface::Callback {
++ public:
++  ResultType OnToken(absl::string_view, absl::string_view, dictionary::Token token) override {
++    tokens.push_back(std::move(token));
++    // 前方一致の語が多い読み(「か」「し」など)で計算が膨らまないよう、数を抑える。
++    return tokens.size() >= 2000 ? TRAVERSE_DONE : TRAVERSE_CONTINUE;
++  }
++  std::vector<dictionary::Token> tokens;
++};
++
++}  // namespace
++
++LightLattice::LightLattice(const dictionary::DictionaryInterface& dictionary,
++                           const Connector& connector, uint16_t unknown_id)
++    : dictionary_(dictionary), connector_(connector), unknown_id_(unknown_id) {}
++
++const std::vector<LightLattice::Word>& LightLattice::Lookup(absl::string_view suffix) {
++  auto it = cache_.find(suffix);
++  if (it != cache_.end()) return it->second;
++  TokenCollector collector;
++  dictionary_.LookupPrefix(suffix, &collector);
++  // 読みの長さごとに安い順に残す(長さを問わず安い順にすると、短い助詞ばかりが残り、長い語が消える)。
++  absl::flat_hash_map<size_t, std::vector<Word>> by_length;
++  for (dictionary::Token& t : collector.tokens) {
++    if (t.key.empty() || t.key.size() > suffix.size()) continue;
++    by_length[t.key.size()].push_back(
++        Word{t.key.size(), std::move(t.value), t.cost, t.lid, t.rid});
++  }
++  std::vector<Word> words;
++  constexpr size_t kPerLength = 16;
++  for (auto& [bytes, list] : by_length) {
++    std::stable_sort(list.begin(), list.end(),
++                     [](const Word& a, const Word& b) { return a.cost < b.cost; });
++    if (list.size() > kPerLength) list.resize(kPerLength);
++    for (Word& w : list) words.push_back(std::move(w));
++  }
++  std::stable_sort(words.begin(), words.end(),
++                   [](const Word& a, const Word& b) { return a.cost < b.cost; });
++  if (words.size() > kMaxWordsPerPosition) words.resize(kMaxWordsPerPosition);
++  // 辞書にない 1 文字(どの読みでも道が切れないように)。
++  const absl::string_view first = Util::Utf8SubString(suffix, 0, 1);
++  words.push_back(Word{first.size(), std::string(first), kUnknownCost, unknown_id_, unknown_id_});
++  return cache_.emplace(std::string(suffix), std::move(words)).first->second;
++}
++
++std::optional<LightPath> LightLattice::Best(absl::string_view reading) {
++  if (reading.empty()) return std::nullopt;
++  struct State {
++    int cost;
++    uint16_t rid;
++    size_t from_pos;    // 前の状態のある位置(バイト)
++    size_t from_index;  // その位置の状態の番号
++    std::string value;  // この状態に入った語の表記
++  };
++  // 位置(読みのバイト)ごとの状態。文の始めは右の品詞 0(BOS)。
++  std::vector<std::vector<State>> states(reading.size() + 1);
++  states[0].push_back(State{0, 0, 0, 0, std::string()});
++  for (size_t pos = 0; pos < reading.size(); ++pos) {
++    std::vector<State>& here = states[pos];
++    if (here.empty()) continue;
++    // この位置の状態は、入るときに安い順に kBeam 個まで(右の品詞ごとに 1 つ)に絞ってある。
++    const std::vector<Word>& words = Lookup(reading.substr(pos));
++    for (size_t si = 0; si < here.size(); ++si) {
++      const State& s = here[si];
++      for (const Word& w : words) {
++        const size_t to = pos + w.bytes;
++        if (to > reading.size()) continue;
++        const int cost = s.cost + connector_.GetTransitionCost(s.rid, w.lid) + w.cost;
++        std::vector<State>& there = states[to];
++        auto same = std::find_if(there.begin(), there.end(),
++                                 [&](const State& x) { return x.rid == w.rid; });
++        if (same != there.end()) {
++          if (cost < same->cost) *same = State{cost, w.rid, pos, si, w.value};
++          continue;
++        }
++        if (there.size() < kBeam) {
++          there.push_back(State{cost, w.rid, pos, si, w.value});
++          continue;
++        }
++        auto worst = std::max_element(there.begin(), there.end(),
++                                      [](const State& a, const State& b) { return a.cost < b.cost; });
++        if (cost < worst->cost) *worst = State{cost, w.rid, pos, si, w.value};
++      }
++    }
++  }
++  const std::vector<State>& last = states[reading.size()];
++  if (last.empty()) return std::nullopt;
++  size_t best = 0;
++  int best_cost = std::numeric_limits<int>::max();
++  for (size_t i = 0; i < last.size(); ++i) {
++    const int c = last[i].cost + connector_.GetTransitionCost(last[i].rid, 0);  // 文の終わり(EOS)
++    if (c < best_cost) {
++      best_cost = c;
++      best = i;
++    }
++  }
++  std::vector<const std::string*> parts;
++  size_t pos = reading.size(), index = best;
++  while (pos > 0) {
++    const State& s = states[pos][index];
++    parts.push_back(&s.value);
++    index = s.from_index;
++    pos = s.from_pos;
++  }
++  LightPath path;
++  path.cost = best_cost;
++  for (auto it = parts.rbegin(); it != parts.rend(); ++it) path.value += **it;
++  return path;
++}
++
++}  // namespace kotori_internal
++}  // namespace mozc
+diff --git a/src/rewriter/kotori_light_lattice.h b/src/rewriter/kotori_light_lattice.h
+new file mode 100644
+index 000000000..38640a9dc
+--- /dev/null
++++ b/src/rewriter/kotori_light_lattice.h
+@@ -0,0 +1,67 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++// Asteria: AI を使わない軽い打ち間違いの補正(docs/adr/0089)のための、読みの自然さの目安。
++// 読みを辞書の語で区切り、語のコストと語どうしのつながりのコスト(Mozc の変換と同じ表)の和が
++// いちばん小さい道を求める。Mozc のコストは -500 × log(確率)なので、読みどうしのコストの差は
++// 言語モデルの対数確率の差として使える。区切りの規則(segmenter)や書き換えは通さない。
++
++#ifndef MOZC_REWRITER_KOTORI_LIGHT_LATTICE_H_
++#define MOZC_REWRITER_KOTORI_LIGHT_LATTICE_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <string>
++#include <vector>
++
++#include "absl/container/flat_hash_map.h"
++#include "absl/strings/string_view.h"
++#include "converter/connector.h"
++#include "dictionary/dictionary_interface.h"
++
++namespace mozc {
++namespace kotori_internal {
++
++// Mozc のコスト 1 あたりの自然対数の確率(cost = -500 × log(prob))。
++inline constexpr double kMozcCostPerNat = 500.0;
++
++struct LightPath {
++  int cost = 0;        // 道のコストの和(語・つながり・文の始めと終わり)
++  std::string value;   // 道の表記をつないだもの
++};
++
++class LightLattice {
++ public:
++  // unknown_id は辞書にない 1 文字に使う品詞(Mozc の「未知語」)。
++  LightLattice(const dictionary::DictionaryInterface& dictionary, const Connector& connector,
++               uint16_t unknown_id);
++
++  // 読みのいちばん安い道。読みが空なら nullopt。辞書を引いた結果は、同じ LightLattice の中で
++  // 読みの末尾ごとに覚えておく(打ち間違いの書き換えは大半が元の読みと同じ末尾を持つ)。
++  std::optional<LightPath> Best(absl::string_view reading);
++
++  // 辞書にない 1 文字のコスト。ReadingCost(lm_rewriter.cc)と同じ大きさ。
++  static constexpr int kUnknownCost = 10000;
++  // 1 か所の候補の数と、1 文字の位置ごとに残す状態の数の上限(計算を軽く保つため)。
++  static constexpr size_t kMaxWordsPerPosition = 64;
++  static constexpr size_t kBeam = 8;
++
++ private:
++  struct Word {
++    size_t bytes;
++    std::string value;
++    int cost;
++    uint16_t lid;
++    uint16_t rid;
++  };
++  const std::vector<Word>& Lookup(absl::string_view suffix);
++
++  const dictionary::DictionaryInterface& dictionary_;
++  const Connector& connector_;
++  const uint16_t unknown_id_;
++  absl::flat_hash_map<std::string, std::vector<Word>> cache_;
++};
++
++}  // namespace kotori_internal
++}  // namespace mozc
++
++#endif  // MOZC_REWRITER_KOTORI_LIGHT_LATTICE_H_
+diff --git a/src/rewriter/kotori_light_lattice_test.cc b/src/rewriter/kotori_light_lattice_test.cc
+new file mode 100644
+index 000000000..7206a59a6
+--- /dev/null
++++ b/src/rewriter/kotori_light_lattice_test.cc
+@@ -0,0 +1,95 @@
++// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
++
++#include "rewriter/kotori_light_lattice.h"
++
++#include <optional>
++#include <string>
++#include <tuple>
++#include <utility>
++#include <vector>
++
++#include "absl/strings/match.h"
++#include "absl/strings/string_view.h"
++#include "converter/connector.h"
++#include "data_manager/testing/mock_data_manager.h"
++#include "dictionary/dictionary_interface.h"
++#include "dictionary/dictionary_token.h"
++#include "testing/gunit.h"
++
++namespace mozc {
++namespace kotori_internal {
++namespace {
++
++// 決まった語だけを持つ辞書。前方一致で、読みの先頭に合う語をすべて返す。
++class FakeDictionary : public dictionary::DictionaryInterface {
++ public:
++  void Add(std::string key, std::string value, int cost) {
++    words_.emplace_back(std::move(key), std::move(value), cost);
++  }
++  bool HasKey(absl::string_view key) const override {
++    for (const auto& [k, v, c] : words_) {
++      if (k == key) return true;
++    }
++    return false;
++  }
++  bool HasValue(absl::string_view) const override { return false; }
++  void LookupPrefix(absl::string_view key, Callback* callback) const override {
++    for (const auto& [k, v, c] : words_) {
++      if (!absl::StartsWith(key, k)) continue;
++      callback->OnToken(k, k, dictionary::Token(k, v, c, kPos, kPos, dictionary::Token::NONE));
++    }
++  }
++  static constexpr uint16_t kPos = 1;
++
++ private:
++  std::vector<std::tuple<std::string, std::string, int>> words_;
++};
++
++class LightLatticeTest : public ::testing::Test {
++ protected:
++  void SetUp() override {
++    auto connector = Connector::Create(data_manager_.GetConnectorData());
++    ASSERT_TRUE(connector.ok());
++    connector_.emplace(std::move(connector).value());
++    dic_.Add("ありがとう", "ありがとう", 1000);
++    dic_.Add("ございます", "ございます", 1000);
++    dic_.Add("ご", "ご", 3000);
++    dic_.Add("ござい", "ござい", 3000);
++    dic_.Add("きょう", "今日", 1500);
++    dic_.Add("は", "は", 500);
++    dic_.Add("いい", "いい", 800);
++  }
++
++  testing::MockDataManager data_manager_;
++  std::optional<Connector> connector_;
++  FakeDictionary dic_;
++  static constexpr uint16_t kUnknown = 2;
++};
++
++TEST_F(LightLatticeTest, JoinsWordValues) {
++  LightLattice lattice(dic_, *connector_, kUnknown);
++  const std::optional<LightPath> path = lattice.Best("きょうはいい");
++  ASSERT_TRUE(path.has_value());
++  EXPECT_EQ(path->value, "今日はいい");
++}
++
++TEST_F(LightLatticeTest, TypoReadingCostsMore) {
++  LightLattice lattice(dic_, *connector_, kUnknown);
++  const std::optional<LightPath> right = lattice.Best("ありがとうございます");
++  const std::optional<LightPath> typo = lattice.Best("ありがとうごさいます");
++  ASSERT_TRUE(right.has_value());
++  ASSERT_TRUE(typo.has_value());
++  EXPECT_EQ(right->value, "ありがとうございます");
++  // 打ち間違いの読みは語に区切れず、辞書にない文字のコストを払う。
++  EXPECT_GT(typo->cost, right->cost + LightLattice::kUnknownCost);
++  EXPECT_EQ(typo->value, "ありがとうごさいます");
++}
++
++TEST_F(LightLatticeTest, EmptyReading) {
++  LightLattice lattice(dic_, *connector_, kUnknown);
++  EXPECT_FALSE(lattice.Best("").has_value());
++}
++
++}  // namespace
++}  // namespace kotori_internal
 +}  // namespace mozc
 diff --git a/src/rewriter/kotori_model_catalog.cc b/src/rewriter/kotori_model_catalog.cc
 new file mode 100644
@@ -41561,10 +41945,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..7bb508336
+index 000000000..40b5b167b
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5205 @@
+@@ -0,0 +1,5318 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -41620,6 +42004,7 @@ index 000000000..7bb508336
 +#include "request/conversion_request.h"
 +#include "rewriter/kotori_model_catalog.h"
 +#include "rewriter/kotori_romaji_english.h"
++#include "rewriter/kotori_light_lattice.h"
 +#include "rewriter/kotori_typo_model.h"
 +#include "rewriter/llama_runtime.h"
 +
@@ -43384,9 +43769,9 @@ index 000000000..7bb508336
 +
 +LmRewriter::LmRewriter(const dictionary::DictionaryInterface* dictionary,
 +                       const dictionary::SingleKanjiDictionary* single_kanji,
-+                       dictionary::PosMatcher pos_matcher)
++                       dictionary::PosMatcher pos_matcher, const Connector* connector)
 +    : dictionary_(dictionary), single_kanji_(single_kanji),
-+      pos_matcher_(pos_matcher) {
++      pos_matcher_(pos_matcher), connector_(connector) {
 +  if (const char* v = Env("KOTORI_LM_K")) {
 +    k_override_ = std::strtoul(v, nullptr, 10);
 +  }
@@ -43434,6 +43819,8 @@ index 000000000..7bb508336
 +  if (const char* v = Env("KOTORI_LM_LIVE_NEXT")) live_next_ms_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_CPU_LONG")) cpu_long_chars_ = std::atoi(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO")) typo_correct_ = *v != '0';
++  if (const char* v = Env("KOTORI_LM_LIGHT_TYPO")) light_typo_ = *v != '0';
++  if (const char* v = Env("KOTORI_LM_LIGHT_POSTERIOR")) light_posterior_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_POSTERIOR")) typo_posterior_ = std::atof(v);
 +  if (const char* v = Env("KOTORI_LM_TYPO_K")) typo_k_ = std::max(1, std::atoi(v));
 +  if (const char* v = Env("KOTORI_LM_TYPO_GAIN")) typo_gain_ = std::atoi(v);
@@ -44020,7 +44407,8 @@ index 000000000..7bb508336
 +  return absl::StrCat(static_cast<int>(config.kotori_lm_quality()), ",",
 +                      static_cast<int>(config.kotori_lm_model()), ",",
 +                      config.kotori_lm_model_path(), ",",
-+                      config.kotori_lm_correction(), "\x1f", context);
++                      config.kotori_lm_correction(), ",", config.kotori_ai_typo_correction(),
++                      "\x1f", context);
 +}
 +
 +void LmRewriter::ClearPredictions() const {
@@ -44840,8 +45228,17 @@ index 000000000..7bb508336
 +      typo_chosen = lambda_lm_ * (*z)[0];
 +    }
 +  }
++  // Asteria: AI での打ち間違いの補正は、設定でオンにしたときだけ(Space の待ちが延びるため。docs/adr/0089)。
++  // オフのときは、AI を使わない軽い補正(打ち間違いの起こりやすさ × Mozc の言語モデル)を行う。
++  const bool ai_typo = request.config().kotori_ai_typo_correction();
++  const bool light_fixed =
++      !english_fixed && !llm_fixed && !ai_typo && light_typo_ &&
++      request.config().kotori_lm_correction() && dictionary_ != nullptr && connector_ != nullptr &&
++      !typo_over() && !reading.empty() && Util::CharsLen(reading) <= kMaxTypoChars &&
++      FindLightTypoCorrection(reading, TypingKeys(request), typo_over, &fixed);
 +  const bool typo_fixed =
-+      !english_fixed && !llm_fixed && typo_correct_ && request.config().kotori_lm_correction() &&
++      !english_fixed && !llm_fixed && !light_fixed && ai_typo && typo_correct_ &&
++      request.config().kotori_lm_correction() &&
 +      llm != nullptr && llogp && dictionary_ != nullptr &&
 +      !typo_over() &&
 +      !reading.empty() &&
@@ -44861,7 +45258,7 @@ index 000000000..7bb508336
 +      best.corrected_reading = kotori_internal::MechanicalCorrectionReading(
 +          *dictionary_, reading, fixed);
 +    }
-+  } else if (typo_fixed || english_fixed) {
++  } else if (typo_fixed || light_fixed || english_fixed) {
 +    best.keys = {reading};
 +    best.values = {fixed};
 +    best.keep_ascii = english_fixed;
@@ -46367,6 +46764,106 @@ index 000000000..7bb508336
 +  return true;
 +}
 +
++// Asteria: AI を使わない軽い打ち間違いの補正(docs/adr/0089)。読みの書き換えの作り方(かなの単位・キーの単位)と、
++// 打ち間違いの起こりやすさ P(打ったキー | 意図した読み)は AI の補正(docs/adr/0074・0076)と同じ。文の自然さ
++// P(文 | 読み)の代わりに、Mozc の辞書と語のつながりのコストでいちばん安い道のコスト(-500 × log 確率)を使う。
++// 1 か所だけ直し、LLM・zenz は呼ばない。
++bool LmRewriter::FindLightTypoCorrection(const std::string& reading, const std::string& raw_keys,
++                                         const std::function<bool()>& over,
++                                         std::string* fixed) const {
++  const auto t0 = std::chrono::steady_clock::now();
++  const bool debug = Env("KOTORI_LM_DEBUG") != nullptr;
++  auto elapsed_ms = [&] {
++    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
++  };
++  // 打った読みがそのまま辞書の語で短いなら直さない(AI の補正と同じ。「ないと」を「ライト」にしない)。
++  constexpr size_t kMaxShortWordChars = 4;
++  if (Util::CharsLen(reading) <= kMaxShortWordChars && dictionary_->HasKey(reading)) return false;
++  const std::string typed_keys = TypedKeysFor(raw_keys, reading);
++  const std::vector<std::string> typed_prefixes = PrefixReadings(typed_keys);
++  const std::vector<std::string> chars = Chars(reading);
++  // 書き換えた読み(読み, 意図したキー)。キーの書き換えを先に入れる(同じ読みならキーを持つ方を残す)。
++  std::vector<std::pair<std::string, std::string>> variants;
++  if (IsTypoKeys(raw_keys) && RomajiToReading(raw_keys) == reading) {
++    for (auto& kv : KeyTypoVariants(raw_keys, reading)) variants.push_back(std::move(kv));
++  }
++  for (std::string& v : TypoVariants(chars)) variants.emplace_back(std::move(v), "");
++  for (std::string& v : MoreKanaTypoVariants(chars)) variants.emplace_back(std::move(v), "");
++  // 語に区切れなくなる書き換えを粗い辞書のコストで捨て、安い順に kLightPool 個に絞る(AI の補正と同じ目安)。
++  absl::flat_hash_map<std::string, std::vector<std::pair<size_t, int>>> cache;
++  const int base_rough = ReadingCost(*dictionary_, reading, &cache);
++  struct Candidate {
++    std::string reading;
++    std::string keys;
++    int rough;
++  };
++  std::vector<Candidate> pool;
++  absl::flat_hash_map<std::string, bool> seen;
++  seen[reading] = true;
++  for (auto& [v, keys] : variants) {
++    if (over()) return false;
++    if (seen.contains(v) || Util::CharsLen(v) > kMaxTypoChars + 4) continue;
++    seen[v] = true;
++    const int c = ReadingCost(*dictionary_, v, &cache);
++    if (c <= base_rough + typo_slack_) pool.push_back({std::move(v), std::move(keys), c});
++  }
++  // 打ったキーがわかると書き換えが倍ほど(200 → 430)に増えるので、48 では正しい直し(しんかんせん)が落ちた。
++  constexpr size_t kLightPool = 96;
++  std::stable_sort(pool.begin(), pool.end(),
++                   [](const Candidate& a, const Candidate& b) { return a.rough < b.rough; });
++  if (pool.size() > kLightPool) pool.resize(kLightPool);
++  // Mozc の言語モデルで採点する。打った通りの仮説(点 0)と比べた事後確率で決める(境目は light_posterior_。docs/adr/0089)。
++  kotori_internal::LightLattice lattice(*dictionary_, *connector_, pos_matcher_.GetUnknownId());
++  const std::optional<kotori_internal::LightPath> base = lattice.Best(reading);
++  if (!base) return false;
++  std::vector<double> scores = {0.0};
++  std::vector<std::string> values = {base->value};
++  std::vector<std::string> readings = {reading};
++  for (const Candidate& c : pool) {
++    if (over()) return false;
++    const double channel = ChannelLogRatio(typed_keys, typed_prefixes, reading, c.reading, c.keys);
++    if (!std::isfinite(channel)) continue;
++    const std::optional<kotori_internal::LightPath> path = lattice.Best(c.reading);
++    if (!path) continue;
++    scores.push_back(channel + (base->cost - path->cost) / kotori_internal::kMozcCostPerNat);
++    values.push_back(path->value);
++    readings.push_back(c.reading);
++  }
++  const std::vector<double> post = kotori_internal::Posteriors(scores);
++  // 出す文で決めるので、同じ文になる仮説(違うキーの打ち間違いから同じ直しになる読み、同じ表記になる読み)の
++  // 確率は足す。打った通りと同じ文になる仮説は「直さない」側に入る。打ったキーがわかると書き換えが倍ほどに増え、
++  // 似た直しどうしで確率が割れて、正しい直し(しゅくだいがおわった)が 0.95 → 0.69 に薄まった。
++  absl::flat_hash_map<std::string, double> by_value;
++  for (size_t i = 0; i < post.size(); ++i) by_value[values[i]] += post[i];
++  const std::string* best_value = nullptr;
++  double best_post = 0;
++  for (const auto& [v, p] : by_value) {
++    if (v == values[0]) continue;
++    if (best_value == nullptr || p > best_post) {
++      best_value = &v;
++      best_post = p;
++    }
++  }
++  if (debug || Env("KOTORI_LM_TIME") != nullptr) {
++    std::fprintf(stderr, "[light_typo] %s variants=%zu scored=%zu best=%s posterior=%.3f keep=%.3f %.1fms\n",
++                 reading.c_str(), variants.size(), scores.size() - 1,
++                 best_value ? best_value->c_str() : "-", best_post, by_value[values[0]], elapsed_ms());
++    if (debug) {
++      std::vector<size_t> order(post.size());
++      std::iota(order.begin(), order.end(), 0);
++      std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return post[a] > post[b]; });
++      for (size_t n = 0; n < std::min<size_t>(5, order.size()); ++n) {
++        const size_t i = order[n];
++        std::fprintf(stderr, "[light_typo]   %.3f %s(%s) score=%.2f\n", post[i], readings[i].c_str(),
++                     values[i].c_str(), scores[i]);
++      }
++    }
++  }
++  if (best_value == nullptr || best_post < light_posterior_) return false;
++  *fixed = *best_value;
++  return true;
++}
++
 +bool LmRewriter::FindTypoCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                                    const std::string& context,
 +                                    const std::string& reading,
@@ -46772,10 +47269,10 @@ index 000000000..7bb508336
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..47484e5f7
+index 000000000..b730167ac
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,701 @@
+@@ -0,0 +1,714 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -46799,6 +47296,7 @@ index 000000000..47484e5f7
 +
 +#include "absl/base/thread_annotations.h"
 +#include "absl/synchronization/mutex.h"
++#include "converter/connector.h"
 +#include "converter/segments.h"
 +#include "dictionary/dictionary_interface.h"
 +#include "dictionary/pos_matcher.h"
@@ -46962,9 +47460,10 @@ index 000000000..47484e5f7
 +class LmRewriter : public RewriterInterface {
 + public:
 +  // dictionary は生成した文が読みに合うかを確かめるのに使う(nullptr なら確かめない)。
++  // connector は AI を使わない軽い打ち間違いの補正(docs/adr/0089)に使う(nullptr ならその補正をしない)。
 +  LmRewriter(const dictionary::DictionaryInterface* dictionary,
 +             const dictionary::SingleKanjiDictionary* single_kanji,
-+             dictionary::PosMatcher pos_matcher);
++             dictionary::PosMatcher pos_matcher, const Connector* connector = nullptr);
 +  ~LmRewriter() override;
 +
 +  // 変換(スペース)、Tab などで明示的に出す予測(PREDICTION)、入力中の候補(SUGGESTION)。
@@ -47046,6 +47545,10 @@ index 000000000..47484e5f7
 +                       const std::string& reading, const std::string& raw_keys,
 +                       const std::string& chosen, const std::function<bool()>& over,
 +                       std::string* fixed) const;
++  // Asteria: AI を使わない軽い打ち間違いの補正(docs/adr/0089)。打ち間違いの起こりやすさと、Mozc の辞書と
++  // 語のつながりのコストから事後確率を出し、light_posterior_ 以上なら直した文を fixed に入れる。
++  bool FindLightTypoCorrection(const std::string& reading, const std::string& raw_keys,
++                               const std::function<bool()>& over, std::string* fixed) const;
 +  bool FindTypoCorrection(ZenzScorer* scorer, ZenzScorer* llm,
 +                          const std::string& context, const std::string& reading,
 +                          const std::string& raw_keys,
@@ -47238,6 +47741,7 @@ index 000000000..47484e5f7
 +  const dictionary::DictionaryInterface* dictionary_;
 +  const dictionary::SingleKanjiDictionary* single_kanji_;
 +  const dictionary::PosMatcher pos_matcher_;
++  const Connector* const connector_;
 +  mutable absl::Mutex mutex_;
 +  mutable std::string loaded_path_ ABSL_GUARDED_BY(mutex_);
 +  mutable bool loaded_ ABSL_GUARDED_BY(mutex_) = false;
@@ -47258,6 +47762,12 @@ index 000000000..47484e5f7
 +  // Kotori: 打ち間違いの補正(docs/adr/0036)。KOTORI_LM_TYPO、KOTORI_LM_TYPO_K(試す読みの数)、
 +  // KOTORI_LM_TYPO_GAIN(辞書で区切ったコストが下がる量)。
 +  bool typo_correct_ = true;
++  // Asteria: AI を使わない軽い補正(docs/adr/0089)。KOTORI_LM_LIGHT_TYPO=0 で切る(評価用)。
++  bool light_typo_ = true;
++  // 軽い補正で直す事後確率の境目(KOTORI_LM_LIGHT_POSTERIOR)。Mozc の言語モデルはよく使う語を強く好み
++  // (口外 → 公開、始めてて → 始めて を 0.7〜0.84 で直した)、AI の補正と同じ 2/3 では正しい文を壊したので、
++  // 正しい文を壊す損を直し損ねる損の 9 倍と見た 0.9 にする(開発用のセットを見て決めた。docs/adr/0089)。
++  double light_posterior_ = 0.9;
 +  // 打ち間違いだった事後確率がこれ以上なら直す(KOTORI_LM_TYPO_POSTERIOR。docs/adr/0076)。
 +  // 正しい読みを書き換える損を、直し損ねる損の 2 倍と見たときの境目(2 / (2 + 1))。
 +  double typo_posterior_ = 2.0 / 3.0;
@@ -48913,7 +49423,7 @@ index 000000000..1747aabd0
 +
 +}  // namespace mozc
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
-index d92e814fd..ef9e772dd 100644
+index d92e814fd..49b114864 100644
 --- a/src/rewriter/rewriter.cc
 +++ b/src/rewriter/rewriter.cc
 @@ -51,6 +51,9 @@
@@ -48933,7 +49443,7 @@ index d92e814fd..ef9e772dd 100644
 +  // Kotori: 辞書の候補を LM で並べ替える(履歴などの学習は後の書き換えで優先される)。
 +  AddRewriter(std::make_unique<LmRewriter>(&dictionary,
 +                                           &single_kanji_dictionary,
-+                                           pos_matcher));
++                                           pos_matcher, &modules.GetConnector()));
 +
  #ifdef MOZC_USER_DICTIONARY_REWRITER
    AddRewriter(std::make_unique<UserDictionaryRewriter>());
