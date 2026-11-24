@@ -1,0 +1,10 @@
+[
+  {"index": "np-1", "context_text": "明日って何時集合だっけ", "input": "ななじでいいよ、えきでまちあわせしよ", "expected_output": ["7時でいいよ、駅で待ち合わせしよ", "七時でいいよ、駅で待ち合わせしよ", "７時でいいよ、駅で待ち合わせしよ"]},
+  {"index": "np-2", "context_text": "明日って何時集合だっけ", "input": "じゅうじだよ、ちこくしないでね", "expected_output": ["10時だよ、遅刻しないでね", "十時だよ、遅刻しないでね", "１０時だよ、遅刻しないでね"]},
+  {"index": "np-3", "context_text": "", "input": "ななじにおきた", "expected_output": ["7時に起きた", "七時に起きた", "７時に起きた"]},
+  {"index": "np-4", "context_text": "会議は何時から？", "input": "くじからです", "expected_output": ["9時からです", "九時からです", "９時からです"]},
+  {"index": "np-5", "context_text": "", "input": "ななにんであつまった", "expected_output": ["7人で集まった", "七人で集まった", "７人で集まった"]},
+  {"index": "np-6", "context_text": "", "input": "よじはんにおわる", "expected_output": ["4時半に終わる", "四時半に終わる", "４時半に終わる"]},
+  {"index": "np-7", "context_text": "", "input": "ななかいめのちょうせん", "expected_output": ["7回目の挑戦", "七回目の挑戦", "７回目の挑戦"]},
+  {"index": "np-8", "context_text": "", "input": "さんねんまえにひっこした", "expected_output": ["3年前に引っ越した", "三年前に引っ越した", "３年前に引っ越した"]}
+]
