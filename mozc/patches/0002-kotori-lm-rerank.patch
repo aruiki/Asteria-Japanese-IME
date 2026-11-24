@@ -49422,6 +49422,98 @@ index 000000000..1747aabd0
 +}
 +
 +}  // namespace mozc
+diff --git a/src/rewriter/number_rewriter.cc b/src/rewriter/number_rewriter.cc
+index fbf31cc15..92943e24f 100644
+--- a/src/rewriter/number_rewriter.cc
++++ b/src/rewriter/number_rewriter.cc
+@@ -296,6 +296,12 @@ void FindEraseCandidates(absl::Span<const converter::Candidate> results,
+     if (seg.candidate(pos).attributes & converter::Attribute::NO_MODIFICATION) {
+       continue;
+     }
++    // Asteria: AI が文全体で選んで先頭に置いた数字(「7|時でいいよ」の「7」)は消さない。AI はその文節の
++    // 候補に無い値を、先頭の候補(「なな」など数字でない品詞)を写して作るので、基準(辞書の数字の候補)より
++    // 上にある同じ表記として消され、「なな時」に戻っていた。重複は候補の一覧を作るときに除かれる。
++    if (pos == 0 && seg.candidate(pos).kotori_ai_evaluated) {
++      continue;
++    }
+ 
+     // Simple liner search. |results| size is small. (at most 10 or so)
+     for (const converter::Candidate& cand : results) {
+@@ -388,7 +394,11 @@ void InsertConvertedCandidates(absl::Span<const converter::Candidate> results,
+                                   [&](const converter::Candidate& cand) {
+                                     return cand.value == base_value;
+                                   });
+-    if (itr != results.end() &&
++    // Asteria: AI が文全体で選んで先頭に置いた表記(「7」)を、別の表記(「七」)へ書き換えない。
++    const bool keep_ai_top = base_candidate_pos == 0 &&
++                             seg->candidate(0).kotori_ai_evaluated &&
++                             results[0].value != base_value;
++    if (!keep_ai_top && itr != results.end() &&
+         itr->style != NumberUtil::NumberString::NUMBER_KANJI &&
+         itr->style != NumberUtil::NumberString::NUMBER_KANJI_ARABIC) {
+       // Update existing base candidate
+diff --git a/src/rewriter/number_rewriter_test.cc b/src/rewriter/number_rewriter_test.cc
+index 03b614401..5ffd18e6a 100644
+--- a/src/rewriter/number_rewriter_test.cc
++++ b/src/rewriter/number_rewriter_test.cc
+@@ -199,6 +199,57 @@ TEST_F(NumberRewriterTest, BasicTest) {
+   seg->clear_candidates();
+ }
+ 
++// Asteria: AI が先頭に置いた数字(数字でない品詞を写した候補)を、辞書の数字の候補を基準にした
++// 表記の候補で消さない(「ななじ」→「7時」が「なな時」に戻っていた)。
++TEST_F(NumberRewriterTest, KeepsAiChosenNumberOnTop) {
++  std::unique_ptr<NumberRewriter> number_rewriter(CreateNumberRewriter());
++
++  Segments segments;
++  Segment* seg = segments.push_back_segment();
++  seg->set_key("なな");
++  converter::Candidate* ai = seg->add_candidate();
++  ai->lid = ai->rid = pos_matcher_.GetGeneralNounId();
++  ai->key = ai->content_key = "なな";
++  ai->value = ai->content_value = "7";
++  ai->kotori_ai_evaluated = true;
++  converter::Candidate* kana = seg->add_candidate();
++  kana->lid = kana->rid = pos_matcher_.GetGeneralNounId();
++  kana->key = kana->content_key = "なな";
++  kana->value = kana->content_value = "なな";
++  converter::Candidate* number = seg->add_candidate();
++  number->lid = number->rid = pos_matcher_.GetNumberId();
++  number->key = number->content_key = "なな";
++  number->value = number->content_value = "7";
++
++  EXPECT_TRUE(number_rewriter->Rewrite(default_request_, &segments));
++  ASSERT_GT(seg->candidates_size(), 2);
++  EXPECT_EQ(seg->candidate(0).value, "7");
++  EXPECT_TRUE(seg->candidate(0).kotori_ai_evaluated);
++  // ほかの表記(七・７ など)は、これまでどおり下に並ぶ。
++  bool has_kanji = false;
++  for (size_t i = 1; i < seg->candidates_size(); ++i) {
++    has_kanji |= seg->candidate(i).value == "七";
++  }
++  EXPECT_TRUE(has_kanji);
++
++  // AI が選んでいない同じ表記は、これまでどおり書き換える(先頭が「7」のままにならない)。
++  seg->clear_candidates();
++  converter::Candidate* plain = seg->add_candidate();
++  plain->lid = plain->rid = pos_matcher_.GetGeneralNounId();
++  plain->key = plain->content_key = "なな";
++  plain->value = plain->content_value = "7";
++  converter::Candidate* kana2 = seg->add_candidate();
++  kana2->lid = kana2->rid = pos_matcher_.GetGeneralNounId();
++  kana2->key = kana2->content_key = "なな";
++  kana2->value = kana2->content_value = "なな";
++  converter::Candidate* number2 = seg->add_candidate();
++  number2->lid = number2->rid = pos_matcher_.GetNumberId();
++  number2->key = number2->content_key = "なな";
++  number2->value = number2->content_value = "7";
++  EXPECT_TRUE(number_rewriter->Rewrite(default_request_, &segments));
++  EXPECT_NE(seg->candidate(0).value, "7");
++}
++
+ TEST_F(NumberRewriterTest, RequestType) {
+   class TestData {
+    public:
 diff --git a/src/rewriter/rewriter.cc b/src/rewriter/rewriter.cc
 index d92e814fd..49b114864 100644
 --- a/src/rewriter/rewriter.cc
