@@ -41993,10 +41993,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..596e91af5
+index 000000000..46e9b4f8e
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5422 @@
+@@ -0,0 +1,5456 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -44342,6 +44342,11 @@ index 000000000..596e91af5
 +      RequestLoad(config);
 +      return main_scorer;
 +    }
++    // Asteria: 読み込みの 1 段目では LLM を開かず、名前だけ覚える(2 段目でロックの外で開く。Phase 5-1)。
++    if (defer_llm_ && !(llm_loaded_ && llm_path_ == llm_path)) {
++      llm_wanted_ = llm_path;
++      return main_scorer;
++    }
 +    EnsureLlmLoaded(llm_path);
 +    *llm = llm_.get();
 +  }
@@ -46500,6 +46505,8 @@ index 000000000..596e91af5
 +          // 約 0.18 秒待つ。docs/adr/0081 の検証で見つけた)。
 +          UpdateLiveTiming(config);
 +          WriteStatus(config, "loading");
++          defer_llm_ = true;
++          llm_wanted_.clear();
 +          size_t k = 0, llm_top = 0;
 +          int beams = 0;
 +          ZenzScorer* llm = nullptr;
@@ -46511,6 +46518,33 @@ index 000000000..596e91af5
 +            PrepareFor(config, &k, &llm, &beams, &llm_top, true, true);
 +          }
 +          WriteStatus(config, "ready");
++        }
++        // Asteria: 2 段目。zenz だけで AI の変換を始め(loading_ を下ろす)、LLM はロックの外で開いてから
++        // 差し込む。読み込みの間の変換は LLM なしの AI で出す(待たずに AI なしで出すより良い。Phase 5-1)。
++        std::string llm_want;
++        {
++          absl::MutexLock model_lock(mutex_);
++          llm_want = llm_wanted_;
++          llm_wanted_.clear();
++          // LLM を開き終えるまで、ほかの仕事が同じ LLM をロックの中で開かないようにする。
++          if (llm_want.empty()) defer_llm_ = false;
++        }
++        if (!llm_want.empty() && !stop_.load()) {
++          loading_ = false;
++          std::unique_ptr<ZenzScorer> opened;
++          if (FileUtil::FileExists(llm_want).ok()) {
++            opened = ZenzScorer::Open(llm_want, threads_, runtime_dir_,
++                                      identify_correction_models_);
++          }
++          absl::MutexLock model_lock(mutex_);
++          defer_llm_ = false;
++          if (!(llm_loaded_ && llm_path_ == llm_want)) {
++            ++model_epoch_;
++            llm_ = std::move(opened);
++            llm_loaded_ = true;
++            llm_path_ = llm_want;
++            WriteStatus(config, "ready");
++          }
 +        }
 +        // Asteria: 判定役(High・Unreal)は変換の鍵の外で読み込み、読み終えてから差し込む(カード 90)。読み込みの間も
 +        // 変換は判定役なしで続く。開けなかったファイルは、パスが変わるか休んで戻るまで読み直さない。
@@ -47421,10 +47455,10 @@ index 000000000..596e91af5
 +}  // namespace mozc
 diff --git a/src/rewriter/lm_rewriter.h b/src/rewriter/lm_rewriter.h
 new file mode 100644
-index 000000000..7e760a949
+index 000000000..4cd748bed
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.h
-@@ -0,0 +1,725 @@
+@@ -0,0 +1,728 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +//
 +// Kotori: AI による変換(docs/adr/0013、0015、0016)。
@@ -48108,6 +48142,9 @@ index 000000000..7e760a949
 +  double lambda_llm_ = 1.2;
 +  // Asteria: 生成の間にラティスの文を LLM で先に採点する(KOTORI_LM_PRESCORE=0 で使わない)。
 +  bool prescore_llm_ = true;
++  // Asteria: 読み込みの 1 段目(LLM を開かずに名前だけ覚える)と、その名前(Phase 5-1)。
++  mutable bool defer_llm_ ABSL_GUARDED_BY(mutex_) = false;
++  mutable std::string llm_wanted_ ABSL_GUARDED_BY(mutex_);
 +  // Kotori: 漢字の語を別の漢字の語に入れ替えた文どうし(解放/開放、家事/火事)を比べるときの LLM の重み
 +  // (KOTORI_LM_SWAP_LLM_WEIGHT。docs/adr/0075)。書き方の違い(がん/癌)には使わない。
 +  double swap_llm_weight_ = 2.0;
