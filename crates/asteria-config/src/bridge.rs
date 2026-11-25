@@ -25,9 +25,13 @@ pub fn bundled_html() -> String {
         r#"<link rel="stylesheet" href="settings.css">"#,
         &format!("<style>{SETTINGS_CSS}</style>"),
     );
-    html.replace(
-        r#"<script src="settings.js" defer></script>"#,
-        &format!("<script>{SETTINGS_JS}</script>"),
+    // 埋め込んだ <script> には defer が効かない。<head> に置くと DOM 構築前に動いて失敗し、
+    // 「設定を読み込んでいます…」または空白のままになるため </body> の直前へ配置する。
+    let html = html.replace(r#"<script src="settings.js" defer></script>"#, "");
+    html.replacen(
+        "</body>",
+        &format!("<script>{SETTINGS_JS}</script>\n</body>"),
+        1,
     )
 }
 
@@ -38,6 +42,9 @@ pub trait BridgeHost: Send + Sync + 'static {
     fn push_event(&self, event: Value);
     fn gpu_vram_gb(&self) -> f64;
     fn data_dir(&self) -> PathBuf;
+    fn runtime_dir(&self) -> PathBuf {
+        self.data_dir()
+    }
 }
 
 struct SinkAdapter {
@@ -189,12 +196,12 @@ impl SettingsBridge {
     }
 
     fn environment_json(&self) -> Value {
-        let gpu = detect_runtime_gpu(&self.host.data_dir());
+        let gpu = detect_runtime_gpu(&self.host.runtime_dir());
         let gpu_label = if gpu.name.is_empty() {
             "CPU".to_owned()
         } else {
             format!(
-                "{} ({:.1} GiB)",
+                "このPCのGPU: {} (VRAM {:.1} GB)",
                 gpu.name,
                 gpu.total_vram_bytes as f64 / (1u64 << 30) as f64
             )
@@ -215,24 +222,29 @@ impl SettingsBridge {
             .host
             .ipc_call(request::Body::GetStatus(ipc::GetStatus {}))
         {
-            Ok(response::Body::Status(st)) => json!({
-                "ok": true,
-                "state": st.state,
-                "ai": {
-                    "model": st.model,
-                    "device": st.device,
-                    "gpu": st.gpu,
-                    "vramGb": st.vram_gb,
-                    "inferCalls": st.infer_calls,
-                    "inferMs": st.infer_ms,
-                },
-                "models": self.models().get("models").cloned().unwrap_or(json!([])),
-                "usage": [],
-            }),
+            Ok(response::Body::Status(st)) => {
+                let state = match st.state.as_str() {
+                    "ready" => "llm",
+                    "" => "loading",
+                    other => other,
+                };
+                let detail = if st.gpu.is_empty() {
+                    st.model.clone()
+                } else {
+                    format!("{} ({}, {})", st.model, st.device, st.gpu)
+                };
+                json!({
+                    "ok": true,
+                    "state": state,
+                    "ai": detail,
+                    "models": self.models().get("models").cloned().unwrap_or(json!([])),
+                    "usage": [],
+                })
+            }
             _ => json!({
                 "ok": true,
-                "state": "offline",
-                "ai": {},
+                "state": "loading",
+                "ai": "変換エンジンに接続しています…",
                 "models": self.models().get("models").cloned().unwrap_or(json!([])),
                 "usage": [],
             }),
@@ -631,6 +643,16 @@ mod tests {
         fn data_dir(&self) -> PathBuf {
             self.dir.clone()
         }
+    }
+
+    #[test]
+    fn bundled_script_runs_after_the_page_parts() {
+        let html = bundled_html();
+        let script = html.find("<script>").expect("script is inlined");
+        assert!(html.find(r#"id="loading""#).unwrap() < script);
+        assert!(html.find(r#"id="app""#).unwrap() < script);
+        assert!(!html.contains(r#"src="settings.js""#));
+        assert!(html.contains("<style>"));
     }
 
     #[test]

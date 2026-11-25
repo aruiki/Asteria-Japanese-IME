@@ -106,7 +106,7 @@
       groups: [
         {
           title: '変換', items: [
-            { type: 'switch', key: 'asteria_lm_enabled', label: 'AI 変換を使う', desc: 'オフでは Mozc と同じ変換になります。' },
+            { type: 'switch', key: 'asteria_lm_enabled', label: 'AI 変換を使う', desc: 'オフでは辞書（ラティス）のみで高速変換します。' },
             {
               type: 'segmented', key: 'asteria_lm_quality', label: '変換の品質',
               options: [[0, 'Eco'], [1, 'Standard'], [2, 'High'], [3, 'Unreal']],
@@ -1167,6 +1167,7 @@
 
   const STATE_WORDS = {
     llm: ['いつでも使えます', 'ok'],
+    ready: ['いつでも使えます', 'ok'],
     zenz: ['いつでも使えます', 'ok'],
     loading: ['AI を準備しています…', 'wait'],
     sleep: ['AI はひと休み中です', 'wait'],

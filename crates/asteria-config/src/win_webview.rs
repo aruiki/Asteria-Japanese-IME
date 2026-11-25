@@ -3,9 +3,11 @@
 
 use std::cell::RefCell;
 use std::path::PathBuf;
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 
 use asteria_client::managed::{Managed, SystemConnector};
+use asteria_common::paths::{install_dir, profile_dir};
 use asteria_proto::ipc::{request, response};
 use serde_json::Value;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
@@ -40,14 +42,24 @@ struct WinHost {
     hwnd_num: usize,
     tx_web: mpsc::Sender<String>,
     data_dir: PathBuf,
+    runtime_dir: PathBuf,
+    client: Mutex<Managed<SystemConnector>>,
 }
 
 impl BridgeHost for WinHost {
     fn ipc_call(&self, body: request::Body) -> Result<response::Body, String> {
-        let mut client = Managed::new(SystemConnector::default());
-        client
-            .raw_request(body)
-            .ok_or_else(|| "変換サーバーへ接続できません".to_owned())
+        let Ok(mut client) = self.client.lock() else {
+            return Err("IPC クライアントのロックに失敗しました".to_owned());
+        };
+        for wait_ms in [0u64, 120, 220, 420, 500] {
+            if wait_ms > 0 {
+                std::thread::sleep(Duration::from_millis(wait_ms));
+            }
+            if let Some(resp) = client.raw_request(body.clone()) {
+                return Ok(resp);
+            }
+        }
+        Err("変換サーバーへ接続できません".to_owned())
     }
 
     fn save_text_dialog(&self, default_name: &str, text: &str) -> bool {
@@ -87,12 +99,16 @@ impl BridgeHost for WinHost {
     }
 
     fn gpu_vram_gb(&self) -> f64 {
-        let gpu = asteria_lm::llama_dll::detect_runtime_gpu(&self.data_dir);
+        let gpu = asteria_lm::llama_dll::detect_runtime_gpu(&self.runtime_dir);
         gpu.total_vram_bytes as f64 / (1u64 << 30) as f64
     }
 
     fn data_dir(&self) -> PathBuf {
         self.data_dir.clone()
+    }
+
+    fn runtime_dir(&self) -> PathBuf {
+        self.runtime_dir.clone()
     }
 }
 
@@ -159,13 +175,13 @@ pub fn run_settings_window() -> anyhow::Result<()> {
 }
 
 fn show_webview_fallback(hwnd: HWND, data_dir: &std::path::Path) {
-    let config_path = data_dir.join("config.toml");
+    let config_path = data_dir.join("asteria_settings.json");
     let msg = format!(
         "Microsoft Edge WebView2 ランタイムが利用できないため、設定画面を表示できません。\n\n設定ファイルは次の場所にあります:\n{}\n\nWebView2 Evergreen ランタイムをインストールすると GUI 設定画面が開けます。",
         config_path.display()
     );
     let msg_w = HSTRING::from(msg);
-    let title_w = HSTRING::from("Asteria の設定");
+    let title_w = HSTRING::from("Asteria");
     // SAFETY: 親ウィンドウへモーダル情報ダイアログを表示し、終了メッセージを通知する。
     unsafe {
         MessageBoxW(
@@ -180,7 +196,7 @@ fn show_webview_fallback(hwnd: HWND, data_dir: &std::path::Path) {
 
 fn run_window_inner() -> anyhow::Result<()> {
     let class_w = HSTRING::from(CLASS_NAME);
-    let title_w = HSTRING::from("Asteria の設定");
+    let title_w = HSTRING::from("Asteria");
     // SAFETY: Win32 トップレベルウィンドウを生成する。
     let hwnd = unsafe {
         let hinst: HMODULE = GetModuleHandleW(None)?;
@@ -211,15 +227,33 @@ fn run_window_inner() -> anyhow::Result<()> {
         h
     };
 
-    let data_dir = std::env::var_os("LOCALAPPDATA")
+    let webview_dir = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
-        .join("Asteria");
+        .join("Asteria")
+        .join("webview2");
+    let data_dir = profile_dir();
+    let runtime_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(PathBuf::from))
+        .unwrap_or_else(install_dir);
+    let server_exe = [
+        runtime_dir.join("asteria-server.exe"),
+        install_dir().join("asteria-server.exe"),
+    ]
+    .into_iter()
+    .find(|p| p.is_file());
+    let connector = SystemConnector {
+        address: None,
+        server: server_exe,
+    };
     let (tx_web, rx_web) = mpsc::channel::<String>();
     let host: Arc<dyn BridgeHost> = Arc::new(WinHost {
         hwnd_num: hwnd.0 as usize,
         tx_web: tx_web.clone(),
         data_dir: data_dir.clone(),
+        runtime_dir,
+        client: Mutex::new(Managed::new(connector)),
     });
     let bridge = Arc::new(SettingsBridge::new(host));
 
@@ -231,7 +265,7 @@ fn run_window_inner() -> anyhow::Result<()> {
         });
     });
 
-    let user_data_w = HSTRING::from(data_dir.join("webview2").to_string_lossy().as_ref());
+    let user_data_w = HSTRING::from(webview_dir.to_string_lossy().as_ref());
     let data_dir_fallback = data_dir.clone();
     let html_content = bundled_html();
 
@@ -258,6 +292,7 @@ fn run_window_inner() -> anyhow::Result<()> {
                             let mut rc = RECT::default();
                             let _ = GetClientRect(hwnd, &mut rc);
                             let _ = controller.SetBounds(rc);
+                            let _ = controller.SetIsVisible(true);
 
                             let bridge_msg = Arc::clone(&bridge_ctrl);
                             let wv_reply = webview.clone();

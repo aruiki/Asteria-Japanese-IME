@@ -144,6 +144,79 @@ fn matches_version(name: &str, version: &str) -> bool {
     name.to_ascii_lowercase().ends_with(&suffix)
 }
 
+/// 旧 Mozc 版 Asteria の TSF TIP の CLSID (`crates/asteria-release/src/probe.rs` 互換)。
+pub const LEGACY_MOZC_TIP_CLSID: &str = "{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}";
+pub const CURRENT_TIP_PROFILE: &str =
+    "0411:{797AD563-3368-4DCB-B3E7-8B0306B42B67}{D8E58E42-4B5C-4E34-88D5-355F38FE91A4}";
+pub const LEGACY_TIP_PROFILE: &str =
+    "0411:{2A1ADAE4-8061-4AC0-A7D4-713BF8DCB591}{455A87E7-275F-4582-92CB-6600917A436D}";
+
+/// 旧 Mozc 版の TIP DLL か (CLSID が異なるため登録を解除してよい)。
+pub fn is_legacy_tip_dll_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.starts_with("mozc_tip") && lower.ends_with(".dll")
+}
+
+/// 旧 Mozc 版の TIP DLL を退避・削除する前に、その DLL 自身で TSF / COM の登録を解除する。
+pub fn unregister_legacy_tip(dll: &Path) {
+    let Some(name) = dll.file_name().and_then(|n| n.to_str()) else {
+        return;
+    };
+    if !is_legacy_tip_dll_name(name) {
+        return;
+    }
+    let sys_root = std::env::var_os("SystemRoot")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+    let lower = name.to_ascii_lowercase();
+    let regsvr = if lower.starts_with("mozc_tip32") {
+        sys_root.join("SysWOW64").join("regsvr32.exe")
+    } else {
+        sys_root.join("System32").join("regsvr32.exe")
+    };
+    let _ = Command::new(regsvr).args(["/u", "/s"]).arg(dll).status();
+}
+
+/// 実体ファイルが消えているのに残った旧 Mozc 版 TIP の孤立レジストリを掃除する。
+pub fn remove_orphaned_legacy_registration() {
+    for view in ["/reg:64", "/reg:32"] {
+        let inproc = format!(r"HKLM\SOFTWARE\Classes\CLSID\{LEGACY_MOZC_TIP_CLSID}\InprocServer32");
+        let Ok(out) = Command::new("reg")
+            .args(["query", &inproc, "/ve", view])
+            .output()
+        else {
+            continue;
+        };
+        if !out.status.success() {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&out.stdout);
+        let Some(path) = registered_path(&text) else {
+            continue;
+        };
+        if Path::new(&path).exists() {
+            continue;
+        }
+        for key in [
+            format!(r"HKLM\SOFTWARE\Microsoft\CTF\TIP\{LEGACY_MOZC_TIP_CLSID}"),
+            format!(r"HKLM\SOFTWARE\Classes\CLSID\{LEGACY_MOZC_TIP_CLSID}"),
+        ] {
+            let _ = Command::new("reg")
+                .args(["delete", &key, "/f", view])
+                .status();
+        }
+    }
+}
+
+/// `reg query ... /ve` の出力から REG_SZ の値 (DLL のパス) を取り出す。
+pub fn registered_path(output: &str) -> Option<String> {
+    output.lines().find_map(|line| {
+        let (_, rest) = line.split_once("REG_SZ")?;
+        let value = rest.trim();
+        (!value.is_empty()).then(|| value.to_owned())
+    })
+}
+
 /// 退避済みの `*.asteria-old` のうちロックが外れたものを削除する。
 pub fn cleanup_old_tips(install_dir: &Path) {
     for dir in tip_directories(install_dir) {
@@ -193,6 +266,7 @@ pub fn move_aside_tips(install_dir: &Path, current_version: Option<&str>, keep_c
             to_move.push((path, name));
         }
         for (src, name) in to_move {
+            unregister_legacy_tip(&src);
             let seq = MOVE_SEQ.fetch_add(1, Ordering::Relaxed);
             let moved_name = format!("{name}.{tag}-{now_ms}-{seq}{MOVED_TIP_SUFFIX}");
             let moved = dir.join(moved_name);
@@ -265,16 +339,50 @@ mod ffi {
 
     use super::{
         cleanup_old_tips, default_install_dir, move_aside_tips, parse_action_data,
-        restore_moved_tips, run_regsvr32, stop_processes, MsiHandle, ERROR_INSTALL_FAILURE,
-        ERROR_SUCCESS,
+        remove_orphaned_legacy_registration, restore_moved_tips, run_regsvr32, stop_processes,
+        MsiHandle, CURRENT_TIP_PROFILE, ERROR_INSTALL_FAILURE, ERROR_SUCCESS, LEGACY_TIP_PROFILE,
     };
-    use windows::Win32::Foundation::{BOOL, HMODULE};
+    use windows::Win32::Foundation::{FreeLibrary, BOOL, HMODULE};
     use windows::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_DELAY_UNTIL_REBOOT};
     use windows::Win32::System::ApplicationInstallationAndServicing::{MsiGetPropertyW, MSIHANDLE};
+    use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
     use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
-    use windows_core::{w, PCWSTR, PWSTR};
+    use windows_core::{s, w, PCWSTR, PWSTR};
 
     const ERROR_MORE_DATA_CODE: u32 = 234;
+    const ILOT_UNINSTALL: u32 = 0x0000_0001;
+
+    fn call_install_layout_or_tip(uninstall: bool) {
+        type InstallLayoutOrTipFn = unsafe extern "system" fn(PCWSTR, u32) -> BOOL;
+        // SAFETY: input.dll を動的に読み込んで InstallLayoutOrTip を呼び出し、終了後に解放する。
+        unsafe {
+            let Ok(hmod) = LoadLibraryW(w!("input.dll")) else {
+                return;
+            };
+            if let Some(proc_addr) = GetProcAddress(hmod, s!("InstallLayoutOrTip")) {
+                let func: InstallLayoutOrTipFn = core::mem::transmute(proc_addr);
+                if uninstall {
+                    let cur: Vec<u16> = CURRENT_TIP_PROFILE
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect();
+                    let _ = func(PCWSTR(cur.as_ptr()), ILOT_UNINSTALL);
+                } else {
+                    let legacy: Vec<u16> = LEGACY_TIP_PROFILE
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect();
+                    let _ = func(PCWSTR(legacy.as_ptr()), ILOT_UNINSTALL);
+                    let cur: Vec<u16> = CURRENT_TIP_PROFILE
+                        .encode_utf16()
+                        .chain(std::iter::once(0))
+                        .collect();
+                    let _ = func(PCWSTR(cur.as_ptr()), 0);
+                }
+            }
+            let _ = FreeLibrary(hmod);
+        }
+    }
 
     pub(super) fn schedule_delete_on_reboot(path: &Path) {
         let wide: Vec<u16> = path
@@ -387,6 +495,27 @@ mod ffi {
         let (dir, version) = parse_action_data(&read_action_data(install));
         cleanup_old_tips(&dir);
         move_aside_tips(&dir, version.as_deref(), true);
+        remove_orphaned_legacy_registration();
+        ERROR_SUCCESS
+    }
+
+    /// 対話ユーザーの Windows + Space 入力方式一覧に Asteria を追加し、旧 Mozc TIP を外す (`Impersonate="yes"` 用)。
+    ///
+    /// # Safety
+    /// Windows Installer (MSI) から有効な `MSIHANDLE` で呼び出される stdcall エントリポイント。
+    #[no_mangle]
+    pub unsafe extern "system" fn EnsureUserTipProfile(_install: MsiHandle) -> u32 {
+        call_install_layout_or_tip(false);
+        ERROR_SUCCESS
+    }
+
+    /// 対話ユーザーの入力方式一覧から Asteria を外す (`Impersonate="yes"` 用)。
+    ///
+    /// # Safety
+    /// Windows Installer (MSI) から有効な `MSIHANDLE` で呼び出される stdcall エントリポイント。
+    #[no_mangle]
+    pub unsafe extern "system" fn RemoveUserTipProfile(_install: MsiHandle) -> u32 {
+        call_install_layout_or_tip(true);
         ERROR_SUCCESS
     }
 
@@ -430,6 +559,24 @@ mod ffi {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_mozc_tips_are_legacy() {
+        assert!(is_legacy_tip_dll_name("mozc_tip64-3.34.6524.100.dll"));
+        assert!(is_legacy_tip_dll_name("MOZC_TIP32-3.34.6524.100.DLL"));
+        assert!(!is_legacy_tip_dll_name("asteria_tip64-5.5.0.dll"));
+        assert!(!is_legacy_tip_dll_name("asteria_tip.dll"));
+    }
+
+    #[test]
+    fn reads_registered_path_from_reg_query() {
+        let out = "\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\CLSID\\{X}\\InprocServer32\r\n    (既定)    REG_SZ    C:\\Program Files\\Asteria\\mozc_tip64-3.34.6524.100.dll\r\n\r\n";
+        assert_eq!(
+            registered_path(out).as_deref(),
+            Some(r"C:\Program Files\Asteria\mozc_tip64-3.34.6524.100.dll")
+        );
+        assert_eq!(registered_path("ERROR"), None);
+    }
 
     #[test]
     fn resolves_tip_targets_and_normalizes_msi_version() {

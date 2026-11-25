@@ -30,14 +30,14 @@
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria-Setup.exe">↓ Asteria-Setup.exe をダウンロード（無料・Windows 10 / 11）</a>
 </h3>
 
-<p align="center"><sub>v5.5.0 · 単一インストーラ（Vulkan 標準 + NVIDIA CUDA 自動導入）· アカウント登録なし · 100% ローカル処理</sub></p>
+<p align="center"><sub>v5.5.1 · 単一インストーラ（Vulkan 標準 + NVIDIA CUDA 自動導入）· アカウント登録なし · 100% ローカル処理</sub></p>
 
 ---
 
 ## 既存 IME の改造ではない。ゼロから書いた Rust エンジン。
 
 世の中のオープンソース日本語 IME の多くは、巨大なレガシー C++ コードベースにパッチを重ねた派生品です。  
-**Asteria v5.5.0 は異なります。** Windows の TSF（Text Services Framework）DLL から、ダブル配列トライ辞書、Viterbi ラティス探索、読み整合バリデータ、文脈学習、IPC サーバー、WebView2 設定 UI、無停止アップグレーダに至るまで、**19 クレートのコア基盤を Rust で新規設計**しました。
+**Asteria v5.5.1 は異なります。** Windows の TSF（Text Services Framework）DLL から、ダブル配列トライ辞書、Viterbi ラティス探索、読み整合バリデータ、文脈学習、IPC サーバー、WebView2 設定 UI、無停止アップグレーダに至るまで、**19 クレートのコア基盤を Rust で新規設計**しました。
 
 | 設計軸 | 従来の派生 IME（C++ 改造型） | **Asteria（Pure Rust + Local AI）** |
 | :--- | :--- | :--- |
@@ -70,7 +70,7 @@ flowchart LR
 
 ## 変換精度と速度の実測値
 
-`v5.5.0`（Standard: `Genmai-310M-q8_0` + `TinySwallow-1.5B-q5_k_m`、NVIDIA GeForce RTX 3060）で、8 種類の評価セットすべてを実測した成績です。
+`v5.5.1`（Standard: `Genmai-310M-q8_0` + `TinySwallow-1.5B-q5_k_m`、NVIDIA GeForce RTX 3060）で、8 種類の評価セットすべてを実測した成績です。
 
 | 評価ベンチマーク | 問題数 | Acc@1 (正答率) | Acc@10 (候補内) | CER | 内容 |
 | :--- | ---: | ---: | ---: | ---: | :--- |
@@ -136,7 +136,7 @@ flowchart LR
 just ci
 
 # Windows インストーラ（MSI + CUDA Addon + Burn 単一 Setup EXE）の一括ビルド
-.\frontends\windows\build.ps1 -OutDir target\msi-dist -BuildMsi -BuildBundle -MsiVersion 5.5.0
+.\frontends\windows\build.ps1 -OutDir target\msi-dist -BuildMsi -BuildBundle -MsiVersion 5.5.1
 ```
 
 </details>

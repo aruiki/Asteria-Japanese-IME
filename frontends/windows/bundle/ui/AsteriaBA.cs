@@ -206,6 +206,14 @@ namespace Asteria.Setup
                     return;
                 }
                 _exitCode = 0;
+                if (_planned == LaunchAction.Install || _planned == LaunchAction.Repair || _planned == LaunchAction.Modify)
+                {
+                    _engine.Log(LogLevel.Standard, "Asteria input list: " + InputList.Ensure());
+                }
+                else if (_planned == LaunchAction.Uninstall)
+                {
+                    _engine.Log(LogLevel.Standard, "Asteria input list: " + InputList.Remove());
+                }
                 Model.Percent = 100;
                 Model.Page = SetupPage.Success;
                 // 対話でないときは、終わったら閉じる。

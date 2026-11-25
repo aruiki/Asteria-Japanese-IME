@@ -55,8 +55,8 @@ try {
   }
 
   # GPU/CPU 動的 llama.cpp DLL・モデル・補助語彙のステージング ($OutDir/runtime へ配置 -> MSI で INSTALLDIR 直下へ展開)
-  $rtSrc = if ($RuntimeSource) { $RuntimeSource } elseif (Test-Path 'C:\Program Files (x86)\Asteria\llama.dll') { 'C:\Program Files (x86)\Asteria' } else { '' }
-  $mdlSrc = if ($ModelSource) { $ModelSource } elseif (Test-Path 'C:\Program Files (x86)\Asteria\genmai-310M-q8_0.gguf') { 'C:\Program Files (x86)\Asteria' } elseif (Test-Path 'target/kotori') { 'target/kotori' } else { '' }
+  $rtSrc = if ($RuntimeSource) { $RuntimeSource } elseif (Test-Path 'C:\Program Files\Asteria\llama.dll') { 'C:\Program Files\Asteria' } elseif (Test-Path 'C:\Program Files (x86)\Asteria\llama.dll') { 'C:\Program Files (x86)\Asteria' } else { '' }
+  $mdlSrc = if ($ModelSource) { $ModelSource } elseif (Test-Path 'C:\Program Files\Asteria\genmai-310M-q8_0.gguf') { 'C:\Program Files\Asteria' } elseif (Test-Path 'C:\Program Files (x86)\Asteria\genmai-310M-q8_0.gguf') { 'C:\Program Files (x86)\Asteria' } elseif (Test-Path 'target/kotori') { 'target/kotori' } else { '' }
 
   $runtimePatterns = @(
     'llama.dll', 'ggml.dll', 'ggml-base.dll', 'ggml-vulkan.dll', 'ggml-cpu-*.dll',
@@ -110,6 +110,7 @@ try {
     $msiDest = if ($MsiOut) { $MsiOut } else { Join-Path $OutDir 'Asteria64.msi' }
     Invoke-Checked wix @(
       'build',
+      '-arch', 'x64',
       'frontends/windows/installer/Asteria64.wxs',
       '-ext', 'WixToolset.UI.wixext',
       '-d', "AsteriaVersion=$msiVer",
@@ -125,10 +126,10 @@ try {
     if ($BuildBundle) {
       $cudaSrc = if ($CudaSource) {
         $CudaSource
-      } elseif (Test-Path 'C:\Program Files (x86)\Asteria\cuda\ggml-cuda.dll') {
-        'C:\Program Files (x86)\Asteria\cuda'
       } elseif (Test-Path 'C:\Program Files\Asteria\cuda\ggml-cuda.dll') {
         'C:\Program Files\Asteria\cuda'
+      } elseif (Test-Path 'C:\Program Files (x86)\Asteria\cuda\ggml-cuda.dll') {
+        'C:\Program Files (x86)\Asteria\cuda'
       } else {
         ''
       }
@@ -139,6 +140,9 @@ try {
         & (Join-Path $PSScriptRoot 'cuda-addon/build_addon.ps1') -Out $cudaMsi
       }
       if ($LASTEXITCODE -ne 0) { throw "build_addon.ps1 が $LASTEXITCODE で失敗した" }
+      $cudaHash = (Get-FileHash $cudaMsi -Algorithm SHA256).Hash.ToLower()
+      $cudaLeaf = Split-Path $cudaMsi -Leaf
+      [IO.File]::WriteAllText("$cudaMsi.sha256", "$cudaHash  $cudaLeaf`n", [Text.Encoding]::ASCII)
 
       $bundleDest = if ($BundleOut) { $BundleOut } else { Join-Path $OutDir 'Asteria-Setup.exe' }
       & (Join-Path $PSScriptRoot 'bundle/build_bundle.ps1') -MainMsi $msiDest -CudaMsi $cudaMsi -Version $msiVer -Out $bundleDest

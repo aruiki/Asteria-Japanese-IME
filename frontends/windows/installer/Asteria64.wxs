@@ -106,6 +106,18 @@
                   Execute="deferred"
                   Impersonate="no"
                   Return="ignore" />
+    <CustomAction Id="EnsureUserTipAction"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="EnsureUserTipProfile"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
+    <CustomAction Id="RemoveUserTipAction"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="RemoveUserTipProfile"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
 
     <ComponentGroup Id="AsteriaCoreFiles" Directory="INSTALLDIR">
       <Component Id="ServerExe" Bitness="always64">
@@ -148,7 +160,7 @@
     <ComponentGroup Id="AsteriaShortcuts" Directory="AsteriaMenuDir">
       <Component Id="ConfigShortcut" Bitness="always64">
         <Shortcut Id="StartMenuConfigShortcut"
-                  Name="Asteria の設定"
+                  Name="Asteria"
                   Description="Asteria 日本語入力の設定・モデル管理・ユーザー辞書"
                   Target="[#ConfigExeFile]"
                   WorkingDirectory="INSTALLDIR"
@@ -189,6 +201,8 @@
       <Custom Action="RestoreMovedTipUninstallRollback" Before="MoveAsideAllTip" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
       <Custom Action="MoveAsideAllTip" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
       <Custom Action="RegisterTipAction" After="InstallFiles" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="EnsureUserTipAction" After="RegisterTipAction" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="RemoveUserTipAction" Before="UnregisterTipAction" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
       <Custom Action="UnregisterTipAction" Before="MoveAsideAllTip" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
     </InstallExecuteSequence>
   </Package>
