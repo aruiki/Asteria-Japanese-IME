@@ -90,8 +90,6 @@ For speed, we ran the same procedure against Google Japanese Input / Mozc (v3.34
 | Disk space | About 2.0 GB, including the AI models and dictionary |
 | GPU (recommended) | A Vulkan-capable GPU with 3 GiB of VRAM or more, or an NVIDIA GPU. Asteria also runs on the CPU alone. |
 
-The standalone installers `Asteria64.msi` (core) and `AsteriaCuda64.msi` (CUDA add-on) are available separately on the [Releases](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest) page.
-
 </details>
 
 <details>
