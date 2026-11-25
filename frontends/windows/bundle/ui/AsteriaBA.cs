@@ -10,17 +10,33 @@ namespace Asteria.Setup
 {
     internal static class Program
     {
-        [STAThread]
+        // [STAThread] を付けない。WiX 5 の mbanative は呼んだスレッドを MTA で COM 初期化するため、STA にしてあると
+        // RPC_E_CHANGED_MODE(0x80010106)で落ちる(v5.5.0 で起きていた)。WPF の画面は Run の中で STA のスレッドに載せる。
         private static int Main(string[] args)
         {
             // 開発用: --preview <フォルダー> で、各画面を PNG に描いて終わる(Burn なし、何も入れない)。
             if (args.Length == 2 && args[0] == "--preview")
             {
-                Preview.Render(args[1]);
+                AsteriaBA.OnSta(() => Preview.Render(args[1]));
                 return 0;
             }
             var app = new AsteriaBA();
-            ManagedBootstrapperApplication.Run(app);
+            try
+            {
+                ManagedBootstrapperApplication.Run(app);
+            }
+            catch (Exception e)
+            {
+                // 画面が起動できないと Burn のログには「接続できない」としか残らない。原因を一時フォルダーに書く。
+                try
+                {
+                    System.IO.File.WriteAllText(
+                        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AsteriaSetupUI-error.txt"),
+                        $"{DateTime.Now:O}\r\nHRESULT 0x{e.HResult:X8}\r\n{e}");
+                }
+                catch { }
+                throw;
+            }
             return 0;
         }
     }
@@ -36,6 +52,7 @@ namespace Asteria.Setup
         private IBootstrapperCommand _command;
         private Dispatcher _dispatcher;
         private SetupWindow _window;
+        private HwndSource _hiddenWindow;
         private LaunchAction _planned = LaunchAction.Install;
         private bool _installed;
         private bool _canceled;
@@ -53,7 +70,32 @@ namespace Asteria.Setup
             _command = args.Command;
         }
 
+        /// <summary>WPF は STA のスレッドでしか動かない。いまのスレッドが STA でなければ STA のスレッドを立てて待つ。</summary>
+        public static void OnSta(Action action)
+        {
+            if (System.Threading.Thread.CurrentThread.GetApartmentState() == System.Threading.ApartmentState.STA)
+            {
+                action();
+                return;
+            }
+            Exception error = null;
+            var t = new System.Threading.Thread(() =>
+            {
+                try { action(); } catch (Exception e) { error = e; }
+            });
+            t.SetApartmentState(System.Threading.ApartmentState.STA);
+            t.Start();
+            t.Join();
+            if (error != null) throw new InvalidOperationException("画面のスレッドで失敗した", error);
+        }
+
         protected override void Run()
+        {
+            OnSta(RunUi);
+            _engine.Quit(_exitCode);
+        }
+
+        private void RunUi()
         {
             _dispatcher = Dispatcher.CurrentDispatcher;
             Model.Version = _engine.GetVariableVersion("WixBundleVersion");
@@ -63,9 +105,13 @@ namespace Asteria.Setup
                 _window.Closed += (s, e) => _dispatcher.InvokeShutdown();
                 _window.Show();
             }
+            else
+            {
+                // WiX 5 の Apply は窓のハンドルが空だと断る(0x80070057)。窓を出さないときは見えない窓を 1 つ作って渡す。
+                _hiddenWindow = new HwndSource(new HwndSourceParameters("AsteriaSetup") { Width = 0, Height = 0, WindowStyle = 0 });
+            }
             _engine.Detect();
             Dispatcher.Run();
-            _engine.Quit(_exitCode);
         }
 
         // 画面のボタンから呼ぶ。
@@ -122,6 +168,7 @@ namespace Asteria.Setup
             _dispatcher.Invoke(() =>
             {
                 if (_window != null) hwnd = new WindowInteropHelper(_window).Handle;
+                else if (_hiddenWindow != null) hwnd = _hiddenWindow.Handle;
             });
             _engine.Apply(hwnd);
         }

@@ -40,3 +40,15 @@ REQ-12-4 の例外に、インストーラーがインストールのときだ�
 - 1 つの MSI は 1.8 GiB まで(0086)、GitHub の 1 ファイルは 2 GiB まで。本体の MSI が上限に近づいたら、モデルを別の
   MSI(または 0086 のような受け取り)に分ける。分けた MSI も同じリリースに置けば、exe は数 MB のまま。
 - 配布用のリリースを消すと、その版の exe は入れられなくなる。古い版のリリースも消さない。
+
+## あわせて直したこと(2026-11-26)
+
+この作業の確認中に、v5.5.0 として配っていた `Asteria-Setup.exe`(1.96 GB)が、どの PC でも画面が起動できずに終わることが分かった
+(Burn のログは「bootstrapper application に接続できない」)。原因は 3 つで、いずれも直した。
+
+1. 画面(`AsteriaSetupUI.exe`)が AnyCPU で 64 ビットとして起動し、x86 の `mbanative.dll` を読めなかった → `PlatformTarget` を x86 にした。
+2. `Main` に `[STAThread]` があり、WiX 5 の `mbanative` が COM を MTA で初期化するところで `RPC_E_CHANGED_MODE` → 外し、WPF は STA のスレッドに載せた。
+3. `/quiet` のとき Apply に窓のハンドルを渡しておらず、WiX 5 に断られた → 見えない窓を作って渡す。
+
+画面が起動できないときは、原因を `%TEMP%\AsteriaSetupUI-error.txt` に書く。確認: 空のフォルダーで `/layout /quiet` を実行し、
+2 つの MSI を asteria-downloads から 150 秒で受け取り、ハッシュが配布物と一致、終了コード 0。通常の起動で画面が出ることも確かめた。

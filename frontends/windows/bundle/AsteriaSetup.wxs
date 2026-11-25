@@ -16,6 +16,7 @@
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Bundle Name="Asteria日本語入力" Version="$(var.Version)" Manufacturer="Asteria Project"
           UpgradeCode="3D1B6A52-6E2C-4C55-9B77-0E3A9C5B2F41" Compressed="yes"
+          IconSourceFile="$(sys.SOURCEFILEDIR)asteria-setup.ico"
           AboutUrl="https://github.com/aruiki/Asteria-Japanese-IME">
     <!-- 画面は WPF で作った自前のもの(ui/、利用者が選んだ案 2)。Burn が別のプロセスとして起こす。 -->
     <BootstrapperApplication SourceFile="$(var.UiDir)\AsteriaSetupUI.exe">

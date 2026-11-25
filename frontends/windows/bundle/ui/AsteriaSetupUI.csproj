@@ -14,6 +14,13 @@
     <RootNamespace>Asteria.Setup</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      32 ビットで動かす。NuGet が出力に置く mbanative.dll は x86 なので、AnyCPU のままだと 64 ビットの Windows では
+      64 ビットで起動して BadImageFormatException で落ち、Burn が「bootstrapper application に接続できない」で止まる
+      (v5.5.0 の Asteria-Setup.exe で起きていた。2026-11-26)。
+    -->
+    <PlatformTarget>x86</PlatformTarget>
+    <ApplicationIcon>..\asteria-setup.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.BootstrapperApplicationApi" Version="5.0.2" />
