@@ -6,11 +6,17 @@
   ドライバーは System32 の nvcuda.dll のファイルの版で見分ける(580.97 は 32.0.15.8097、621.40 は 32.0.16.2140)。
   本体の変換サーバーは、高速化の版の札が合わないとき・読めないときは今までどおり Vulkan で動くので、
   見分けを誤っても変換は止まらない。作り方は build_bundle.ps1。
+
+  2 つの MSI は exe に入れず、インストールのときに DownloadBase から受け取る(docs/adr/0092)。
+  exe は画面だけの数 MB。受け取った MSI は、作ったときの大きさとハッシュ(Burn が exe に書き込む)と
+  一致しなければ使わない。高速化を入れない PC は高速化の MSI を受け取らない。
+  exe と同じフォルダーに同じ名前の MSI があれば、受け取らずにそれを使う(オフラインでの導入)。
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Bundle Name="Asteria日本語入力" Version="$(var.Version)" Manufacturer="Asteria Project"
           UpgradeCode="3D1B6A52-6E2C-4C55-9B77-0E3A9C5B2F41" Compressed="yes"
+          IconSourceFile="$(sys.SOURCEFILEDIR)asteria-setup.ico"
           AboutUrl="https://github.com/aruiki/Asteria-Japanese-IME">
     <!-- 画面は WPF で作った自前のもの(ui/、利用者が選んだ案 2)。Burn が別のプロセスとして起こす。 -->
     <BootstrapperApplication SourceFile="$(var.UiDir)\AsteriaSetupUI.exe">
@@ -23,9 +29,11 @@
                      Path="[System64Folder]nvcuda.dll" />
 
     <Chain>
-      <MsiPackage Id="Asteria" SourceFile="$(var.MainMsi)" Visible="no" />
+      <MsiPackage Id="Asteria" SourceFile="$(var.MainMsi)" Name="Asteria64.msi" Visible="no"
+                  Compressed="no" DownloadUrl="$(var.DownloadBase)/{2}" />
       <!-- 本体の後に入れる(高速化の MSI は本体が入っていることを確かめる)。 -->
-      <MsiPackage Id="AsteriaCuda" SourceFile="$(var.CudaMsi)" Visible="no"
+      <MsiPackage Id="AsteriaCuda" SourceFile="$(var.CudaMsi)" Name="AsteriaCuda64.msi" Visible="no"
+                  Compressed="no" DownloadUrl="$(var.DownloadBase)/{2}"
                   InstallCondition="NvCudaVersion &gt;= v32.0.15.8000" />
     </Chain>
   </Bundle>

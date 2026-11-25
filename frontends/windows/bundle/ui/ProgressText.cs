@@ -52,6 +52,14 @@ namespace Asteria.Setup
             return m.Success ? m.Groups[1].Value : null;
         }
 
+        /// <summary>受け取った大きさの文(「0.84 GB / 1.57 GB」)。1 GB 未満は MB で出す。</summary>
+        public static string Bytes(long done, long total)
+        {
+            const double GB = 1024.0 * 1024 * 1024, MB = 1024.0 * 1024;
+            if (total >= GB) return $"{done / GB:0.00} GB / {total / GB:0.00} GB";
+            return $"{done / MB:0} MB / {total / MB:0} MB";
+        }
+
         /// <summary>経過時間と進み具合から残り時間の文を作る(3% までは見積もらない)。</summary>
         public static string Remaining(TimeSpan elapsed, int percent)
         {
