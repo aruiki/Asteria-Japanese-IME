@@ -4,9 +4,7 @@
   </a>
 </h2>
 
-<p align="center">
-  <strong>Windows 10 / 11（64-bit）</strong> · 純 Rust 製ネイティブエンジン × ローカル GPU AI · 完全無料 / オープンソース
-</p>
+<p align="center">Windows 10 / 11 (64-bit) · free and open source · runs fully offline</p>
 
 ---
 

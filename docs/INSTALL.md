@@ -4,8 +4,8 @@ Windows 10 (1809 以降) / Windows 11（64-bit）向けの純 Rust 製・ロー�
 
 ## ダウンロードとインストール
 
-1. [GitHub Releases 最新版](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest) から **`Asteria-Setup.exe`** をダウンロードして実行します（管理者の確認で「はい」）。
-   - 本体（`Asteria64.msi`）に加えて、NVIDIA GPU を検出した場合は高速化用の CUDA アドオン（`AsteriaCuda64.msi`）も自動導入されます。
+1. [GitHub Releases 最新版](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest) から **`Asteria-Setup.exe`**（約 1.5 MB）をダウンロードして実行します（管理者の確認で「はい」）。インストール中に本体（約 1.5 GB）を、対応する NVIDIA GPU があれば CUDA アドオン（約 0.5 GB）も、自動でダウンロードします。インターネット接続が要るのはインストールのときだけです。
+   - 必要なファイルはこれ 1 つだけです。NVIDIA GPU を検出した場合は、高速化用の CUDA アドオンも自動で入ります。
 2. 完了後、**Windows + Space** で「**Asteria 日本語入力**」に切り替えます。設定画面はスタートメニューまたはデスクトップの「Asteria」から開けます。
 
 手動でのモデル配置や追加コマンドは不要です。旧版からの更新時も、版付き TSF DLL 機構により開いているアプリを閉じずにそのまま上書き更新できます。
@@ -21,12 +21,16 @@ Windows 10 (1809 以降) / Windows 11（64-bit）向けの純 Rust 製・ロー�
 
 ## SHA-256 によるファイル照合
 
-各リリースには `Asteria-Setup.exe.sha256`・`Asteria64.msi.sha256`・`AsteriaCuda64.msi.sha256` を添付しています。PowerShell で改ざんや破損がないか確認できます：
+各リリースには `checksums.txt` を添付しています。インストールには不要で、ダウンロードしたファイルに改ざんや破損がないか確かめたいときだけ使います。PowerShell で：
 
 ```powershell
 Get-FileHash -Algorithm SHA256 .\Asteria-Setup.exe
 ```
 
-取得したハッシュ値がリリース同梱の `.sha256` と一致すれば、公開したファイルそのままです。
+表示されたハッシュ値が `checksums.txt` に書かれた値と一致すれば、公開したファイルそのままです。
 
 使い方・設定・アンインストール・データ管理は [使い方ガイド](USER_GUIDE.md) をご覧ください。[README へ戻る](../README.md)。
+
+## インターネットにつながらない PC に入れる
+
+[asteria-downloads](https://github.com/aruiki/asteria-downloads/releases) の同じ版のリリースから `Asteria64.msi`（と、NVIDIA GPU の PC なら `AsteriaCuda64.msi`）を取り、`Asteria-Setup.exe` と同じフォルダーに置いて実行します。同じ名前のファイルが隣にあれば、インストーラーはダウンロードせずにそれを使います。
