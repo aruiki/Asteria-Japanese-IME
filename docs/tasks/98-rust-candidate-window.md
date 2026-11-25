@@ -18,6 +18,10 @@ GDI の mozc_renderer(C++ 約 6,400 行)を、Direct2D・DirectWrite で描く R
 5. 既定にする: 差がなく速ければ既定にし、mozc_renderer を外す。
 
 ## 完了条件
+- [x] 1 の土台: `crates/asteria-renderer`(Mozc の .proto、`renderer.ipc` の内容、パイプの名前と SDDL、メッセージ単位の 1 往復。テスト 6 本)
+- [x] 2 の最初: `asteria-renderer.exe`(Direct2D・DirectWrite、明暗の配色、DPI、入力中の文字の下・作業領域に収まる位置、
+  連打では最後の命令だけ描く)。実物を起こして TIP と同じ手順で命令を送る試験で、窓が出て・消えることを確かめた(1 往復 139 µs)
+- [ ] 2 の残り: 注釈の窓(用例)、スクロールの印、ライブ変換の表示、高コントラスト、マウスでの選択(TIP への通知)
 - [ ] 1〜3 を設定で試せる
 - [ ] 表示の差なし(倍率 100・150・200%、ダークモード)、常駐メモリ 10 MB 以下、描画 1 ms 以下
 - [ ] 既定にする判断(ADR)
@@ -29,3 +33,5 @@ GDI の mozc_renderer(C++ 約 6,400 行)を、Direct2D・DirectWrite で描く R
 - 呼ぶ側(TIP)は `IsValidServer` でサーバーの実行ファイルのパスを確かめる(`ipc/ipc_path_manager.cc`)。Rust の窓は
   同じパスの mozc_renderer.exe として置くか、確かめる先を足す必要がある。
 - 今の C++ の窓には Asteria の追加(kotori_palette の色、kotori_candidate_snapshot)がある。表示の差を比べる対象。
+- 最初の目安(2026-11-25、表示の前): asteria-renderer(release)の作業セット 10.8 MB・専用 1.6 MB、動いている mozc_renderer
+  42.8 MB・56.6 MB。Direct2D の資源は最初の描画で作るので、比べるのは 4 の段(表示した後)で測り直す。

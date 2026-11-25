@@ -1,0 +1,24 @@
+[package]
+name = "asteria-renderer"
+description = "Asteria: Mozc の候補の窓を Rust + Direct2D で描く(カード 98、軽量化のロードマップ Phase 4-1)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+prost = "0.13"
+
+[build-dependencies]
+prost-build = "0.13"
+protox = "0.7"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Threading", "Win32_Security_Cryptography"] }
+windows = { version = "0.58", features = ["Foundation_Numerics", "Win32_Foundation", "Win32_Graphics_Direct2D", "Win32_Graphics_Direct2D_Common", "Win32_Graphics_DirectWrite", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_Security_Cryptography", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
