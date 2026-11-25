@@ -8,8 +8,9 @@
 <h1 align="center">Asteria 日本語入力</h1>
 
 <p align="center">
-  前の文まで読んで、変換する。<br>
-  ローカル AI を内蔵した、Windows の日本語入力です。
+  <strong>Japanese input that understands context.</strong><br>
+  文脈から正しい漢字を選ぶ、Windows 用の日本語入力。<br>
+  AI はすべてお使いの PC の中で動きます。
 </p>
 
 <p align="center">
@@ -33,7 +34,7 @@
 
 ---
 
-## 文脈で、漢字を選ぶ
+## 文脈に合った漢字を選ぶ
 
 同じ「ほしょう」でも、文に合わせて書き分けます。
 
