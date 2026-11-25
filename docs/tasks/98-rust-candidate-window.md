@@ -18,6 +18,7 @@ GDI の mozc_renderer(C++ 約 6,400 行)を、Direct2D・DirectWrite で描く R
 5. 既定にする: 差がなく速ければ既定にし、mozc_renderer を外す。
 
 ## 完了条件
+- [x] 1 の土台: `crates/asteria-renderer`(Mozc の .proto、`renderer.ipc` の内容、パイプの名前と SDDL、メッセージ単位の 1 往復。テスト 6 本)
 - [ ] 1〜3 を設定で試せる
 - [ ] 表示の差なし(倍率 100・150・200%、ダークモード)、常駐メモリ 10 MB 以下、描画 1 ms 以下
 - [ ] 既定にする判断(ADR)
