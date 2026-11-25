@@ -41993,10 +41993,10 @@ index 000000000..c31037864
 +}
 diff --git a/src/rewriter/lm_rewriter.cc b/src/rewriter/lm_rewriter.cc
 new file mode 100644
-index 000000000..46e9b4f8e
+index 000000000..a0282edbe
 --- /dev/null
 +++ b/src/rewriter/lm_rewriter.cc
-@@ -0,0 +1,5456 @@
+@@ -0,0 +1,5457 @@
 +// Copyright 2026, Kotori IME contributors (BSD-3-Clause, same as Mozc)
 +
 +#include "rewriter/lm_rewriter.h"
@@ -42274,7 +42274,8 @@ index 000000000..46e9b4f8e
 +    case config::Config::KOTORI_LM_LOW:
 +      return {4, kDefaultModelName, 4, 0};
 +    default:
-+      return {8, kMainModelName, 8, 4};
++      // Asteria: 生成は 6 本(8 本と 1,033 問・判定用 960 問で外れなし、変換の中央値 -10%。docs/adr/0090)。
++      return {8, kMainModelName, 6, 4};
 +  }
 +}
 +
