@@ -41,7 +41,7 @@
 
 | 構成要素 | ライセンス | 取得元・固定 | 備考 |
 | --- | --- | --- | --- |
-| Rust のクレート | MIT、Apache-2.0、Unlicense、Zlib、Unicode-3.0 | `Cargo.lock` | 認めるライセンスは `about.toml`。CI の `licenses` ジョブで、ほかのライセンスが入ったら落とす |
+| Rust のクレート | MIT、Apache-2.0、Unlicense、Zlib、Unicode-3.0、ISC(`libloading`、`suiko-sudachi` 経由) | `Cargo.lock` | 認めるライセンスは `about.toml`。CI の `licenses` ジョブで、ほかのライセンスが入ったら落とす |
 | llama.cpp / ggml | MIT | `third_party/llama.cpp`(サブモジュール、コミット固定) | asteria-server に静的リンクする |
 | システム辞書(Mozc dictionary_oss 由来) | IPAdic(NAIST)のライセンス、ICOT Free Software の条件、沖縄辞書(Public Domain) | `data/dict-src/fetch.sh`(google/mozc のコミット固定、SHA-256 で検証) | 条文は取得した `README.txt`。辞書を配布するときは全文を同梱する |
 | Mozc | BSD-3-Clause | 同上(`LICENSE`) | 辞書ソースの取得元のライセンスとして同梱する |
