@@ -418,3 +418,73 @@ jobs:
           [IO.File]::WriteAllText((Join-Path (Get-Location) 'AsteriaCuda64.msi.sha256'), "$hash  AsteriaCuda64.msi`n", [Text.Encoding]::ASCII)
           gh release upload $env:TAG AsteriaCuda64.msi AsteriaCuda64.msi.sha256 --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'リリースに添付できない' }
+
+  # 1 つの exe のインストーラー(docs/adr/0091)。本体と NVIDIA の高速化を中に持ち、NVIDIA のドライバーが
+  # 580 以降のときだけ高速化も入れる。GitHub の 1 ファイル 2 GiB を超えたら止める。
+  setup-exe:
+    name: Asteria-Setup.exe (x64)
+    needs: [build, cuda-addon]
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Asteria64.msi
+      - uses: actions/download-artifact@v4
+        with:
+          name: AsteriaCuda64.msi
+      - name: WiX を入れる
+        shell: pwsh
+        run: dotnet tool install --global wix --version 5.0.2
+      - name: インストーラーを作る
+        shell: pwsh
+        run: |
+          $version = (Get-Content mozc/VERSION -Raw).Trim()
+          pwsh mozc/bundle/build_bundle.ps1 -MainMsi Asteria64.msi -CudaMsi AsteriaCuda64.msi -Version $version -Out Asteria-Setup.exe
+      # 中身を取り出して、2 つの MSI がそのまま入っていることを確かめる。
+      - name: 中身を確かめる
+        shell: pwsh
+        run: |
+          # 中に入れた MSI は名前ではなく a0・a1 として取り出されるので、ハッシュで照らし合わせる。
+          $x = Join-Path $env:RUNNER_TEMP 'setup-x'
+          wix burn extract Asteria-Setup.exe -o $x
+          if ($LASTEXITCODE -ne 0) { throw 'wix burn extract に失敗した' }
+          $inside = Get-ChildItem $x -Recurse -File | ForEach-Object { (Get-FileHash $_.FullName).Hash }
+          foreach ($f in 'Asteria64.msi', 'AsteriaCuda64.msi') {
+            if ($inside -notcontains (Get-FileHash $f).Hash) { throw "$f がそのまま入っていない" }
+          }
+      # 使い捨てのランナーで、画面なし(/quiet)で入れて外す。WPF の画面の流れ(見分け → 計画 → 実行)を通る。
+      # ランナーには NVIDIA の GPU がないので、高速化は入らないことも確かめる。
+      - name: 入れて外す
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'setup-install.log'
+          $p = Start-Process .\Asteria-Setup.exe -ArgumentList "/quiet /norestart /log `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "インストールが $($p.ExitCode) で失敗した" }
+          $dir = "${env:ProgramFiles(x86)}\Asteria"
+          if (-not (Test-Path "$dir\mozc_server.exe")) { throw '本体が入っていない' }
+          if (Test-Path "$dir\cuda\ggml-cuda.dll") { throw 'NVIDIA の GPU がないのに高速化が入った' }
+          $log2 = Join-Path $env:RUNNER_TEMP 'setup-uninstall.log'
+          $p = Start-Process .\Asteria-Setup.exe -ArgumentList "/uninstall /quiet /norestart /log `"$log2`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log2 -Tail 40; throw "アンインストールが $($p.ExitCode) で失敗した" }
+          if (Test-Path "$dir\mozc_server.exe") { throw 'アンインストールの後も本体が残っている' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Asteria-Setup.exe
+          path: Asteria-Setup.exe
+          if-no-files-found: error
+      - name: リリースに添付する
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          $hash = (Get-FileHash Asteria-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'Asteria-Setup.exe.sha256'), "$hash  Asteria-Setup.exe`n", [Text.Encoding]::ASCII)
+          gh release upload $env:TAG Asteria-Setup.exe Asteria-Setup.exe.sha256 --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'リリースに添付できない' }
