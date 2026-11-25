@@ -27,7 +27,7 @@
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria64.msi">↓ 無料でダウンロード（Windows 10 / 11）</a>
 </h3>
 
-<p align="center"><sub>v5.2.0 · 約1.7 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
+<p align="center"><sub>v5.4.0 · 約1.6 GB（AIモデルと辞書を含む） · アカウント登録なし</sub></p>
 
 ---
 
@@ -71,8 +71,10 @@ Asteria（アステリア）は、変換の正確さを何より優先した日�
 Windows の入力の仕組み（TSF）の上で、次の順に変換します。
 
 1. Mozc（Google日本語入力のもとになったオープンソースの変換エンジン）が、辞書から候補の素材を作ります。
-2. GPU の上の 2 つの AI モデルが、文を書き起こして採点します。zenz-v2.5 が読みから文の候補を作り、TinySwallow-1.5B が前の文と合わせて自然さを採点します。llama.cpp と Vulkan で動き、モデルは PC にログインしたときに読み込んでおきます。
+2. GPU の上の 2 つの AI モデルが、文を書き起こして採点します。genmai-310M（かな漢字変換向けに学習したモデル）が読みから文の候補を作り、TinySwallow-1.5B が前の文と合わせて自然さを採点します。llama.cpp と Vulkan で動き、モデルは PC にログインしたときに読み込んでおきます。
 3. いちばん自然な文を、最初の候補にします。
+
+NVIDIA の GPU なら、本体のあとに同じリリースの `AsteriaCuda64.msi` を入れると、AI の計算に CUDA を使って速くなります（入れなくても動きます）。
 
 GPU がない PC では、CPU で動く軽い設定で変換します。AI が動かないとき（モデルの読み込みに失敗した、時間の上限を超えたなど）は、Mozc の候補で変換を続けます。
 
@@ -93,7 +95,7 @@ GPU がない PC では、CPU で動く軽い設定で変換します。AI が�
 | --- | --- |
 | OS | Windows 10 1809 以降 / Windows 11（64bit） |
 | メモリ | 8 GB 以上 |
-| ディスク | 約 1.7 GB |
+| ディスク | 約 1.6 GB |
 | AI | Vulkan に対応した専用 GPU（VRAM 3 GB 以上）で動かします。それ以外の PC は CPU で動く軽い設定になります |
 
 </details>
