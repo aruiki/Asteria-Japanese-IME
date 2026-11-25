@@ -18,6 +18,7 @@ namespace Asteria.Setup
             {
                 ("1-install-cuda", m => { m.WithCuda = true; m.Page = SetupPage.Install; }),
                 ("2-install-plain", m => { m.WithCuda = false; m.Page = SetupPage.Install; }),
+                ("3-download", m => { m.WithCuda = true; m.Action = LaunchAction.Install; m.Status = "ダウンロードしています"; m.Detail = ProgressText.Bytes(902_000_000, 1_572_483_072); m.Percent = 27; m.Page = SetupPage.Progress; }),
                 ("3-progress", m => { m.WithCuda = true; m.Action = LaunchAction.Install; m.Status = "ファイルをコピーしています"; m.Detail = "genmai-310M-q8_0.gguf"; m.Percent = 62; m.Page = SetupPage.Progress; }),
                 ("4-success", m => { m.Action = LaunchAction.Install; m.Page = SetupPage.Success; }),
                 ("5-modify", m => { m.Installed = true; m.Page = SetupPage.Modify; }),

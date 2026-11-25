@@ -33,7 +33,7 @@ Against Google Japanese Input / Mozc (v3.34) under the same procedure, total tim
 
 ## Install
 
-1. Download and run [Asteria-Setup.exe](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.5.0/Asteria-Setup.exe). It is the only file you need (about 1 MB). During setup it downloads Asteria itself (about 1.6 GB), plus the CUDA add-on (about 0.5 GB) on PCs with a supported NVIDIA GPU. An internet connection is needed only while installing.
+1. Download and run [Asteria-Setup.exe](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.5.0/Asteria-Setup.exe). It is the only file you need (about 1 MB). During setup it downloads Asteria itself (about 1.5 GB), plus the CUDA add-on (about 0.5 GB) on PCs with a supported NVIDIA GPU. An internet connection is needed only while installing.
 2. The installer is not code-signed, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**.
 3. Press **Windows + Space** and choose **Asteria 日本語入力**.
 
