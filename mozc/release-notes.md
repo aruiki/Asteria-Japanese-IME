@@ -1,6 +1,6 @@
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.3.1/Asteria-5.3.1-x64.msi">
-    ⬇ Asteria-5.3.1-x64.msi をダウンロード
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.4.0/Asteria-5.4.0-x64.msi">
+    ⬇ Asteria-5.4.0-x64.msi をダウンロード
   </a>
 </h2>
 
@@ -45,7 +45,7 @@
 
 ## インストールの流れ
 
-1. 上の **Asteria-5.3.1-x64.msi** をダウンロードして開きます。
+1. 上の **Asteria-5.4.0-x64.msi** をダウンロードして開きます。
 2. SmartScreen が出たら、**詳細情報 → 実行**（下の説明）。
 3. **「インストール」**（入っている場合は「更新」）を押し、Windows の確認（UAC）を許可します。完了の画面が出たら終わりです。
 4. **Windows + Space** で「Asteria日本語入力」を選ぶと使えます。
@@ -59,7 +59,7 @@
 
 > [!IMPORTANT]
 > このGitHub Releaseからダウンロードした
-> **`Asteria-5.3.1-x64.msi`**（または `Asteria64.msi`）であることを確認してください。
+> **`Asteria-5.4.0-x64.msi`**（または `Asteria64.msi`）であることを確認してください。
 
 **1. <kbd>詳細情報</kbd> をクリック**
 
@@ -88,7 +88,7 @@ Asteriaのインストーラーはコード署名をしていないため、こ�
 
 - [ソースコード](https://github.com/aruiki/Asteria-Japanese-IME)
 - [Security Policy](https://github.com/aruiki/Asteria-Japanese-IME/security/policy)
-- ファイルの照合: PowerShell で `Get-FileHash -Algorithm SHA256 .\Asteria-5.3.1-x64.msi` を実行し、添付の `Asteria-5.3.1-x64.msi.sha256` と同じか確かめます。
+- ファイルの照合: PowerShell で `Get-FileHash -Algorithm SHA256 .\Asteria-5.4.0-x64.msi` を実行し、添付の `Asteria-5.4.0-x64.msi.sha256` と同じか確かめます。
 
 AsteriaのAIモデル・辞書・日本語変換はPCの中で動き、
 **入力した文章をAsteriaのサーバーや外部AIサービスへ送信しません。**
