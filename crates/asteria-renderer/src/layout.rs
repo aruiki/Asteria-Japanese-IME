@@ -23,6 +23,8 @@ impl RgbColor {
         Self { r, g, b }
     }
 
+    // 使うのは Windows の win_ui だけ。ほかの OS の CI で dead_code にしない。
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub fn as_f32(self) -> (f32, f32, f32) {
         (
             f32::from(self.r) / 255.0,

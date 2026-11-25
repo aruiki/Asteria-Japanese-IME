@@ -87,7 +87,8 @@ jobs:
           cargo run --release --locked -p asteria-dictc -- data/dict-src/mozc target/asteria/system.dict
       - name: サーバーと TIP を作る
         shell: pwsh
-        run: ./frontends/windows/build.ps1 -OutDir dist
+        # TIP の DLL 名(asteria_tip64-<版>.dll)を、下の WiX に渡す版とそろえる。
+        run: ./frontends/windows/build.ps1 -OutDir dist -MsiVersion $env:VERSION
       - name: ライセンスの一覧を作る(REQ-16-1)
         shell: bash
         run: bash frontends/windows/notices.sh dist/THIRD_PARTY_NOTICES.txt
