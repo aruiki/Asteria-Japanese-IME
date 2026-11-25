@@ -33,3 +33,5 @@ GDI の mozc_renderer(C++ 約 6,400 行)を、Direct2D・DirectWrite で描く R
 - 呼ぶ側(TIP)は `IsValidServer` でサーバーの実行ファイルのパスを確かめる(`ipc/ipc_path_manager.cc`)。Rust の窓は
   同じパスの mozc_renderer.exe として置くか、確かめる先を足す必要がある。
 - 今の C++ の窓には Asteria の追加(kotori_palette の色、kotori_candidate_snapshot)がある。表示の差を比べる対象。
+- 最初の目安(2026-11-25、表示の前): asteria-renderer(release)の作業セット 10.8 MB・専用 1.6 MB、動いている mozc_renderer
+  42.8 MB・56.6 MB。Direct2D の資源は最初の描画で作るので、比べるのは 4 の段(表示した後)で測り直す。
