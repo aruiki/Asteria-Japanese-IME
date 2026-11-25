@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Asteria日本語入力のインストーラー(1 つの exe。docs/adr/0091)。
+  本体(Asteria64.msi)と、NVIDIA の高速化(AsteriaCuda64.msi、docs/adr/0088)を中に持ち、
+  NVIDIA の CUDA 13 が動くドライバー(580 以降)があるときだけ高速化も入れる。
+  ドライバーは System32 の nvcuda.dll のファイルの版で見分ける(580.97 は 32.0.15.8097、621.40 は 32.0.16.2140)。
+  本体の変換サーバーは、高速化の版の札が合わないとき・読めないときは今までどおり Vulkan で動くので、
+  見分けを誤っても変換は止まらない。作り方は build_bundle.ps1。
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Bundle Name="Asteria日本語入力" Version="$(var.Version)" Manufacturer="Asteria Project"
+          UpgradeCode="3D1B6A52-6E2C-4C55-9B77-0E3A9C5B2F41" Compressed="yes"
+          AboutUrl="https://github.com/aruiki/Asteria-Japanese-IME">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+          LicenseUrl="https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/licenses.md"
+          SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+
+    <util:FileSearch Id="NvCudaVersion" Variable="NvCudaVersion" Result="version"
+                     Path="[System64Folder]nvcuda.dll" />
+
+    <Chain>
+      <MsiPackage Id="Asteria" SourceFile="$(var.MainMsi)" Visible="no" />
+      <!-- 本体の後に入れる(高速化の MSI は本体が入っていることを確かめる)。 -->
+      <MsiPackage Id="AsteriaCuda" SourceFile="$(var.CudaMsi)" Visible="no"
+                  InstallCondition="NvCudaVersion &gt;= v32.0.15.8000" />
+    </Chain>
+  </Bundle>
+</Wix>
