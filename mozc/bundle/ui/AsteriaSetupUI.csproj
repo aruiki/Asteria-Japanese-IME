@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Asteria-Setup.exe の画面(docs/adr/0091、利用者が選んだ案 2 を WPF で作ったもの)。
+    WiX 5 の Burn が別のプロセスとして起こす(managed bootstrapper application)。
+    .NET Framework 4.7.2 は Windows 10 1809 以降に入っているので、追加の実行環境は要らない。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>AsteriaSetupUI</AssemblyName>
+    <RootNamespace>Asteria.Setup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.BootstrapperApplicationApi" Version="5.0.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="moon.png" />
+  </ItemGroup>
+</Project>

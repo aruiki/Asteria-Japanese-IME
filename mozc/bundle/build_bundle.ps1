@@ -1,6 +1,7 @@
 # Asteria日本語入力のインストーラー(1 つの exe)を作る(docs/adr/0091)。
 #
 # 使い方: pwsh mozc/bundle/build_bundle.ps1 -MainMsi Asteria64.msi -CudaMsi AsteriaCuda64.msi -Version 5.4.0 [-Out Asteria-Setup.exe] [-Wix wix]
+# 画面(ui/、WPF)を dotnet で作ってから、WiX 5.0.2 の Burn で 2 つの MSI と一緒に 1 つの exe にする。
 # GitHub のリリースに置けるのは 1 ファイル 2 GiB まで。超えたら止める(v5.4.0 で残り 36 MB)。
 param(
   [Parameter(Mandatory = $true)][string]$MainMsi,
@@ -12,18 +13,21 @@ param(
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 
-# WiX の拡張(本体の MSI と同じ 5.0.2)。5.0.2 の Bal は DLL の名前が拡張の名前と違い、名前では
-# 見つからない(wix extension list で damaged と出る)ので、DLL のパスで渡す。
-$exts = @()
-foreach ($name in 'WixToolset.Bal.wixext', 'WixToolset.Util.wixext') {
-  & $Wix extension add -g "$name/5.0.2" | Out-Null
-  $dir = Join-Path $HOME ".wix/extensions/$name/5.0.2"
-  $dll = Get-ChildItem $dir -Recurse -Filter '*.wixext.dll' -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $dll) { throw "WiX の拡張 $name を入れられない" }
-  $exts += @('-ext', $dll.FullName)
-}
-& $Wix build -nologo -arch x64 @exts `
+# 1. 画面
+& dotnet build (Join-Path $here 'ui/AsteriaSetupUI.csproj') -c Release -nologo
+if ($LASTEXITCODE -ne 0) { throw '画面(ui)を作れない' }
+$ui = Join-Path $here 'ui/bin/Release/net472'
+
+# 2. WiX の拡張(本体の MSI と同じ 5.0.2)。名前で見つからないことがあるので DLL のパスで渡す。
+& $Wix extension add -g 'WixToolset.Util.wixext/5.0.2' | Out-Null
+$util = Get-ChildItem (Join-Path $HOME '.wix/extensions/WixToolset.Util.wixext/5.0.2') -Recurse -Filter '*.wixext.dll' |
+  Select-Object -First 1
+if (-not $util) { throw 'WiX の拡張 WixToolset.Util.wixext を入れられない' }
+
+# 3. 1 つの exe
+& $Wix build -nologo -arch x64 -ext $util.FullName `
   -d "Version=$Version" -d "MainMsi=$(Resolve-Path $MainMsi)" -d "CudaMsi=$(Resolve-Path $CudaMsi)" `
+  -d "UiDir=$(Resolve-Path $ui)" `
   -o $Out (Join-Path $here 'AsteriaSetup.wxs')
 if ($LASTEXITCODE -ne 0) { throw 'wix build に失敗した' }
 

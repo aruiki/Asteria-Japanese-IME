@@ -8,15 +8,15 @@
   見分けを誤っても変換は止まらない。作り方は build_bundle.ps1。
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Bundle Name="Asteria日本語入力" Version="$(var.Version)" Manufacturer="Asteria Project"
           UpgradeCode="3D1B6A52-6E2C-4C55-9B77-0E3A9C5B2F41" Compressed="yes"
           AboutUrl="https://github.com/aruiki/Asteria-Japanese-IME">
-    <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
-          LicenseUrl="https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/licenses.md"
-          SuppressOptionsUI="yes" />
+    <!-- 画面は WPF で作った自前のもの(ui/、利用者が選んだ案 2)。Burn が別のプロセスとして起こす。 -->
+    <BootstrapperApplication SourceFile="$(var.UiDir)\AsteriaSetupUI.exe">
+      <Payload SourceFile="$(var.UiDir)\AsteriaSetupUI.exe.config" />
+      <Payload SourceFile="$(var.UiDir)\WixToolset.BootstrapperApplicationApi.dll" />
+      <Payload SourceFile="$(var.UiDir)\mbanative.dll" />
     </BootstrapperApplication>
 
     <util:FileSearch Id="NvCudaVersion" Variable="NvCudaVersion" Result="version"
