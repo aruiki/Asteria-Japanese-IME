@@ -1,4 +1,4 @@
-"""汎用 LLM で、Kotori の候補を文全体の自然さで選び直す(学習なしの下見、段階 B)。
+"""汎用 LLM で、Asteria の候補を文全体の自然さで選び直す(学習なしの下見、段階 B)。
 
 文節ごとに候補を入れ替えた文を作り、log P(文 | 前の文) が最大のものを残す(左から 2 巡)。
 使い方: python llm_rerank.py <model> <cands.json> [--4bit] [--no-context] [--out res.json]
@@ -19,7 +19,7 @@ class Scorer:
         self.model = AutoModelForCausalLM.from_pretrained(name, **kw).eval()
         bos = self.tok.bos_token_id
         self.head = [bos] if bos is not None else self.tok("\n", add_special_tokens=False).input_ids
-        # zenz(azooKey の変換用モデル)は読みを入れたプロンプトで採点する(crates/kotori-lm/src/zenz.rs と同じ)。
+        # zenz(azooKey の変換用モデル)は読みを入れたプロンプトで採点する(crates/asteria-lm/src/zenz.rs と同じ)。
         self.zenz = "zenz" in name
         if self.zenz:
             self.head = []
@@ -63,7 +63,7 @@ def rerank(scorer, item, use_context, prior=0.0, passes=2):
                 ch = choice[:]; ch[i] = c
                 sents.append("".join(s["cands"][j] for s, j in zip(segs, ch)))
             sc = scorer.score(ctx, sents, reading)
-            # Kotori(Mozc + zenz)の順位を事前分布として足す。
+            # Asteria(Mozc + zenz)の順位を事前分布として足す。
             sc = [v - prior * c for c, v in enumerate(sc)]
             choice[i] = max(range(len(sc)), key=sc.__getitem__)
     return "".join(s["cands"][j] for s, j in zip(segs, choice))

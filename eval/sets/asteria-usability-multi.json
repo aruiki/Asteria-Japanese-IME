@@ -1,0 +1,1105 @@
+[
+ {
+  "index": "d01",
+  "context_text": "",
+  "input": "あしたのかいぎはじゅうじからです",
+  "expected_output": [
+   "明日の会議は10時からです",
+   "明日の会議は１０時からです",
+   "明日の会議は十時からです"
+  ]
+ },
+ {
+  "index": "d02",
+  "context_text": "",
+  "input": "しりょうをおくりますのでごかくにんください",
+  "expected_output": [
+   "資料を送りますのでご確認ください",
+   "資料を送りますのでご確認下さい"
+  ]
+ },
+ {
+  "index": "d03",
+  "context_text": "",
+  "input": "おつかれさまです",
+  "expected_output": [
+   "お疲れ様です",
+   "お疲れさまです"
+  ]
+ },
+ {
+  "index": "d04",
+  "context_text": "",
+  "input": "きょうはちょっとおそくなるかも",
+  "expected_output": [
+   "今日はちょっと遅くなるかも"
+  ]
+ },
+ {
+  "index": "d05",
+  "context_text": "",
+  "input": "えきまでむかえにきてくれる？",
+  "expected_output": [
+   "駅まで迎えに来てくれる？",
+   "駅まで迎えにきてくれる？"
+  ]
+ },
+ {
+  "index": "d06",
+  "context_text": "",
+  "input": "ひるごはんなにたべる？",
+  "expected_output": [
+   "昼ご飯何食べる？",
+   "昼ごはん何食べる？",
+   "昼御飯何食べる？"
+  ]
+ },
+ {
+  "index": "d07",
+  "context_text": "",
+  "input": "せんじつはありがとうございました",
+  "expected_output": [
+   "先日はありがとうございました",
+   "先日は有難うございました",
+   "先日は有り難うございました"
+  ]
+ },
+ {
+  "index": "d08",
+  "context_text": "",
+  "input": "けんとうしておきます",
+  "expected_output": [
+   "検討しておきます",
+   "検討して置きます"
+  ]
+ },
+ {
+  "index": "d09",
+  "context_text": "",
+  "input": "かくにんしだいごれんらくします",
+  "expected_output": [
+   "確認次第ご連絡します",
+   "確認次第、ご連絡します"
+  ]
+ },
+ {
+  "index": "d10",
+  "context_text": "",
+  "input": "ごふべんをおかけしてもうしわけありません",
+  "expected_output": [
+   "ご不便をおかけして申し訳ありません",
+   "ご不便をお掛けして申し訳ありません"
+  ]
+ },
+ {
+  "index": "d11",
+  "context_text": "",
+  "input": "たいちょうにきをつけてね",
+  "expected_output": [
+   "体調に気をつけてね",
+   "体調に気を付けてね"
+  ]
+ },
+ {
+  "index": "d12",
+  "context_text": "",
+  "input": "ねつがあるのでやすみます",
+  "expected_output": [
+   "熱があるので休みます",
+   "熱が有るので休みます"
+  ]
+ },
+ {
+  "index": "d13",
+  "context_text": "",
+  "input": "でんしゃがおくれています",
+  "expected_output": [
+   "電車が遅れています"
+  ]
+ },
+ {
+  "index": "d14",
+  "context_text": "",
+  "input": "こんどのしゅうまつあいてる？",
+  "expected_output": [
+   "今度の週末空いてる？",
+   "今度の週末あいてる？",
+   "今度の週末開いてる？"
+  ]
+ },
+ {
+  "index": "d15",
+  "context_text": "",
+  "input": "みせのよやくをとっておいた",
+  "expected_output": [
+   "店の予約を取っておいた",
+   "店の予約をとっておいた",
+   "店の予約を取って置いた"
+  ]
+ },
+ {
+  "index": "d16",
+  "context_text": "",
+  "input": "かいぎしつをおさえました",
+  "expected_output": [
+   "会議室を押さえました",
+   "会議室を抑えました"
+  ]
+ },
+ {
+  "index": "d17",
+  "context_text": "",
+  "input": "しめきりはらいしゅうのきんようびです",
+  "expected_output": [
+   "締め切りは来週の金曜日です",
+   "締切は来週の金曜日です"
+  ]
+ },
+ {
+  "index": "d18",
+  "context_text": "",
+  "input": "みつもりしょをさくせいしました",
+  "expected_output": [
+   "見積書を作成しました"
+  ]
+ },
+ {
+  "index": "d19",
+  "context_text": "",
+  "input": "このけんについてしつもんがあります",
+  "expected_output": [
+   "この件について質問があります"
+  ]
+ },
+ {
+  "index": "d20",
+  "context_text": "",
+  "input": "ごしてきありがとうございます",
+  "expected_output": [
+   "ご指摘ありがとうございます",
+   "ご指摘有難うございます"
+  ]
+ },
+ {
+  "index": "d21",
+  "context_text": "",
+  "input": "しゅうせいばんをそうふします",
+  "expected_output": [
+   "修正版を送付します"
+  ]
+ },
+ {
+  "index": "d22",
+  "context_text": "",
+  "input": "かいしゃにもどります",
+  "expected_output": [
+   "会社に戻ります",
+   "会社にもどります"
+  ]
+ },
+ {
+  "index": "d23",
+  "context_text": "",
+  "input": "ぱそこんがうごかない",
+  "expected_output": [
+   "パソコンが動かない"
+  ]
+ },
+ {
+  "index": "d24",
+  "context_text": "",
+  "input": "あたらしいすまほをかった",
+  "expected_output": [
+   "新しいスマホを買った"
+  ]
+ },
+ {
+  "index": "d25",
+  "context_text": "",
+  "input": "じゅうでんがきれそう",
+  "expected_output": [
+   "充電が切れそう"
+  ]
+ },
+ {
+  "index": "d26",
+  "context_text": "",
+  "input": "あめがふってきた",
+  "expected_output": [
+   "雨が降ってきた"
+  ]
+ },
+ {
+  "index": "d27",
+  "context_text": "",
+  "input": "かさをもっていくのをわすれた",
+  "expected_output": [
+   "傘を持っていくのを忘れた",
+   "傘を持って行くのを忘れた"
+  ]
+ },
+ {
+  "index": "d28",
+  "context_text": "",
+  "input": "こどものおむかえにいってきます",
+  "expected_output": [
+   "子供のお迎えに行ってきます",
+   "子どものお迎えに行ってきます",
+   "子供のお迎えにいってきます",
+   "子どものお迎えにいってきます"
+  ]
+ },
+ {
+  "index": "d29",
+  "context_text": "",
+  "input": "ばんごはんはかれーにしよう",
+  "expected_output": [
+   "晩ご飯はカレーにしよう",
+   "晩ごはんはカレーにしよう",
+   "晩御飯はカレーにしよう"
+  ]
+ },
+ {
+  "index": "d30",
+  "context_text": "",
+  "input": "びょういんのよやくをした",
+  "expected_output": [
+   "病院の予約をした"
+  ]
+ },
+ {
+  "index": "d31",
+  "context_text": "",
+  "input": "くすりをのむのをわすれないでね",
+  "expected_output": [
+   "薬を飲むのを忘れないでね",
+   "薬を呑むのを忘れないでね"
+  ]
+ },
+ {
+  "index": "d32",
+  "context_text": "",
+  "input": "しけんにごうかくした",
+  "expected_output": [
+   "試験に合格した"
+  ]
+ },
+ {
+  "index": "d33",
+  "context_text": "",
+  "input": "せんせいにしつもんする",
+  "expected_output": [
+   "先生に質問する"
+  ]
+ },
+ {
+  "index": "d34",
+  "context_text": "",
+  "input": "しゅくだいがおわらない",
+  "expected_output": [
+   "宿題が終わらない"
+  ]
+ },
+ {
+  "index": "d35",
+  "context_text": "",
+  "input": "りょこうのけいかくをたてよう",
+  "expected_output": [
+   "旅行の計画を立てよう"
+  ]
+ },
+ {
+  "index": "d36",
+  "context_text": "",
+  "input": "ひこうきのじかんをかくにんして",
+  "expected_output": [
+   "飛行機の時間を確認して",
+   "飛行機の時間を確認して。"
+  ]
+ },
+ {
+  "index": "d37",
+  "context_text": "",
+  "input": "ほてるのちぇっくいんはさんじから",
+  "expected_output": [
+   "ホテルのチェックインは3時から",
+   "ホテルのチェックインは３時から",
+   "ホテルのチェックインは三時から"
+  ]
+ },
+ {
+  "index": "d38",
+  "context_text": "",
+  "input": "おみやげをかってかえるね",
+  "expected_output": [
+   "お土産を買って帰るね",
+   "お土産を買ってかえるね"
+  ]
+ },
+ {
+  "index": "d39",
+  "context_text": "",
+  "input": "たんじょうびおめでとう",
+  "expected_output": [
+   "誕生日おめでとう"
+  ]
+ },
+ {
+  "index": "d40",
+  "context_text": "",
+  "input": "けっこんしきのしょうたいじょうがとどいた",
+  "expected_output": [
+   "結婚式の招待状が届いた"
+  ]
+ },
+ {
+  "index": "d41",
+  "context_text": "",
+  "input": "かいてきにすごせています",
+  "expected_output": [
+   "快適に過ごせています"
+  ]
+ },
+ {
+  "index": "d42",
+  "context_text": "",
+  "input": "しんきのあんけんをたんとうします",
+  "expected_output": [
+   "新規の案件を担当します"
+  ]
+ },
+ {
+  "index": "d43",
+  "context_text": "",
+  "input": "よさんがたりない",
+  "expected_output": [
+   "予算が足りない"
+  ]
+ },
+ {
+  "index": "d44",
+  "context_text": "",
+  "input": "うりあげがのびた",
+  "expected_output": [
+   "売上が伸びた",
+   "売り上げが伸びた"
+  ]
+ },
+ {
+  "index": "d45",
+  "context_text": "",
+  "input": "しょうひんのはっそうがおくれる",
+  "expected_output": [
+   "商品の発送が遅れる"
+  ]
+ },
+ {
+  "index": "d46",
+  "context_text": "",
+  "input": "へんぴんのてつづきをおねがいします",
+  "expected_output": [
+   "返品の手続きをお願いします",
+   "返品の手続きをお願い致します"
+  ]
+ },
+ {
+  "index": "d47",
+  "context_text": "",
+  "input": "ぱすわーどをわすれました",
+  "expected_output": [
+   "パスワードを忘れました"
+  ]
+ },
+ {
+  "index": "d48",
+  "context_text": "",
+  "input": "あっぷでーとをしてください",
+  "expected_output": [
+   "アップデートをしてください",
+   "アップデートをして下さい",
+   "アップデートしてください"
+  ]
+ },
+ {
+  "index": "d49",
+  "context_text": "",
+  "input": "でーたをばっくあっぷする",
+  "expected_output": [
+   "データをバックアップする"
+  ]
+ },
+ {
+  "index": "d50",
+  "context_text": "",
+  "input": "めーるをみておいてください",
+  "expected_output": [
+   "メールを見ておいてください",
+   "メールを見ておいて下さい",
+   "メールをみておいてください"
+  ]
+ },
+ {
+  "index": "d51",
+  "context_text": "",
+  "input": "いまからいきます",
+  "expected_output": [
+   "今から行きます",
+   "今からいきます"
+  ]
+ },
+ {
+  "index": "d52",
+  "context_text": "",
+  "input": "もうすぐつきます",
+  "expected_output": [
+   "もうすぐ着きます"
+  ]
+ },
+ {
+  "index": "d53",
+  "context_text": "",
+  "input": "さきにはじめててください",
+  "expected_output": [
+   "先に始めててください",
+   "先に始めてて下さい",
+   "さきに始めててください"
+  ]
+ },
+ {
+  "index": "d54",
+  "context_text": "",
+  "input": "じかんどおりにはじめます",
+  "expected_output": [
+   "時間通りに始めます",
+   "時間どおりに始めます"
+  ]
+ },
+ {
+  "index": "d55",
+  "context_text": "",
+  "input": "はなしがあるんだけど",
+  "expected_output": [
+   "話があるんだけど",
+   "話しがあるんだけど",
+   "話が有るんだけど"
+  ]
+ },
+ {
+  "index": "d56",
+  "context_text": "",
+  "input": "それはいいかんがえだね",
+  "expected_output": [
+   "それはいい考えだね",
+   "それは良い考えだね",
+   "それは善い考えだね"
+  ]
+ },
+ {
+  "index": "d57",
+  "context_text": "",
+  "input": "きにしないでください",
+  "expected_output": [
+   "気にしないでください",
+   "気にしないで下さい"
+  ]
+ },
+ {
+  "index": "d58",
+  "context_text": "",
+  "input": "えんりょなくいってください",
+  "expected_output": [
+   "遠慮なく言ってください",
+   "遠慮なく言って下さい",
+   "遠慮無く言ってください"
+  ]
+ },
+ {
+  "index": "d59",
+  "context_text": "",
+  "input": "てつだってくれてたすかった",
+  "expected_output": [
+   "手伝ってくれて助かった",
+   "手伝って呉れて助かった"
+  ]
+ },
+ {
+  "index": "d60",
+  "context_text": "",
+  "input": "またこんどあそぼう",
+  "expected_output": [
+   "また今度遊ぼう",
+   "又今度遊ぼう"
+  ]
+ },
+ {
+  "index": "d61",
+  "context_text": "",
+  "input": "かれはいしゃになった",
+  "expected_output": [
+   "彼は医者になった"
+  ]
+ },
+ {
+  "index": "d62",
+  "context_text": "",
+  "input": "きかいがこしょうした",
+  "expected_output": [
+   "機械が故障した"
+  ]
+ },
+ {
+  "index": "d63",
+  "context_text": "",
+  "input": "きかいがあればまたおねがいします",
+  "expected_output": [
+   "機会があればまたお願いします",
+   "機会があれば又お願いします",
+   "機会があればまたお願い致します"
+  ]
+ },
+ {
+  "index": "d64",
+  "context_text": "",
+  "input": "こうえんでさんぽした",
+  "expected_output": [
+   "公園で散歩した"
+  ]
+ },
+ {
+  "index": "d65",
+  "context_text": "",
+  "input": "こうえんかいにさんかした",
+  "expected_output": [
+   "講演会に参加した"
+  ]
+ },
+ {
+  "index": "d66",
+  "context_text": "",
+  "input": "せいかくがいい",
+  "expected_output": [
+   "性格がいい",
+   "性格が良い",
+   "性格が善い"
+  ]
+ },
+ {
+  "index": "d67",
+  "context_text": "",
+  "input": "じかんをはかる",
+  "expected_output": [
+   "時間を計る",
+   "時間を測る"
+  ]
+ },
+ {
+  "index": "d68",
+  "context_text": "",
+  "input": "たいじゅうをはかる",
+  "expected_output": [
+   "体重を量る",
+   "体重を測る",
+   "体重を計る"
+  ]
+ },
+ {
+  "index": "d69",
+  "context_text": "",
+  "input": "かいけつさくをはかる",
+  "expected_output": [
+   "解決策を図る"
+  ]
+ },
+ {
+  "index": "d70",
+  "context_text": "",
+  "input": "ふくをきがえる",
+  "expected_output": [
+   "服を着替える"
+  ]
+ },
+ {
+  "index": "d71",
+  "context_text": "",
+  "input": "かみをきる",
+  "expected_output": [
+   "髪を切る",
+   "紙を切る"
+  ]
+ },
+ {
+  "index": "d72",
+  "context_text": "",
+  "input": "ようふくをあらう",
+  "expected_output": [
+   "洋服を洗う"
+  ]
+ },
+ {
+  "index": "d73",
+  "context_text": "",
+  "input": "はやくおきる",
+  "expected_output": [
+   "早く起きる"
+  ]
+ },
+ {
+  "index": "d74",
+  "context_text": "",
+  "input": "はやくはしる",
+  "expected_output": [
+   "速く走る"
+  ]
+ },
+ {
+  "index": "d75",
+  "context_text": "",
+  "input": "あついおちゃ",
+  "expected_output": [
+   "熱いお茶"
+  ]
+ },
+ {
+  "index": "d76",
+  "context_text": "",
+  "input": "きょうはあつい",
+  "expected_output": [
+   "今日は暑い"
+  ]
+ },
+ {
+  "index": "d77",
+  "context_text": "",
+  "input": "あついほん",
+  "expected_output": [
+   "厚い本"
+  ]
+ },
+ {
+  "index": "d78",
+  "context_text": "",
+  "input": "しんごうがあおになった",
+  "expected_output": [
+   "信号が青になった"
+  ]
+ },
+ {
+  "index": "d79",
+  "context_text": "",
+  "input": "かれのいけんにさんせいです",
+  "expected_output": [
+   "彼の意見に賛成です"
+  ]
+ },
+ {
+  "index": "d80",
+  "context_text": "",
+  "input": "じしんがあった",
+  "expected_output": [
+   "地震があった",
+   "自信があった",
+   "地震が有った",
+   "自信が有った"
+  ]
+ },
+ {
+  "index": "d81",
+  "context_text": "",
+  "input": "じしんをもって",
+  "expected_output": [
+   "自信を持って"
+  ]
+ },
+ {
+  "index": "u01",
+  "context_text": "",
+  "input": "はしにおく",
+  "expected_output": [
+   "端に置く",
+   "橋に置く",
+   "箸に置く"
+  ]
+ },
+ {
+  "index": "u02",
+  "context_text": "",
+  "input": "きかんがながい",
+  "expected_output": [
+   "期間が長い",
+   "器官が長い",
+   "機関が長い"
+  ]
+ },
+ {
+  "index": "u03",
+  "context_text": "",
+  "input": "かいとうをみる",
+  "expected_output": [
+   "回答を見る",
+   "解答を見る",
+   "回答をみる",
+   "解答をみる"
+  ]
+ },
+ {
+  "index": "u04",
+  "context_text": "",
+  "input": "あめがすき",
+  "expected_output": [
+   "雨が好き",
+   "飴が好き",
+   "あめが好き"
+  ]
+ },
+ {
+  "index": "u05",
+  "context_text": "",
+  "input": "こうしょうをすすめる",
+  "expected_output": [
+   "交渉を進める",
+   "考証を進める"
+  ]
+ },
+ {
+  "index": "u06",
+  "context_text": "",
+  "input": "はなをみる",
+  "expected_output": [
+   "花を見る",
+   "花を観る",
+   "花をみる",
+   "鼻を見る"
+  ]
+ },
+ {
+  "index": "u07",
+  "context_text": "",
+  "input": "しゅうせいをくわえる",
+  "expected_output": [
+   "修正を加える",
+   "修正をくわえる"
+  ]
+ },
+ {
+  "index": "u08",
+  "context_text": "",
+  "input": "きじをかく",
+  "expected_output": [
+   "記事を書く",
+   "記事をかく"
+  ]
+ },
+ {
+  "index": "u09",
+  "context_text": "",
+  "input": "しかくをとる",
+  "expected_output": [
+   "資格を取る",
+   "資格をとる",
+   "四角を取る"
+  ]
+ },
+ {
+  "index": "u10",
+  "context_text": "",
+  "input": "せいさくをすすめる",
+  "expected_output": [
+   "制作を進める",
+   "製作を進める",
+   "政策を進める"
+  ]
+ },
+ {
+  "index": "u11",
+  "context_text": "",
+  "input": "やっておきますね",
+  "expected_output": [
+   "やっておきますね",
+   "やって置きますね"
+  ]
+ },
+ {
+  "index": "u12",
+  "context_text": "",
+  "input": "おしえてください",
+  "expected_output": [
+   "教えてください",
+   "教えて下さい"
+  ]
+ },
+ {
+  "index": "u13",
+  "context_text": "",
+  "input": "よろしくおねがいします",
+  "expected_output": [
+   "よろしくお願いします",
+   "宜しくお願いします",
+   "よろしくお願い致します",
+   "宜しくお願い致します"
+  ]
+ },
+ {
+  "index": "u14",
+  "context_text": "",
+  "input": "いつもありがとうございます",
+  "expected_output": [
+   "いつもありがとうございます",
+   "いつも有難うございます",
+   "いつも有り難うございます"
+  ]
+ },
+ {
+  "index": "u15",
+  "context_text": "",
+  "input": "すこしずつすすめる",
+  "expected_output": [
+   "少しずつ進める",
+   "少しづつ進める",
+   "すこしずつ進める"
+  ]
+ },
+ {
+  "index": "u16",
+  "context_text": "",
+  "input": "できるかぎりがんばる",
+  "expected_output": [
+   "できる限り頑張る",
+   "出来る限り頑張る",
+   "できるかぎり頑張る",
+   "できる限りがんばる",
+   "出来る限りがんばる"
+  ]
+ },
+ {
+  "index": "u17",
+  "context_text": "",
+  "input": "あとでれんらくします",
+  "expected_output": [
+   "後で連絡します",
+   "あとで連絡します"
+  ]
+ },
+ {
+  "index": "u18",
+  "context_text": "",
+  "input": "きょうのうちにおわらせる",
+  "expected_output": [
+   "今日のうちに終わらせる",
+   "今日の内に終わらせる",
+   "きょうのうちに終わらせる"
+  ]
+ },
+ {
+  "index": "u19",
+  "context_text": "",
+  "input": "わたしにもできますか",
+  "expected_output": [
+   "私にもできますか",
+   "私にも出来ますか",
+   "わたしにもできますか",
+   "わたしにも出来ますか"
+  ]
+ },
+ {
+  "index": "u20",
+  "context_text": "",
+  "input": "わかりやすいせつめい",
+  "expected_output": [
+   "分かりやすい説明",
+   "わかりやすい説明",
+   "解りやすい説明"
+  ]
+ },
+ {
+  "index": "u21",
+  "context_text": "",
+  "input": "さんじはんにしゅうごう",
+  "expected_output": [
+   "3時半に集合",
+   "３時半に集合",
+   "三時半に集合"
+  ]
+ },
+ {
+  "index": "u22",
+  "context_text": "",
+  "input": "らいしゅうのかようびまで",
+  "expected_output": [
+   "来週の火曜日まで",
+   "来週の火曜まで"
+  ]
+ },
+ {
+  "index": "u23",
+  "context_text": "",
+  "input": "せんえんくらいかかる",
+  "expected_output": [
+   "1000円くらいかかる",
+   "1,000円くらいかかる",
+   "千円くらいかかる",
+   "1000円位かかる",
+   "千円位かかる",
+   "１０００円くらいかかる"
+  ]
+ },
+ {
+  "index": "u24",
+  "context_text": "",
+  "input": "にじゅっぱーせんとおふ",
+  "expected_output": [
+   "20パーセントオフ",
+   "20%オフ",
+   "２０パーセントオフ",
+   "20％オフ",
+   "二十パーセントオフ"
+  ]
+ },
+ {
+  "index": "u25",
+  "context_text": "",
+  "input": "いちじかんほどかかります",
+  "expected_output": [
+   "1時間ほどかかります",
+   "１時間ほどかかります",
+   "一時間ほどかかります",
+   "1時間程かかります",
+   "一時間程かかります"
+  ]
+ },
+ {
+  "index": "u26",
+  "context_text": "",
+  "input": "ふつかかんやすみます",
+  "expected_output": [
+   "2日間休みます",
+   "２日間休みます",
+   "二日間休みます"
+  ]
+ },
+ {
+  "index": "u27",
+  "context_text": "",
+  "input": "ごがついつかにおねがい",
+  "expected_output": [
+   "5月5日にお願い",
+   "５月５日にお願い",
+   "五月五日にお願い"
+  ]
+ },
+ {
+  "index": "u28",
+  "context_text": "",
+  "input": "だいさんかいかいぎ",
+  "expected_output": [
+   "第3回会議",
+   "第３回会議",
+   "第三回会議"
+  ]
+ },
+ {
+  "index": "u29",
+  "context_text": "",
+  "input": "おんらいんみーてぃんぐ",
+  "expected_output": [
+   "オンラインミーティング"
+  ]
+ },
+ {
+  "index": "u30",
+  "context_text": "",
+  "input": "りーどみーをこうしんする",
+  "expected_output": [
+   "リードミーを更新する",
+   "READMEを更新する",
+   "Readmeを更新する",
+   "readmeを更新する"
+  ]
+ },
+ {
+  "index": "u31",
+  "context_text": "",
+  "input": "ぷるりくをだしておいた",
+  "expected_output": [
+   "プルリクを出しておいた",
+   "プルリクをだしておいた",
+   "プルリクを出して置いた"
+  ]
+ },
+ {
+  "index": "u32",
+  "context_text": "",
+  "input": "きょうのゆうがたまでに",
+  "expected_output": [
+   "今日の夕方までに",
+   "きょうの夕方までに"
+  ]
+ },
+ {
+  "index": "u33",
+  "context_text": "",
+  "input": "しんちょくどうですか",
+  "expected_output": [
+   "進捗どうですか",
+   "進捗如何ですか"
+  ]
+ },
+ {
+  "index": "u34",
+  "context_text": "",
+  "input": "しめきりをのばせますか",
+  "expected_output": [
+   "締め切りを延ばせますか",
+   "締切を延ばせますか",
+   "締め切りをのばせますか",
+   "締切をのばせますか"
+  ]
+ },
+ {
+  "index": "u35",
+  "context_text": "",
+  "input": "とてもべんきょうになった",
+  "expected_output": [
+   "とても勉強になった",
+   "とても勉強に成った"
+  ]
+ },
+ {
+  "index": "u36",
+  "context_text": "",
+  "input": "たいへんおせわになっております",
+  "expected_output": [
+   "大変お世話になっております",
+   "大変御世話になっております",
+   "大変お世話になって居ります"
+  ]
+ },
+ {
+  "index": "u37",
+  "context_text": "",
+  "input": "ごかくにんよろしくおねがいします",
+  "expected_output": [
+   "ご確認よろしくお願いします",
+   "ご確認宜しくお願いします",
+   "ご確認よろしくお願い致します",
+   "ご確認宜しくお願い致します"
+  ]
+ },
+ {
+  "index": "u38",
+  "context_text": "",
+  "input": "いがいとよかった",
+  "expected_output": [
+   "意外とよかった",
+   "意外と良かった"
+  ]
+ },
+ {
+  "index": "u39",
+  "context_text": "",
+  "input": "はなしをきく",
+  "expected_output": [
+   "話を聞く",
+   "話を聴く"
+  ]
+ }
+]

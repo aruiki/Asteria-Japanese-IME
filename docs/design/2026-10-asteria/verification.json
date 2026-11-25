@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-09",
+  "scope": "icon asset packaging, not MSI or installed IME acceptance",
+  "frames": [
+    {
+      "width": 16,
+      "height": 16,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 20,
+      "height": 20,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 24,
+      "height": 24,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 32,
+      "height": 32,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 48,
+      "height": 48,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 128,
+      "height": 128,
+      "bits": 32,
+      "encoding": "BMP"
+    },
+    {
+      "width": 256,
+      "height": 256,
+      "bits": 32,
+      "encoding": "BMP"
+    }
+  ],
+  "png_sizes": [
+    16,
+    20,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "resource_compile": {
+    "sdk": "10.0.26100.0 x64",
+    "exit_code": 0
+  },
+  "files": {
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-1024.png": "e7bb96b4f946cde7d8fa62b5db7d827cf47a4f947c30e4a04ec6b3cee729ace2",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-128.png": "c990f735d3b1d1eb06d4a4a2e4c571c94d6ccdd0bf6189b4c86558982fa9d72a",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-16.png": "6d197a72ad2a05721e2c5f32af96cc9034051a3b1380bc6629245b0e9540bf63",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-20.png": "00fa68534cd38648db740e3cc6f9f4bf48783812cba5bc6e1c401e3bd08fff57",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-24.png": "a3788c79f771e7a42bf7575e49dbda5d33a4c594341fe0237ec664d1fa3c359e",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-256.png": "00e08287de3a0fcf5e1fceb6b3f54dc9e1a67fbc8c45e1a36ef15481b7bb89bc",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-32.png": "704e33726dcb371ba08fefb002405284d4c980b9f5f3bedba8c666a5eb36ffa7",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-48.png": "a40d2bea119ef70f74309847e85d865dad32f0c81e26aba4ec282425ffe7ff6e",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-512.png": "c8b9d2426e150ed3dbd52c51ac37a83e3415285f4e0836e212e0fb7502c0b1bb",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3-64.png": "97186ab7a46aa9a3df6904dca1a68de92cecbbe9b3961016ed164da5c5dc0923",
+    "docs/design/2026-10-asteria/icons/asteria-origami-v3.ico": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+    "docs/design/2026-10-asteria/source/asteria-origami-v3-small.svg": "6c6f12f738fced95fee68cbe23ebc1d4a532e4cf594d89d975ddb655818d2e0e",
+    "docs/design/2026-10-asteria/source/asteria-origami-v3.svg": "9c30383f1ea83f4b1cd534cc32b3779a7c2de27d4e492df60d91a0fd520ab6f0"
+  }
+}

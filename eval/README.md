@@ -5,14 +5,14 @@
 
 `just eval-lm` は、ラティスの上位 16 件(REQ-6-1 の K)を zenz-v2.5-small でリランクして評価する
 (6.2 モード A)。モデルは先に `just zenz` で用意する(docs/adr/0007)。重みはモデルのメタデータ
-`kotori.score_weights` から読み、`kotori-eval run --score-weights <JSON>` で差し替えられる。
+`asteria.score_weights` から読み、`asteria-ime-eval run --score-weights <JSON>` で差し替えられる。
 結果は `eval/results-lm/` に出る。
 
 `just bench-lm` は、REQ-6-1 の条件でリランク1回の遅延(p50、p95、p99、最大)を測る。AJIMEE-Bench の
 読みが 20 文字以上の問題から、読みの先頭 20 文字・左文脈の末尾 64 文字・ラティスの上位 K 件で要求を
 作り、各要求を 5 回採点する(最初の1巡は計測しない)。
 
-`kotori-eval tune [--k <件数>] <辞書> <GGUF> <開発用データ>` は、スコア統合の重み(6.2)を格子探索し、
+`asteria-ime-eval tune [--k <件数>] <辞書> <GGUF> <開発用データ>` は、スコア統合の重み(6.2)を格子探索し、
 Acc@1 が最大の重みを JSON で出す。λ_lm = 1、T = 1000 に固定し、λ_lattice を探す(順位は
 λ_lattice / T だけで決まる)。重みは開発用データで調整し、評価セットでは調整しない(7.3)。
 開発用データの用意はメンテナの判断待ち。
@@ -28,10 +28,10 @@ Acc@1 が最大の重みを JSON で出す。λ_lm = 1、T = 1000 に固定し�
 | AJIMEE-Bench(200 問) | 取得・評価できる | azooKey/AJIMEE-Bench の `JWTD_v2/v1/evaluation_items.json`。CC-BY-SA 3.0 |
 | KTB-conv ほか KTB 系 | 未作成 | 7.2 の test 分割から作り、分野ごとに人手で正解を確認する。作成手順と確認基準はここに書く |
 | 回帰ゴールデン(`eval/sets/asteria-regression-golden.json`) | 評価できる(2026-11-05 作成。誤変換を直すたびに足す) | 本プロジェクトで作成。SPEC 14.1 の 2,000 問へ育てる。調整に使わない |
-| Kotori の調整・回帰用(`eval/sets/kotori-idioms`・`nuance`・`daily`) | 評価できる | 本プロジェクトで作成。生成の数や LLM の重みを選ぶのにも使った(docs/adr/0016、0023)ので、未知の文の精度には使わない |
-| Kotori の調整・回帰用: 漢数字を含む熟語・慣用句(`eval/sets/kotori-kanjinum.json`、29 問) | 評価できる | 本プロジェクトで作成。熟語の中の漢数字を算用数字にしないかを見る。2026-09-30: Mozc 89.7%(読みの誤りを直す前)、Standard 96.6% |
-| Kotori の調整用: 打ち間違い・同音語・人名と新語(`eval/sets/kotori-typo`・`homophone`・`names`、各 40 問) | 評価できる | ATOK が強いとされる所を測るために作成(`eval/sets/make_atok_sets.py`)。打ち間違いは、意図した文が正解 |
-| **Kotori の最終評価用(`eval/sets/kotori-heldout.json`、300 問)** | 評価できる | 本プロジェクトで作成(下記)。**調整に使わない** |
+| Asteria の調整・回帰用(`eval/sets/asteria-idioms`・`nuance`・`daily`) | 評価できる | 本プロジェクトで作成。生成の数や LLM の重みを選ぶのにも使った(docs/adr/0016、0023)ので、未知の文の精度には使わない |
+| Asteria の調整・回帰用: 漢数字を含む熟語・慣用句(`eval/sets/asteria-kanjinum.json`、29 問) | 評価できる | 本プロジェクトで作成。熟語の中の漢数字を算用数字にしないかを見る。2026-09-30: Mozc 89.7%(読みの誤りを直す前)、Standard 96.6% |
+| Asteria の調整用: 打ち間違い・同音語・人名と新語(`eval/sets/asteria-typo`・`homophone`・`names`、各 40 問) | 評価できる | ATOK が強いとされる所を測るために作成(`eval/sets/make_atok_sets.py`)。打ち間違いは、意図した文が正解 |
+| **Asteria の最終評価用(`eval/sets/asteria-heldout.json`、300 問)** | 評価できる | 本プロジェクトで作成(下記)。**調整に使わない** |
 
 ### 回帰ゴールデン(`eval/sets/asteria-regression-golden.json`)
 
@@ -60,7 +60,7 @@ mozc/tools/eval_regression.sh ~/mz/src/bazel-bin/converter/converter_main.exe "C
 直ったことを確認した問題(空間光変調器・精度の話なんかしていない)。変換器での初回実行は、この変更を入れた環境で行う。
 SPEC 14.1 の 2,000 問へは、直した誤変換を 1 問ずつ足して育てる。
 
-### kotori-heldout(最終評価用、300 問)
+### asteria-heldout(最終評価用、300 問)
 
 docs/IMPROVEMENT_PROPOSALS.md の案 01、作業カード 30。仕事・日常のチャット・技術・固有名詞(地名・人名)・数字・
 ニュース調を 50 問ずつ(`domain`)、うち 7 問に前の文(`context_text`)。重み・候補の数・閾値などを選ぶのには使わない
@@ -114,7 +114,7 @@ Google 日本語入力・Microsoft IME と比べるときは、次をそろえ�
 試して採らなかったこと: AI の候補を、1 位との 1 トークンあたりの log P の差(0.5 / 1.0 / 1.5)で出さないようにしても、
 外れ候補は 75.4〜76.7% でほぼ変わらず、当たりは最大 16 → 14 に落ちた(確からしさの差では当たりと外れを見分けられない)。
 
-Low(zenz-medium、LLM なし)の生成した文の減点(`KOTORI_LM_GEN_PENALTY`)を調整用のセットで比べた(2026-09-30):
+Low(zenz-medium、LLM なし)の生成した文の減点(`ASTERIA_LM_GEN_PENALTY`)を調整用のセットで比べた(2026-09-30):
 0.5(今の値)が最もよい。1.0 ではニュアンス 85 → 80%、2.0 では AJIMEE 88.0 → 85.5%・ニュアンス 75%。
 Mozc が正しく Low が誤った問題は 0.5 で AJIMEE 2、日常・慣用句・ニュアンス 各 1、漢数字 0。
 
@@ -139,9 +139,9 @@ Mozc が正しく Low が誤った問題は 0.5 で AJIMEE 2、日常・慣用�
 | 2026-09-30 | (参考)azooKey + Zenzai(zenz-v3.2-small、推論 5 回)、前の文あり | 85.0% | - | - |
 | 2026-09-30 | 品質 Standard の既定を軽くした(生成 4 件、LLM は上位 4 件だけ採点。ADR 0018)、前の文あり | 90.5% | - | - |
 | 2026-09-30 | 文全体の選択を文節の見直しで上書きしない、生成の足切り(ADR 0020)。Standard、前の文あり(Low 86.5%、High 92.5%) | 91.5% | - | - |
-| 2026-09-30 | LLM の重み λ を 0.7 に(ADR 0023)。Standard、前の文あり。日常 81 問(`eval/sets/kotori-daily.json`)は Mozc 80.2% → 97.5% | 91.5% | - | - |
+| 2026-09-30 | LLM の重み λ を 0.7 に(ADR 0023)。Standard、前の文あり。日常 81 問(`eval/sets/asteria-daily.json`)は Mozc 80.2% → 97.5% | 91.5% | - | - |
 
-Tab の予測(`mozc/eval_predict.py --data eval/sets/kotori-predict.json`、決まった言い回し 29 問): Mozc のみ 17.2% →
+Tab の予測(`mozc/eval_predict.py --data eval/sets/asteria-predict.json`、決まった言い回し 29 問): Mozc のみ 17.2% →
 AI あり 58.6%(ADR 0018)。
 
 2026-09-29 のリランクは速度が REQ-6-1 に届いていない。候補 16 件をそれぞれ全トークン評価して
@@ -178,6 +178,6 @@ Q8_0 は f16 とほぼ同じ(small、K=16 で p95 600ms)。
 
 | | AJIMEE-Bench(198) | 日常(81) | 同音語(40) | 人名・新語(40) | 打ち間違い(40) |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Kotori日本語入力 beta.8(Unreal) | 88.4% | 97.5% | 97.5% | 97.5% | 5.0% |
+| Asteria日本語入力 beta.8(Unreal) | 88.4% | 97.5% | 97.5% | 97.5% | 5.0% |
 | Microsoft IME | 59.6% | 86.4% | 82.5% | 82.5% | 5.0% |
 | Google 日本語入力 3.34.6260 | 58.1% | 81.5% | 65.0% | 95.0% | 10.0% |

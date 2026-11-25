@@ -1,7 +1,7 @@
 // 実際の IME で、入力中(Space を押す前)に候補の窓が出るかを確かめる(docs/adr/0081)。
 //
 // テキストボックスの窓を前に出し、指定の IME をこのプロセスで有効にして、読みのローマ字をキーとして送る。
-// 打ち終わってから手を止めた間に候補の窓(KotoriCandidateWindow)が見えたか、Space の後に見えたかと、
+// 打ち終わってから手を止めた間に候補の窓(AsteriaCandidateWindow)が見えたか、Space の後に見えたかと、
 // Space の後の未確定の文字を記録し、Esc で取り消す(確定しないので学習しない)。
 //
 // 使い方: ImeWindowProbe.exe <テキストサービスの CLSID> <プロファイルの GUID> <入力.tsv> <出力.tsv> [手を止める ms] [space2]
@@ -45,7 +45,7 @@ static class Native {
     EnumWindows((window, unused) => {
       var name = new StringBuilder(128);
       GetClassNameW(window, name, name.Capacity);
-      if (name.ToString() == "KotoriCandidateWindow" && IsWindowVisible(window)) { found = true; return false; }
+      if (name.ToString() == "AsteriaCandidateWindow" && IsWindowVisible(window)) { found = true; return false; }
       return true;
     }, IntPtr.Zero);
     return found;

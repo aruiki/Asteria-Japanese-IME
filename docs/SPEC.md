@@ -6,7 +6,7 @@ Sep 29, 2026 · @ARUIKI
 
 ## 1. 概要と目標
 
-本プロジェクト(仮称 **Kotori IME**)は、ネットワーク接続なしで動作するニューラル言語モデル搭載の日本語かな漢字変換IMEを、OSSとして開発する。位置づけは開発者本人が私用で使うベータ版(v0.9-beta)で、到達目標は「Google日本語入力より優秀な変換精度と、ATOKに近い使用感」である。判定は測定可能な受け入れ基準(14.3)で行う。
+本プロジェクト(仮称 **Asteria IME**)は、ネットワーク接続なしで動作するニューラル言語モデル搭載の日本語かな漢字変換IMEを、OSSとして開発する。位置づけは開発者本人が私用で使うベータ版(v0.9-beta)で、到達目標は「Google日本語入力より優秀な変換精度と、ATOKに近い使用感」である。判定は測定可能な受け入れ基準(14.3)で行う。
 
 ### 1.1 製品目標
 
@@ -110,13 +110,13 @@ Zenzaiは90MパラメータのGPT-2系モデルで、ローカルで文脈を考
 | 誤入力補正 | ローマ字の打ち間違いや読み間違いを推定して正しい候補も出す機能 | `typo_correction` |
 | ユーザー学習 | 確定履歴に基づき候補順位を個人化する機能 | `user_learning` |
 | フロントエンド | OS固有のIME実装。キー入力を受け、描画を担う | `frontend` |
-| エンジン | OS非依存の変換処理本体。独立プロセスで動く | `engine` / `kotori-server` |
+| エンジン | OS非依存の変換処理本体。独立プロセスで動く | `engine` / `asteria-server` |
 | Acc@1 / Acc@N | 第1候補 / 上位N候補に正解が含まれる割合 | `acc_at_1` / `acc_at_n` |
 | CER | 文字誤り率。編集距離 ÷ 正解文字数 | `cer` |
 
 ## 4. システムアーキテクチャ
 
-変換処理はすべてユーザーごとに1つ動く独立プロセス `kotori-server` に集約し、OSフロントエンドはキー受付と描画だけを担う薄い層とする。これによりエンジンのクラッシュやモデル推論の遅延がアプリ本体を巻き込まず、3OSでエンジンを共通化できる。
+変換処理はすべてユーザーごとに1つ動く独立プロセス `asteria-server` に集約し、OSフロントエンドはキー受付と描画だけを担う薄い層とする。これによりエンジンのクラッシュやモデル推論の遅延がアプリ本体を巻き込まず、3OSでエンジンを共通化できる。
 
 &#91;embedded content: システム構成 · 4プロセス、エンジン内6モジュール、データ3種\]
 
@@ -127,17 +127,17 @@ Zenzaiは90MパラメータのGPT-2系モデルで、ローカルで文脈を考
 | プロセス | 実行場所 | 責務 | 実装 |
 | --- | --- | --- | --- |
 | OSフロントエンド | 各アプリのプロセス内(Windows)/ IME専用プロセス(macOS)/ fcitx5プロセス内(Linux) | キーイベント受付、プリエディット描画、左文脈・周辺テキスト取得、確定文字列の挿入 | 10章参照 |
-| `kotori-server` | ユーザーごとに1プロセス、常駐 | 変換・予測・学習・辞書・設定の全処理 | Rust |
-| `kotori-renderer` | ユーザーごとに1プロセス(Windowsのみ) | 候補ウィンドウ、予測ポップアップ、モード表示の描画 | Rust + Direct2D/DirectWrite |
-| `kotori-config` | 必要時のみ起動 | 設定GUI、ユーザー辞書ツール、学習データ管理 | Rust + Tauri 2 |
+| `asteria-server` | ユーザーごとに1プロセス、常駐 | 変換・予測・学習・辞書・設定の全処理 | Rust |
+| `asteria-renderer` | ユーザーごとに1プロセス(Windowsのみ) | 候補ウィンドウ、予測ポップアップ、モード表示の描画 | Rust + Direct2D/DirectWrite |
+| `asteria-config` | 必要時のみ起動 | 設定GUI、ユーザー辞書ツール、学習データ管理 | Rust + Tauri 2 |
 
-- **REQ-4-1** `kotori-server` はフロントエンドから初回接続時に起動し、ユーザーごとに単一インスタンスであること(Windows:名前付きミューテックス、Unix:ロックファイル)。MUST
-- **REQ-4-2** フロントエンドは `kotori-server` の異常終了を検知したら、指数バックオフ(100ms起点、最大5s)で再起動する。再接続までは直接入力モードで動作し、アプリの入力を妨げないこと。MUST
-- **REQ-4-3** macOSでは候補ウィンドウをIMEプロセス内のパネルで、Linux(fcitx5)ではfcitx5標準の候補UIで描画する。`kotori-renderer` はWindows専用とする。SHOULD
+- **REQ-4-1** `asteria-server` はフロントエンドから初回接続時に起動し、ユーザーごとに単一インスタンスであること(Windows:名前付きミューテックス、Unix:ロックファイル)。MUST
+- **REQ-4-2** フロントエンドは `asteria-server` の異常終了を検知したら、指数バックオフ(100ms起点、最大5s)で再起動する。再接続までは直接入力モードで動作し、アプリの入力を妨げないこと。MUST
+- **REQ-4-3** macOSでは候補ウィンドウをIMEプロセス内のパネルで、Linux(fcitx5)ではfcitx5標準の候補UIで描画する。`asteria-renderer` はWindows専用とする。SHOULD
 
 ### 4.2 IPCプロトコル
 
-- **トランスポート**:Windowsは名前付きパイプ `\\.\pipe\kotori-<ユーザーSID>` とし、ACLで当該ユーザーのみに接続を許可する。macOS/Linuxは `$XDG_RUNTIME_DIR/kotori/server.sock`(macOSは `~/Library/Application Support/Kotori/`)のUNIXドメインソケット、パーミッション0600とする。MUST
+- **トランスポート**:Windowsは名前付きパイプ `\\.\pipe\asteria-<ユーザーSID>` とし、ACLで当該ユーザーのみに接続を許可する。macOS/Linuxは `$XDG_RUNTIME_DIR/asteria/server.sock`(macOSは `~/Library/Application Support/Asteria/`)のUNIXドメインソケット、パーミッション0600とする。MUST
 - **シリアライズ**:Protocol Buffers(Rustは `prost`)。フレームは「u32リトルエンディアンの長さ + 本体」。全メッセージに `protocol_version` を含め、メジャー不一致時は接続を拒否しフロントエンドに再起動を促す。MUST
 - **タイムアウト**:キーイベント応答は200ms。超過時はフロントエンドがそのキーをエンジン未処理として扱い、プリエディットは直前の状態を維持する。MUST
 
@@ -152,7 +152,7 @@ Zenzaiは90MパラメータのGPT-2系モデルで、ローカルで文脈を考
 
 ### 4.3 スレッドモデルとキャンセル
 
-- `kotori-server` は、IPC受付スレッド、セッション処理スレッド(キーイベントを逐次処理)、推論ワーカー(既定2スレッド)、学習データ書き込みスレッドで構成する。
+- `asteria-server` は、IPC受付スレッド、セッション処理スレッド(キーイベントを逐次処理)、推論ワーカー(既定2スレッド)、学習データ書き込みスレッドで構成する。
 - **REQ-4-4** キーイベントのたびに世代番号を進め、古い世代の推論は途中で打ち切る。ライブ変換では「まず辞書ベースの第1候補を返し、推論完了後に差分更新を送る」2段階応答とする。MUST
 - **REQ-4-5** エンジン内部のすべてのパニックは `catch_unwind` でセッション単位に閉じ込め、そのセッションのみリセットする。MUST
 
@@ -187,11 +187,11 @@ Zenzaiは90MパラメータのGPT-2系モデルで、ローカルで文脈を考
 | 1エントリの内容 | 読み、表記、左文脈ID、右文脈ID、生起コスト(i16)、属性フラグ(固有名詞、環境依存文字、旧字体、人名など) |
 | 索引 | 読みをキーとするダブル配列トライ。共通接頭辞検索と予測(前方一致)検索の両方に対応 |
 | 連接コスト | 左右文脈ID(品詞ID)の行列、i16。Mozcの品詞体系(id.def)を採用し互換を保つ |
-| バイナリ形式 | リトルエンディアン、ヘッダにマジック `KTRD`、形式バージョン、SHA-256、セクションオフセット |
+| バイナリ形式 | リトルエンディアン、ヘッダにマジック `ASTD`、形式バージョン、SHA-256、セクションオフセット |
 | 読み込み | mmapで読み取り専用に開く。起動時にチェックサム検証し、不一致なら起動を拒否してエラーを記録 |
 | サイズ目標 | ディスク60MB以下、常駐メモリ(RSSの私有部分)10MB以下 |
 
-- **REQ-5-5** 辞書はビルド時にTSVソースから `kotori-dictc` ツールで生成する。ソースと生成物の対応は再現可能(同一入力から同一バイナリ)であること。MUST
+- **REQ-5-5** 辞書はビルド時にTSVソースから `asteria-dictc` ツールで生成する。ソースと生成物の対応は再現可能(同一入力から同一バイナリ)であること。MUST
 
 #### 辞書ソース(ライセンス詳細は16章)
 
@@ -287,7 +287,7 @@ S(c) = \log P_{\mathrm{LM}}(c \mid \mathrm{ctx}, \mathrm{reading}) - \lambda_1 \
 
 - 推論ランタイムは llama.cpp を固定バージョン(git submodule でコミットを固定)で静的リンクし、Rust から FFI で呼ぶ。更新は精度・速度の回帰テスト(14章)通過を条件とする。
 - CPU推論のみ、既定2スレッド。GPU(Vulkan、Metal)はベータ後のオプションとする。
-- モデルはGGUF形式とし、メタデータに `kotori.model_version`、`kotori.vocab_hash`、`kotori.score_weights`、`kotori.license` を必須で含める。`vocab_hash` がエンジン側と一致しない場合は読み込みを拒否する。
+- モデルはGGUF形式とし、メタデータに `asteria.model_version`、`asteria.vocab_hash`、`asteria.score_weights`、`asteria.license` を必須で含める。`vocab_hash` がエンジン側と一致しない場合は読み込みを拒否する。
 - **REQ-6-5** モデルはサーバー起動後にバックグラウンドで読み込み、読み込み完了前の変換はラティス単体で処理する。起動からキー受付までを遅らせないこと。MUST
 
 ## 7. 学習データとモデル訓練パイプライン
@@ -420,13 +420,13 @@ ATOKの使用感を決める補助機能として、予測入力、誤入力補�
 
 ## 10. OSフロントエンド仕様
 
-フロントエンドはOSのIME APIへの薄いアダプタとし、変換ロジックを持たない。全OS共通のIPCクライアントは Rust の `kotori-client` クレート(C ABIで公開)として実装し、各フロントエンドから呼ぶ。工数とリスクが最も大きいのはWindowsで、全体工数の3割程度を見込む。
+フロントエンドはOSのIME APIへの薄いアダプタとし、変換ロジックを持たない。全OS共通のIPCクライアントは Rust の `asteria-client` クレート(C ABIで公開)として実装し、各フロントエンドから呼ぶ。工数とリスクが最も大きいのはWindowsで、全体工数の3割程度を見込む。
 
 ### 10.1 Windows(TSF)
 
 **構成**
 
-- TSFのText Input Processor(TIP)をインプロセスCOM DLL `kotori_tip.dll` としてC++20で実装する(COM実装の実績と安定性を優先。Mozcの実装を設計の参考にする)。
+- TSFのText Input Processor(TIP)をインプロセスCOM DLL `asteria_tip.dll` としてC++20で実装する(COM実装の実績と安定性を優先。Mozcの実装を設計の参考にする)。
 - **REQ-10-1** x64 PCでは64bitアプリ用(x64)と32bitアプリ用(x86)の両方のDLLを登録する。片方が欠けると一部アプリで入力できなくなる。ARM64 PC用(ARM64、ARM64EC)はCIでビルドのみ維持する。MUST
 
 **実装するTSFインターフェース**
@@ -450,7 +450,7 @@ ATOKの使用感を決める補助機能として、予測入力、誤入力補�
 - **REQ-10-4** ストアアプリ(AppContainer)や低整合性レベルのプロセスからもエンジンに接続できるよう、名前付きパイプのセキュリティ記述子に「すべてのアプリケーションパッケージ」と低整合性ラベルを付与する。ただし接続元が同一ユーザーであることは必ず検証する。MUST
 - **REQ-10-5** 管理者権限で動くアプリ、ログオン画面・UACの安全なデスクトップでは、学習と辞書書き込みを行わない。安全なデスクトップではIMEを無効とする。MUST
 - **REQ-10-6** 同期編集セッションが拒否された場合は非同期で再試行し、キー入力の順序を保つ。キー入力を取りこぼさないこと。MUST
-- **REQ-10-7** 候補ウィンドウは `kotori-renderer` で描画し、DPI(Per-Monitor V2)、マルチモニタ、ダークモード、ハイコントラストに対応する。候補位置はTSFの文字位置APIで取得したキャレット矩形に合わせる。MUST
+- **REQ-10-7** 候補ウィンドウは `asteria-renderer` で描画し、DPI(Per-Monitor V2)、マルチモニタ、ダークモード、ハイコントラストに対応する。候補位置はTSFの文字位置APIで取得したキャレット矩形に合わせる。MUST
 
 **配布**
 
@@ -459,7 +459,7 @@ ATOKの使用感を決める補助機能として、予測入力、誤入力補�
 
 ### 10.2 macOS(InputMethodKit)
 
-- Swiftで `IMKInputController` のサブクラスを実装し、`~/Library/Input Methods/Kotori.app` として配置する。エンジンは同じアプリバンドル内のヘルパー実行ファイルとして起動する。
+- Swiftで `IMKInputController` のサブクラスを実装し、`~/Library/Input Methods/Asteria.app` として配置する。エンジンは同じアプリバンドル内のヘルパー実行ファイルとして起動する。
 - 入力中表示はマーク付きテキスト、候補ウィンドウは自前の `NSPanel` で描画する(`IMKCandidates` は機能不足のため使わない)。
 - 左文脈は `attributedSubstring(from:)` で取得する。
 - **REQ-10-8** セキュア入力(パスワード欄)が有効な間は学習を停止する。MUST
@@ -468,7 +468,7 @@ ATOKの使用感を決める補助機能として、予測入力、誤入力補�
 
 ### 10.3 Linux(fcitx5)
 
-- C++でfcitx5アドオン `fcitx5-kotori` を実装し、候補表示はfcitx5の入力パネルを使う。
+- C++でfcitx5アドオン `fcitx5-asteria` を実装し、候補表示はfcitx5の入力パネルを使う。
 - 左文脈はfcitx5の周辺テキスト機能(SurroundingText)で取得し、対応しないアプリでは文脈なしで変換する。
 - パッケージ:deb(Ubuntu LTS)、rpm(Fedora)、AUR、Flatpak拡張。
 - IBus版はv1.x以降(2章)。
@@ -536,9 +536,9 @@ ATOKの使用感を決める補助機能として、予測入力、誤入力補�
 
 | OS | 設定 | データ(学習・辞書・ログ) | 同梱の辞書・モデル |
 | --- | --- | --- | --- |
-| Windows | `%APPDATA%\Kotori\` | `%LOCALAPPDATA%\Kotori\` | `%ProgramFiles%\Kotori\data\` |
-| macOS | `~/Library/Application Support/Kotori/` | 同左 | アプリバンドル内 `Contents/Resources/` |
-| Linux | `$XDG_CONFIG_HOME/kotori/` | `$XDG_DATA_HOME/kotori/` | `/usr/share/kotori/` |
+| Windows | `%APPDATA%\Asteria\` | `%LOCALAPPDATA%\Asteria\` | `%ProgramFiles%\Asteria\data\` |
+| macOS | `~/Library/Application Support/Asteria/` | 同左 | アプリバンドル内 `Contents/Resources/` |
+| Linux | `$XDG_CONFIG_HOME/asteria/` | `$XDG_DATA_HOME/asteria/` | `/usr/share/asteria/` |
 
 | ファイル | 内容 |
 | --- | --- |
@@ -599,7 +599,7 @@ punctuation = "、。"
 
 - 辞書一式とモデル `xs`、`s` をビルド時に取得・生成し、`install.ps1` が配置する。
 - `m` モデルは利用者が手動でダウンロードし、`models/` に置けば設定で選べる。
-- **REQ-12-4** `kotori-server` はネットワークに一切アクセスしない。モデルと辞書の取得はビルドスクリプトだけが行い、SHA-256を検証する。MUST
+- **REQ-12-4** `asteria-server` はネットワークに一切アクセスしない。モデルと辞書の取得はビルドスクリプトだけが行い、SHA-256を検証する。MUST
   - 例外(2026-11-03、メンテナ承認、docs/adr/0086): 設定画面(mozc_tool)は、利用者がボタンを押したときだけ、表に固定した追加の AI(High・Unreal)を https で受け取ってよい。受け取ったファイルは大きさと SHA-256 を確かめ、一致したものだけを使う。送るのは HTTP の GET だけで、入力した文字・学習・使い方の情報は送らない。変換サーバーは今までどおり通信しない。
 
 ## 13. 非機能要件:性能・リソース・安定性
@@ -651,11 +651,11 @@ punctuation = "、。"
 | 回帰ゴールデン | 2,000件以上 | 過去に修正した誤変換と必ず正解すべき基本例 | 全件一致 |
 
 - KTBは7.2の test 分割から作り、分野ごとに人手で正解を確認する。作成手順と正解確認の基準を `eval/README.md` に記録する。
-- **REQ-14-1** 評価はすべて `kotori-eval` コマンド1つで実行でき、結果をJSONとMarkdownの表で出力する。MUST
+- **REQ-14-1** 評価はすべて `asteria-ime-eval` コマンド1つで実行でき、結果をJSONとMarkdownの表で出力する。MUST
 
 ### 14.2 商用IMEとの比較方法
 
-- Windows上で、テスト用アプリに `SendInput` で読みを打鍵し、変換・確定した結果を読み取る計測ツール `kotori-imebench` を作る。Google日本語入力(Mozc)、Microsoft IME、本IMEを同じ手順で計測する。ATOKは利用者が所有している場合のみ計測する。
+- Windows上で、テスト用アプリに `SendInput` で読みを打鍵し、変換・確定した結果を読み取る計測ツール `asteria-imebench` を作る。Google日本語入力(Mozc)、Microsoft IME、本IMEを同じ手順で計測する。ATOKは利用者が所有している場合のみ計測する。
 - 左文脈は、テスト用アプリの入力欄に事前に確定済みの文を置くことで与える。
 - Google日本語入力のエンジンはOSSのMozcとほぼ同系統のため、Mozcをライブラリとして直接呼ぶ高速な比較経路もSHOULDとして用意する(CIで毎回比較できる)。
 
@@ -672,7 +672,7 @@ punctuation = "、。"
 | KTB-predict | 上位5件の的中率がGoogle日本語入力以上 |
 | 性能・資源 | 13.2 の全項目を利用者のPCで満たす |
 | 互換性 | 利用者が普段使うアプリで重大な不具合(入力不能、文字化け、クラッシュ)なし |
-| 実利用 | 利用者本人が2週間、普段のIMEをKotoriに切り替えて使い続けられる |
+| 実利用 | 利用者本人が2週間、普段のIMEをAsteriaに切り替えて使い続けられる |
 
 ### 14.4 テストの種類とCIゲート
 
@@ -695,7 +695,7 @@ IMEはすべてのキー入力を見るため、最も機密性の高いソフ�
 
 ### 15.1 プライバシー要件
 
-- **REQ-15-1** `kotori-server`、`kotori-renderer`、フロントエンドはネットワーク通信を行うコードを含まない。依存クレートも含めてネットワーク系ライブラリのリンクをCIで検査する(`cargo deny` と依存グラフ検査)。MUST
+- **REQ-15-1** `asteria-server`、`asteria-renderer`、フロントエンドはネットワーク通信を行うコードを含まない。依存クレートも含めてネットワーク系ライブラリのリンクをCIで検査する(`cargo deny` と依存グラフ検査)。MUST
 - **REQ-15-2** ログに入力文字列、読み、候補、左文脈を記録しない。ログに出す文字列は長さとハッシュ(ソルト付き)のみとする。デバッグビルドでも既定で同じとし、明示的な環境変数でのみ解除できる。MUST
 - **REQ-15-3** 左文脈はメモリ上でのみ扱い、学習データへは「直前の確定語1語」以外保存しない。MUST
 - テレメトリ、クラッシュレポートの自動送信は実装しない(2.3)。
@@ -758,27 +758,27 @@ IMEはすべてのキー入力を見るため、最も機密性の高いソフ�
 ### 17.1 ディレクトリ構成
 
 ```text
-kotori/
+asteria/
 ├── AGENTS.md                 # AIエージェント向け作業規約(17.4)
 ├── Cargo.toml                # Rust ワークスペース
 ├── justfile                  # just ci / just eval / just bench など
 ├── crates/
-│   ├── kotori-core/          # 共通型(Reading, Candidate, Segment など)
-│   ├── kotori-proto/         # IPC の .proto と生成コード
-│   ├── kotori-composer/      # ローマ字かな変換(5.2)
-│   ├── kotori-dict/          # 辞書の読み込み・検索(5.3)
-│   ├── kotori-dictc/         # 辞書コンパイラ(bin)
-│   ├── kotori-lattice/       # ラティス・Viterbi・N-best・文節(5.4〜5.5)
-│   ├── kotori-lm/            # llama.cpp FFI とリランク・制約付き生成(6章)
-│   ├── kotori-predict/       # 予測・誤入力補正(9章)
-│   ├── kotori-learn/         # ユーザー学習・ユーザー辞書(8章)
-│   ├── kotori-session/       # 状態機械とキーマップ(11章)
-│   ├── kotori-server/        # エンジン本体(bin)
-│   ├── kotori-client/        # IPC クライアント、C ABI(cdylib/staticlib)
-│   ├── kotori-renderer/      # Windows 候補ウィンドウ(bin)
-│   ├── kotori-config/        # 設定GUI(Tauri 2)
-│   ├── kotori-eval/          # 評価ツール(bin、14章)
-│   └── kotori-imebench/      # 商用IME比較計測(Windows bin)
+│   ├── asteria-core/          # 共通型(Reading, Candidate, Segment など)
+│   ├── asteria-proto/         # IPC の .proto と生成コード
+│   ├── asteria-composer/      # ローマ字かな変換(5.2)
+│   ├── asteria-dict/          # 辞書の読み込み・検索(5.3)
+│   ├── asteria-dictc/         # 辞書コンパイラ(bin)
+│   ├── asteria-lattice/       # ラティス・Viterbi・N-best・文節(5.4〜5.5)
+│   ├── asteria-lm/            # llama.cpp FFI とリランク・制約付き生成(6章)
+│   ├── asteria-predict/       # 予測・誤入力補正(9章)
+│   ├── asteria-learn/         # ユーザー学習・ユーザー辞書(8章)
+│   ├── asteria-session/       # 状態機械とキーマップ(11章)
+│   ├── asteria-server/        # エンジン本体(bin)
+│   ├── asteria-client/        # IPC クライアント、C ABI(cdylib/staticlib)
+│   ├── asteria-renderer/      # Windows 候補ウィンドウ(bin)
+│   ├── asteria-config/        # 設定GUI(Tauri 2)
+│   ├── asteria-ime-eval/          # 評価ツール(bin、14章)
+│   └── asteria-imebench/      # 商用IME比較計測(Windows bin)
 ├── frontends/
 │   ├── windows/              # TSF TIP(C++20、CMake)、install.ps1 / uninstall.ps1
 │   ├── macos/                # InputMethodKit(Swift)
@@ -798,7 +798,7 @@ kotori/
 
 ### 17.2 コーディング規約
 
-- Rust:edition 2021、`rustfmt`、`clippy -D warnings`。`unsafe` は `kotori-lm` と `kotori-client` のFFI境界に限定し、各ブロックに `// SAFETY:` コメントを書く。
+- Rust:edition 2021、`rustfmt`、`clippy -D warnings`。`unsafe` は `asteria-lm` と `asteria-client` のFFI境界に限定し、各ブロックに `// SAFETY:` コメントを書く。
 - エラー処理:ライブラリは `thiserror`、バイナリは `anyhow`。キー処理経路で `unwrap` / `expect` を使わない。
 - C++:C++20、`clang-format`、MSVCは `/W4 /WX`。COMメソッドは例外を外に出さない(REQ-13-2)。
 - Swift:SwiftLint を使う。
@@ -819,7 +819,7 @@ kotori/
 4. PRを出す前に `just ci`(フォーマット、lint、テスト、ゴールデン、縮小評価、ベンチ)をローカルで通す。
 5. 仕様にない判断が必要なら、`docs/adr/NNNN-<題>.md` に選択肢と理由を書き、最も保守的な案で進める。仕様との矛盾を見つけたら、実装を止めてIssueを立てる。
 6. `docs/SPEC.md` の変更は、人間のメンテナの承認があるPRでのみ行う。
-7. ネットワークにアクセスする依存を `kotori-server` 系に追加しない(REQ-15-1)。
+7. ネットワークにアクセスする依存を `asteria-server` 系に追加しない(REQ-15-1)。
 8. 精度または性能の数値が下がる変更は、PR本文に評価結果の前後比較を貼る(REQ-14-2)。
 9. Windows固有のコードはLinux上では検証できないため、windowsランナーのCI結果で確認してからマージする。
 
@@ -841,16 +841,16 @@ kotori/
 ### 18.2 M1 ラティス変換エンジン
 
 - [ ] ComposerとMS-IME互換ローマ字表(REQ-5-1〜5-3)
-- [ ] 辞書ソースの取得スクリプトと `kotori-dictc`、辞書の読込と検索(5.3、REQ-5-5)
+- [ ] 辞書ソースの取得スクリプトと `asteria-dictc`、辞書の読込と検索(5.3、REQ-5-5)
 - [ ] ラティス構築、Viterbi、N-best、差分構築(REQ-5-6、5-7)
 - [ ] 文節区切りと文節候補、文字種・数字・日付の特殊変換(5.5)
-- [ ] `kotori-eval` と AJIMEE-Bench、KTB-conv の評価(14.1)
+- [ ] `asteria-ime-eval` と AJIMEE-Bench、KTB-conv の評価(14.1)
 - [ ] 対話式CLIで読みを入れて変換結果と候補を見られる
 - [ ] 完了条件:評価が一括で回り、ラティス単体の精度が記録される
 
 ### 18.3 M2 ニューラルリランク
 
-- [ ] llama.cpp をsubmoduleで導入し `kotori-lm` でFFI化(6.4)
+- [ ] llama.cpp をsubmoduleで導入し `asteria-lm` でFFI化(6.4)
 - [ ] zenz-v2.5 系モデルをGGUF化して読み込む
 - [ ] 共有プレフィックスのバッチ採点とスコア統合、重みの調整(6.2 モードA)
 - [ ] 世代番号によるキャンセルと2段階応答(REQ-4-4、6-2)
@@ -860,7 +860,7 @@ kotori/
 
 - [ ] TSF TIPの最小実装:キー受付、プリエディット、確定(10.1)
 - [ ] 左文脈取得、InputScope判定、編集セッションの再試行(REQ-10-2〜10-6)
-- [ ] `kotori-renderer` の候補ウィンドウ(REQ-10-7、11.3)
+- [ ] `asteria-renderer` の候補ウィンドウ(REQ-10-7、11.3)
 - [ ] キーマップと状態機械(11.1、11.2)
 - [ ] インストール/アンインストール用 PowerShell スクリプト(16.2)
 - [ ] 完了条件:10.4 のうち利用者が普段使うアプリで、入力不能・クラッシュなしに1週間使える
@@ -871,7 +871,7 @@ kotori/
 - [ ] 誤入力補正(9.2)
 - [ ] ユーザー学習とユーザー辞書、インポート(8章)
 - [ ] 再変換と確定アンドゥ(9.3、9.4)
-- [ ] 設定GUI(`kotori-config`)
+- [ ] 設定GUI(`asteria-config`)
 - [ ] 完了条件:KTB-typo と KTB-predict が 14.3 の基準を満たす
 
 ### 18.6 M5 ベータ仕上げ

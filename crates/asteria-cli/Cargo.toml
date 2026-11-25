@@ -1,0 +1,29 @@
+[package]
+name = "asteria-cli"
+description = "Asteria IME 統合ツール CLI (`asteria-tools`)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "asteria-tools"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+asteria-assets = { path = "../asteria-assets" }
+asteria-common = { path = "../asteria-common" }
+asteria-corpus = { path = "../asteria-corpus" }
+asteria-eval = { path = "../asteria-eval" }
+asteria-release = { path = "../asteria-release" }
+clap = { version = ">=4.5.20, <4.6", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

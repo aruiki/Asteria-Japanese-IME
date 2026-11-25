@@ -12,7 +12,7 @@ training/zenz/convert.py と同じく llama.cpp の変換(third_party/llama.cpp�
    genmai-310M のものと一致するときだけ変換する。
 2. 前処理(pre-tokenizer)は上流に登録がないので、zenz と同じく GPT-2 の正規表現として書く。
 3. 特殊トークンの ID は tokenizer_config.json の名前から引き直す(終端は </s>)。
-4. メタデータ `kotori.*`(版・プロンプトの形・ライセンス)を書き込む。genmai は左文脈を読みの前に置く
+4. メタデータ `asteria.*`(版・プロンプトの形・ライセンス)を書き込む。genmai は左文脈を読みの前に置く
    形(zenzlc: <s> U+EE02 左文脈 U+EE00 読み U+EE01)で学習している。
 """
 
@@ -76,9 +76,9 @@ def main() -> None:
     def prepare_metadata(self, vocab_only: bool) -> None:
         original_prepare(self, vocab_only)
         w = self.gguf_writer
-        w.add_string("kotori.model_version", f"genmai-310M@{REVISION}")
-        w.add_string("kotori.prompt_format", "zenzlc")
-        w.add_string("kotori.license", LICENSE)
+        w.add_string("asteria.model_version", f"genmai-310M@{REVISION}")
+        w.add_string("asteria.prompt_format", "zenzlc")
+        w.add_string("asteria.license", LICENSE)
 
     base.TextModel.get_vocab_base_pre = get_vocab_base_pre
     base.TextModel.prepare_metadata = prepare_metadata

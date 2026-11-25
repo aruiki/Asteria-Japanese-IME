@@ -24,30 +24,14 @@ for p in <リポジトリ>/mozc/patches/*.patch; do git apply --whitespace=nowar
 cd src && python build_tools/update_deps.py && python build_tools/build_qt.py --release --confirm_license
 ```
 
-旧 91M の追加生成モデル(zenz-v2.5-native-generator)は 2026-11-23 から同梱しない(genmai の後は正解を増やさない。docs/verification/candidates-phase2-20261123.md)。比べるときは `python training/contrastive/fetch_generator.py --out <フォルダ>` で取得し、`KOTORI_ZENZ_EXTRA_MODEL` に指定する。生成されたMSIは `check_release.py --local <MSI> --require-collocations --require-short-lexicon --work <専用出力先>` で展開して確かめる。
+追加生成モデルは `python training/contrastive/fetch_generator.py --out <Mozc>/src/data/asteria` で固定SHAを検査して配置する。公開前のローカル候補では `--source <GGUF>` を指定する。元モデル3件に加え、このモデルと `native_generator.json` がMSIビルドの必須入力になる。生成されたMSIは `check_release.py --local <MSI> --require-generator --work <専用出力先>` で展開し、モデルの実バイトと固定情報を確認する。
 
-モデルは `src/data/kotori/` に置く(zenz-v2.5-small・medium、TinySwallow-1.5B。作り方は
+モデルは `src/data/asteria/` に置く(zenz-v2.5-small・medium、TinySwallow-1.5B。作り方は
 `training/zenz/`・`training/llm/`、またはインストール先からコピー)。
 
-通常変換の追加連語もビルド前に生成する。`python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out <新規出力先>`を実行し、出力直下の`fast_collocations.txt`、`fast_collocations.json`、`NOTICE-fast-collocations.txt`を`<Mozc>/src/data/kotori/`へ置く。固定区間の取得とSHA検査、出典は[連語の手順](../training/collocations/README.md)。MSIの確認へ`--require-collocations`を加える。生のコーパス/辞書をGitへ追加しない。
+通常変換の追加連語もビルド前に生成する。`python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out <新規出力先>`を実行し、出力直下の`fast_collocations.txt`、`fast_collocations.json`、`NOTICE-fast-collocations.txt`を`<Mozc>/src/data/asteria/`へ置く。固定区間の取得とSHA検査、出典は[連語の手順](../training/collocations/README.md)。MSIの確認へ`--require-collocations`を加える。生のコーパス/辞書をGitへ追加しない。
 
 ### 1.3 ビルドと確かめ方
-
-**ふだんの 1 改善はこの 3 段で行う**(2026-11-23。手で評価のループを書かない。AGENTS.md の「はまりどころ」):
-
-```powershell
-# 1. 作業ツリー(初回だけ。google/mozc の固定コミット + 指定の版のパッチ、third_party は接合点、データはリンク)
-powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -AsteriaRef origin/main
-# 2. 変更の前と後で、converter_main と session_handler_main を名前を付けて保存する(D:\dev\bins\<名前>)
-powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -Snapshot before
-powershell -File mozc/tools/setup_mozc_tree.ps1 -Name mz-work -Snapshot after
-# 3. 前後比較(GPU が空くのを待ち、同時に 1 つだけ流す。表と入れ替わった問と時間を summary.md に出す)
-python mozc/tools/ab_suite.py --out D:/dev/ab/<名前> --variant before D:/dev/bins/before --variant after D:/dev/bins/after
-```
-
-- `--suite wide` で中立な長い前の文・表記・打ち間違い・回帰ゴールデンまで。`--session`(`--timing immediate|gap150`)は
-  製品と同じ session の経路で、リリースの前に前の版と比べる。環境変数は変種の後ろに `KEY=値`(`MODELS=<フォルダ>` でモデルの場所)。
-- 判定用(heldout・judge)のセットは調整に使わない。`--sets` で報告のときだけ流す。
 
 Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付ける(`//` が書き換えられるため)。
 
@@ -56,21 +40,21 @@ Git Bash では Bazel のターゲットの前に `MSYS_NO_PATHCONV=1` を付け
 | 変換器だけ(評価用、数分) | `MSYS_NO_PATHCONV=1 bazelisk build //converter:converter_main --config release_build` |
 | 設定画面だけ | `MSYS_NO_PATHCONV=1 bazelisk build //gui/tool:mozc_tool --config release_build` |
 | MSI(20 分ほど) | `MSYS_NO_PATHCONV=1 bazelisk build package --config release_build`(`bazel-bin/win32/installer/Mozc64.msi`) |
-| 単体テスト | `MSYS_NO_PATHCONV=1 bazelisk test //rewriter:lm_rewriter_test //base:kotori_diagnostics_test //session:session_test --config release_build` |
+| 単体テスト | `MSYS_NO_PATHCONV=1 bazelisk test //rewriter:lm_rewriter_test //base:asteria_diagnostics_test //session:session_test --config release_build` |
 
 評価と計測はリポジトリで(`eval/fetch.sh` で AJIMEE-Bench を取得しておく)。変換器とモデルの場所は
-`KOTORI_CONVERTER_MAIN`・`KOTORI_INSTALL_DIR`、または環境変数(`mozc/README.md` の一覧)で変える。
+`ASTERIA_CONVERTER_MAIN`・`ASTERIA_INSTALL_DIR`、または環境変数(`mozc/README.md` の一覧)で変える。
 
 | やること | コマンド |
 | --- | --- |
 | 精度(3 品質 × 4 セット) | `mozc/tools/eval_all.sh ~/mz/src/bazel-bin/converter/converter_main.exe` |
-| 精度(最終評価用、調整に使わない) | `python mozc/eval_baseline.py --context --data eval/sets/kotori-heldout.json <converter_main>` |
+| 精度(最終評価用、調整に使わない) | `python mozc/eval_baseline.py --context --data eval/sets/asteria-heldout.json <converter_main>` |
 | GPU の負荷 | `python mozc/tools/cost_bench.py` |
-| ノート PC(GPU なし)の Space | `python mozc/tools/space_latency.py KOTORI_LM_DEVICE=cpu` |
-| 負荷試験 | `python mozc/tools/stress_test.py`(`KOTORI_LM_DEVICE=cpu` でも) |
-| 予測 | `python mozc/eval_predict.py <converter_main> --data eval/sets/kotori-predict.json --warm 1` |
+| ノート PC(GPU なし)の Space | `python mozc/tools/space_latency.py ASTERIA_LM_DEVICE=cpu` |
+| 負荷試験 | `python mozc/tools/stress_test.py`(`ASTERIA_LM_DEVICE=cpu` でも) |
+| 予測 | `python mozc/eval_predict.py <converter_main> --data eval/sets/asteria-predict.json --warm 1` |
 | 性能表 | `python mozc/tools/perf_table.py`(`docs/PERFORMANCE.md`) |
-| 設定画面の画像 | `msiexec /a <MSI> /qn TARGETDIR=<展開先>` のあと `python mozc/tools/capture_window.py <展開先>/PFiles/Kotori/mozc_tool.exe --mode=config_dialog out.png` |
+| 設定画面の画像 | `msiexec /a <MSI> /qn TARGETDIR=<展開先>` のあと `python mozc/tools/capture_window.py <展開先>/PFiles/Asteria/mozc_tool.exe --mode=config_dialog out.png` |
 
 ### 1.4 パッチを作り直して PR にする
 
@@ -116,7 +100,7 @@ CIのソースhead・checkout commit・run IDと公開用commitを残し、CI ar
 ### 1.6 手元の置き場(リポジトリの外)
 
 - `~/mz`: Mozc の作業ツリー(ビルドの出力を含めて数 GB)。
-- `~/kotori-dev/`: 評価用のモデル(`models/`)、llama.cpp の公式ビルド(`tools/`)、変換用の Python 環境。
+- `~/asteria-dev/`: 評価用のモデル(`models/`)、llama.cpp の公式ビルド(`tools/`)、変換用の Python 環境。
   中身は同じフォルダの README。
 
 ## 2. 旧 Rust 版: 環境を作る
@@ -150,7 +134,7 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 | `just ci` | フォーマット確認、clippy(警告はエラー)、全テスト。**PR の前に必ず通す** |
 | `just check` | `just ci` に加えて MSRV(1.80)の確認。Linux ではさらに Windows 向け clippy |
 | `just fmt` | フォーマットを直す |
-| `just dict` | 辞書のソースを取得して `target/kotori/system.dict` を作る(初回は数分) |
+| `just dict` | 辞書のソースを取得して `target/asteria/system.dict` を作る(初回は数分) |
 | `just repl` | 読みを入れて変換結果と候補を見る |
 | `just eval` | AJIMEE-Bench でラティス単体の精度を測る |
 | `just zenz` | zenz-v2.5-small を取得して GGUF にする(Python と PyTorch が要る、ADR 0007) |
@@ -159,7 +143,7 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 | `just notices` | 配布物に同梱する `THIRD_PARTY_NOTICES.txt` を作る(cargo-about が要る、REQ-16-1) |
 | Actions の「Release」 | Windows 版の zip を作って最新のリリースにする(`frontends/windows/README.md`) |
 
-1つのクレートだけ試すときは `cargo test -p kotori-session` のようにする。
+1つのクレートだけ試すときは `cargo test -p asteria-session` のようにする。
 
 ## 4. 作業の流れ
 
@@ -168,18 +152,18 @@ Rust・just・CMake・C/C++ コンパイラ(gcc か clang)・git があればよ
 ## 5. 旧 Rust 版: Windows で IME を動かして試す
 
 `frontends/windows/README.md` を見る。サーバーのログを見たいときは、IME を使う前に
-`target\release\kotori-server.exe --dict target\kotori\system.dict` を手で起動しておく
+`target\release\asteria-server.exe --dict target\asteria\system.dict` を手で起動しておく
 (TIP は既存のサーバーにつなぐ)。
 
 ## 6. 旧 Rust 版: Linux で Windows のコードを確かめる
 
-- Rust の Windows 向けコード: `KOTORI_LM_NO_NATIVE=1 cargo clippy --workspace --all-targets --locked --target x86_64-pc-windows-gnu -- -D warnings`
+- Rust の Windows 向けコード: `ASTERIA_LM_NO_NATIVE=1 cargo clippy --workspace --all-targets --locked --target x86_64-pc-windows-gnu -- -D warnings`
   (`rustup target add x86_64-pc-windows-gnu` が要る。`just check` が実行する)。
 - C++(TSF TIP): mingw ではヘッダが足りない。`cargo install xwin` のあと
   `xwin --accept-license --arch x86_64,x86 splat --output <置き場所>` で Windows SDK を取り、
   `clang --driver-mode=cl --target=x86_64-pc-windows-msvc /std:c++20 /W4 /WX /utf-8 /permissive- -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH /imsvc <SDK>/crt/include /imsvc <SDK>/sdk/include/{ucrt,um,shared}` でコンパイルし、
   `lld-link` でリンクする。Rust の静的ライブラリは
-  `RUSTFLAGS="-C target-feature=+crt-static" cargo rustc -p kotori-client --release --target x86_64-pc-windows-msvc --crate-type staticlib` で作る
+  `RUSTFLAGS="-C target-feature=+crt-static" cargo rustc -p asteria-client --release --target x86_64-pc-windows-msvc --crate-type staticlib` で作る
   (`cargo build` は cdylib のリンクに link.exe を要するので Linux では失敗する)。
 - どちらも最終的な正は CI の windows ランナー。
 

@@ -1,0 +1,22 @@
+[package]
+name = "asteria-common"
+description = "Asteria IME: ツール・データ処理・評価パイプライン共通基盤"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+sha2 = "0.10"
+unicode-normalization = "0.1.25"
+ureq = { version = "2.12", default-features = false, features = ["native-tls"] }
+
+[dev-dependencies]
+tempfile = "3"

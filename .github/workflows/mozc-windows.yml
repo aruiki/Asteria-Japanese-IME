@@ -25,8 +25,6 @@ on:
       - '!mozc/tools/**'
       - '!mozc/eval_*.py'
       - '!mozc/patches/README.md'
-      # 導入した MSI の実入力の検査(installer_smoke.py --acceptance)がビルドして使う。
-      - eval/imebench/Ime*.cs
       - training/collocations/**
       - training/lexicon/**
 
@@ -46,14 +44,12 @@ jobs:
     name: Asteria64.msi (x64)
     runs-on: windows-2025
     timeout-minutes: 120
-    outputs:
-      tag: ${{ steps.version.outputs.TAG }}
     steps:
       # Windows のランナーは既定で改行を CRLF にするので、パッチが当たらなくなる。LF のまま取得する。
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
-          path: kotori
+          path: asteria
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
@@ -62,22 +58,29 @@ jobs:
           path: mozc-src
           submodules: false
           persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: asteria-tools をビルドする
+        shell: pwsh
+        working-directory: asteria
+        run: |
+          cargo build --release --locked --bin asteria-tools
+          if ($LASTEXITCODE -ne 0) { throw 'asteria-tools をビルドできない' }
+          (Resolve-Path target/release).Path >> $env:GITHUB_PATH
       # 版はビルドの前に決める(同じ版の正式版が既にあるときなどを、45 分のビルドの前に落とす)。
       - name: 版を決める
-        id: version
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
-        working-directory: kotori
+        working-directory: asteria
         env:
           CHANNEL: ${{ inputs.channel }}
         run: |
-          $out = python mozc/tools/release_tag.py --channel $env:CHANNEL --repo "https://github.com/$env:GITHUB_REPOSITORY"
+          $out = asteria-tools release-tag --channel $env:CHANNEL --repo "https://github.com/$env:GITHUB_REPOSITORY"
           if ($LASTEXITCODE -ne 0) { throw "版を決められない(上のメッセージ)" }
-          $out | ForEach-Object { Write-Host $_; $_ >> $env:GITHUB_ENV; $_ >> $env:GITHUB_OUTPUT }
+          $out | ForEach-Object { Write-Host $_; $_ >> $env:GITHUB_ENV }
       - name: パッチを当てる
         shell: pwsh
         run: |
-          $patches = Get-ChildItem kotori/mozc/patches/*.patch -ErrorAction SilentlyContinue | Sort-Object Name
+          $patches = Get-ChildItem asteria/mozc/patches/*.patch -ErrorAction SilentlyContinue | Sort-Object Name
           foreach ($p in $patches) {
             Write-Host "当てる: $($p.Name)"
             git -C mozc-src apply --whitespace=nowarn $p.FullName
@@ -112,141 +115,70 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            kotori/target/kotori/zenz-v2.5-small-q8_0.gguf
-            kotori/target/kotori/genmai-310M-q8_0.gguf
-          key: zenz-v2.5-small-genmai-310M-q8_0-${{ hashFiles('kotori/training/zenz/*', 'kotori/training/genmai/*') }}-${{ hashFiles('kotori/.gitmodules') }}
+            asteria/target/asteria/zenz-v2.5-small-q8_0.gguf
+            asteria/target/asteria/genmai-310M-q8_0.gguf
+          key: zenz-v2.5-small-genmai-310M-q8_0-${{ hashFiles('asteria/training/zenz/*', 'asteria/training/genmai/*') }}-${{ hashFiles('asteria/.gitmodules') }}
       - name: モデルを作る
         if: steps.zenz.outputs.cache-hit != 'true'
         shell: bash
-        working-directory: kotori
+        working-directory: asteria
         run: |
           git submodule update --init --depth 1 third_party/llama.cpp
           python -m pip install -q -r third_party/llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
-          mkdir -p target/kotori
+          mkdir -p target/asteria
           bash training/zenz/fetch.sh small
-          python training/zenz/convert.py training/zenz/models/zenz-v2.5-small target/kotori/zenz-v2.5-small-q8_0.gguf --outtype q8_0
+          python training/zenz/convert.py training/zenz/models/zenz-v2.5-small target/asteria/zenz-v2.5-small-q8_0.gguf --outtype q8_0
           bash training/genmai/fetch.sh
-          python training/genmai/convert.py training/genmai/models/genmai-310M target/kotori/genmai-310M-q8_0.gguf --outtype q8_0
+          python training/genmai/convert.py training/genmai/models/genmai-310M target/asteria/genmai-310M-q8_0.gguf --outtype q8_0
       # 同梱する LLM(docs/adr/0016)。f16 にしてから llama.cpp の公式ビルドの llama-quantize で Q5_K_M にする。
       - id: llm
         uses: actions/cache@v4
         with:
-          path: kotori/target/kotori/tinyswallow-1.5b-q5_k_m.gguf
-          key: llm-tinyswallow-1.5b-q5_k_m-${{ hashFiles('kotori/training/llm/*') }}
+          path: asteria/target/asteria/tinyswallow-1.5b-q5_k_m.gguf
+          key: llm-tinyswallow-1.5b-q5_k_m-${{ hashFiles('asteria/training/llm/*') }}
       - name: LLM を作る
         if: steps.llm.outputs.cache-hit != 'true'
         shell: bash
-        working-directory: kotori
+        working-directory: asteria
         run: |
           git submodule update --init --depth 1 third_party/llama.cpp
           python -m pip install -q -r third_party/llama.cpp/requirements/requirements-convert_hf_to_gguf.txt huggingface_hub
           curl -fsSL -o llama-bin.zip https://github.com/ggml-org/llama.cpp/releases/download/b11259/llama-b11259-bin-win-cpu-x64.zip
           mkdir -p llama-bin && unzip -q llama-bin.zip -d llama-bin
           PYTHON=python bash training/llm/make.sh "$PWD/llama-bin/llama-quantize.exe"
+      - name: 学習済み追加生成モデルを固定SHAで取得する
+        shell: pwsh
+        working-directory: asteria
+        run: asteria-tools fetch-generator --out target/asteria
       - name: モデルを置く
         shell: pwsh
         run: |
-          Copy-Item kotori/target/kotori/zenz-v2.5-small-q8_0.gguf mozc-src/src/data/kotori/
-          Copy-Item kotori/target/kotori/genmai-310M-q8_0.gguf mozc-src/src/data/kotori/
-          Copy-Item kotori/target/kotori/tinyswallow-1.5b-q5_k_m.gguf mozc-src/src/data/kotori/
+          Copy-Item asteria/target/asteria/zenz-v2.5-small-q8_0.gguf mozc-src/src/data/asteria/
+          Copy-Item asteria/target/asteria/genmai-310M-q8_0.gguf mozc-src/src/data/asteria/
+          Copy-Item asteria/target/asteria/tinyswallow-1.5b-q5_k_m.gguf mozc-src/src/data/asteria/
+          Copy-Item asteria/target/asteria/zenz-v2.5-native-generator-20261017-q8_0.gguf mozc-src/src/data/asteria/
+          Copy-Item asteria/target/asteria/native_generator.json mozc-src/src/data/asteria/
       - name: 初期変換の連語データを固定区間から再現する
         shell: pwsh
-        working-directory: kotori
+        working-directory: asteria
         run: |
-          python -X utf8 training/collocations/stage.py --baseline ../mozc-src/src/data/dictionary_oss/collocation.txt --out target/kotori/fast-collocations-v1
+          asteria-tools collocations-stage --baseline ../mozc-src/src/data/dictionary_oss/collocation.txt --out target/asteria/fast-collocations-v1
           if ($LASTEXITCODE -ne 0) { throw '連語データを再現できない' }
           foreach ($name in @('fast_collocations.txt', 'fast_collocations.json', 'NOTICE-fast-collocations.txt')) {
-            Copy-Item "target/kotori/fast-collocations-v1/$name" ../mozc-src/src/data/kotori/
+            Copy-Item "target/asteria/fast-collocations-v1/$name" ../mozc-src/src/data/asteria/
           }
       - name: 最終比較した短文語彙と全帰属を配置する
         shell: pwsh
-        working-directory: kotori
+        working-directory: asteria
         run: |
-          python -X utf8 training/lexicon/stage_package.py --out ../mozc-src/src/data/kotori
+          asteria-tools lexicon-stage-package --out ../mozc-src/src/data/asteria
           if ($LASTEXITCODE -ne 0) { throw '固定語彙を取得・検証できない' }
       - name: 連語と語彙の生成・同梱検査の回帰を確かめる
         shell: pwsh
-        working-directory: kotori
+        working-directory: asteria
         run: |
-          python -X utf8 -m unittest discover -s training/collocations -p test_stage.py -v
+          cargo test --locked -p asteria-common -p asteria-release -p asteria-corpus -p asteria-eval -p asteria-assets -p asteria-cli
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s mozc/tools -p test_fast_collocations.py -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s mozc/tools -p test_check_release.py -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s mozc/tools -p test_short_lexicon_package.py -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s mozc/tools -p test_make_patches.py -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s mozc/tools -p test_regression_add.py -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -X utf8 -m unittest discover -s training/lexicon -p 'test_*.py' -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # windows-2025 ランナーが Visual Studio 2026 (MSVC 14.52+) へ更新され、STL の yvals_core.h が
-      # Clang 22 以上を要求するため、固定コミットの LLVM 20.1.1 を上流 Mozc (1527a4cd12) と同じ 23.1.6 に合わせる。
-      - name: LLVM を VS 2026 (MSVC 14.52+) 対応版に合わせる
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          p = Path('mozc-src/src/build_tools/update_deps.py')
-          s = p.read_text(encoding='utf-8')
-          old = (
-              "LLVM_WIN = ArchiveInfo(\n"
-              "    url='https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.1/clang+llvm-20.1.1-x86_64-pc-windows-msvc.tar.xz',\n"
-              "    size=939286624,\n"
-              "    sha256='f8114cb674317e8a303731b1f9d22bf37b8c571b64f600abe528e92275ed4ace',\n"
-              ")"
-          )
-          new = (
-              "LLVM_WIN = ArchiveInfo(\n"
-              "    url='https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/clang+llvm-23.1.6-x86_64-pc-windows-msvc.tar.xz',\n"
-              "    size=901284676,\n"
-              "    sha256='16af05919cf36958dfb4ddaa4fc4d9d4ff577f5daeb76bc112ea49cd8ced82b2',\n"
-              ")"
-          )
-          assert old in s, 'LLVM_WIN 20.1.1 block not found in update_deps.py'
-          p.write_text(s.replace(old, new, 1), encoding='utf-8', newline='\n')
-          print('Updated LLVM_WIN to 23.1.6')
-          PY
-      # LLVM 23.1.6 の `clang-cl -v` は 1 行目が「clang version 23.1.6 (…)」のように版の後ろにも語が続く。
-      # 固定コミットの rules_cc 0.2.17 は最後の語を版とみなすため、組み込みヘッダーの場所
-      # (lib/clang/23/include)を取り違え、llama.cpp の gguf.cpp などが「absolute path inclusion(s) found」で止まる。
-      # 上流 rules_cc 0.2.22 の修正(「Fix clang version parsing on Windows.」、上流 Mozc 1527a4cd12 が採用)と
-      # 同じ読み方を、Mozc が rules_cc に当てるパッチへ足す。
-      - name: rules_cc の clang の版の読み方を LLVM 23 に合わせる
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          p = Path('mozc-src/src/bazel/rules_cc_windows_cc_configure.bzl.patch')
-          s = p.read_text(encoding='utf-8')
-          header = (
-              "--- cc/private/toolchain/windows_cc_configure.bzl\n"
-              "+++ cc/private/toolchain/windows_cc_configure.bzl\n"
-          )
-          hunk = r'''@@ -617,10 +617,10 @@ def _get_clang_version(repository_ctx, clang_cl):
-               result = repository_ctx.execute([clang_cl, "-v"])
-               first_line = result.stderr.strip().splitlines()[0].strip()
-
-          -    # The first line of stderr should look like "[vendor ]clang version X.X.X"
-          +    # The first line of stderr should look like "[vendor ]clang version X.X.X[ vendor]"
-               if result.return_code != 0 or first_line.find("clang version ") == -1:
-                   auto_configure_fail("Failed to get clang version by running \"%s -v\"" % clang_cl)
-          -    return first_line.split(" ")[-1]
-          +    return first_line[first_line.find("clang version ") + len("clang version "):].split(" ")[0]
-
-           def _get_clang_dir(repository_ctx, llvm_path, clang_version):
-               """Get the clang installation directory."""
-          '''
-          assert s.startswith(header), 'rules_cc_windows_cc_configure.bzl.patch header changed'
-          assert '@@ -920,11 +920,13 @@' in s, 'existing rules_cc hunk changed'
-          assert '_get_clang_version' not in s, 'clang version fix already present'
-          p.write_text(header + hunk + s[len(header):], encoding='utf-8', newline='\n')
-          print(p.read_text(encoding='utf-8'))
-          PY
       - uses: actions/cache@v4
         with:
           path: mozc-src/src/third_party_cache
@@ -288,14 +220,14 @@ jobs:
         run: bazelisk build package --config release_build --disk_cache=D:\bazel-disk-cache
       - name: 同梱した追加モデルとMSIの版を確かめる
         shell: pwsh
-        run: python -X utf8 kotori/mozc/tools/check_release.py --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-collocations --require-short-lexicon --work generator-package-check
-      # Kotori の変更の単体テスト(モデルなしで動くもの。docs/IMPROVEMENT_PROPOSALS.md の案 02)。
+        run: asteria-tools --repo-root asteria check-release --local mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --require-generator --require-collocations --require-short-lexicon --work generator-package-check
+      # Asteria の変更の単体テスト(モデルなしで動くもの。docs/IMPROVEMENT_PROPOSALS.md の案 02)。
       - name: テストする
         shell: cmd
         working-directory: .\mozc-src\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //rewriter:kotori_light_lattice_test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:kotori_model_identity_test //rewriter:kotori_nuance_rewriter_test //rewriter:kotori_homophone_hint_rewriter_test //rewriter:kotori_typo_model_test //rewriter:kotori_romaji_english_test //rewriter:lm_rewriter_test //rewriter:kotori_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //rewriter:user_boundary_history_rewriter_test //rewriter:number_rewriter_test //base:kotori_diagnostics_test //session:session_test //session:kotori_usage_stats_test //session:session_handler_scenario_test //win32/tip:tip_shared_input_mode_test //win32/tip:tip_input_mode_manager_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
+        run: bazelisk test //converter:immutable_converter_test //converter:nbest_generator_test //request:conversion_request_test //engine:engine_converter_test //engine:engine_output_test //rewriter:asteria_model_identity_test //rewriter:asteria_nuance_rewriter_test //rewriter:asteria_homophone_hint_rewriter_test //rewriter:asteria_typo_model_test //rewriter:asteria_romaji_english_test //rewriter:lm_rewriter_test //rewriter:asteria_context_history_test //rewriter:collocation_rewriter_test //rewriter:english_variants_rewriter_test //rewriter:user_boundary_history_rewriter_test //base:asteria_diagnostics_test //session:session_test //session:asteria_usage_stats_test //session:session_handler_scenario_test --config release_build --disk_cache=D:\bazel-disk-cache --test_output=errors
       - name: 応援案内の保存と画面を確かめる
         shell: pwsh
         working-directory: .\mozc-src\src
@@ -303,18 +235,18 @@ jobs:
           $taskQtRoot = Join-Path (Get-Location).Path 'third_party/qt'
           $env:PATH = "$taskQtRoot/bin;$env:PATH"
           $env:QT_PLUGIN_PATH = "$taskQtRoot/plugins"
-          bazelisk test //gui/tool:kotori_support_reminder_test //gui/config_dialog:kotori_dashboard_test //gui/config_dialog:kotori_settings_bridge_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
+          bazelisk test //gui/tool:asteria_support_reminder_test //gui/config_dialog:asteria_dashboard_test //gui/config_dialog:asteria_settings_bridge_test --config release_build --disk_cache=D:/bazel-disk-cache --test_output=errors "--test_env=PATH=$env:PATH" "--test_env=QT_PLUGIN_PATH=$env:QT_PLUGIN_PATH" --test_env=QT_QPA_PLATFORM=offscreen
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # 同じrunの新MSIで候補8項目・再導入・入力・削除まで確認する。
       # 開発者のPCではなく、この使い捨てWindowsランナーだけを変更する。
       - name: インストーラーの候補操作・再導入・入力・削除を確かめる
         shell: pwsh
         env:
-          KOTORI_DISPOSABLE_RUNNER: ${{ runner.environment }}
+          ASTERIA_DISPOSABLE_RUNNER: ${{ runner.environment }}
         run: |
           python -m pip install playwright==1.58.0
           if ($LASTEXITCODE -ne 0) { throw 'Browser probe dependency installation failed' }
-          python -X utf8 kotori/mozc/tools/installer_smoke.py --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke --acceptance --duplicate-stress --browser-duplicate-stress --reinstall
+          asteria-tools --repo-root asteria installer-smoke --msi mozc-src/src/bazel-bin/win32/installer/Mozc64.msi --out installer-smoke --acceptance --duplicate-stress --browser-duplicate-stress --reinstall
       - name: インストーラーの検証ログを保存する
         if: always()
         uses: actions/upload-artifact@v4
@@ -328,7 +260,7 @@ jobs:
         with:
           path: D:\bazel-disk-cache
           key: mozc-bazel-${{ runner.os }}-${{ env.MOZC_COMMIT }}-${{ github.run_id }}
-      # 表示ブランドAsteriaに配布名を合わせる。内部Kotori名はアップグレード互換性を保持(ADR0058)。
+      # 表示ブランドAsteriaに配布名を合わせる。内部Asteria名はアップグレード互換性を保持(ADR0058)。
       - name: インストーラの名前を変える
         shell: pwsh
         run: Copy-Item mozc-src/src/bazel-bin/win32/installer/Mozc64.msi Asteria64.msi
@@ -340,14 +272,14 @@ jobs:
       - name: 版とリリースの名前を決める
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
-        working-directory: kotori
+        working-directory: asteria
         run: |
-          $releaseName = python -X utf8 mozc/tools/release_name.py --tag $env:TAG
+          $releaseName = asteria-tools release-name --tag $env:TAG
           if ($LASTEXITCODE -ne 0) { throw 'リリース名を決められない' }
           $hash = (Get-FileHash ../Asteria64.msi -Algorithm SHA256).Hash.ToLower()
           [IO.File]::WriteAllText((Join-Path (Get-Location) '../Asteria64.msi.sha256'), "$hash  Asteria64.msi`n", [Text.Encoding]::ASCII)
           # 配布ファイルの名前に版を入れる(利用者の依頼、2026-11-04)。README・サイト・出回っている
-          # latest/download の固定リンクのため、同じ中身の Asteria64.msi も添付する。Kotori64.msi はやめた
+          # latest/download の固定リンクのため、同じ中身の Asteria64.msi も添付する。Asteria64.msi はやめた
           # (5.0.0・4.2.0 で各 1 回しか使われていない)。
           $named = "Asteria-$($env:TAG.TrimStart('v'))-x64.msi"
           Copy-Item ../Asteria64.msi "../$named"
@@ -362,59 +294,9 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: ${{ env.PRERELEASE == 'true' }}
           make_latest: ${{ env.MAKE_LATEST }}
-          body_path: kotori/mozc/release-notes.md
+          body_path: asteria/mozc/release-notes.md
           files: |
             ${{ env.ASSET_NAMED }}
             ${{ env.ASSET_NAMED }}.sha256
             Asteria64.msi
             Asteria64.msi.sha256
-
-  # NVIDIA の GPU 向けの追加パッケージ(docs/adr/0088)。llama.cpp の公式 CUDA 版から DLL を取り、版と SHA-256 を
-  # 固定して AsteriaCuda64.msi にする。本体のリリースには、同じ中身のものを毎回添付する。
-  cuda-addon:
-    name: AsteriaCuda64.msi (x64)
-    needs: build
-    runs-on: windows-2025
-    timeout-minutes: 30
-    steps:
-      - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: WiX を入れる
-        shell: pwsh
-        # 本体の MSI と同じ版(Mozc の MODULE.bazel の dotnet_tool_repository)。
-        run: dotnet tool install --global wix --version 5.0.2
-      - name: 追加パッケージを作る
-        shell: pwsh
-        run: pwsh mozc/cuda-addon/build_addon.ps1 -Out AsteriaCuda64.msi
-      # 管理者用の展開で中身と版の札を確かめる(CI の Windows には GPU がないので、読み込みは手元で確かめる)。
-      - name: 中身を確かめる
-        shell: pwsh
-        run: |
-          $x = Join-Path $env:RUNNER_TEMP 'cuda-addon-x'
-          $p = Start-Process msiexec.exe -ArgumentList "/a `"$(Resolve-Path AsteriaCuda64.msi)`" /qn TARGETDIR=`"$x`"" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "msiexec /a が $($p.ExitCode) で失敗した" }
-          $d = Join-Path $x 'PFiles\Asteria\cuda'
-          foreach ($f in 'ggml-cuda.dll','cudart64_13.dll','cublas64_13.dll','cublasLt64_13.dll','asteria-cuda.txt','NOTICE-cuda.txt') {
-            if (-not (Test-Path (Join-Path $d $f))) { throw "$f が入っていない" }
-          }
-          $stamp = Get-Content (Join-Path $d 'asteria-cuda.txt') -Raw
-          if ($stamp -notmatch '(?m)^llama=b11259\r?$') { throw "版の札が違う: $stamp" }
-          Get-ChildItem $d | ForEach-Object { Write-Host "$($_.Name) $($_.Length)" }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AsteriaCuda64.msi
-          path: AsteriaCuda64.msi
-          if-no-files-found: error
-      - name: リリースに添付する
-        if: github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.build.outputs.tag }}
-        run: |
-          $hash = (Get-FileHash AsteriaCuda64.msi -Algorithm SHA256).Hash.ToLower()
-          [IO.File]::WriteAllText((Join-Path (Get-Location) 'AsteriaCuda64.msi.sha256'), "$hash  AsteriaCuda64.msi`n", [Text.Encoding]::ASCII)
-          gh release upload $env:TAG AsteriaCuda64.msi AsteriaCuda64.msi.sha256 --repo $env:GITHUB_REPOSITORY --clobber
-          if ($LASTEXITCODE -ne 0) { throw 'リリースに添付できない' }

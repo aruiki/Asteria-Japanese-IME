@@ -1,0 +1,23 @@
+[package]
+name = "asteria-ime-eval"
+description = "Asteria IME: 評価ツール(14章)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+asteria-composer = { path = "../asteria-composer" }
+asteria-dict = { path = "../asteria-dict" }
+asteria-lattice = { path = "../asteria-lattice" }
+asteria-learn = { path = "../asteria-learn" }
+asteria-lm = { path = "../asteria-lm" }
+asteria-session = { path = "../asteria-session" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

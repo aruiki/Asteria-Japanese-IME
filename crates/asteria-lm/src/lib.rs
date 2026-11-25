@@ -1,0 +1,263 @@
+//! llama.cpp FFI とリランク・制約付き生成(docs/SPEC.md 6 章)。
+//!
+//! llama.cpp は third_party/llama.cpp にコミットを固定して置き、静的にリンクする(6.4)。
+//! FFI は C のシム(`csrc/shim.c`)越しに呼び、`unsafe` はこのクレートの `ffi` だけに置く
+//! (17.2、docs/adr/0006)。
+
+pub mod catalog;
+mod ffi;
+pub mod generate;
+pub mod llama_dll;
+pub mod multi_model;
+pub mod rerank;
+mod score;
+mod weights;
+pub mod zenz;
+
+pub use score::Context;
+pub use weights::ScoreWeights;
+
+use std::ffi::CString;
+use std::path::Path;
+use std::ptr::NonNull;
+use std::sync::Once;
+
+use sha2::{Digest, Sha256};
+
+/// 実行時バックエンド情報 (静的 CPU フォールバックか動的 `llama.dll` / GPU か)。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeBackendInfo {
+    pub using_dynamic: bool,
+    pub has_gpu: bool,
+    pub is_integrated: bool,
+    pub is_cuda: bool,
+    pub gpu_vram_bytes: usize,
+    pub gpu_name: String,
+}
+
+impl RuntimeBackendInfo {
+    pub fn current() -> Self {
+        Self {
+            using_dynamic: ffi::using_dynamic(),
+            has_gpu: ffi::has_gpu(),
+            is_integrated: ffi::gpu_is_integrated(),
+            is_cuda: ffi::gpu_is_cuda(),
+            gpu_vram_bytes: ffi::gpu_vram_bytes(),
+            gpu_name: ffi::gpu_name(),
+        }
+    }
+}
+
+/// 推論ランタイム (`llama.dll` / GPU バックエンド) を初期化する。
+/// `runtime_dir` に `llama.dll` 等があれば動的ロードし、無ければ静的 `llama.cpp` を使う。
+pub fn init_runtime(
+    runtime_dir: Option<&Path>,
+    gpu_enabled: bool,
+    allow_integrated: bool,
+) -> RuntimeBackendInfo {
+    let resolved = runtime_dir.filter(|p| !p.as_os_str().is_empty()).map(|p| {
+        let abs = if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            std::env::current_dir().map_or_else(|_| p.to_path_buf(), |cwd| cwd.join(p))
+        };
+        let canonical = std::fs::canonicalize(&abs).unwrap_or(abs);
+        let s = canonical.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            std::path::PathBuf::from(stripped)
+        } else {
+            canonical
+        }
+    });
+    let dir_c = resolved
+        .as_deref()
+        .and_then(|p| CString::new(p.to_string_lossy().as_bytes()).ok());
+    let _ = ffi::init_runtime(dir_c.as_deref(), gpu_enabled, allow_integrated);
+    RuntimeBackendInfo::current()
+}
+
+/// LM まわりのエラー。
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
+pub enum LmError {
+    #[error("パスに NUL が含まれる")]
+    InvalidPath,
+    #[error("モデルを読み込めない: {0}")]
+    Load(String),
+    #[error("トークン化に失敗した")]
+    Tokenize,
+    #[error("推論コンテキストを作れない")]
+    Context,
+    #[error("前置きが空")]
+    EmptyPrefix,
+    #[error("候補が多すぎる")]
+    TooManyCandidates,
+    #[error("トークン数がコンテキスト長を超える")]
+    TooLong,
+    #[error("推論に失敗した")]
+    Decode,
+    #[error("モデルの語彙がエンジンの想定と一致しない")]
+    VocabMismatch,
+    #[error("スコア統合の重み(asteria.score_weights)がない、または不正")]
+    Weights,
+}
+
+static INIT: Once = Once::new();
+
+fn init() {
+    if ffi::using_dynamic() {
+        return;
+    }
+    INIT.call_once(|| {
+        let env_dir = std::env::var_os("ASTERIA_RUNTIME_DIR");
+        let gpu_on = std::env::var("ASTERIA_LM_DEVICE").as_deref() != Ok("cpu");
+        if let Some(dir) = env_dir {
+            let _ = init_runtime(Some(Path::new(&dir)), gpu_on, false);
+        } else {
+            ffi::init();
+        }
+    });
+}
+
+/// 読み込んだ GGUF モデル。
+#[derive(Debug)]
+pub struct Model {
+    raw: NonNull<ffi::LlamaModel>,
+}
+
+impl Model {
+    /// 重みを含めて読み込む。
+    pub fn load(path: &Path) -> Result<Self, LmError> {
+        Self::open(path, false)
+    }
+
+    /// 語彙だけを読み込む(トークン化とメタデータの確認に使う)。
+    pub fn load_vocab_only(path: &Path) -> Result<Self, LmError> {
+        Self::open(path, true)
+    }
+
+    fn open(path: &Path, vocab_only: bool) -> Result<Self, LmError> {
+        init();
+        let c =
+            CString::new(path.to_string_lossy().as_bytes()).map_err(|_| LmError::InvalidPath)?;
+        ffi::load(&c, vocab_only)
+            .map(|raw| Self { raw })
+            .ok_or_else(|| LmError::Load(path.display().to_string()))
+    }
+
+    /// 文頭トークン。
+    pub fn bos(&self) -> i32 {
+        ffi::bos(self.raw)
+    }
+
+    /// 文末トークン。
+    pub fn eos(&self) -> i32 {
+        ffi::eos(self.raw)
+    }
+
+    /// 語彙が文頭 BOS 自動付与を要求するか (`llama_vocab_get_add_bos`)。
+    pub fn add_bos(&self) -> bool {
+        ffi::add_bos(self.raw)
+    }
+
+    /// トークンが終端トークン (EOS / EOG) か。
+    pub fn is_eog(&self, token: i32) -> bool {
+        ffi::is_eog(self.raw, token)
+    }
+
+    /// 語彙の大きさ。
+    pub fn n_vocab(&self) -> usize {
+        usize::try_from(ffi::n_vocab(self.raw)).unwrap_or(0)
+    }
+
+    /// 文字列をトークン列にする。`add_special` なら BOS などの特殊トークンを付ける。
+    pub fn tokenize(&self, text: &str, add_special: bool) -> Result<Vec<i32>, LmError> {
+        let len = i32::try_from(text.len()).map_err(|_| LmError::Tokenize)?;
+        let mut out = vec![0i32; text.len() + 8];
+        let mut n = ffi::tokenize(self.raw, text.as_bytes(), len, &mut out, add_special);
+        if n < 0 {
+            let need = usize::try_from(-n).map_err(|_| LmError::Tokenize)?;
+            out.resize(need, 0);
+            n = ffi::tokenize(self.raw, text.as_bytes(), len, &mut out, add_special);
+        }
+        let n = usize::try_from(n).map_err(|_| LmError::Tokenize)?;
+        out.truncate(n);
+        Ok(out)
+    }
+
+    /// トークンの文字列(GGUF の `tokenizer.ggml.tokens` の値)のバイト列。
+    pub fn token_text(&self, token: i32) -> Option<Vec<u8>> {
+        ffi::token_text(self.raw, token)
+    }
+
+    /// トークン列を UTF-8 文字列へ復元する (`llama_token_to_piece`)。
+    pub fn detokenize(&self, tokens: &[i32]) -> Option<String> {
+        let mut bytes = Vec::new();
+        for &tok in tokens {
+            bytes.extend_from_slice(&ffi::token_to_piece(self.raw, tok));
+        }
+        String::from_utf8(bytes).ok()
+    }
+
+    /// 語彙の SHA-256(16進)。ID 順のトークン文字列を改行でつないだものを対象にする
+    /// (docs/adr/0007)。
+    pub fn vocab_hash(&self) -> Option<String> {
+        let mut hasher = Sha256::new();
+        for id in 0..i32::try_from(self.n_vocab()).ok()? {
+            if id > 0 {
+                hasher.update(b"\n");
+            }
+            hasher.update(self.token_text(id)?);
+        }
+        Some(
+            hasher
+                .finalize()
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect(),
+        )
+    }
+
+    /// 語彙が `expected` のものか確かめる(6.4)。メタデータ `asteria.vocab_hash` と、実際の
+    /// 語彙から計算した値の両方が一致しなければ拒否する。
+    pub fn check_vocab(&self, expected: &str) -> Result<(), LmError> {
+        let declared = self.meta("asteria.vocab_hash");
+        if declared.as_deref() == Some(expected) && self.vocab_hash().as_deref() == Some(expected) {
+            Ok(())
+        } else {
+            Err(LmError::VocabMismatch)
+        }
+    }
+
+    /// GGUF のメタデータの文字列値(6.4 の `asteria.*` など)。
+    pub fn meta(&self, key: &str) -> Option<String> {
+        let key = CString::new(key).ok()?;
+        let mut buf = vec![0u8; 256];
+        loop {
+            let n = usize::try_from(ffi::meta(self.raw, &key, &mut buf)).ok()?;
+            if n < buf.len() {
+                buf.truncate(n);
+                return String::from_utf8(buf).ok();
+            }
+            buf.resize(n + 1, 0);
+        }
+    }
+}
+
+impl Drop for Model {
+    fn drop(&mut self) {
+        ffi::free(self.raw);
+    }
+}
+
+#[cfg(test)]
+mod rerank_tests;
+#[cfg(test)]
+mod score_tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod tiny_model;
+#[cfg(test)]
+mod weights_tests;
+#[cfg(test)]
+mod zenz_tests;

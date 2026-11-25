@@ -6,11 +6,11 @@
 
 ## 固定する条件
 
-一問は一回の変換要求。`index`、`input`、`expected_output`（許容表記集合）、`context_text`、`domain` を事前に固定する。測定後に正解集合を広げない。AJIMEE・日常・慣用句・ニュアンスは調整と回帰用、`kotori-heldout.json` は最終報告用とし、重み・閾値・モデルの選択に使わない。表記が曖昧な問題は既存の許容集合で採点し、別途レビューする。
+一問は一回の変換要求。`index`、`input`、`expected_output`（許容表記集合）、`context_text`、`domain` を事前に固定する。測定後に正解集合を広げない。AJIMEE・日常・慣用句・ニュアンスは調整と回帰用、`asteria-heldout.json` は最終報告用とし、重み・閾値・モデルの選択に使わない。表記が曖昧な問題は既存の許容集合で採点し、別途レビューする。
 
-データ・変換器・辞書・モデル・評価器・結果のSHA-256、評価器のgit commitと変更有無、KOTORI環境変数、OS/CPU/GPUをmanifestへ保存する。変換器のビルド元は評価器のgit commitから推定しない。未指定は `unverified`。ビルド元の自己申告だけでバイナリの対応確認が済んだとは扱わない。
+データ・変換器・辞書・モデル・評価器・結果のSHA-256、評価器のgit commitと変更有無、ASTERIA環境変数、OS/CPU/GPUをmanifestへ保存する。変換器のビルド元は評価器のgit commitから推定しない。未指定は `unverified`。ビルド元の自己申告だけでバイナリの対応確認が済んだとは扱わない。
 
-プロファイル未指定時は一時プロファイルを使う。明示指定時は再利用されうるため、履歴や設定を揃えた責任は実行者にある。同じ正規化読みで前文が違う問題は別プロセスに分け、読み→文脈マップの上書きを防ぐ。外部 `KOTORI_LM_CONTEXT_MAP` と `KOTORI_LM_PRECEDING` は引き継がない。出力保存時には測定前後でデータ・変換器・辞書・モデル・評価器のハッシュも照合し、途中変更は失敗にする。
+プロファイル未指定時は一時プロファイルを使う。明示指定時は再利用されうるため、履歴や設定を揃えた責任は実行者にある。同じ正規化読みで前文が違う問題は別プロセスに分け、読み→文脈マップの上書きを防ぐ。外部 `ASTERIA_LM_CONTEXT_MAP` と `ASTERIA_LM_PRECEDING` は引き継がない。出力保存時には測定前後でデータ・変換器・辞書・モデル・評価器のハッシュも照合し、途中変更は失敗にする。
 
 ## 測定する値と境界
 
@@ -25,7 +25,7 @@
 
 ## 再現コマンド
 
-空のモデル/ランタイムディレクトリでMozc対照、同梱モデル/ランタイムでStandardを順に走らせる。親のKOTORI変数を除去し、`KOTORI_LM_PRELOAD=0`、Standardは `KOTORI_LM_BEAMS=4` と `KOTORI_LM_LLM_TOP=4` を固定する。
+空のモデル/ランタイムディレクトリでMozc対照、同梱モデル/ランタイムでStandardを順に走らせる。親のASTERIA変数を除去し、`ASTERIA_LM_PRELOAD=0`、Standardは `ASTERIA_LM_BEAMS=4` と `ASTERIA_LM_LLM_TOP=4` を固定する。
 
 ```text
 python mozc/eval_baseline.py <固定converter_main.exe> --context --data <固定データ.json> --out <MozcまたはStandard.json> --stderr <原票.stderr>

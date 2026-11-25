@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Kotori の版
+      label: Asteria の版
       description: 入れた MSI のリリース名(例 v0.3.0-beta.8)、または「設定」→「アプリ」に出る版
     validations:
       required: true

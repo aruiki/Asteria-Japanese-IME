@@ -40,6 +40,9 @@ jobs:
         with:
           # third_party/llama.cpp(サーバーが静的リンクする)
           submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
       - name: 版とリリースの名前を決める(SPEC 16.3)
         shell: pwsh
         env:
@@ -65,15 +68,12 @@ jobs:
           } else {
             $v = $next
           }
-          $releaseName = python -X utf8 mozc/tools/release_name.py --tag "v$v"
+          $releaseName = cargo run --release --locked --bin asteria-tools -- release-name --tag "v$v"
           if ($LASTEXITCODE -ne 0) { throw 'リリース名を決められない' }
           Write-Host "版 v$v、名前 $releaseName"
           "VERSION=$v" >> $env:GITHUB_ENV
           "TAG=v$v" >> $env:GITHUB_ENV
           [IO.File]::AppendAllText($env:GITHUB_ENV, "RELEASE_NAME=$releaseName`n", [Text.UTF8Encoding]::new($false))
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
         with:
           key: release
@@ -84,14 +84,14 @@ jobs:
         shell: bash
         run: |
           bash data/dict-src/fetch.sh
-          cargo run --release --locked -p kotori-dictc -- data/dict-src/mozc target/kotori/system.dict
+          cargo run --release --locked -p asteria-dictc -- data/dict-src/mozc target/asteria/system.dict
       - name: サーバーと TIP を作る
         shell: pwsh
         run: ./frontends/windows/build.ps1 -OutDir dist
       - name: ライセンスの一覧を作る(REQ-16-1)
         shell: bash
         run: bash frontends/windows/notices.sh dist/THIRD_PARTY_NOTICES.txt
-      - name: zip にまとめる
+      - name: zip と MSI にまとめる
         shell: pwsh
         run: |
           $v = $env:VERSION
@@ -100,15 +100,27 @@ jobs:
           Copy-Item frontends/windows/README.release.txt dist/README.txt
           Copy-Item LICENSE-APACHE, LICENSE-MIT dist
           # 配置と登録・解除ができることを、zip に入れるのと同じファイルで確かめる。
-          $smoke = Join-Path $env:RUNNER_TEMP 'kotori-smoke'
+          $smoke = Join-Path $env:RUNNER_TEMP 'asteria-smoke'
           ./dist/install.ps1 -Destination $smoke
           ./dist/uninstall.ps1 -Destination $smoke
           if ($LASTEXITCODE -ne 0) { throw 'uninstall.ps1 が失敗した' }
-          $zip = "Kotori-$v-windows.zip"
+          $zip = "Asteria-$v-windows.zip"
           Compress-Archive -Path dist/* -DestinationPath $zip
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           Set-Content -Encoding ascii "$zip.sha256" "$hash  $zip"
           "ZIP=$zip" >> $env:GITHUB_ENV
+          $msiCore = ($v -split '[-+]')[0]
+          $msiVer = if ($msiCore -match '^\d+\.\d+\.\d+$') { $msiCore } else { '0.1.0' }
+          cargo build --release --locked --bin asteria-tools
+          if ($LASTEXITCODE -ne 0) { throw 'asteria-tools ビルド失敗' }
+          ./target/release/asteria-tools.exe gen-assets target/wix-assets
+          ./target/release/asteria-tools.exe gen-icons target/wix-assets --brand-only
+          dotnet tool install --global wix --version 5.*
+          wix extension add --global WixToolset.UI.wixext/5.0.2
+          wix build frontends/windows/installer/Asteria64.wxs -ext WixToolset.UI.wixext -d "AsteriaVersion=$msiVer" -d "DistDir=$((Resolve-Path dist).Path)" -d "AssetsDir=$((Resolve-Path target/wix-assets).Path)" -d "RepoRoot=$((Get-Location).Path)" -o Asteria64.msi
+          if ($LASTEXITCODE -ne 0) { throw 'WiX MSI ビルドが失敗した' }
+          $msiHash = (Get-FileHash Asteria64.msi -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Encoding ascii Asteria64.msi.sha256 "$msiHash  Asteria64.msi"
       - if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
@@ -116,6 +128,8 @@ jobs:
           path: |
             ${{ env.ZIP }}
             ${{ env.ZIP }}.sha256
+            Asteria64.msi
+            Asteria64.msi.sha256
       - if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
@@ -128,3 +142,5 @@ jobs:
           files: |
             ${{ env.ZIP }}
             ${{ env.ZIP }}.sha256
+            Asteria64.msi
+            Asteria64.msi.sha256

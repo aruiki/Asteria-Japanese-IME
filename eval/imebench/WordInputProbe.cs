@@ -1,12 +1,12 @@
 // Word の文書へ、実際のキー入力(SendInput)で日本語を打って確定し、文書に入った文字を確かめる(docs/adr/0081)。
 //
 // Word を COM で新しく開き(白紙の文書)、Asteria を有効にして、1 行ずつ「ローマ字 → 手を止める → Space → Enter(確定)
-// → Enter(改行)」を送る。手を止めた間と Space の後に候補の窓(KotoriCandidateWindow)が見えたかも記録する。
+// → Enter(改行)」を送る。手を止めた間と Space の後に候補の窓(AsteriaCandidateWindow)が見えたかも記録する。
 // 終わったら文書の本文を COM で読み、保存せずに閉じる。文字の入力に COM は使わない。
 //
 // 使い方: WordInputProbe.exe <入力.tsv> <出力.json> <画像の保存先フォルダ>
 //   入力.tsv: 1 行に「番号<TAB>ローマ字<TAB>期待する確定文字」。
-// 利用者本人が実 PC での検証を許可した local_install_check.py からだけ実行する(KOTORI_LOCAL_ACCEPTANCE)。
+// 利用者本人が実 PC での検証を許可した local_install_check.py からだけ実行する(ASTERIA_LOCAL_ACCEPTANCE)。
 // 計測の間、この PC のキーボード入力を使う(ほかの操作をしない)。
 using System;
 using System.Collections.Generic;
@@ -90,7 +90,7 @@ static class WordNative {
     EnumWindows((window, unused) => {
       var name = new StringBuilder(128);
       GetClassNameW(window, name, name.Capacity);
-      if (name.ToString() == "KotoriCandidateWindow" && IsWindowVisible(window)) { found = true; return false; }
+      if (name.ToString() == "AsteriaCandidateWindow" && IsWindowVisible(window)) { found = true; return false; }
       return true;
     }, IntPtr.Zero);
     return found;
@@ -183,7 +183,7 @@ static class WordInputProbe {
 
   [STAThread]
   static int Main(string[] args) {
-    if (args.Length != 3 || Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") != "owner-approved") return 2;
+    if (args.Length != 3 || Environment.GetEnvironmentVariable("ASTERIA_LOCAL_ACCEPTANCE") != "owner-approved") return 2;
     var report = new Dictionary<string, object>();
     var rows = new List<Dictionary<string, object>>();
     report["trials"] = rows;

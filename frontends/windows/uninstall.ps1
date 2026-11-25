@@ -1,21 +1,21 @@
 ﻿#Requires -RunAsAdministrator
-# install.ps1 で入れた Kotori を外す(docs/SPEC.md 16.2)。
+# install.ps1 で入れた Asteria を外す(docs/SPEC.md 16.2)。
 #
-#   ./uninstall.ps1 [-Destination "$env:ProgramFiles\Kotori"] [-Pause]
+#   ./uninstall.ps1 [-Destination "$env:ProgramFiles\Asteria"] [-Pause]
 #
-# 登録を外し、kotori-server を止めてフォルダを消す。アプリが DLL を使っていて消せないときは、
+# 登録を外し、asteria-server を止めてフォルダを消す。アプリが DLL を使っていて消せないときは、
 # 再起動後にフォルダを消すよう案内する(登録は外れているので、再起動後は読み込まれない)。
 # -Pause は終わったあと Enter を待つ(uninstall.cmd から使う)。
 param(
-  [string] $Destination = "$env:ProgramFiles\Kotori",
+  [string] $Destination = "$env:ProgramFiles\Asteria",
   [switch] $Pause
 )
 $ErrorActionPreference = 'Stop'
 
 $failed = @()
 $dlls = @(
-  @{ Exe = "$env:SystemRoot\System32\regsvr32.exe"; Dll = Join-Path $Destination 'kotori_tip.dll' },
-  @{ Exe = "$env:SystemRoot\SysWOW64\regsvr32.exe"; Dll = Join-Path $Destination 'x86\kotori_tip.dll' }
+  @{ Exe = "$env:SystemRoot\System32\regsvr32.exe"; Dll = Join-Path $Destination 'asteria_tip.dll' },
+  @{ Exe = "$env:SystemRoot\SysWOW64\regsvr32.exe"; Dll = Join-Path $Destination 'x86\asteria_tip.dll' }
 )
 foreach ($d in $dlls) {
   if (-not (Test-Path $d.Dll)) { continue }
@@ -23,7 +23,7 @@ foreach ($d in $dlls) {
   if ($p.ExitCode -ne 0) { $failed += "$($d.Dll) の登録を外せない(終了コード $($p.ExitCode))" }
 }
 
-Get-Process -Name 'kotori-server' -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name 'asteria-server', 'asteria-renderer', 'asteria-config' -ErrorAction SilentlyContinue | Stop-Process -Force
 # 止まるのを少し待つ。
 Start-Sleep -Milliseconds 500
 

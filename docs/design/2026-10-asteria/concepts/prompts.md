@@ -1,6 +1,6 @@
 # Asteria: 10 design directions
 
-2026-10-11. Built-in image_gen mode. Comparison concepts only; no design selected. Originals preserved in CODEX_HOME/generated_images. Concept 01 references the existing Kotori origami illustration. Others generated without image references.
+2026-10-11. Built-in image_gen mode. Comparison concepts only; no design selected. Originals preserved in CODEX_HOME/generated_images. Concept 01 references the existing Asteria origami illustration. Others generated without image references.
 
 ## 01 夜の折り紙
 
@@ -9,7 +9,7 @@
 - Motif: ことり
 - Style: 紙のイラスト
 
-Use case: logo-brand. Create ONE polished concept presentation for "Asteria", a Japanese input method brand. This is one of ten deliberately different design directions for a human to compare, not a final shipped icon. Square composition. One central emblem or icon occupying about 65% of the canvas, with generous breathing room and the exact word "Asteria" in considered typography below it. No other text, no concept number, no mockup devices, no UI screenshot, no watermark, no multiple options in one image. Treat the wordmark as part of a coherent identity. Strong memorable silhouette, readable at small sizes, a quiet premium feeling rather than generic AI branding. Avoid generic four-point sparkles, glassy blue app icons, random neon wire trails, and excessive decoration. Dark-mode compatible presentation, but adapt colors and materials to the specific direction. An original small folded-paper night bird, inspired by Japanese paper craft and the friendly origami Kotori lineage. Simplify the shape to a few confident navy and cream folds with one muted vermilion beak. Fine washi paper texture, a softly illustrated shadow, human handmade charm, a poised quiet silhouette. Present on a warm charcoal background with a subtle ivory paper circle behind the bird. Not childish, not a glossy 3D render. Book-jacket illustration quality. A warm elegant serif wordmark.
+Use case: logo-brand. Create ONE polished concept presentation for "Asteria", a Japanese input method brand. This is one of ten deliberately different design directions for a human to compare, not a final shipped icon. Square composition. One central emblem or icon occupying about 65% of the canvas, with generous breathing room and the exact word "Asteria" in considered typography below it. No other text, no concept number, no mockup devices, no UI screenshot, no watermark, no multiple options in one image. Treat the wordmark as part of a coherent identity. Strong memorable silhouette, readable at small sizes, a quiet premium feeling rather than generic AI branding. Avoid generic four-point sparkles, glassy blue app icons, random neon wire trails, and excessive decoration. Dark-mode compatible presentation, but adapt colors and materials to the specific direction. An original small folded-paper night bird, inspired by Japanese paper craft and the friendly origami Asteria lineage. Simplify the shape to a few confident navy and cream folds with one muted vermilion beak. Fine washi paper texture, a softly illustrated shadow, human handmade charm, a poised quiet silhouette. Present on a warm charcoal background with a subtle ivory paper circle behind the bird. Not childish, not a glossy 3D render. Book-jacket illustration quality. A warm elegant serif wordmark.
 
 ## 02 星図の木版
 

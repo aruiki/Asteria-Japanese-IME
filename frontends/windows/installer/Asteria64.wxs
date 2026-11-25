@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Asteria 日本語入力"
+           Language="1041"
+           Codepage="932"
+           Version="$(var.AsteriaVersion)"
+           Manufacturer="Asteria Project"
+           UpgradeCode="45FB8DEB-0CFE-4924-96FB-9022888112E1"
+           Scope="perMachine">
+    <SummaryInformation Description="Asteria 日本語入力 (Rust TSF / AI IME)" />
+    <MajorUpgrade Schedule="afterInstallExecute"
+                  DowngradeErrorMessage="新しいバージョンの Asteria 日本語入力がすでにインストールされています。" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" MaximumUncompressedMediaSize="600" />
+
+    <!-- 再起動なしの更新・アンインストール(docs/adr/0072): Restart Manager に他のアプリを終了させない -->
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+
+    <Icon Id="AsteriaIcon" SourceFile="$(var.AssetsDir)\product_icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AsteriaIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/aruiki/Asteria-Japanese-IME" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.AssetsDir)\license.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.AssetsDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.AssetsDir)\dialog.bmp" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="Asteria">
+        <Directory Id="X86DIR" Name="x86" />
+        <Directory Id="DATADIR" Name="data" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AsteriaMenuDir" Name="Asteria 日本語入力" />
+    </StandardDirectory>
+
+    <Binary Id="AsteriaMsiAction" SourceFile="$(var.DistDir)\asteria_msi_action.dll" />
+
+    <SetProperty Id="MoveAsideOldTip"
+                 Value="[INSTALLDIR]|$(var.AsteriaVersion)"
+                 Before="MoveAsideOldTip"
+                 Sequence="execute" />
+    <SetProperty Id="RestoreMovedTipRollback"
+                 Value="[INSTALLDIR]|$(var.AsteriaVersion)"
+                 Before="RestoreMovedTipRollback"
+                 Sequence="execute" />
+    <SetProperty Id="MoveAsideAllTip"
+                 Value="[INSTALLDIR]|$(var.AsteriaVersion)"
+                 Before="MoveAsideAllTip"
+                 Sequence="execute" />
+    <SetProperty Id="RestoreMovedTipUninstallRollback"
+                 Value="[INSTALLDIR]|$(var.AsteriaVersion)"
+                 Before="RestoreMovedTipUninstallRollback"
+                 Sequence="execute" />
+    <SetProperty Id="RegisterTipAction"
+                 Value="[INSTALLDIR]"
+                 Before="RegisterTipAction"
+                 Sequence="execute" />
+    <SetProperty Id="UnregisterTipAction"
+                 Value="[INSTALLDIR]"
+                 Before="UnregisterTipAction"
+                 Sequence="execute" />
+
+    <CustomAction Id="StopProcessesAction"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="StopAsteriaProcesses"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    <CustomAction Id="RestoreMovedTipRollback"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="RestoreMovedTip"
+                  Execute="rollback"
+                  Impersonate="no"
+                  Return="ignore" />
+    <CustomAction Id="MoveAsideOldTip"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="MoveAsideOldTip"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    <CustomAction Id="RestoreMovedTipUninstallRollback"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="RestoreMovedTip"
+                  Execute="rollback"
+                  Impersonate="no"
+                  Return="ignore" />
+    <CustomAction Id="MoveAsideAllTip"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="MoveAsideAllTip"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    <CustomAction Id="RegisterTipAction"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="RegisterTipDlls"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />
+    <CustomAction Id="UnregisterTipAction"
+                  BinaryRef="AsteriaMsiAction"
+                  DllEntry="UnregisterTipDlls"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <ComponentGroup Id="AsteriaCoreFiles" Directory="INSTALLDIR">
+      <Component Id="ServerExe" Bitness="always64">
+        <File Source="$(var.DistDir)\asteria-server.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="RendererExe" Bitness="always64">
+        <File Source="$(var.DistDir)\asteria-renderer.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="ConfigExe" Bitness="always64">
+        <File Id="ConfigExeFile" Source="$(var.DistDir)\asteria-config.exe" KeyPath="yes" />
+      </Component>
+      <!--
+        IME の DLL は版ごとの名前かつ管理外部品 (Guid="") にし、更新や削除で
+        使用中のファイルによる再起動 (3010) を防ぐ (docs/adr/0072)。
+      -->
+      <Component Id="TipDllX64" Guid="" Bitness="always64">
+        <File Id="AsteriaTipX64File" Source="$(var.DistDir)\asteria_tip64-$(var.AsteriaVersion).dll" />
+      </Component>
+      <Component Id="LicenseApache" Bitness="always64">
+        <File Source="$(var.RepoRoot)\LICENSE-APACHE" KeyPath="yes" />
+      </Component>
+      <Component Id="LicenseMit" Bitness="always64">
+        <File Source="$(var.RepoRoot)\LICENSE-MIT" KeyPath="yes" />
+      </Component>
+      <Component Id="ReadmeTxt" Bitness="always64">
+        <File Source="$(var.RepoRoot)\frontends\windows\README.release.txt" Name="README.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="ThirdPartyNotices" Bitness="always64">
+        <File Source="$(var.DistDir)\THIRD_PARTY_NOTICES.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="NoticeZenz" Bitness="always64">
+        <File Source="$(var.AssetsDir)\NOTICE-zenz.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="NoticeTinySwallow" Bitness="always64">
+        <File Source="$(var.AssetsDir)\NOTICE-tinyswallow.txt" KeyPath="yes" />
+      </Component>
+      <Files Include="$(var.DistDir)\runtime\**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="AsteriaShortcuts" Directory="AsteriaMenuDir">
+      <Component Id="ConfigShortcut" Bitness="always64">
+        <Shortcut Id="StartMenuConfigShortcut"
+                  Name="Asteria の設定"
+                  Description="Asteria 日本語入力の設定・モデル管理・ユーザー辞書"
+                  Target="[#ConfigExeFile]"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="AsteriaIcon" />
+        <RemoveFolder Id="RemoveAsteriaMenuDir" Directory="AsteriaMenuDir" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Asteria Project\Asteria"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="AsteriaX86Files" Directory="X86DIR">
+      <Component Id="TipDllX86" Guid="" Bitness="always32">
+        <File Id="AsteriaTipX86File" Source="$(var.DistDir)\x86\asteria_tip32-$(var.AsteriaVersion).dll" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="AsteriaDataFiles" Directory="DATADIR">
+      <Component Id="SystemDict" Bitness="always64">
+        <File Source="$(var.DistDir)\data\system.dict" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="ProductFeature" Title="Asteria 日本語入力" Level="1">
+      <ComponentGroupRef Id="AsteriaCoreFiles" />
+      <ComponentGroupRef Id="AsteriaShortcuts" />
+      <ComponentGroupRef Id="AsteriaX86Files" />
+      <ComponentGroupRef Id="AsteriaDataFiles" />
+    </Feature>
+
+    <InstallExecuteSequence>
+      <Custom Action="StopProcessesAction" Before="InstallFiles" />
+      <Custom Action="RestoreMovedTipRollback" Before="MoveAsideOldTip" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="MoveAsideOldTip" Before="InstallFiles" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="RestoreMovedTipUninstallRollback" Before="MoveAsideAllTip" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+      <Custom Action="MoveAsideAllTip" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+      <Custom Action="RegisterTipAction" After="InstallFiles" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="UnregisterTipAction" Before="MoveAsideAllTip" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

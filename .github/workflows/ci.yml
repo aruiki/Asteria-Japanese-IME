@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # third_party/llama.cpp(kotori-lm がビルドする、6.4)
+          # third_party/llama.cpp(asteria-lm がビルドする、6.4)
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -45,21 +45,19 @@ jobs:
           tool: cargo-about
       - run: cargo about generate --workspace --locked about.hbs -o /dev/null
 
-  mozc-tools:
-    # Mozc 版のリリースの道具の単体テスト(作業カード 40)。MSI のビルドは mozc-windows.yml。
-    name: mozc tools (python)
+  asteria-tools:
+    # Rust 版 CLI・評価・配布ツールの検証。MSI のビルドは mozc-windows.yml。
+    name: asteria-tools (rust)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m unittest discover -s mozc/tools -p "test_*.py" -v
-      - run: python -m unittest discover -s training/contrastive -p "test_*.py" -v
-      - run: python -m unittest discover -s training/collocations -p "test_*.py" -v
-      - run: python -m unittest discover -s training/initial_ranker -p "test_*.py" -v
-      - run: python -m unittest discover -s training/lexicon -p "test_*.py" -v
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked -p asteria-common -p asteria-release -p asteria-corpus -p asteria-eval -p asteria-assets -p asteria-cli
+      - run: cargo run --locked --bin asteria-tools -- --help
+      - run: cargo run --locked --bin asteria-tools -- regression-add --check
+      - run: cargo run --locked --bin asteria-tools -- release-name --tag v0.1.0-beta.1 --date 2026-10-19
 
   msrv:
     name: MSRV (1.80)
@@ -68,14 +66,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # third_party/llama.cpp(kotori-lm がビルドする、6.4)
+          # third_party/llama.cpp(asteria-lm がビルドする、6.4)
           submodules: true
       - uses: dtolnay/rust-toolchain@1.80
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-targets --locked
 
   windows-tip:
-    # TSF TIP(C++20)。x64 と x86 の両方を作り、単体テストと登録・解除を確かめる(REQ-10-1、docs/adr/0009)。
+    # Rust 製 TSF TIP(asteria-tip-win)。x64 と x86 の両方を作り、単体テストと登録・解除を確かめる(REQ-10-1、docs/adr/0009)。
     name: TSF TIP (${{ matrix.arch }})
     strategy:
       fail-fast: false
@@ -93,7 +91,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # インストールの確認で作るサーバーが kotori-lm(third_party/llama.cpp)を使う
+          # インストールの確認で作るサーバー/設定GUIが asteria-lm(third_party/llama.cpp)を使う
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,15 +99,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: tip-${{ matrix.target }}
-      - run: cargo build -p kotori-client --release --locked --target ${{ matrix.target }}
-      - run: cmake -S frontends/windows -B build -A ${{ matrix.arch }} "-DKOTORI_CLIENT_LIB=${{ github.workspace }}/target/${{ matrix.target }}/release/kotori_client.lib"
-      - run: cmake --build build --config Release
-      - run: ./build/Release/kotori_tip_tests.exe
-      - run: ./frontends/windows/tests/register.ps1 -Dll build/Release/kotori_tip.dll -Arch ${{ matrix.arch }}
+      - run: cargo build -p asteria-tip-win --release --locked --target ${{ matrix.target }}
+      - run: cargo test -p asteria-tip-win --locked --target ${{ matrix.target }}
+      - run: ./frontends/windows/tests/register.ps1 -Dll target/${{ matrix.target }}/release/asteria_tip.dll -Arch ${{ matrix.arch }}
         shell: pwsh
       # インストールとアンインストールのスクリプト(16.2)。x64 だけで確かめる。
       - if: matrix.arch == 'x64'
-        run: cargo build -p kotori-server --release --locked --target ${{ matrix.target }}
+        run: cargo build -p asteria-server -p asteria-renderer -p asteria-config --release --locked --target ${{ matrix.target }}
       - if: matrix.arch == 'x64'
-        run: ./frontends/windows/tests/install.ps1 -Server target/${{ matrix.target }}/release/kotori-server.exe -Dll build/Release/kotori_tip.dll
+        run: ./frontends/windows/tests/install.ps1 -Server target/${{ matrix.target }}/release/asteria-server.exe -Renderer target/${{ matrix.target }}/release/asteria-renderer.exe -Config target/${{ matrix.target }}/release/asteria-config.exe -Dll target/${{ matrix.target }}/release/asteria_tip.dll
         shell: pwsh

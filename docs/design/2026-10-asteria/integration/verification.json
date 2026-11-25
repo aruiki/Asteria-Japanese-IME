@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-09",
+  "base_wrapper": "0d4461f889ecb549e6938695e1cfdf28678349dc",
+  "upstream_mozc": "a069a88d4cb5c011de0f9aebb6c149a1c808d904",
+  "scope": "app/TIP icon resources and installer background artwork; not an installed IME or MSI acceptance",
+  "changed_resource_files": [
+    "src/data/images/win/product_icon.ico",
+    "src/data/images/win/product_icon_langbar.ico",
+    "src/data/images/win/tools_dictionary.ico",
+    "src/data/images/win/tools_dictionary_a.ico",
+    "src/data/images/win/tools_icon.ico",
+    "src/data/images/win/tools_icon_a.ico",
+    "src/data/images/win/tools_properties.ico",
+    "src/data/images/win/tools_properties_a.ico",
+    "src/data/asteria/banner.bmp",
+    "src/data/asteria/dialog.bmp"
+  ],
+  "approved_product_icon_sha256": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+  "icons": {
+    "src/data/images/win/product_icon.ico": {
+      "sha256": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/product_icon_langbar.ico": {
+      "sha256": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_icon.ico": {
+      "sha256": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_icon_a.ico": {
+      "sha256": "b2f5f6b5325d81b348e41260597d648f28afd1aca407b4ef0e4ad57c5cb5469e",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_properties.ico": {
+      "sha256": "e9c0354a7a78d3788bc5d5c04824742295590b3bad86228273bdc9e3cbfc1043",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_properties_a.ico": {
+      "sha256": "e9c0354a7a78d3788bc5d5c04824742295590b3bad86228273bdc9e3cbfc1043",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_dictionary.ico": {
+      "sha256": "49975af6f14a4ee0ae86db2636fce285f661b54d3a83829f1d7f93b8551b9331",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    },
+    "src/data/images/win/tools_dictionary_a.ico": {
+      "sha256": "49975af6f14a4ee0ae86db2636fce285f661b54d3a83829f1d7f93b8551b9331",
+      "sizes": [
+        16,
+        20,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "encoding": "32bit BMP"
+    }
+  },
+  "bitmaps": {
+    "src/data/asteria/banner.bmp": {
+      "sha256": "83362ff80e88be3607a8105f5338600754b4b6f9ad50039777e8c671321f39cb",
+      "size": [
+        493,
+        58
+      ]
+    },
+    "src/data/asteria/dialog.bmp": {
+      "sha256": "99f406c9640f1c823c4d5a2ee2c66cd4a6fe3fd91aa181068e9d5f3b50ce3e98",
+      "size": [
+        493,
+        312
+      ]
+    }
+  },
+  "resource_build": {
+    "targets": [
+      "//gui/tool:mozc_tool_win32_resource",
+      "//win32/tip:mozc_tip_resource"
+    ],
+    "result": "PASS",
+    "elapsed_s": 35.347,
+    "compiler": "Microsoft Windows Resource Compiler 10.0.10011.16384"
+  },
+  "patches": {
+    "apply_check": "PASS: 0001,0002,0003 in fresh scratch clone",
+    "changed_blocks": [
+      "src/data/images/win/product_icon.ico",
+      "src/data/images/win/product_icon_langbar.ico",
+      "src/data/images/win/tools_dictionary.ico",
+      "src/data/images/win/tools_dictionary_a.ico",
+      "src/data/images/win/tools_icon.ico",
+      "src/data/images/win/tools_icon_a.ico",
+      "src/data/images/win/tools_properties.ico",
+      "src/data/images/win/tools_properties_a.ico",
+      "src/data/asteria/banner.bmp",
+      "src/data/asteria/dialog.bmp"
+    ],
+    "sha256": {
+      "0001-asteria-branding.patch": "7fc85afbdcd397a00d0fa52738415142b8ac483a00e6d457d1107173e852969b",
+      "0002-asteria-lm-rerank.patch": "6b8d33f6f98ad2d48e3f83035285a8a3ff331b48dacb9278940c36c494e2d158",
+      "0003-asteria-bundle-model.patch": "5ca328c03068d048ffebbe73e50431e75a9950736e4a6a00fb0427d5de4484a7"
+    }
+  },
+  "tool_build": {
+    "target": "//gui/tool:mozc_tool",
+    "result": "PASS",
+    "elapsed_s": 269.019,
+    "exe_sha256": "56936275a31d0acbf6af6ca5c3661473d83a0cb245ebb02d70fccfff1c03bced",
+    "embedded_frames": 8,
+    "all_frames_byte_match_selected_icon": true,
+    "execution": "Loaded as data/resource only; application not run; installed IME untouched"
+  }
+}

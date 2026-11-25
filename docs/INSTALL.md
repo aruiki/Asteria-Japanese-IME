@@ -1,39 +1,32 @@
-# Asteriaを使い始める
+# Asteria 日本語入力 導入ガイド
 
-Windows 10 1809以降 / Windows 11・64bit向けの日本語入力です。モデル・辞書・実行環境はMSIに同梱されています。
+Windows 10 (1809 以降) / Windows 11（64-bit）向けの純 Rust 製・ローカル AI 日本語 IME です。モデル・辞書・推論ランタイムはすべてインストーラに同梱されています。
 
-## ダウンロードと導入
+## ダウンロードとインストール
 
-1. [公式GitHub Releaseのv2.0.0](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v2.0.0)から、[Asteria64.msi](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi)をダウンロードします。約1.66 GBの正式版です。
-2. MSIを開き、インストーラーの案内に従います。管理者の確認が表示されます。
-3. **Windows + Space**から「Asteria日本語入力」を選びます。設定はデスクトップやスタートメニューの「Asteria」から開けます。
+1. [GitHub Releases 最新版](https://github.com/aruiki/Asteria-Japanese-IME/releases/latest) から **`Asteria-Setup.exe`** をダウンロードして実行します（管理者の確認で「はい」）。
+   - 本体（`Asteria64.msi`）に加えて、NVIDIA GPU を検出した場合は高速化用の CUDA アドオン（`AsteriaCuda64.msi`）も自動導入されます。
+2. 完了後、**Windows + Space** で「**Asteria 日本語入力**」に切り替えます。設定画面はスタートメニューまたはデスクトップの「Asteria」から開けます。
 
-手動でのモデル配置やコマンド入力は不要です。OSが再起動を求める場合は、その案内に従ってください。
+手動でのモデル配置や追加コマンドは不要です。旧版からの更新時も、版付き TSF DLL 機構により開いているアプリを閉じずにそのまま上書き更新できます。
 
-GPU AIにはVulkan対応の専用GPU（VRAM 3 GiB以上）を使用します。GPUのないPCはCPU向けのLow設定で動作します。メモリ8 GB以上（16 GB推奨）、ディスクに約1.7 GBの空きが必要です。内蔵GPUはAIに使いません。
+- **動作環境**: メモリ 8 GB 以上（16 GB 推奨）、ディスク空き約 2.0 GB。
+- **GPU / CPU 動作**: Vulkan 対応 GPU（VRAM 3 GiB 以上）または NVIDIA GPU（CUDA）でローカル AI が高速動作します。GPU 非搭載環境では自動で CPU 向け軽量設定で動作します。
 
-## SmartScreenが表示されたとき
+## SmartScreen が表示されたとき
 
-配布MSIは**未署名**です。実行時に「WindowsによってPCが保護されました」というSmartScreen画面が表示される場合があります。SmartScreenはファイルや発行元の評判も確認するため、この画面だけでマルウェアが検出されたとは判断できません。これは安全性を保証する説明ではありません。[Microsoft公式の説明](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)。
+配布インストーラは**未署名**です。実行時に「Windows によって PC が保護されました」という SmartScreen 画面が表示される場合がありますが、これは新規・未署名のオープンソース配布物に対して表示される確認画面です（[Microsoft 公式説明](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)）。
 
-配布元が `github.com/aruiki/Asteria-Japanese-IME` のReleaseであり、取得したファイルが `Asteria64.msi` であることを確認してください。続行する場合は、**詳細情報 → 表示内容を確認 → 実行**を選びます。
+配布元が `github.com/aruiki/Asteria-Japanese-IME` の Releases であることを確認したうえで、**詳細情報 → 実行** でインストールを進められます。なお、「実行」が許可されない管理対象 PC や、Microsoft Defender 等から具体的な脅威名が表示された場合は実行しないでください。
 
-「実行」が表示されない管理対象PCや、別の脅威名を伴う検出が出た場合は、この手順の対象外です。[報告窓口](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)をご利用ください。SmartScreenやMicrosoft Defenderを無効にする操作は必要ありません。
+## SHA-256 によるファイル照合
 
-## ファイルを照合する
+各リリースには `Asteria-Setup.exe.sha256`・`Asteria64.msi.sha256`・`AsteriaCuda64.msi.sha256` を添付しています。PowerShell で改ざんや破損がないか確認できます：
 
-同じReleaseにある [Asteria64.msi.sha256](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v2.0.0/Asteria64.msi.sha256)と比較できます。PowerShellで確認する場合:
+```powershell
+Get-FileHash -Algorithm SHA256 .\Asteria-Setup.exe
+```
 
-~~~powershell
-Get-FileHash -Algorithm SHA256 .\Asteria64.msi
-~~~
+取得したハッシュ値がリリース同梱の `.sha256` と一致すれば、公開したファイルそのままです。
 
-v2.0.0のSHA-256:
-
-~~~text
-1bc531b10b25cc46fbc60a8b7b052187f2b69c9065e8a1651acc23e89bd1b72a
-~~~
-
-ハッシュは、公開ファイルとの一致を確認するものです。[対応ソースと検証範囲](verification/release-v2.0.0-20261021.md)も公開しています。
-
-更新・アンインストール・保存データ・詳しい操作は[使い方と困ったとき](USER_GUIDE.md)へ。[Asteriaの紹介へ戻る](../README.md)。
+使い方・設定・アンインストール・データ管理は [使い方ガイド](USER_GUIDE.md) をご覧ください。[README へ戻る](../README.md)。

@@ -57,7 +57,7 @@ def main():
     if data_manifest['pairs_sha256'] != hashlib.sha256(args.pairs.read_bytes()).hexdigest():
         raise ValueError('Dataset manifest SHA differs')
     excluded_names = {Path(x['file']).name for x in data_manifest['excluded_evaluations']}
-    if not {'ajimee-bench.json', 'kotori-heldout.json'} <= excluded_names:
+    if not {'ajimee-bench.json', 'asteria-heldout.json'} <= excluded_names:
         raise ValueError('AJIMEE and independent evaluation must be excluded before training')
     with args.pairs.open(encoding='utf-8') as pair_file:
         rows = [json.loads(line) for line in pair_file]

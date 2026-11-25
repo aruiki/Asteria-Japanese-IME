@@ -1,6 +1,6 @@
-# Mozc ベースの Kotori
+# Mozc ベースの Asteria
 
-Kotori は Mozc(google/mozc、BSD-3-Clause)をベースにし、LM のリランクを組み込む方針に
+Asteria は Mozc(google/mozc、BSD-3-Clause)をベースにし、LM のリランクを組み込む方針に
 切り替えた(docs/adr/0012)。Mozc のソースはこのリポジトリに入れず、コミットで固定して
 取得し、ここに置くパッチを当ててビルドする。
 
@@ -13,33 +13,33 @@ Kotori は Mozc(google/mozc、BSD-3-Clause)をベースにし、LM のリラン�
   リリース(Latest)として公開する。版は `VERSION` の beta の番号を1つ進め(例 `v0.2.0-beta.1`)、
   リリースノートは `release-notes.md`。
 - `patches/`: Mozc への改変(`NNNN-<題>.patch`)。番号順に `git apply` する。
-  - `0001-kotori-branding.patch`: 製品名・会社名を Kotori にし、TSF の CLSID とプロファイル、
+  - `0001-asteria-branding.patch`: 製品名・会社名を Asteria にし、TSF の CLSID とプロファイル、
     MSI の UpgradeCode、パイプ・イベント・ミューテックス・ウィンドウクラス・レジストリの名前、
-    キャッシュサービスの名前、インストール先(`Program Files\Kotori`)を変える。本家の Mozc と
+    キャッシュサービスの名前、インストール先(`Program Files\Asteria`)を変える。本家の Mozc と
     並べて入れられ、設定や学習も混ざらない。実行ファイルの名前(`mozc_server.exe` など)は変えない。
-  - `0002-kotori-lm-rerank.patch`: 変換候補の LM リランク(docs/adr/0013、0015)。llama.cpp(`third_party/llama.cpp` と
+  - `0002-asteria-lm-rerank.patch`: 変換候補の LM リランク(docs/adr/0013、0015)。llama.cpp(`third_party/llama.cpp` と
     同じコミット)を Bazel の外部依存にし、`rewriter/zenz_scorer.*`(zenz の採点)と `rewriter/lm_rewriter.*` を足す。
     並べ替えは 2 段: (1) `ImmutableConverter` がラティスから文全体の候補(区切りの違う文を含む)を
-    `Segments::kotori_sentences()` に入れ、リライターが zenz で採点して最良の文の区切りで切り直す。
+    `Segments::asteria_sentences()` に入れ、リライターが zenz で採点して最良の文の区切りで切り直す。
     (2) 使えないときは文節ごとに上位 K 件を前後の文節とともに採点する。
-    設定(`config.proto` の `kotori_lm_*`)と設定画面の「AI変換」タブ(オン・オフ、品質 Low/Standard/High/Unreal、
-    モデルのファイル)もここに入れる。モデルは設定のパス → `KOTORI_ZENZ_MODEL` → 品質の段階のモデル →
+    設定(`config.proto` の `asteria_lm_*`)と設定画面の「AI変換」タブ(オン・オフ、品質 Low/Standard/High/Unreal、
+    モデルのファイル)もここに入れる。モデルは設定のパス → `ASTERIA_ZENZ_MODEL` → 品質の段階のモデル →
     `mozc_server` と同じフォルダの `zenz-v2.5-small-q8_0.gguf` の順。なければ何もしない。
-    調整用に `KOTORI_LM_K`、`KOTORI_LM_SENTENCE`、`KOTORI_LM_WEIGHTS`(`λ_lm,λ_lattice,T`)、`KOTORI_LM_THREADS` がある。
+    調整用に `ASTERIA_LM_K`、`ASTERIA_LM_SENTENCE`、`ASTERIA_LM_WEIGHTS`(`λ_lm,λ_lattice,T`)、`ASTERIA_LM_THREADS` がある。
   - 0002 には、zenz による生成(ビームサーチ)と辞書による読みの確認、LLM(GPU)の採点、llama.cpp の
     実行時読み込み(`rewriter/llama_runtime.*`。Windows は同梱の公式 DLL、Linux は静的リンク)も入る(docs/adr/0016)。
-  - `0003-kotori-bundle-model.patch`: MSI に同梱する物と画面(docs/adr/0016、0017)。モデル
-    (`data/kotori/zenz-v2.5-small-q8_0.gguf`、`tinyswallow-1.5b-q5_k_m.gguf`)と表示(`NOTICE-*.txt`、
+  - `0003-asteria-bundle-model.patch`: MSI に同梱する物と画面(docs/adr/0016、0017)。モデル
+    (`data/asteria/zenz-v2.5-small-q8_0.gguf`、`tinyswallow-1.5b-q5_k_m.gguf`)と表示(`NOTICE-*.txt`、
     `LICENSE-llama.cpp.txt`)、llama.cpp の公式 Windows ビルド(Vulkan 版の DLL)、WiX UI の画面(使用許諾
     `license.rtf`、画像 `banner.bmp`・`dialog.bmp`。`mozc/tools/gen_assets.py` で作る)。モデルはコミット
-    しないので、ビルドの前に `data/kotori/` に置く(ワークフローが `training/zenz/convert.py` と
+    しないので、ビルドの前に `data/asteria/` に置く(ワークフローが `training/zenz/convert.py` と
     `training/llm/make.sh` で作って置く)。
 
 Linux での評価: `bazel build //converter:converter_main -c opt` のあと、
 `python3 mozc/eval_baseline.py bazel-bin/converter/converter_main`(`eval/fetch.sh` で評価セットを取得しておく)。
 モデルは `training/zenz/convert.py ... --outtype q8_0` で作る。
 
-初期変換の連語は`training/collocations/stage.py`で固定Wikipedia学習区間から生成し、本文・manifest・NOTICEを`src/data/kotori/`へ置く。取得/配置コマンドは[手順](../training/collocations/README.md)。Bazelで既存Mozcの連語データへコンパイルするため、実行時モデル/通信/I/Oは増えない。辞書本文はパッチやGitへ含めない。
+初期変換の連語は`training/collocations/stage.py`で固定Wikipedia学習区間から生成し、本文・manifest・NOTICEを`src/data/asteria/`へ置く。取得/配置コマンドは[手順](../training/collocations/README.md)。Bazelで既存Mozcの連語データへコンパイルするため、実行時モデル/通信/I/Oは増えない。辞書本文はパッチやGitへ含めない。
 
 ビルドの時間: 初回は約 70 分(Qt 約 25 分、Mozc 約 40 分)。Qt と Bazel の結果は Actions の
 キャッシュに残し、次からは変わったところだけ作り直す。Windows のビルドは MSI を公開するときと、
@@ -62,7 +62,7 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `stress_test.py` | 負荷試験。いろいろな読み(1〜300 文字、記号・絵文字)で候補・変換・Tab を交互に送り、落ちないか・遅れないか |
 | `typing_test.py` | 打鍵の再現。1 文字ずつ入力中の候補を出し、AI の予測と応答時間を見る |
 | `cost_bench.py` | 入力中の AI の計算量。日常の文を打って変換し、AI の稼働率(計算の時間 / かかった時間)を出す(docs/adr/0024) |
-| `space_latency.py` | 打ってから Space を押したときの応答時間。`KOTORI_LM_DEVICE=cpu` で GPU のない PC を再現する |
+| `space_latency.py` | 打ってから Space を押したときの応答時間。`ASTERIA_LM_DEVICE=cpu` で GPU のない PC を再現する |
 | `idle_test.py` | 入力がないときにモデルを外して VRAM を空け、入力し直すと読み込み直すか(docs/adr/0034) |
 | `perf_table.py` | 品質 × 機器(GPU / CPU)ごとの最初の変換・変換の時間・メモリ・VRAM の表(`docs/PERFORMANCE.md`) |
 | `check_release.py` | 公開した MSI を確かめる(ハッシュ、前の版より版が上がっているか、同梱物、実行ファイルの版)。リリースの後に必ず回す |
@@ -70,17 +70,17 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 | `../eval_predict.py --warm 秒 --suggest` | 入力中の候補(打鍵ごとの軽い予測)の当たり |
 | `capture_window.py` | 設定画面などのウィンドウだけを PNG に撮る(MSI を `msiexec /a` で展開した exe で) |
 | `dump_icons.py` | exe / dll に入っているアイコンを並べて見る |
-| `gen_icons.py`・`gen_assets.py`・`kotori_mark.py`・`package_origami_icons.py` | アイコン、インストーラの画像と使用許諾を作る |
+| `gen_icons.py`・`gen_assets.py`・`asteria_mark.py`・`package_origami_icons.py` | アイコン、インストーラの画像と使用許諾を作る |
 | `make_patches.sh` | 作業ツリーからパッチを作り直す |
 
 `eval_baseline.py` は、変換器の異常終了・出力不足・時間切れ(`--timeout`)で終了コード 1、`--min-acc` を下回ると 2 を返す。
-`--out` を付けると、結果の隣に実行条件(`<out>.manifest.json`: データ・変換器・モデルの SHA-256、KOTORI_ の環境変数、
+`--out` を付けると、結果の隣に実行条件(`<out>.manifest.json`: データ・変換器・モデルの SHA-256、ASTERIA_ の環境変数、
 コミット、GPU)も残す。
 
-`converter_main` の場所は `KOTORI_CONVERTER_MAIN`、モデルと llama.cpp の DLL の場所は `KOTORI_INSTALL_DIR`
+`converter_main` の場所は `ASTERIA_CONVERTER_MAIN`、モデルと llama.cpp の DLL の場所は `ASTERIA_INSTALL_DIR`
 (既定はインストール先)で変えられる。
 
-段階: 1. 素の Mozc をビルドする → 2. 名前と識別子を Kotori に変える → 3. LM リランクを
+段階: 1. 素の Mozc をビルドする → 2. 名前と識別子を Asteria に変える → 3. LM リランクを
 組み込む → 4. 評価して配布する。詳しくは docs/adr/0012。
 
 ## 評価と調整の環境変数(`rewriter/lm_rewriter.cc` ほか)
@@ -89,37 +89,30 @@ Windows で手元でビルドする: 作業ツリーの `src` で
 
 | 変数 | 意味 |
 | --- | --- |
-| `KOTORI_ZENZ_MODEL`、`KOTORI_LLM_MODEL` | zenz / LLM のモデルのパス |
-| `KOTORI_MODEL_DIR`、`KOTORI_RUNTIME_DIR` | モデルのフォルダ、llama.cpp の DLL のフォルダ(既定は mozc_server と同じ所) |
-| `KOTORI_LM_DEVICE=cpu` | GPU を使わない(ノート PC の再現、docs/adr/0024) |
-| `KOTORI_LM_CUDA=0` | CUDA の追加パッケージ(インストール先の `cuda\`)があっても読まず、Vulkan で動かす(比べるため、docs/adr/0088) |
-| `KOTORI_LM_FIXED_BATCH=N` | 生成への呼び出しを N トークンにそろえる。既定は CUDA のとき 8、それ以外は 0(そろえない。docs/adr/0088) |
-| `KOTORI_LM_PRELOAD=0` | 起動時に裏で読み込まず、要求の中で読み込む(評価。状態のファイルも書かない) |
-| `KOTORI_LM_BEAMS`、`KOTORI_LM_LLM_TOP`、`KOTORI_LM_K`、`KOTORI_LM_NSENT` | 生成する文の数、LLM で採点する数、文節ごとに並べ替える数、ラティスの文全体の候補の数 |
-| `KOTORI_LM_LLM_WEIGHT`、`KOTORI_LM_WEIGHTS`、`KOTORI_LM_GEN_PENALTY`、`KOTORI_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 1.2。前文なしでzenz得点が過半なら最大0.7)と、生成した文の減点(LLMの有無によらず0.5) |
-| `KOTORI_LM_CONTEXT_HISTORY=0`、`KOTORI_LM_CONTEXT_HISTORY_PATH`、`KOTORI_LM_CONTEXT_WEIGHT`、`KOTORI_LM_CONTEXT_MARGIN`、`KOTORI_LM_CONTEXT_DEFAULTS=0`、`KOTORI_LM_CONTEXT_DEFAULT_WEIGHT` | 文脈つきの学習を切る、保存先(既定はプロファイルの `asteria_context.tsv`)、1 回の点(既定 3.5。選んだ表記に足し、退けた表記から引くので、1 回で差 7 まで覆る。3 回で頭打ち)、学習で覆してよい点の差(既定 8)、既定の学習データ(同音の語の手がかり)を切る、その点(既定 1)。docs/adr/0075 |
-| `KOTORI_LM_SWAP_LLM_WEIGHT` | 1 番目と、漢字の語を別の漢字の語に入れ替えただけの文(解放/開放)を比べ直すときの LLM の重み(既定 2.0。1.2 以下で比べ直さない)。かなと漢字の書き方の違い・英数字を含む違いには使わない。docs/adr/0075 |
-| `KOTORI_LM_CONFIDENCE_GUARD=0` | 前文なしでzenz得点が高いときのLLM重み抑制を無効にする。既定は有効。生成の減点は別設定 |
-| `KOTORI_LM_SENTENCE=0`、`KOTORI_LM_POST`、`KOTORI_LM_RIGHT` | 文全体の選択を切る、文全体の選択の後も文節ごとに並べ替える、右の文脈を使う |
-| `KOTORI_LM_SPLIT=0` | 生成した文を文節に分けない(docs/adr/0027) |
-| `KOTORI_LM_BUDGET` | 変換で AI に使う時間の上限(ms。既定は GPU 2000 / CPU 600、0 で上限なし) |
-| `KOTORI_LM_TAB_BUDGET` | キャッシュのない Tab の上限(ms、既定 700、docs/adr/0025) |
-| `KOTORI_LM_PREDICT=0`、`KOTORI_LM_PREDICT_MODE`、`KOTORI_LM_PREDICT_TOKENS`、`KOTORI_LM_PREDICT_BEAMS` | 予測を切る、予測の作り方、続きのトークン数、続きの数 |
-| `KOTORI_LM_LIGHT_BEAMS`、`KOTORI_LM_LIGHT_RANK`、`KOTORI_LM_LIGHT_DELAY`、`KOTORI_LM_FULL_DELAY` | 打鍵ごとの軽い予測の中身と、始めるまでの待ち(既定 作り直しは 600 ms、docs/adr/0024) |
-| `KOTORI_LM_LIVE`、`KOTORI_LM_LIVE_FIRST`、`KOTORI_LM_LIVE_NEXT` | 手が止まった後に入力中の候補を取り直すか(`0` で取り直さない)と、取り直すまでの時間(既定 GPU あり 200 ms・なし 450 ms、2 回目以降 800 ms。docs/adr/0039) |
-| `KOTORI_LM_PRECONVERT=0` | 先回りの変換を切る(docs/adr/0024) |
-| `KOTORI_LM_IDLE_UNLOAD` | 入力がなくなってからモデルを外すまでの秒数(既定 0 = 外さずに常駐、docs/adr/0034・0069) |
-| `KOTORI_LM_CPU_LONG`、`KOTORI_ZENZ_LONG_MODEL` | GPU のない PC で、この文字数より長い読みに使う zenz(既定 12 文字、同梱の small。0 で使い分けない、docs/adr/0035) |
-| `KOTORI_LM_CORRECTION=0` / `1` | 非同期の日本語LLM生成補正を無効/有効にする（既定有効）。AI設定の「入力中に文章の誤変換を補正する」でも切替可能。40文字以下の局所修正、辞書・意味の保護と採点差5.0を満たす場合だけ採用する。 |
-| `KOTORI_LM_CORRECTION_PROMPT=typing` / `examples` / `chat` | 開発比較用の生成方式。既定は一字の誤入力も扱うtyping。examplesは同音語の従来の3例、chatはモデルのchat templateを使う。採用ガードは共通。 |
-| `KOTORI_LM_TYPO=0`、`KOTORI_LM_TYPO_POSTERIOR`、`KOTORI_LM_TYPO_GATE`、`KOTORI_LM_TYPO_STRONG`、`KOTORI_LM_TYPO_GAIN`、`KOTORI_LM_TYPO_K` | 打ち間違いの補正を切る、直すのに要る打ち間違いの事後確率(既定 2/3。docs/adr/0076)、試す条件(読み 1 文字あたりの点、既定 -1.8。辞書のコストが 4000 以上下がれば条件によらず試す)、辞書で区切ったコストが下がる量(既定 2000)、試す読みの数(既定 10)。docs/adr/0036 |
-| `KOTORI_LM_TYPO_KEYS=0`、`KOTORI_LM_TYPO_ROUNDS`、`KOTORI_LM_TYPO_BEAM`、`KOTORI_LM_TYPO_POOL`、`KOTORI_LM_TYPO_POOL_NEXT`、`KOTORI_LM_TYPO_SLACK`、`KOTORI_LM_TYPO_TAIL`、`KOTORI_LM_TYPO_WINDOW`、`KOTORI_LM_TYPO_SEARCH_MS`、`KOTORI_LM_TYPO_BATCH`、`KOTORI_LM_TYPO_WAIT_MS`、`KOTORI_LM_TYPO_QUICK_K`、`KOTORI_LM_TYPO_TRACE` | キーの単位・複数か所の補正を切る(ADR0036 のとおりに戻る)、直す箇所の数(既定 3)、次へ進める読みの数(既定 3)、LLM で採点する読みの数(1 か所目 80、2 か所目から 32)、捨てる辞書のコストの上がり(既定 2000)、比べる文字数(書き換えた所の後ろ 4)、探す幅(いちばんよい書き換えとの、かなのままの点と打ち間違いの起こりやすさの和の差、既定 4。docs/adr/0076)、2 か所目以降を探す時間(既定 200 ms)、1 回に採点する列(既定 16)、Space を押してから始めた変換の軽い補正に使う時間(既定 200 ms。0 で v3.0.0 のとおり省く)とその読みの数(既定 10)、指定した読みを含む書き換えを記録に出す(開発用)。docs/adr/0074 |
-| `KOTORI_LM_THREADS` | 推論のスレッド数(既定 4) |
-| `KOTORI_LM_BATCH_THREADS` | まとめて計算するときのスレッド数(既定は物理コアの数、2〜16。docs/adr/0090) |
-| `KOTORI_LM_DRAFT` | 生成で先に確かめる下書きのトークン数(既定 10、0 で使わない。docs/adr/0090) |
-| `KOTORI_LM_PRESCORE=0` | 生成の間にラティスの文を LLM で先に採点しない(docs/adr/0090) |
-| `KOTORI_LM_FLASH=0`、`KOTORI_LM_KV=q8_0` | Flash Attention を使わない(既定は使う)、KV を q8_0 にする(比べるため) |
-| `KOTORI_LM_SKIP_LLM_MARGIN` | zenz の 1 位とラティスの 1 位が同じで、2 位との差がこれ以上なら LLM の採点を省く(既定 0 = 省かない) |
-| `KOTORI_LM_PRECEDING`、`KOTORI_LM_CONTEXT_MAP` | 前の文を差し替える(評価) |
-| `KOTORI_LM_TIME`、`KOTORI_LM_STATS`、`KOTORI_LM_TRACE`、`KOTORI_LM_DEBUG` | 時間の内訳、計算量の累計、1 回ごとの計算、候補と点数を stderr に出す |
-| `KOTORI_LM_EXACT_LSE` | 語彙の正規化を近似しない(比較用、docs/adr/0024) |
+| `ASTERIA_ZENZ_MODEL`、`ASTERIA_LLM_MODEL` | zenz / LLM のモデルのパス |
+| `ASTERIA_MODEL_DIR`、`ASTERIA_RUNTIME_DIR` | モデルのフォルダ、llama.cpp の DLL のフォルダ(既定は mozc_server と同じ所) |
+| `ASTERIA_LM_DEVICE=cpu` | GPU を使わない(ノート PC の再現、docs/adr/0024) |
+| `ASTERIA_LM_PRELOAD=0` | 起動時に裏で読み込まず、要求の中で読み込む(評価。状態のファイルも書かない) |
+| `ASTERIA_LM_BEAMS`、`ASTERIA_LM_LLM_TOP`、`ASTERIA_LM_K`、`ASTERIA_LM_NSENT` | 生成する文の数、LLM で採点する数、文節ごとに並べ替える数、ラティスの文全体の候補の数 |
+| `ASTERIA_LM_LLM_WEIGHT`、`ASTERIA_LM_WEIGHTS`、`ASTERIA_LM_GEN_PENALTY`、`ASTERIA_LM_GEN_PENALTY_LLM` | 点数の重み(LLM 1.2。前文なしでzenz得点が過半なら最大0.7)と、生成した文の減点(LLMの有無によらず0.5) |
+| `ASTERIA_LM_CONTEXT_HISTORY=0`、`ASTERIA_LM_CONTEXT_HISTORY_PATH`、`ASTERIA_LM_CONTEXT_WEIGHT`、`ASTERIA_LM_CONTEXT_MARGIN`、`ASTERIA_LM_CONTEXT_DEFAULTS=0`、`ASTERIA_LM_CONTEXT_DEFAULT_WEIGHT` | 文脈つきの学習を切る、保存先(既定はプロファイルの `asteria_context.tsv`)、1 回の点(既定 3.5。選んだ表記に足し、退けた表記から引くので、1 回で差 7 まで覆る。3 回で頭打ち)、学習で覆してよい点の差(既定 8)、既定の学習データ(同音の語の手がかり)を切る、その点(既定 1)。docs/adr/0075 |
+| `ASTERIA_LM_SWAP_LLM_WEIGHT` | 1 番目と、漢字の語を別の漢字の語に入れ替えただけの文(解放/開放)を比べ直すときの LLM の重み(既定 2.0。1.2 以下で比べ直さない)。かなと漢字の書き方の違い・英数字を含む違いには使わない。docs/adr/0075 |
+| `ASTERIA_LM_CONFIDENCE_GUARD=0` | 前文なしでzenz得点が高いときのLLM重み抑制を無効にする。既定は有効。生成の減点は別設定 |
+| `ASTERIA_LM_SENTENCE=0`、`ASTERIA_LM_POST`、`ASTERIA_LM_RIGHT` | 文全体の選択を切る、文全体の選択の後も文節ごとに並べ替える、右の文脈を使う |
+| `ASTERIA_LM_SPLIT=0` | 生成した文を文節に分けない(docs/adr/0027) |
+| `ASTERIA_LM_BUDGET` | 変換で AI に使う時間の上限(ms。既定は GPU 2000 / CPU 600、0 で上限なし) |
+| `ASTERIA_LM_TAB_BUDGET` | キャッシュのない Tab の上限(ms、既定 700、docs/adr/0025) |
+| `ASTERIA_LM_PREDICT=0`、`ASTERIA_LM_PREDICT_MODE`、`ASTERIA_LM_PREDICT_TOKENS`、`ASTERIA_LM_PREDICT_BEAMS` | 予測を切る、予測の作り方、続きのトークン数、続きの数 |
+| `ASTERIA_LM_LIGHT_BEAMS`、`ASTERIA_LM_LIGHT_RANK`、`ASTERIA_LM_LIGHT_DELAY`、`ASTERIA_LM_FULL_DELAY` | 打鍵ごとの軽い予測の中身と、始めるまでの待ち(既定 作り直しは 600 ms、docs/adr/0024) |
+| `ASTERIA_LM_LIVE`、`ASTERIA_LM_LIVE_FIRST`、`ASTERIA_LM_LIVE_NEXT` | 手が止まった後に入力中の候補を取り直すか(`0` で取り直さない)と、取り直すまでの時間(既定 GPU あり 200 ms・なし 450 ms、2 回目以降 800 ms。docs/adr/0039) |
+| `ASTERIA_LM_PRECONVERT=0` | 先回りの変換を切る(docs/adr/0024) |
+| `ASTERIA_LM_IDLE_UNLOAD` | 入力がなくなってからモデルを外すまでの秒数(既定 0 = 外さずに常駐、docs/adr/0034・0069) |
+| `ASTERIA_LM_CPU_LONG`、`ASTERIA_ZENZ_LONG_MODEL` | GPU のない PC で、この文字数より長い読みに使う zenz(既定 12 文字、同梱の small。0 で使い分けない、docs/adr/0035) |
+| `ASTERIA_LM_CORRECTION=0` / `1` | 非同期の日本語LLM生成補正を無効/有効にする（既定有効）。AI設定の「入力中に文章の誤変換を補正する」でも切替可能。40文字以下の局所修正、辞書・意味の保護と採点差5.0を満たす場合だけ採用する。 |
+| `ASTERIA_LM_CORRECTION_PROMPT=typing` / `examples` / `chat` | 開発比較用の生成方式。既定は一字の誤入力も扱うtyping。examplesは同音語の従来の3例、chatはモデルのchat templateを使う。採用ガードは共通。 |
+| `ASTERIA_LM_TYPO=0`、`ASTERIA_LM_TYPO_POSTERIOR`、`ASTERIA_LM_TYPO_GATE`、`ASTERIA_LM_TYPO_STRONG`、`ASTERIA_LM_TYPO_GAIN`、`ASTERIA_LM_TYPO_K` | 打ち間違いの補正を切る、直すのに要る打ち間違いの事後確率(既定 2/3。docs/adr/0076)、試す条件(読み 1 文字あたりの点、既定 -1.8。辞書のコストが 4000 以上下がれば条件によらず試す)、辞書で区切ったコストが下がる量(既定 2000)、試す読みの数(既定 10)。docs/adr/0036 |
+| `ASTERIA_LM_TYPO_KEYS=0`、`ASTERIA_LM_TYPO_ROUNDS`、`ASTERIA_LM_TYPO_BEAM`、`ASTERIA_LM_TYPO_POOL`、`ASTERIA_LM_TYPO_POOL_NEXT`、`ASTERIA_LM_TYPO_SLACK`、`ASTERIA_LM_TYPO_TAIL`、`ASTERIA_LM_TYPO_WINDOW`、`ASTERIA_LM_TYPO_SEARCH_MS`、`ASTERIA_LM_TYPO_BATCH`、`ASTERIA_LM_TYPO_WAIT_MS`、`ASTERIA_LM_TYPO_QUICK_K`、`ASTERIA_LM_TYPO_TRACE` | キーの単位・複数か所の補正を切る(ADR0036 のとおりに戻る)、直す箇所の数(既定 3)、次へ進める読みの数(既定 3)、LLM で採点する読みの数(1 か所目 80、2 か所目から 32)、捨てる辞書のコストの上がり(既定 2000)、比べる文字数(書き換えた所の後ろ 4)、探す幅(いちばんよい書き換えとの、かなのままの点と打ち間違いの起こりやすさの和の差、既定 4。docs/adr/0076)、2 か所目以降を探す時間(既定 200 ms)、1 回に採点する列(既定 16)、Space を押してから始めた変換の軽い補正に使う時間(既定 200 ms。0 で v3.0.0 のとおり省く)とその読みの数(既定 10)、指定した読みを含む書き換えを記録に出す(開発用)。docs/adr/0074 |
+| `ASTERIA_LM_THREADS` | 推論のスレッド数(既定 4) |
+| `ASTERIA_LM_PRECEDING`、`ASTERIA_LM_CONTEXT_MAP` | 前の文を差し替える(評価) |
+| `ASTERIA_LM_TIME`、`ASTERIA_LM_STATS`、`ASTERIA_LM_TRACE`、`ASTERIA_LM_DEBUG` | 時間の内訳、計算量の累計、1 回ごとの計算、候補と点数を stderr に出す |
+| `ASTERIA_LM_EXACT_LSE` | 語彙の正規化を近似しない(比較用、docs/adr/0024) |

@@ -27,8 +27,8 @@ python -X utf8 -m unittest discover -s training/lexicon -p test_lexicon.py -v
 `package.json`はTSV・原生成記録・全帰属のサイズ/SHA/配布URLを固定する。`stage_package.py`は取得元、上限、全SHA、TSV形式と件数、原生成記録の出典・評価参照未使用を確認する。既存の不一致ファイルや失敗の.partialは上書きしない。原生成記録の`product_adopted=false`は生成時の事実として保持し、現在の公開状態は検証記録で区別する。
 
 ```text
-python -X utf8 training/lexicon/stage_package.py --source <比較済みv4の3ファイル> --out <Mozc>/src/data/kotori
-python -X utf8 mozc/tools/check_release.py --local <候補MSI> --previous-local <公開MSI> --require-collocations --require-short-lexicon --work <新規出力先>
+python -X utf8 training/lexicon/stage_package.py --source <比較済みv4の3ファイル> --out <Mozc>/src/data/asteria
+python -X utf8 mozc/tools/check_release.py --local <候補MSI> --previous-local <公開MSI> --require-generator --require-collocations --require-short-lexicon --work <新規出力先>
 ```
 
 将来の固定データタグは`data-short-lexicon-20261022`。GitHubアカウント停止HTTP403のため、現時点ではこのデータタグ/資産は未公開。既定のネットワーク取得とWindows CIはデータ資産公開まで成功しない。ローカル配置は`--source`を使用し、検査を省略しない。データタグを公開しても製品Latestにはしない。

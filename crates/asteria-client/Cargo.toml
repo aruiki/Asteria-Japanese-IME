@@ -1,0 +1,22 @@
+[package]
+name = "asteria-client"
+description = "Asteria IME: IPC クライアントと C ABI(4.2)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+asteria-proto = { path = "../asteria-proto" }
+thiserror = "2"
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Threading"] }

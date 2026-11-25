@@ -1,0 +1,16 @@
+[package]
+name = "asteria-predict"
+description = "Asteria IME: 予測・誤入力補正(9章)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+asteria-dict = { path = "../asteria-dict" }
+asteria-learn = { path = "../asteria-learn" }

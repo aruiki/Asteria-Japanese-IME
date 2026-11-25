@@ -3,7 +3,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/installer-released.yml
-      - mozc/tools/installer_smoke.py
+      - crates/asteria-release/**
+      - crates/asteria-cli/**
 permissions:
   contents: read
 jobs:
@@ -17,16 +18,17 @@ jobs:
       - name: Download rc.2
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download v1.1.0-rc.2 --pattern Kotori64.msi --dir installer
+        run: gh release download v1.1.0-rc.2 --pattern Asteria64.msi --dir installer
       - name: Verify released artifact
         shell: pwsh
         run: |
-          $hash = (Get-FileHash installer/Kotori64.msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          $hash = (Get-FileHash installer/Asteria64.msi -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne 'a079db01e45ac0e779feb7b0c2beff1bd2aa6d9ab9575f8f0537df94bfe3ed0b') { throw 'MSI hash mismatch' }
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install, type and uninstall
         env:
-          KOTORI_DISPOSABLE_RUNNER: github-hosted
-        run: python -u -X utf8 mozc/tools/installer_smoke.py --msi installer/Kotori64.msi --out installer-smoke
+          ASTERIA_DISPOSABLE_RUNNER: github-hosted
+        run: cargo run --release --locked --bin asteria-tools -- installer-smoke --msi installer/Asteria64.msi --out installer-smoke
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -5,7 +5,7 @@ google/mozc(`.github/workflows/mozc-windows.yml` の `MOZC_COMMIT`)に 0001 → 
 Mozc や llama.cpp を上げるときは、この表で「何を守る変更か」と関係する ADR を確かめる
 (docs/IMPROVEMENT_PROPOSALS.md の案 13)。
 
-## 0001-kotori-branding(名前と識別子。docs/adr/0012 の段階 2、作業カード 21)
+## 0001-asteria-branding(名前と識別子。docs/adr/0012 の段階 2、作業カード 21)
 
 | ファイル | 目的 |
 | --- | --- |
@@ -14,32 +14,32 @@ Mozc や llama.cpp を上げるときは、この表で「何を守る変更か�
 | `win32/installer/*` | MSI の製品名・製造元・UpgradeCode・インストール先 |
 | `win32/tip/*`、`build_tools/mozc_win32_resource_template.rc`、`gui/base/util.cc` | 言語の一覧・ウィンドウ・GUI に出る名前 |
 
-## 0002-kotori-lm-rerank(AI の変換・予測・設定画面)
+## 0002-asteria-lm-rerank(AI の変換・予測・設定画面)
 
 | ファイル | 目的 | ADR |
 | --- | --- | --- |
 | `MODULE.bazel`、`bazel/BUILD.llama_cpp.bazel` | llama.cpp のヘッダーと、Windows の公式ビルド(DLL、SHA-256 固定)の取得 | 0013、0016 |
 | `rewriter/llama_runtime.*` | llama.cpp の DLL を実行時に読む。AI を載せる GPU を選ぶ(専用 GPU、VRAM 3 GiB 以上。設定がオンなら内蔵 GPU) | 0016、0024、0078 |
-| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定)、入力中に候補の窓を出さない設定(候補は作り、出力とキーの扱いだけ変える。`session/session.*` の `KotoriShowsSuggestion`) | 0067、0077、0081 |
-| `rewriter/kotori_homophone_hint_rewriter.*` | 同音語のヒント(見分ける手がかりの語を候補の説明に出す) | 0079 |
-| `rewriter/kotori_romaji_english.*`、`rewriter/lm_rewriter.*` の `FindEnglishWord` | 英語の名前をローマ字のまま打てる(github → GitHub。文脈で 1 番目を決める) | 0080 |
-| `gui/tool/kotori_support_reminder.*` | 応援のお願いの通知(3日ごと)。一度も通知を出していないアプリで Windows が設定を「見つからない」と返しても出す。出せなかったら1時間後に出し直し、結果を support-reminder.ini に残す。AppContainer・パッケージのアプリから起動されたらすぐ終わる | — |
+| `engine/engine_converter.*` | AI の結果を待って候補を出す、ライブ変換(入力中の AI の変換を未確定の文字に出し、Enter で表示どおりに確定)、入力中に候補の窓を出さない設定(候補は作り、出力とキーの扱いだけ変える。`session/session.*` の `AsteriaShowsSuggestion`) | 0067、0077、0081 |
+| `rewriter/asteria_homophone_hint_rewriter.*` | 同音語のヒント(見分ける手がかりの語を候補の説明に出す) | 0079 |
+| `rewriter/asteria_romaji_english.*`、`rewriter/lm_rewriter.*` の `FindEnglishWord` | 英語の名前をローマ字のまま打てる(github → GitHub。文脈で 1 番目を決める) | 0080 |
+| `gui/tool/asteria_support_reminder.*` | 応援のお願いの通知(3日ごと)。一度も通知を出していないアプリで Windows が設定を「見つからない」と返しても出す。出せなかったら1時間後に出し直し、結果を support-reminder.ini に残す。AppContainer・パッケージのアプリから起動されたらすぐ終わる | — |
 | `config/character_form_manager.cc`(と試験) | 英字は、まだ選んでいなければ半角で出す(数字・記号は全角のまま) | 0082 |
-| `rewriter/kotori_context_history.*`、`rewriter/lm_rewriter.*` の `Finish`・`CheckResizeSegmentsRequest` | 同じ文で確定した文を文節ごと覚え、同じ文には AI を通さずにその文を出す(同じ間違いを二度しない) | 0082 |
+| `rewriter/asteria_context_history.*`、`rewriter/lm_rewriter.*` の `Finish`・`CheckResizeSegmentsRequest` | 同じ文で確定した文を文節ごと覚え、同じ文には AI を通さずにその文を出す(同じ間違いを二度しない) | 0082 |
 | `rewriter/user_boundary_history_rewriter.*`(と試験) | AI がオンのときは、覚えた区切りで AI の選んだ文を切り直さない(古い学習で 1 回目だけ外れた) | カード 89 |
-| `gui/config_dialog/*`(`KotoriPolishSettings`)、`gui/config_dialog/character_form_editor.cc` | 設定画面の左の一覧・検索・カードの見た目・わかりやすい言葉と説明 | 0083 |
+| `gui/config_dialog/*`(`AsteriaPolishSettings`)、`gui/config_dialog/character_form_editor.cc` | 設定画面の左の一覧・検索・カードの見た目・わかりやすい言葉と説明 | 0083 |
 | `rewriter/zenz_scorer.*` | zenz / LLM の採点(前置きの使い回し、候補の木)、ビームサーチ(複数の根をまとめる)、計算量の累計 | 0013、0016、0024 |
 | `rewriter/lm_rewriter.*` | 文全体の選択(生成 + 採点)、文節ごとの並べ替え、入力中の予測と Tab、先回りの変換、時間の上限、モデルの裏での読み込み、AI の状態、生成した文の文節分け、ユーザー辞書の保護 | 0015〜0027 |
 | `rewriter/lm_rewriter_test.cc` | 生成した文の文節分けのテスト(`bazelisk test //rewriter:lm_rewriter_test`) | 0027 |
 | `rewriter/rewriter.cc`、`rewriter/BUILD.bazel` | `LmRewriter` を書き換えの列に加える | 0013 |
-| `converter/immutable_converter.cc`、`converter/segments.*` | 区切りの違う文全体の候補(`kotori_sentences`)をラティスから出す | 0015 |
+| `converter/immutable_converter.cc`、`converter/segments.*` | 区切りの違う文全体の候補(`asteria_sentences`)をラティスから出す | 0015 |
 | `protocol/config.proto` | 設定(AI 変換、品質、AI モデル、LLM のファイル、入力中の予測) | 0016、0022 |
 | `gui/config_dialog/*`、`gui/base/util.cc`、`gui/tool/BUILD.bazel` | 設定画面の「AI 変換」タブ、Fluent 風のスタイル、明るい配色の固定、AI の状態 | 0017、0022、0024、0026 |
 | `data/images/win/*`、`win32/base/display_name_resource.h`、`win32/tip/tip_resource.rc` | アイコンと表示名（C案の折り紙、設定、辞書） | 0018、0019、0043 |
 
-## 0003-kotori-bundle-model(インストーラと同梱物)
+## 0003-asteria-bundle-model(インストーラと同梱物)
 
 | ファイル | 目的 | ADR |
 | --- | --- | --- |
-| `data/kotori/*` | 同梱するモデル(zenz-v2.5-small・medium、TinySwallow-1.5B。ファイルはビルドの前に置く)、NOTICE、使用許諾、インストーラの画像 | 0016、0017、0024、0043 |
+| `data/asteria/*` | 同梱するモデル(zenz-v2.5-small・medium、TinySwallow-1.5B。ファイルはビルドの前に置く)、NOTICE、使用許諾、インストーラの画像 | 0016、0017、0024、0043 |
 | `win32/installer/*` | モデル・llama.cpp の DLL・ショートカットを MSI に入れる | 0016、0017、0018 |

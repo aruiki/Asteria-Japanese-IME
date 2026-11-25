@@ -9,10 +9,10 @@ Mozcの既存CollocationRewriterへ渡す短い連語を作る。実行時モデ
 ```powershell
 python -X utf8 -m unittest discover -s training/collocations -p test_stage.py -v
 python -X utf8 -m unittest discover -s mozc/tools -p test_fast_collocations.py -v
-python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out target/kotori/fast-collocations-v1
-Copy-Item target/kotori/fast-collocations-v1/fast_collocations.txt <Mozc>/src/data/kotori/
-Copy-Item target/kotori/fast-collocations-v1/fast_collocations.json <Mozc>/src/data/kotori/
-Copy-Item target/kotori/fast-collocations-v1/NOTICE-fast-collocations.txt <Mozc>/src/data/kotori/
+python -X utf8 training/collocations/stage.py --baseline <Mozc>/src/data/dictionary_oss/collocation.txt --out target/asteria/fast-collocations-v1
+Copy-Item target/asteria/fast-collocations-v1/fast_collocations.txt <Mozc>/src/data/asteria/
+Copy-Item target/asteria/fast-collocations-v1/fast_collocations.json <Mozc>/src/data/asteria/
+Copy-Item target/asteria/fast-collocations-v1/NOTICE-fast-collocations.txt <Mozc>/src/data/asteria/
 ```
 
 `--out`は新しいディレクトリを指定する。`--cache-dir`で既存の取得原票を読み取り専用で再利用でき、`--ajimee`で固定SHAのAJIMEEを渡せる。既定は固定revisionから取得。除外は製品の`eval/sets/*.json`の読みと固定AJIMEEの読みだけで、参照表記を抽出へ渡さない。900の評価読みを除外対象とし、近似一致1件・重複文285件を排除。Wikipedia学習文29,326件から生成し、元40件+追加8,405件を保持する。外部の既存5例も除外した初期試作と結果SHAは同一だった。

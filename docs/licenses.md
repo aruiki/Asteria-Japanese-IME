@@ -7,14 +7,14 @@
 
 | 構成要素 | ライセンス | 備考 |
 | --- | --- | --- |
-| Kotori のソースコード | Apache-2.0 OR MIT | `LICENSE-APACHE`、`LICENSE-MIT` |
+| Asteria のソースコード | Apache-2.0 OR MIT | `LICENSE-APACHE`、`LICENSE-MIT` |
 | キーマップ・ローマ字表(`data/keymaps`、`data/romaji`) | Apache-2.0 OR MIT | 本プロジェクトで作成 |
 
 ## Windows 版の MSI(Mozc 版、現在の配布物)に同梱するもの
 
 次の配布準備候補には短文語彙115,318語を追加する。公開v2.0.0の同梱物は変更していない。
 
-`Kotori64.msi`(`.github/workflows/mozc-windows.yml`、docs/adr/0012、0016)。インストーラの使用許諾
+`Asteria64.msi`(`.github/workflows/mozc-windows.yml`、docs/adr/0012、0016)。インストーラの使用許諾
 (`mozc/tools/gen_assets.py` が作る `license.rtf`)と、インストール先の `NOTICE-*.txt`・`LICENSE-*.txt`・`documents`
 (Mozc の `credits_en.html`。Abseil・Protocol Buffers・Qt などの全文)に同じ内容を載せる。`check_release.py` がそろっているかを確かめる。
 
@@ -23,35 +23,26 @@
 | Mozc | BSD-3-Clause(Copyright Google Inc.) | google/mozc(`MOZC_COMMIT` で固定)+ `mozc/patches/` | Google の名前を推奨の表示に使わない(第 3 項) |
 | 短文の追加語彙（配布準備候補） | SudachiDict Apache-2.0、UniDic/NEologd等の全帰属。頻度由来の選択・加工TSVはCC BY-SA 4.0 | SudachiDict 20261015/commit830bf9e、zenz-v2.5-dataset Wikipedia全量/7d9c9ea。training/lexicon/package.jsonで固定 | 名詞の読み/品詞/コストをMozcへ対応し、全量頻度で選択。既存語は上書きしない。short_lexicon.tsv/jsonとNOTICE-short-lexicon.txtを同梱。原生成時のproduct_adopted=falseは生成記録として保持 |
 | Qt 6.9.1 | LGPL-3.0 | Mozc のビルド手順(`build_qt.py`) | 動的リンク(Qt6*.dll)。差し替えられる。差し替え方とソースの入手先は `NOTICE-third-party.txt`、LGPL-3.0 が取り込む GPL-3.0 の全文は `LICENSE-GPL-3.0.txt`(Qt のソースの `LICENSES/GPL-3.0-only.txt`) |
-| Llama-3.1-Swallow-8B-v0.5 Q4_K_M・Q3_K_M(Unreal・High の判定役) | Llama 3.1 Community License・Gemma Terms of Use(tokyotech-llm。「Built with Llama」) | Hugging Face の aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF@a6258e14(元の規約の文面を同じ場所に置いた。版と SHA-256 を `rewriter/kotori_model_catalog.cc` で固定) | MSI に同梱しない。設定画面から利用者が受け取る(docs/adr/0086、カード 90) |
+| Llama-3.1-Swallow-8B-v0.5 Q4_K_M・Q3_K_M(Unreal・High の判定役) | Llama 3.1 Community License・Gemma Terms of Use(tokyotech-llm。「Built with Llama」) | Hugging Face の aruiki/Llama-3.1-Swallow-8B-v0.5-GGUF@a6258e14(元の規約の文面を同じ場所に置いた。版と SHA-256 を `rewriter/asteria_model_catalog.cc` で固定) | MSI に同梱しない。設定画面から利用者が受け取る(docs/adr/0086、カード 90) |
 | Qwen3-4B・Qwen3-8B(試して採らなかった追加の AI) | Apache-2.0(Qwen) | 表に載せない | 配らない |
 | Microsoft Edge WebView2 SDK 1.0.3179.45 | BSD-3-Clause 相当(Copyright Microsoft Corporation) | NuGet `Microsoft.Web.WebView2`(Mozc パッチの `MODULE.bazel` で SHA-256 固定) | `WebView2LoaderStatic.lib` を `mozc_tool.exe` に静的リンク(HTML の設定画面、docs/adr/0084)。WebView2 の実行環境は同梱しない。全文は `NOTICE-third-party.txt` |
 | llama.cpp / ggml | MIT | Windowsビルドb11259(Vulkan、固定SHA)。ggml-base.dllだけ同じ固定ソースにメモリ確保失敗の修正を加えてBazelで再構築 | 実行時に読み込むDLL。変更はMozcパッチ内`src/bazel/llama_oom.patch`。`ggml-rpc.dll`は入れない(REQ-15-1、作業カード41) |
 | LLVM OpenMP ランタイム(`libomp.dll`) | Apache-2.0 WITH LLVM-exception | llama.cpp の公式 Windows ビルドに含まれる | 全文は `LICENSE-llvm-openmp.txt`(llvm-project llvmorg-20.1.0 の `openmp/LICENSE.TXT`) |
 | zenz-v2.5-small | CC BY-SA 4.0(Keita Miwa。元は ku-nlp/gpt2-small-japanese-char) | `training/zenz/fetch.sh`(版と SHA-256 を固定) | q8_0 に量子化して同梱。`NOTICE-zenz.txt` |
 | genmai-310M | CC BY-SA 4.0(subdiox。zenz-v2.5-medium © Keita Miwa の追加学習。元は ku-nlp/gpt2-medium-japanese-char) | `training/genmai/fetch.sh`(版 143e574c と SHA-256 を固定)、`training/genmai/convert.py` | q8_0 に量子化して同梱。変換の中心(docs/adr/0085)。`NOTICE-zenz.txt` |
-| zenz-v2.5-native-generator-20261017 | CC BY-SA 4.0 | zenz-v2.5-smallを追加学習。training/contrastive/native_generator.jsonでSHAを固定 | 2026-11-23 から MSI に同梱しない(評価用にモデル資産のプレリリースで公開を続ける) |
+| zenz-v2.5-native-generator-20261017 | CC BY-SA 4.0 | zenz-v2.5-smallを追加学習。training/contrastive/native_generator.jsonでSHAを固定 | Q8_0、追加候補生成専用。NOTICE-zenz.txtに元モデル・変更点を表示 |
 | TinySwallow-1.5B | Apache-2.0(Sakana AI) | `training/llm/make.sh`(版を固定) | Q5_K_M に量子化して同梱。`NOTICE-tinyswallow.txt` |
-| カタカナ語英字辞典 / Kotoriカタカナ英語辞書 | CC-BY-SA-3.0 | KEINOS/google-ime-user-dictionary-ja-en、7d241dafcf6ee1f9eafefc0ae7a929c095860246。Mozc MODULE.bazelで各ファイルのSHA-256を固定 | カタカナ語英字辞典コミュニティ・KEINOS・EDICT/EDRDGへ帰属。正規化・読み検査・説明部分除去・重複除去・表記補完・最大4表記へ加工。MSIにKotoriEnglish.tsv、KotoriEnglish-source.json、NOTICE-katakana-english.txtを同梱。加工後もCC-BY-SA-3.0 |
+| カタカナ語英字辞典 / Asteriaカタカナ英語辞書 | CC-BY-SA-3.0 | KEINOS/google-ime-user-dictionary-ja-en、7d241dafcf6ee1f9eafefc0ae7a929c095860246。Mozc MODULE.bazelで各ファイルのSHA-256を固定 | カタカナ語英字辞典コミュニティ・KEINOS・EDICT/EDRDGへ帰属。正規化・読み検査・説明部分除去・重複除去・表記補完・最大4表記へ加工。MSIにAsteriaEnglish.tsv、AsteriaEnglish-source.json、NOTICE-katakana-english.txtを同梱。加工後もCC-BY-SA-3.0 |
 | Microsoft Visual C++ ランタイム | Visual Studio のライセンス | MSVC | 再配布が認められたもの |
 | 初期変換の追加連語 | CC BY-SA 4.0(Wikipedia日本語版の執筆者、Keita Miwa) | zenz-v2.5-datasetのWikipedia学習区間01〜07。training/collocations/sources.jsonでrevision/範囲/SHAを固定 | 短い連語へ加工。Common Crawl/dev区間・評価参照表記は使用しない。元のMozc40件はBSD-3-Clause。fast_collocations.txt/jsonとNOTICE-fast-collocations.txtを同梱 |
 | 用例由来の追加連語 | BSD-2-Clause(Hiroyuki Komatsu、Shoji Ogura、Tsuyoshi Horo) | Japanese Usage Dictionary 2025-01-25。usage_dict.txtとLICENSE、Mozc cforms.defのSHAをsources.jsonで固定 | 引用用例だけから短い連語を抽出し、末尾を既存活用規則で展開。全文ライセンス・出典・変更はNOTICE-fast-collocations.txt |
 
-## NVIDIA の高速化の追加パッケージ(`AsteriaCuda64.msi`、docs/adr/0088)に同梱するもの
-
-本体の MSI には入れない。`mozc/cuda-addon/build_addon.ps1` が版と SHA-256 を固定した zip から取る。表示は `NOTICE-cuda.txt`。
-
-| もの | ライセンス | 取得元 | 備考 |
-| --- | --- | --- | --- |
-| llama.cpp / ggml(`ggml-cuda.dll`) | MIT | Windows ビルド b11259 の CUDA 13.4 版(`llama-b11259-bin-win-cuda-13.4-x64.zip`) | 変更なし。本体の `ggml-base.dll` と同じ版でだけ読む |
-| NVIDIA CUDA ランタイム(`cudart64_13.dll`)、cuBLAS(`cublas64_13.dll`、`cublasLt64_13.dll`) | NVIDIA CUDA Toolkit EULA(再配布を認められた部品) | llama.cpp b11259 の `cudart-llama-bin-win-cuda-13.4-x64.zip` | OSS ではない。変更なし。EULA は https://docs.nvidia.com/cuda/eula/index.html |
-
-## 旧 Rust 版(`kotori-server`、TSF TIP)の配布物に同梱するもの
+## 旧 Rust 版(`asteria-server`、TSF TIP)の配布物に同梱するもの
 
 | 構成要素 | ライセンス | 取得元・固定 | 備考 |
 | --- | --- | --- | --- |
 | Rust のクレート | MIT、Apache-2.0、Unlicense、Zlib、Unicode-3.0 | `Cargo.lock` | 認めるライセンスは `about.toml`。CI の `licenses` ジョブで、ほかのライセンスが入ったら落とす |
-| llama.cpp / ggml | MIT | `third_party/llama.cpp`(サブモジュール、コミット固定) | kotori-server に静的リンクする |
+| llama.cpp / ggml | MIT | `third_party/llama.cpp`(サブモジュール、コミット固定) | asteria-server に静的リンクする |
 | システム辞書(Mozc dictionary_oss 由来) | IPAdic(NAIST)のライセンス、ICOT Free Software の条件、沖縄辞書(Public Domain) | `data/dict-src/fetch.sh`(google/mozc のコミット固定、SHA-256 で検証) | 条文は取得した `README.txt`。辞書を配布するときは全文を同梱する |
 | Mozc | BSD-3-Clause | 同上(`LICENSE`) | 辞書ソースの取得元のライセンスとして同梱する |
 | VC ランタイム | Visual Studio のライセンス | MSVC(`/MT` で静的リンク) | 静的リンクの再配布は認められている |
@@ -60,7 +51,7 @@
 
 | 出典 | 使った数値 | 条件・扱い |
 | --- | --- | --- |
-| Dhakal, Feit, Kristensson, Oulasvirta. Observations on Typing from 136 Million Keystrokes. CHI 2018(doi:10.1145/3173574.3174220)の表 1 | 1 文字あたりの打ち違い 1.65%、抜け 0.80%、余分 0.67% | 打ち間違いの起こりやすさ(`rewriter/kotori_typo_model.cc`、docs/adr/0076)。論文の数値(事実)だけを使う。打鍵のデータ(研究・非営利の利用に限る)は取得も同梱もしない |
+| Dhakal, Feit, Kristensson, Oulasvirta. Observations on Typing from 136 Million Keystrokes. CHI 2018(doi:10.1145/3173574.3174220)の表 1 | 1 文字あたりの打ち違い 1.65%、抜け 0.80%、余分 0.67% | 打ち間違いの起こりやすさ(`rewriter/asteria_typo_model.cc`、docs/adr/0076)。論文の数値(事実)だけを使う。打鍵のデータ(研究・非営利の利用に限る)は取得も同梱もしない |
 | Grudin. Error Patterns in Novice and Skilled Transcription Typing. Cooper 編 Cognitive Aspects of Skilled Typewriting(Springer, 1983)6 章の表 6.1 と本文 | 入れ替えの割合(熟練者の平均 7.2%)、打ち違いの相手(同じ段の隣 31%、同じ指の上下 16%)、余分なキーの大半が隣のキー | 同上。本文の記述から置いた仮定(余分なキーの 8 割)と、データのないかなの段の誤り(ず/づ、拗音の抜け)の率(0.5%)は ADR0076 に明記 |
 
 ## 同梱しないもの

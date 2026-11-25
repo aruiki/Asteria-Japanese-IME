@@ -27,7 +27,7 @@ MSI3.34.6431.100、SHA b7dbaee7e99dcea16544b169cadb7ea1e0c5b66f1225cbc01a044ad42
 
 # 中断した大規模探索を再開：入力補正保護のローカル検証完了（2026-10-12）
 
-現在の対象はAsteria（KotoriIMEリポジトリ）、codex/large-input-campaign、開始main b23f0b8。前のチャット「GitHubのダウンロード数を確認」の最終作業を原票とソースで再確認。既存変更を保持した。通常execはMXC os error1326で起動不能だったが、許可された別実行経路で復旧。
+現在の対象はAsteria（AsteriaIMEリポジトリ）、codex/large-input-campaign、開始main b23f0b8。前のチャット「GitHubのダウンロード数を確認」の最終作業を原票とソースで再確認。既存変更を保持した。通常execはMXC os error1326で起動不能だったが、許可された別実行経路で復旧。
 
 Mozcの入力補正がAIに取り消される問題を仕上げ、文節/文全体へTYPING_CORRECTIONを伝播。先頭補正候補のキャッシュ/再採点を保護。実ラティスの文節確認テストも追加PASS。修正前4対象PASSと最終guard build/testのログを保存し、再開後は変更したテストだけを追加検証。
 40例×3条件で「こんいちは→今日は」「りょうしゅしょをください→領主書を下さい」がそれぞれ「こんにちは」「領収書をください」へ。AI ON6出力改善/他114不変、OFF120不変。386問全出力不変、AJIMEE183/200=91.5%維持。heldout未使用。
@@ -72,23 +72,23 @@ ADR0059、verification/conversion-quality-debug-20261012.md、カード75。qual
 
 # README冒頭の改名説明を削除（2026-10-12）
 
-利用者の指示で、Asteria/Kotoriの改名案内と付随するWindows表示変更の段落を削除。カード74。冒頭はバッジからダウンロードへ続く。差分/空白検査後、一般CI成功を確認してmain統合する。以下は履歴。
+利用者の指示で、Asteria/Asteriaの改名案内と付随するWindows表示変更の段落を削除。カード74。冒頭はバッジからダウンロードへ続く。差分/空白検査後、一般CI成功を確認してmain統合する。以下は履歴。
 
 # Asteria公開名の移行（2026-10-12）
 
 利用者の「すべて移行」に従い、公開リポジトリは https://github.com/aruiki/Asteria-Japanese-IME 。originも変更済み。
 説明/Topicsと23件のリリース表示名、README/使い方/公開工具/ソース内応援URLを移行。READMEと公開本文の構成・旧版の測定値は維持。最新版のWindows表示説明もv1.1.2/Asteriaへ修正。
-Latest v1.1.2へAsteria64.msi/sha256を追加。既存Kotori64.msi/sha256は互換リンク用に保持し、将来workflowも両名添付。全タグ/リリースID/公開日/既存添付ID/digest保持、旧URL2種類の転送と両名ダウンロードHTTP200確認。
+Latest v1.1.2へAsteria64.msi/sha256を追加。既存Asteria64.msi/sha256は互換リンク用に保持し、将来workflowも両名添付。全タグ/リリースID/公開日/既存添付ID/digest保持、旧URL2種類の転送と両名ダウンロードHTTP200確認。
 再取得/展開check_release全項目OK、MSIは6338・SHA a968312279d33c67679436d071d78409e6c74bdebf1824e475895fe9266e420eで内容不変・未署名。
 Python14テスト、応援通知8テスト成功。Mozc作業ツリーでURL変更後パッチを再生成し全3適用成功。公開MSIの応援リンクは旧URL転送、正規URLを組み込むのは次回ビルド。
-内部Kotori識別子/保存先/UpgradeCode/タグはADR0056/0058により保持。利用者の実状態・インストールを変更していない。
+内部Asteria識別子/保存先/UpgradeCode/タグはADR0056/0058により保持。利用者の実状態・インストールを変更していない。
 カード73、ADR0058、verification/asteria-public-migration-20261012.md。一般CI成功後にPRをmainへ統合する。実機入力/通知の確認は既存の未実施境界のまま。
 以下は履歴。
 # README図版の視認性を修正（2026-10-12）
 
 利用者の小さすぎる指摘を受け、図版7枚を横880→640の論理幅にし、主要文字を24〜38pxへ。変換結果は17→28px、500px表示時は約9.7→21.9px（2.26倍）。太字と明るい文字を使用し、横詰めを縦のカード/棒へ変更。
 Asteriaの紺/生成り/紙の質感を維持。README本文/公開本文/MSIは変更なし。設定・アイコンも今回の対象外。
-旧Kotoriの生成コードを参照。6図版の元データはAST比較で完全一致、実入力比較は既存CSVを維持。
+旧Asteriaの生成コードを参照。6図版の元データはAST比較で完全一致、実入力比較は既存CSVを維持。
 再生成成功。500px/360pxへ実縮小したPNGを目視確認。変換例のカード下端のはみ出しを修正して再描画済み。コードでも文字幅/下端の境界を検査。
 カード72。プレビュー/データ照合補助はtarget/readme-readable-figures。公開はREADME画像のmain統合のみで、MSI再リリースは不要。
 以下は履歴。
@@ -121,7 +121,7 @@ GitHub固定URLを開けた時だけ永久停止、いいえは7日延期、閉�
 package exit0、694.102秒。MSI3.34.6338.100、48ファイル、1,569,386,496bytes、未署名。
 SHA a968312279d33c67679436d071d78409e6c74bdebf1824e475895fe9266e420e。
 MSIのAUMID/CLSID/HKLM LocalServer32、UpgradeCodeを照合。Bazel停止後パッチ再生成、全3パッチ適用/127入力一致。
-ローカル候補target/windows-support-toast/Kotori64.msi。カード71、ADR0057、verification/windows-support-toast-20261011.md。
+ローカル候補target/windows-support-toast/Asteria64.msi。カード71、ADR0057、verification/windows-support-toast-20261011.md。
 
 未実施: 新MSI導入、Windows通知の実画面、通知センターからの後日クリック、ブラウザー実起動、OS通知抑制、IME入力/削除、push/CI/新公開。
 次の具体的作業: 6338候補を導入しWindows標準通知の実表示と両ボタンを確認。既存延期を解除する目的で実状態ファイルをリセットしない。
@@ -131,7 +131,7 @@ MSIのAUMID/CLSID/HKLM LocalServer32、UpgradeCodeを照合。Bazel停止後パ�
 
 利用者が10案から05の月を採用。内蔵image_genでアイコンと横長ヒーローを生成し、READMEの文章と図版7枚を統一。
 既存の章順・ダウンロード導線・Stripeリンク・測定値/条件を保持。比較グラフは公開CSVから描画。現在版の再測定ではない。
-表示名Asteria、内部Kotori名と保存先/インストール先/GUID/UpgradeCodeは保持。設定/辞書の6アイコンは旧版と同一SHA。
+表示名Asteria、内部Asteria名と保存先/インストール先/GUID/UpgradeCodeは保持。設定/辞書の6アイコンは旧版と同一SHA。
 進行表示は短い日本語12行、MSI ActionText/Templateに生の置換記号が残らないことを確認。
 
 専用mzsupportでSystemUtil2件、設定画面4件、応援案内7件PASS。Qtはoffscreen。初回のDLL探索失敗はログに保持。
@@ -143,7 +143,7 @@ Bazelを停止して全3パッチを再生成/適用確認。fresh cloneと127�
 
 公開中のLatestはv1.1.1のまま（API確認）。公開本文mozc/release-notes.mdは無変更。
 新MSIの実アップグレード/進行実画面/日本語入力/削除、今回のpush/PR/CI/新リリースは未実施。
-次はこの候補の実機受入れと公開準備。ローカル候補target/asteria-brand/Kotori64.msi。
+次はこの候補の実機受入れと公開準備。ローカル候補target/asteria-brand/Asteria64.msi。
 前回の案内状態support-reminder.iniは利用者の明示許可後に削除済み、今回も不存在を確認。
 
 以下は履歴。
@@ -156,7 +156,7 @@ Bazelを停止して全3パッチを再生成/適用確認。fresh cloneと127�
 WindowsネイティブQtの7テスト・実foreground維持・日本語描画、全3パッチ適用が成功。最終MSIと関連9テスト対象が成功。内部版6336、同梱48ファイル、未署名。モデル3件/runtime18件は前の公開版と同一SHA。
 最新のローカルビルド指定を保持。MozcクラウドCIはキャンセル、一般CIは最終入力c5c773dで全7項目成功。キャンセルをPASSにしない。
 正式版1.1.1はLatestとして公開済み（release409577311、PR151、source b5113b1582d8be125f5eca0a305a52c0edcc23a9）。公開APIのMSI digest/sizeとタグを照合済み。新MSIの導入/実入力/削除は未実施。詳細verification/github-support-reminder-20261011.md。
-実表示テストで作成したLocalLow/Kotori/support-reminder.iniの削除はauto-reviewが拒否し、利用者の明示許可待ち。入力設定/辞書/履歴は対象外。
+実表示テストで作成したLocalLow/Asteria/support-reminder.iniの削除はauto-reviewが拒否し、利用者の明示許可待ち。入力設定/辞書/履歴は対象外。
 公開URL: https://github.com/aruiki/Kotori-AI-Japanese-IME/releases/tag/v1.1.1 。公開版のMSI SHAはf8c6db1394a273f60590d82198372a68f2b6c83462bfc25a6c55a35c1480dba5。README差分ゼロと旧公開本文の全文保持を公開直前にも照合。
 
 以下は履歴。
@@ -191,11 +191,11 @@ MSIログの「インストールされました」だけを成功と扱わな�
 
 # RC.5の実入力を確認・6334導入の確認待ち（2026-10-10）
 
-メモ帳でComputer Useの実キー入力が動いた。利用者のKotori選択後、新しいタブは英数へ戻ったが、編集欄でF13（IMEOn）により日本語化。
+メモ帳でComputer Useの実キー入力が動いた。利用者のAsteria選択後、新しいタブは英数へ戻ったが、編集欄でF13（IMEOn）により日本語化。
 あしをいためた: Space前/Tab/Space1が足を痛めた、Space2が脚を痛めた。
 ちょとまってください: Space前/Tab/Space1がちょっと待ってください、Space2がちょ止まってください。不具合を実画面で再現。
 いんでっくす: 入力中にindex/indices、Space2でindex。設定の適用UXは前回実画面で確認済み。
-導入先は引き続き6333。メモ帳PID32188のKotori TIPとserver PID23700、core4 SHAのRC.5一致を再確認。
+導入先は引き続き6333。メモ帳PID32188のAsteria TIPとserver PID23700、core4 SHAのRC.5一致を再確認。
 詳細verification/rc5-native-input-20261010.md/json。元文書/履歴/スクリーンショットは公開していない。
 
 新しい6334 MSIは前段の通り検証済み。正式版はまだ公開せず、6334のインストールを利用者へasyncで確認中。
@@ -213,12 +213,12 @@ MSI SHA 7136ea32e39092ecdc7069cd0834e09d7fc0c2053fb89f3586410d5c8a7a599a、15691
 正本/cache/新規clone118入力/3パッチ一致、WiX内容検査とcompiled binaries/モデル/runtime/英語辞書/元画像一致PASS。
 最終4テストと実モデル18例、Standard183/200=91.5%を維持。誤入力Space2を補正した読みの候補へ改善。
 詳細verification/local-6334-installer-20261010、corrected-alternatives-6334-validation、tasks66/ADR0053。
-成果物C:/Users/aruik/kotori-first-check/corrected-alternatives-6334-release/Kotori64.msi。
+成果物C:/Users/aruik/asteria-first-check/corrected-alternatives-6334-release/Asteria64.msi。
 
 Computer Useは接続切れSMB割当てのMXC認証1326を診断し、利用者の一時解除許可で復旧。
 保存済みの2接続プロファイルは保持、現在の割当ては一時切断中。通常sandbox読取りコマンドも復旧。
 導入済み6333の実設定画面で未適用/適用成功/適用無効を確認し、候補数3→4→3を復元保存。
-メモ帳はaが英数として確定し、利用者へKotoriの「あ」への切替えをasyncで依頼中。
+メモ帳はaが英数として確定し、利用者へAsteriaの「あ」への切替えをasyncで依頼中。
 未返答を許可/切替え完了と扱わない。Nativeの初回候補/Tabはまだ未確認。
 
 公開最新版はv1.1.0-rc.5。6334を正式版や新RCとして公開した事実はない。現在の導入先は6333。
@@ -242,7 +242,7 @@ Computer UseのJS自体がMXCのSMBドライブ認証1326で止まっていた�
 ユーザー許可後、現在の2割当てを一時解除し、保存済み接続プロファイルを保持して復旧。
 実Program Filesの6333設定画面で未適用/成功/適用無効を観測、候補数を3→4→3へ復元保存。
 ダッシュボードの数値/CPU推移/支援ボタンも観測。私的なNAS割当先/他のメモ帳内容は公開しない。
-メモ帳は英数入力となり、Kotoriの「あ」への切替えを利用者へ依頼中。TSF候補はまだ未確認。
+メモ帳は英数入力となり、Asteriaの「あ」への切替えを利用者へ依頼中。TSF候補はまだ未確認。
 詳細verification/rc5-native-settings-and-computer-use-20261010。
 
 次は6334のソースを固定し、ローカルでMSIを作成・版/内容/ソース/モデル/辞書を照合する。
@@ -262,7 +262,7 @@ AI/予測/補正ON、利用者のUnreal設定を保持。入力確定・履歴�
 誤入力のSpace2「ちょ止まってください」は残るため未解決。
 導入した設定アプリも6333の保存UX修正版と一致。ただし実画面の保存表示はまだ観測していない。
 再起動後のComputer Use初期化も20秒/回復30秒timeout。TSF/実画面は未確認を保持。
-詳細docs/verification/installed-6333-20261010、原票kotori-first-check/installed-6333-debug-20261010。
+詳細docs/verification/installed-6333-20261010、原票asteria-first-check/installed-6333-debug-20261010。
 次は実画面が確認できる経路でTSFの初回表示/Tab/保存表示を受け入れ、誤入力の別候補を改善する。
 古い取消し終了原票は保持。公開済みと導入成功、専用IPCとWindows入力欄を混同しない。
 
@@ -278,7 +278,7 @@ Windowsの取消し終了（ERROR_INSTALL_USEREXIT）であり、取消しのき
 したがって6333設定保存UXの実機導入/表示は未確認のまま。再起動待ちの成功とは扱わない。
 専用IPCで「あしをいためた」は補正後/Tab/Space1で「足を痛めた」、Space2で「脚を痛めた」、終了0。
 AI/予測/補正有効。品質Unrealの設定を維持し、入力確定・履歴リセット・自動再インストールは行っていない。
-原票はkotori-first-check/rc5-install-attempt-20261010-1124/installation-check.json。
+原票はasteria-first-check/rc5-install-attempt-20261010-1124/installation-check.json。
 公開用要約docs/verification/rc5-install-attempt-20261010.json。
 次は利用者が既存の完全なrc.5 MSIで導入を完了後、6333の版/稼働経路と実UIを再確認する。
 既存のMSIは公開SHAと照合済み。低速なGitHubから再ダウンロードする必要はない。
@@ -346,7 +346,7 @@ Windows実入力の未検証をPASSへ書き換えず、公開済み候補とし
 同梱48ファイル、辞書TSV/source/NOTICEの数・出典・ハッシュ、モデル3件/実行環境18件の同一性PASS。
 サイズ1,569,157,120bytes、未署名。
 MSI SHA-256: 2e88913147adbe49da5f32624590980b11a938ed58872fc0235d0206b4467e17。
-完成ファイルC:/Users/aruik/kotori-first-check/rc4-release-20261010-3a962f4/Kotori64.msi。
+完成ファイルC:/Users/aruik/asteria-first-check/rc4-release-20261010-3a962f4/Asteria64.msi。
 原票は同ディレクトリのsource-manifest.json、local-build.json、release-evidence.json。
 
 英語辞書31,068読み/36,402組、英語17テスト、実モデル+既存履歴コピー18例PASS。
@@ -378,7 +378,7 @@ Tab→Esc→即Spaceで補正が消える別件も、同じ予測入力だけ世
 Standard200文は183/200=91.5%で90%条件PASS。117入力の正本/cache/新規clone全一致、3パッチ適用PASS。
 入力マニフェストSHA-256: 6b7c8aa90af32786e7bffa2dcbf6ce1c4041000b78dad182666abf07afb822c8。
 新しいコードのソース固定・ローカルMSI作成へ進む。
-原票C:/Users/aruik/kotori-first-check/history-english-cancel-final-v3.jsonほか。
+原票C:/Users/aruik/asteria-first-check/history-english-cancel-final-v3.jsonほか。
 Bazelを終了してパッチを再生成済み。次はソースcommit→ローカルMSI→内容/出所検査→実入力受け入れ。
 6330/6331の失敗候補は保存し、rc.4は下書きを維持。新MSIの導入/TSF実入力/削除は未検証。
 Computer UseのInitializeは規定の回復を含む複数回timeoutのため同じ試行を反復していない。
@@ -393,7 +393,7 @@ Computer UseのInitializeは規定の回復を含む複数回timeoutのため同
 MSIは608.637秒で終了0。内容の読み取り専用展開・112入力/3パッチ・同梱モデル/実行環境・本体の同一性PASS。
 ProductVersion3.34.6331.100で6330より大きい。45ファイル、1,568,374,784bytes、未署名。
 SHA-256: ed1a3ed93ebd3c81dd8ebdfe39509ad7cc40c0f3cba01bd2d064d73c804cb575。
-完成ファイル: C:/Users/aruik/kotori-first-check/rc4-release-20261010-b217ad4/Kotori64.msi。
+完成ファイル: C:/Users/aruik/asteria-first-check/rc4-release-20261010-b217ad4/Asteria64.msi。
 原票: 同じフォルダのlocal-build.json、source-manifest.json、release-evidence.json。
 詳細: docs/verification/rc4-medical-fix-local-20261010.md。
 
@@ -439,7 +439,7 @@ GitHubのrc.4はdraftのまま。4資産をアップロード済みだが、こ�
 - cold即SpaceはAIのロード中に通常変換へ戻り「炒めて」が残ることを再現。
   準備済み/モデル待ちを区別する。実入力の初回失敗をすべて説明・解消したとは扱わない。
 
-証拠: C:/Users/aruik/kotori-first-check/user-medical-*.json、medical-context-regression-before.log。
+証拠: C:/Users/aruik/asteria-first-check/user-medical-*.json、medical-context-regression-before.log。
 利用者の設定/辞書/履歴/稼働IMEは変更していない。次のMSIは更新できるようBUILD6331以上にする。
 修正後の実モデル、局所の回帰、Standard90%維持、パッチ再生成、ローカルMSIを順に行う。
 新しいMSIの同じ文で実入力を確認してからrc.4を公開する。現在の6330は不合格候補として保存。
@@ -449,7 +449,7 @@ GitHubのrc.4はdraftのまま。4資産をアップロード済みだが、こ�
 # 全改善案の統合とローカル配布準備（2026-10-09、カード64）
 
 利用者は全要望の改善後にリリース、全build/評価をローカルと指定。
-実リポジトリは.local/kotori-readme、枝codex/complete-user-improvements。
+実リポジトリは.local/asteria-readme、枝codex/complete-user-improvements。
 正本C:/Users/aruik/mzcorrection、cache C:/Users/aruik/mzicons。112入力が全一致。
 make_patches.shをBazel shutdown後に実行、新規cloneの0001〜0003適用と112ファイルの同一性PASS。
 詳細はdocs/verification/all-user-improvements-local-20261009.mdと同名JSON。
@@ -466,7 +466,7 @@ make_patches.shをBazel shutdown後に実行、新規cloneの0001〜0003適用�
 - ユーザーの長文がAIで7文節になる場合にSpace2が文頭へ戻る失敗を修正。
   FIXED_BOUNDARYの読み/境界は保持し意味候補を提示。Space2で特長はへ。他部分不変。Nuance9/Engine86 PASS。
 - index/effect/internetが初回一覧/Tab/Spaceへ。F6〜F10を保ち文字種の末尾表示だけ除去。
-- Kotoriダッシュボード、Windowsの操作部品、100/150/200%でGUI2ケースPASS、描画確認。
+- Asteriaダッシュボード、Windowsの操作部品、100/150/200%でGUI2ケースPASS、描画確認。
 - 最終Standard AJIMEE183/200=91.5%、heldout289/300=96.3%。heldoutを調整に使わない。
   最後の境界候補修正前のEXEによる品質原票。後続は先頭選択/モデル/辞書を変えていない。
 - 開発機をCPU強制してcold10文字/cold長文/warm即Spaceの3セッションが正常終了。
@@ -479,7 +479,7 @@ make_patches.shをBazel shutdown後に実行、新規cloneの0001〜0003適用�
 新MSIの版3.34.6330.100/同梱/ハッシュをWiXの読み取り専用展開でPASS。
 check_release.py --localの管理展開は5分以上止まったため検査clientのみ停止、失敗は保存。
 最終SHAは86dc529a3d1ce6e10f0a51dfd7e033b3620eea9b3c8373daf9004e0b8c4094ec。
-完成ファイルはC:/Users/aruik/kotori-first-check/rc4-release-20261009-25cd371/Kotori64.msi。
+完成ファイルはC:/Users/aruik/asteria-first-check/rc4-release-20261009-25cd371/Asteria64.msi。
 最後の境界修正後もStandard183/200=91.5%。112入力hashを再確認。
 Windows Computer UseのInitializeは規定の回復を含む3回ともタイムアウトし停止。
 最終MSIの実アプリ入力・上書き更新・削除は未実施。原票/Qt/MSI展開をTSF PASSへ置き換えない。
@@ -534,7 +534,7 @@ GitHubの当方の実行中MSIジョブ37892743123・37887768081はcancelledと�
 カード60/ADR0045。関連単体・実辞書CLIで2回目Spaceの「特徴→特長」と位置26への焦点を確認。
 最初の候補とほかの文節は保持。7組の有限な意味の選択肢で、LLM判断/意味まとまりの再分割は未完。
 PR145依存の別ブランチ、CI/実アプリTSFは未実施。公開rc.3は変わらない。
-次はKotoriの名称統一と、利用者依頼のAI/PC状態ダッシュボード・Stripe支援導線。
+次はAsteriaの名称統一と、利用者依頼のAI/PC状態ダッシュボード・Stripe支援導線。
 
 以下は過去の対象ソースと実測の履歴。
 
@@ -546,7 +546,7 @@ Windowsファイル6ケース、LM31ケース、Sessionテストと本体CLI bui
 `docs/verification/2026-10-09-llm-model-identity.md` / `.json`。
 既定無効。意味の保護、正常文100件の実セッション、CPU/Tab/実アプリは未完。
 更新後CIはPR145で確認する。リリース名は全18件の公開名変更済み、README/自動命名はPR146。
-新しい要望: 文中のニュアンス候補を優先する選択（特徴/特長）、設定画面とショートカットの名称をKotoriに統一。
+新しい要望: 文中のニュアンス候補を優先する選択（特徴/特長）、設定画面とショートカットの名称をAsteriaに統一。
 
 以下は以前の対象ソースと実測の履歴。
 
@@ -568,7 +568,7 @@ LLM補正は `codex/llm-correction-guards` / Draft PR145。baseをmainへ変更�
 - パッチ再生成と新規cloneへの0001〜0003適用・実ソース空白検査成功。入力世代関連12ブロックだけ変更し、C案/英語候補/同梱パッチを保持。CIのテスト対象にRequest/Engine/Englishも追加。
 
 対象ハッシュと正確な範囲は `docs/verification/2026-10-09-llm-input-generation.md` / `.json`。
-実ソースは `C:\Users\aruik\mzicons`、原票・退避は `C:\Users\aruik\kotori-first-check`。
+実ソースは `C:\Users\aruik\mzicons`、原票・退避は `C:\Users\aruik\asteria-first-check`。
 Bazelは検証後shutdown済み。普段使いIMEへインストールしていない。
 
 ## 次の具体的作業
@@ -596,7 +596,7 @@ Bazelは検証後shutdown済み。普段使いIMEへインストールしてい�
 - 英語候補indexの初回/Tab/Spaceは統合後も成功。C案資源と同梱パッチを保持。
 
 詳細とハッシュは `docs/verification/2026-10-09-llm-generated-correction.md` と同名JSON。
-ローカル原票は `C:\Users\aruik\kotori-first-check\llm-*20261009*`。
+ローカル原票は `C:\Users\aruik\asteria-first-check\llm-*20261009*`。
 元の試作ソースはmzfi、配布資源と統合したソースはmzicons。前文と過去の失敗実測は下に履歴として保持する。
 
 ## 未解決・次の具体的作業
@@ -604,7 +604,7 @@ Bazelは検証後shutdown済み。普段使いIMEへインストールしてい�
 1. 自由生成の結果にセッション/入力世代と設定・実モデル識別子を対応付け、保存時と表示時の両方で一致を検査する。読みが同じというだけで古い補正を使い回さない。
 2. 確定・追加入力・保護欄・AI無効化・モデル設定変更、正常文100件を実セッション経路で評価。CPUと実アプリTSF、Tab高確信度予測も未完。
 3. 更新後のCI/MSI成功まで試作PRを統合しない。英語PR140は更新後のMSIビルド37861976522を待ち、全8チェック成功後にmerge commitで統合する。
-4. 自由生成は `KOTORI_LM_CORRECTION=1` と非同期処理の場合だけ。既定有効・完成・公開済みとは説明しない。設定画面構成はカード57。
+4. 自由生成は `ASTERIA_LM_CORRECTION=1` と非同期処理の場合だけ。既定有効・完成・公開済みとは説明しない。設定画面構成はカード57。
 
 以下は再開時点とそれ以前の履歴。
 
@@ -670,7 +670,7 @@ check_release.py --localで同梱物・容量・ggml-rpcなし・server/MSI版�
 SHA-256は462a9dd1000f05da269d72adc91c053aa12d233087618eabe8e6f0167756a790。
 ただし版は3.34.6239.100で公開rc.2より古いため、これは開発確認用で公開しない。
 モデル3ファイルはmzからコピーし、前後のハッシュ一致を確認。普段使いのIMEへは導入していない。
-記録は `docs/design/2026-10-kotori/integration/local-msi.json`。
+記録は `docs/design/2026-10-asteria/integration/local-msi.json`。
 公開用CI37809776639はQt完了後、本体のbuild中。通常7チェックは成功。
 
 次はPR142のCI結果、統合、CI成果物の出所・ハッシュ・版の確認、rc.3公開、公開後check_release.py、記録して終了。
@@ -686,7 +686,7 @@ make_patches.shで0002・0003を再生成。新しいcloneで全3パッチの適
 実際のアプリ/TIPのWindows資源2ターゲットは35.347秒でbuild成功。
 旧Resource Compiler 10.0.10011.16384でも、全8サイズ32bit BMPのICOを受け付けた。
 小鳥4資源は素材ICOとバイト一致。入力モード、使用許諾、NOTICE、変換コードは変更なし。
-見本とハッシュは `docs/design/2026-10-kotori/integration/`。
+見本とハッシュは `docs/design/2026-10-asteria/integration/`。
 設定ツール本体も269.019秒でbuild成功。実行ファイルの全8アイコンがC案素材と一致。
 ツールは資源として読んだだけで起動していない。次はMSIを含むCI確認・統合。
 公開済みrc.2と普段のIMEは変更していない。設定画面の構造変更はカード57。
@@ -702,7 +702,7 @@ LLM補正はmzfiに保持し既定無効。21単体ケースPASS、生成CLI/con
 
 最新の依頼は画像生成を使ったデザイン改善。3案のうちユーザーがC（折り紙の小鳥）を選択した。
 `codex/visual-redesign` でC案の生成画像、通常/縮小用SVG、ICO8サイズ、PNG10サイズを準備。
-`docs/design/2026-10-kotori/README.md`・ADR0043・カード55を参照。
+`docs/design/2026-10-asteria/README.md`・ADR0043・カード55を参照。
 アルファとPNG/ICOの画素一致、全フレームBMP、SDK10.0.26100.0の資源コンパイルを確認した。
 まだMozc資源、公開MSI、インストール済みIMEへ適用していない。UI生成画像は動作画面ではない。
 
@@ -714,7 +714,7 @@ CIが出そろって成功してからmerge commitで統合する。デザイン
 LLM生成補正は `C:\Users\aruik\mzfi` の試作で既定無効。同期打鍵経路には追加しない。
 読み付き例示モードと生成用CLI、数値・固有表記・ユーザー辞書・未知漢字のガードを追加中。
 同じ実行ファイルでのモデルA/Bは9セット535件でベース478正解、Instruct471正解。単純置換は採用しない。
-詳細な実験結果は `C:\Users\aruik\kotori-first-check\model-ab\comparison.json`。
+詳細な実験結果は `C:\Users\aruik\asteria-first-check\model-ab\comparison.json`。
 正常文100件を固定済みだが、生成補正での安全性・初回表示・CPU/GPU性能は未検証。
 この試作を含むmzfiからデザイン用・配布用パッチを再生成しない。
 
@@ -745,7 +745,7 @@ ADR0040・`docs/verification/2026-10-08-first-candidate.md` に実装・実測�
 6テストターゲットPASS。インストール・配布更新は未実施。
 英語候補・自由な文章補正生成は未実装。予測の採用条件の評価、精度と負荷の比較、TSF実機確認、CIが残る。
 
-パッチ作成ツールは既存の `~/kotori-patch-work` を削除せず、毎回別の一時cloneを作るよう変更。
+パッチ作成ツールは既存の `~/asteria-patch-work` を削除せず、毎回別の一時cloneを作るよう変更。
 この既存cloneには未コミットの変更があるため破棄しない。
 
 ---
@@ -791,8 +791,8 @@ AJIMEE原データの3問と難しさの説明、出典・ライセンスを追�
 | 名前・識別子(カード 21) | 完了 |
 | AI の変換(docs/adr/0013〜0023) | 完了。zenz の生成と TinySwallow-1.5B の採点、入力中の予測と Tab、設定画面、LLM の重み |
 | 負荷と待ち時間(docs/adr/0024〜0036、カード 23〜31・34・36〜39) | 完了。GPU の稼働率 68.6% → 42.6%、VRAM 1.66 → 1.49 GB(Standard)、10 分入力がなければ VRAM を空ける。ノート PC で固まらない(内蔵 GPU を使わない、時間の上限、先回りの変換、待ちの解消)。新しい Low。予測キャッシュの設定の区切り、AI の状態の表示、生成した文の文節分け、ユーザー辞書の保護、ハイコントラスト、予測の外れ候補の削減、Unreal の見直し(High + zenz-medium) |
-| 評価の基盤 | 最終評価用のセット `kotori-heldout`(300 問、調整に使わない)、評価器の失敗の検出と実行条件の記録、予測の節約文字数と外れ候補、性能表(`docs/PERFORMANCE.md`)、単体テストを CI で |
-| 配布 | GitHub Releases の `Kotori64.msi`。beta.5 は版の上げ方の誤りで上書きが効かなかったので、beta.6 で直した(カード 35)。公開後に `python mozc/tools/check_release.py` で版を確かめる。**Latest は製品版 `v1.0.0`(署名なし)**。メンテナの判断で、出荷条件がそろう前に rc.1 と同じ中身で出した(docs/adr/0037 の「変更」)。段階の出し分けは `docs/DEVELOPMENT.md` 1.5 |
+| 評価の基盤 | 最終評価用のセット `asteria-heldout`(300 問、調整に使わない)、評価器の失敗の検出と実行条件の記録、予測の節約文字数と外れ候補、性能表(`docs/PERFORMANCE.md`)、単体テストを CI で |
+| 配布 | GitHub Releases の `Asteria64.msi`。beta.5 は版の上げ方の誤りで上書きが効かなかったので、beta.6 で直した(カード 35)。公開後に `python mozc/tools/check_release.py` で版を確かめる。**Latest は製品版 `v1.0.0`(署名なし)**。メンテナの判断で、出荷条件がそろう前に rc.1 と同じ中身で出した(docs/adr/0037 の「変更」)。段階の出し分けは `docs/DEVELOPMENT.md` 1.5 |
 | CI | Mozc (Windows) は約 15〜20 分(キャッシュが当たるとき)。Bazel のキャッシュは main(リリースの実行)でだけ保存する。PR ごとに保存すると上限 10 GB を超えて Qt のキャッシュが消え、95 分かかる |
 | 実機での確認 | メンテナに頼んでいる(`docs/ACCEPTANCE.md`)。ノート PC、ダークモード・ハイコントラストの設定画面、上書きインストール |
 
@@ -846,9 +846,9 @@ GPU のない PC の Low は、打ってすぐ Space だと長い文で AI が�
 
 ## 3.6 ATOK に近づける(2026-10-01 から)
 
-ATOK の実機はないので、ATOK が強いとされる所のセット(`eval/sets/kotori-typo`・`homophone`・`names`)を作り、
-Google 日本語入力・Microsoft IME と実際の IME で比べた(`eval/imebench/`)。同音語と人名・新語は Kotori が上回っている。
-打ち間違いの補正はどの IME も弱く、Kotori で始めた(docs/adr/0036、2 → 14 / 40)。次は、書き換えの候補の絞り込みを良くする、
+ATOK の実機はないので、ATOK が強いとされる所のセット(`eval/sets/asteria-typo`・`homophone`・`names`)を作り、
+Google 日本語入力・Microsoft IME と実際の IME で比べた(`eval/imebench/`)。同音語と人名・新語は Asteria が上回っている。
+打ち間違いの補正はどの IME も弱く、Asteria で始めた(docs/adr/0036、2 → 14 / 40)。次は、書き換えの候補の絞り込みを良くする、
 2 か所以上の打ち間違い、校正(ら抜き・二重敬語)の指摘。
 
 ## 3.7 製品版(v1.0)への道(2026-10-01 から)
@@ -893,7 +893,7 @@ Low(GPU で測る)の AJIMEE は、今の main で 87.5%(175 / 200)。表の 88.
 Mozc 版と AI の作業でのはまりどころは `AGENTS.md` にある。以下は主に旧 Rust 版のもの。
 
 - **Windows の CI でだけ落ちるテスト**: 読み込み中(mmap 中)のファイルを上書きできない。テストで
-  同じファイル名のモデルや辞書を作り直さない(`crates/kotori-lm/src/zenz_tests.rs`)。
+  同じファイル名のモデルや辞書を作り直さない(`crates/asteria-lm/src/zenz_tests.rs`)。
 - **CRLF**: Windows の checkout ではテキストの改行が CRLF になる。テストで読むテキストは
   `.replace("\r\n", "\n")` してから比べる。
 - **UNIX ソケットのパス長**: 108 バイトを超えると `bind` できない。深いディレクトリで
@@ -901,18 +901,18 @@ Mozc 版と AI の作業でのはまりどころは `AGENTS.md` にある。以�
 - **`pkill -f` の自滅**: シェルの1行にパターンを含めると、そのシェル自身が殺される。
   PID を `ps -eo pid,args | grep "[k]otori-server"` で取ってから `kill` する。
 - **テストのデッドロック**: 偽のサーバースレッドを `join` する前に、要求を送る順序になっているか
-  確かめる(`crates/kotori-client/src/ffi_tests.rs`)。
+  確かめる(`crates/asteria-client/src/ffi_tests.rs`)。
 - **TSF のヘッダ**: mingw の `msctf.h` には `ITfTextInputProcessorEx` などがない。Windows の
   コードは MSVC(または xwin の SDK と clang、`docs/DEVELOPMENT.md`)で確かめる。
-- **TIP と Rust の CRT**: TIP は VC ランタイムを静的にリンクする(`/MT`)。`kotori-client` も
+- **TIP と Rust の CRT**: TIP は VC ランタイムを静的にリンクする(`/MT`)。`asteria-client` も
   `RUSTFLAGS="-C target-feature=+crt-static"` で作る。
 - **依存の更新**: `prost`・`prost-build` は 0.13、`protox` は 0.7 に固定。`Cargo.lock` の更新は
   `CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback` を付ける(MSRV 1.80 を守る)。
 - **zenz の特殊トークン**: config.json の eos_token_id は誤り(2 = `<s>`)。正しい終端は `</s>`(3)。
   変換スクリプトが直している(ADR 0007)。
 - **llama.cpp と CRT**: llama.cpp の CMake は CMP0091 が NEW なので、`/MT` にするには
-  `CMAKE_MSVC_RUNTIME_LIBRARY` が要る(`crates/kotori-lm/build.rs` が crt-static を見て決める)。
-  サーバーが kotori-lm に依存するので、サーバーを作る CI のジョブはサブモジュールを取得する。
+  `CMAKE_MSVC_RUNTIME_LIBRARY` が要る(`crates/asteria-lm/build.rs` が crt-static を見て決める)。
+  サーバーが asteria-lm に依存するので、サーバーを作る CI のジョブはサブモジュールを取得する。
 - **cherry-pick で積んだ変更**: 1本の作業ブランチで PR を順に出すときは、main に合わせて
   1コミットずつ cherry-pick し、`docs/tasks/README.md` の表の衝突は main 側に行の変更を当て直す。
 - **LM の速度**: 91M のモデルは 2 スレッドで 1 トークン約 2ms。候補を増やすと遅延がほぼ比例して
@@ -965,7 +965,7 @@ ADR0040・`docs/verification/2026-10-08-first-candidate.md` に実装・実測�
 6テストターゲットPASS。インストール・配布更新は未実施。
 英語候補・自由な文章補正生成は未実装。予測の採用条件の評価、精度と負荷の比較、TSF実機確認、CIが残る。
 
-パッチ作成ツールは既存の `~/kotori-patch-work` を削除せず、毎回別の一時cloneを作るよう変更。
+パッチ作成ツールは既存の `~/asteria-patch-work` を削除せず、毎回別の一時cloneを作るよう変更。
 この既存cloneには未コミットの変更があるため破棄しない。
 
 ---
@@ -1011,8 +1011,8 @@ AJIMEE原データの3問と難しさの説明、出典・ライセンスを追�
 | 名前・識別子(カード 21) | 完了 |
 | AI の変換(docs/adr/0013〜0023) | 完了。zenz の生成と TinySwallow-1.5B の採点、入力中の予測と Tab、設定画面、LLM の重み |
 | 負荷と待ち時間(docs/adr/0024〜0036、カード 23〜31・34・36〜39) | 完了。GPU の稼働率 68.6% → 42.6%、VRAM 1.66 → 1.49 GB(Standard)、10 分入力がなければ VRAM を空ける。ノート PC で固まらない(内蔵 GPU を使わない、時間の上限、先回りの変換、待ちの解消)。新しい Low。予測キャッシュの設定の区切り、AI の状態の表示、生成した文の文節分け、ユーザー辞書の保護、ハイコントラスト、予測の外れ候補の削減、Unreal の見直し(High + zenz-medium) |
-| 評価の基盤 | 最終評価用のセット `kotori-heldout`(300 問、調整に使わない)、評価器の失敗の検出と実行条件の記録、予測の節約文字数と外れ候補、性能表(`docs/PERFORMANCE.md`)、単体テストを CI で |
-| 配布 | GitHub Releases の `Kotori64.msi`。beta.5 は版の上げ方の誤りで上書きが効かなかったので、beta.6 で直した(カード 35)。公開後に `python mozc/tools/check_release.py` で版を確かめる。**Latest は製品版 `v1.0.0`(署名なし)**。メンテナの判断で、出荷条件がそろう前に rc.1 と同じ中身で出した(docs/adr/0037 の「変更」)。段階の出し分けは `docs/DEVELOPMENT.md` 1.5 |
+| 評価の基盤 | 最終評価用のセット `asteria-heldout`(300 問、調整に使わない)、評価器の失敗の検出と実行条件の記録、予測の節約文字数と外れ候補、性能表(`docs/PERFORMANCE.md`)、単体テストを CI で |
+| 配布 | GitHub Releases の `Asteria64.msi`。beta.5 は版の上げ方の誤りで上書きが効かなかったので、beta.6 で直した(カード 35)。公開後に `python mozc/tools/check_release.py` で版を確かめる。**Latest は製品版 `v1.0.0`(署名なし)**。メンテナの判断で、出荷条件がそろう前に rc.1 と同じ中身で出した(docs/adr/0037 の「変更」)。段階の出し分けは `docs/DEVELOPMENT.md` 1.5 |
 | CI | Mozc (Windows) は約 15〜20 分(キャッシュが当たるとき)。Bazel のキャッシュは main(リリースの実行)でだけ保存する。PR ごとに保存すると上限 10 GB を超えて Qt のキャッシュが消え、95 分かかる |
 | 実機での確認 | メンテナに頼んでいる(`docs/ACCEPTANCE.md`)。ノート PC、ダークモード・ハイコントラストの設定画面、上書きインストール |
 
@@ -1066,9 +1066,9 @@ GPU のない PC の Low は、打ってすぐ Space だと長い文で AI が�
 
 ## 3.6 ATOK に近づける(2026-10-01 から)
 
-ATOK の実機はないので、ATOK が強いとされる所のセット(`eval/sets/kotori-typo`・`homophone`・`names`)を作り、
-Google 日本語入力・Microsoft IME と実際の IME で比べた(`eval/imebench/`)。同音語と人名・新語は Kotori が上回っている。
-打ち間違いの補正はどの IME も弱く、Kotori で始めた(docs/adr/0036、2 → 14 / 40)。次は、書き換えの候補の絞り込みを良くする、
+ATOK の実機はないので、ATOK が強いとされる所のセット(`eval/sets/asteria-typo`・`homophone`・`names`)を作り、
+Google 日本語入力・Microsoft IME と実際の IME で比べた(`eval/imebench/`)。同音語と人名・新語は Asteria が上回っている。
+打ち間違いの補正はどの IME も弱く、Asteria で始めた(docs/adr/0036、2 → 14 / 40)。次は、書き換えの候補の絞り込みを良くする、
 2 か所以上の打ち間違い、校正(ら抜き・二重敬語)の指摘。
 
 ## 3.7 製品版(v1.0)への道(2026-10-01 から)
@@ -1113,7 +1113,7 @@ Low(GPU で測る)の AJIMEE は、今の main で 87.5%(175 / 200)。表の 88.
 Mozc 版と AI の作業でのはまりどころは `AGENTS.md` にある。以下は主に旧 Rust 版のもの。
 
 - **Windows の CI でだけ落ちるテスト**: 読み込み中(mmap 中)のファイルを上書きできない。テストで
-  同じファイル名のモデルや辞書を作り直さない(`crates/kotori-lm/src/zenz_tests.rs`)。
+  同じファイル名のモデルや辞書を作り直さない(`crates/asteria-lm/src/zenz_tests.rs`)。
 - **CRLF**: Windows の checkout ではテキストの改行が CRLF になる。テストで読むテキストは
   `.replace("\r\n", "\n")` してから比べる。
 - **UNIX ソケットのパス長**: 108 バイトを超えると `bind` できない。深いディレクトリで
@@ -1121,18 +1121,18 @@ Mozc 版と AI の作業でのはまりどころは `AGENTS.md` にある。以�
 - **`pkill -f` の自滅**: シェルの1行にパターンを含めると、そのシェル自身が殺される。
   PID を `ps -eo pid,args | grep "[k]otori-server"` で取ってから `kill` する。
 - **テストのデッドロック**: 偽のサーバースレッドを `join` する前に、要求を送る順序になっているか
-  確かめる(`crates/kotori-client/src/ffi_tests.rs`)。
+  確かめる(`crates/asteria-client/src/ffi_tests.rs`)。
 - **TSF のヘッダ**: mingw の `msctf.h` には `ITfTextInputProcessorEx` などがない。Windows の
   コードは MSVC(または xwin の SDK と clang、`docs/DEVELOPMENT.md`)で確かめる。
-- **TIP と Rust の CRT**: TIP は VC ランタイムを静的にリンクする(`/MT`)。`kotori-client` も
+- **TIP と Rust の CRT**: TIP は VC ランタイムを静的にリンクする(`/MT`)。`asteria-client` も
   `RUSTFLAGS="-C target-feature=+crt-static"` で作る。
 - **依存の更新**: `prost`・`prost-build` は 0.13、`protox` は 0.7 に固定。`Cargo.lock` の更新は
   `CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback` を付ける(MSRV 1.80 を守る)。
 - **zenz の特殊トークン**: config.json の eos_token_id は誤り(2 = `<s>`)。正しい終端は `</s>`(3)。
   変換スクリプトが直している(ADR 0007)。
 - **llama.cpp と CRT**: llama.cpp の CMake は CMP0091 が NEW なので、`/MT` にするには
-  `CMAKE_MSVC_RUNTIME_LIBRARY` が要る(`crates/kotori-lm/build.rs` が crt-static を見て決める)。
-  サーバーが kotori-lm に依存するので、サーバーを作る CI のジョブはサブモジュールを取得する。
+  `CMAKE_MSVC_RUNTIME_LIBRARY` が要る(`crates/asteria-lm/build.rs` が crt-static を見て決める)。
+  サーバーが asteria-lm に依存するので、サーバーを作る CI のジョブはサブモジュールを取得する。
 - **cherry-pick で積んだ変更**: 1本の作業ブランチで PR を順に出すときは、main に合わせて
   1コミットずつ cherry-pick し、`docs/tasks/README.md` の表の衝突は main 側に行の変更を当て直す。
 - **LM の速度**: 91M のモデルは 2 スレッドで 1 トークン約 2ms。候補を増やすと遅延がほぼ比例して

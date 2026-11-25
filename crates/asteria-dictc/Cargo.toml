@@ -1,0 +1,17 @@
+[package]
+name = "asteria-dictc"
+description = "Asteria IME: 辞書コンパイラ(5.3)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+asteria-dict = { path = "../asteria-dict" }
+unicode-normalization = "0.1.25"

@@ -1,6 +1,6 @@
 # 変換精度と入力応答（2026-10-19更新）
 
-現在の掲載値は **Asteria v1.1.4 RC**の固定変換器による開発評価です。[RC4を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)。RC4対応ソースでも第一候補の正解数を維持しています。測定時点・バイナリの識別は以下に残しています。旧Kotori時代の実入力比較は、下の過去資料へ分けています。
+現在の掲載値は **Asteria v1.1.4 RC**の固定変換器による開発評価です。[RC4を公開済み](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/v1.1.4-rc.4)。RC4対応ソースでも第一候補の正解数を維持しています。測定時点・バイナリの識別は以下に残しています。旧Asteria時代の実入力比較は、下の過去資料へ分けています。
 
 ## 開発版の変換精度
 
@@ -54,11 +54,11 @@ RC4に反映した候補保持修正source039a7251fa16a77a91cb67f5158e20073a3f37
 
 ## 過去の実入力比較
 
-以下は **2026-10-01の旧Kotori beta.8・Unreal**を実際に各IMEへ入力した比較です。AJIMEE-Bench **198問**、前文なし、Space 1回の第1候補を使用。上のオフライン200問評価と異なる条件であり、Asteriaの最新値94.0%をこの比較へ置き換えることはできません。
+以下は **2026-10-01の旧Asteria beta.8・Unreal**を実際に各IMEへ入力した比較です。AJIMEE-Bench **198問**、前文なし、Space 1回の第1候補を使用。上のオフライン200問評価と異なる条件であり、Asteriaの最新値94.0%をこの比較へ置き換えることはできません。
 
 | 当時のIME | 当時の正解率 |
 | --- | ---: |
-| Kotori beta.8・Unreal | 88.4% |
+| Asteria beta.8・Unreal | 88.4% |
 | Microsoft IME（Windows 11） | 59.6% |
 | Google 日本語入力 3.34.6260 | 58.1% |
 

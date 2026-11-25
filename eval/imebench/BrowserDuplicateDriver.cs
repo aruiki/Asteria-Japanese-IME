@@ -22,8 +22,8 @@ static class BrowserDuplicateDriver {
   [STAThread] static int Main(string[] args) {
     // 使い捨てCI、または利用者本人が実PCでの検証を許可したlocal_install_check.pyからだけ実行する。
     bool runner = Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
-        Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") == "github-hosted";
-    bool ownerApproved = Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved";
+        Environment.GetEnvironmentVariable("ASTERIA_DISPOSABLE_RUNNER") == "github-hosted";
+    bool ownerApproved = Environment.GetEnvironmentVariable("ASTERIA_LOCAL_ACCEPTANCE") == "owner-approved";
     if (args.Length != 4 || !(runner || ownerApproved)) return 2;
     try {
       string marker = args[0], mode = args[1], installed = Path.GetFullPath(args[3]);

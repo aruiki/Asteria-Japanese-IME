@@ -1,8 +1,8 @@
-﻿Kotori(日本語入力)Windows 版
+﻿Asteria(日本語入力)Windows 版
 ==============================
 
 ローカルの AI で変換する日本語入力です。開発中のベータ版で、署名はしていません。
-https://github.com/aruiki/Kotori
+https://github.com/aruiki/Asteria-Japanese-IME
 
 ■ 入れ方
 1. ダウンロードした zip を右クリック →「プロパティ」→ 下の「許可する」にチェック → OK。
@@ -12,8 +12,8 @@ https://github.com/aruiki/Kotori
    「この アプリがデバイスに変更を加えることを許可しますか?」には「はい」。
    「Windows によって PC が保護されました」と出たら「詳細情報」→「実行」。
 4. 設定 →「時刻と言語」→「言語と地域」→「日本語」の「…」→「言語のオプション」→
-   「キーボードの追加」で Kotori を選ぶ。
-5. Windows キー + Space で Kotori に切り替えて、メモ帳などで入力する。
+   「キーボードの追加」で Asteria を選ぶ。
+5. Windows キー + Space で Asteria に切り替えて、メモ帳などで入力する。
    最初のキーでエンジンが起動します。辞書の読み込み(1 秒ほど)が終わるまでは直接入力になります。
 
 入れ直す・新しい版にするときも、新しい zip の install.cmd をそのまま実行してください。
@@ -21,8 +21,8 @@ https://github.com/aruiki/Kotori
 ■ 外し方
 展開したフォルダの uninstall.cmd をダブルクリックする(「はい」を選ぶ)。
 「使用中のファイルがあり消せない」と出たら、PC を再起動してから
-C:\Program Files\Kotori フォルダを消してください。
-設定のキーボードの一覧からも Kotori を外してください。
+C:\Program Files\Asteria フォルダを消してください。
+設定のキーボードの一覧からも Asteria を外してください。
 
 ■ 使い方(MS-IME とほぼ同じ)
 - ローマ字で入力 → Space で変換、もう一度 Space で次の候補、Enter で確定、Esc で取り消し
@@ -31,21 +31,18 @@ C:\Program Files\Kotori フォルダを消してください。
 - 入力中の ← / → でカーソルを動かす
 - パスワードの入力欄では自動で直接入力になります
 
-■ AI(LM)による並べ替え(任意)
+■ AI(LM)による並べ替えと設定 GUI
 AI のモデルは容量とライセンスの都合で同梱していません。入れなくても辞書だけで変換できます。
-入れる場合は、リポジトリの `just zenz` で作った zenz-v2.5-small-f16.gguf を
-C:\Program Files\Kotori\data に置いてください(管理者の確認が出ます)。そのあと PC を再起動するか、
-タスク マネージャーで kotori-server を終了すると読み込まれ、変換のあと少し遅れて、結果がより
-自然な候補に差し替わります。
+設定画面(`C:\Program Files\Asteria\asteria-config.exe`)からモデルのダウンロード・モード設定・
+ユーザー辞書のインポート/エクスポート・学習データ管理が行えます。
+手動で置く場合は `zenz-v2.5-small-f16.gguf` を `C:\Program Files\Asteria\data` に置いてください。
 
 ■ 今の制限
-- 候補ウィンドウはまだ出ません。候補は入力中の文字の中で切り替わります(Space で次の候補)。
-- 予測入力、学習、ユーザー辞書、設定画面はまだありません。
 - 管理者として動くアプリでは直接入力になることがあります。
 
-問題があれば、アプリ名と症状を https://github.com/aruiki/Kotori/issues に書いてください。
+問題があれば、アプリ名と症状を https://github.com/aruiki/Asteria-Japanese-IME/issues に書いてください。
 
 ■ ライセンス
-Kotori は Apache-2.0 または MIT(LICENSE-APACHE、LICENSE-MIT)。
+Asteria は Apache-2.0 または MIT(LICENSE-APACHE、LICENSE-MIT)。
 同梱している辞書(Mozc 由来。IPAdic と沖縄辞書を含む)と部品のライセンスは
 THIRD_PARTY_NOTICES.txt にあります。

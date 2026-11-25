@@ -18,12 +18,12 @@ python training/contrastive/native_pairs.py --observed target/accuracy-guide/har
 今回のモデルは主生成・採点の置換では悪化したため、追加生成だけに使う。元のzenzとTinySwallowで全候補を採点するとAJIMEE186→187/200、改悪0だった。元モデル3件を保持したローカル同梱候補は次のコマンドで作る。出力済みのフォルダと導入済みIMEは変更しない。
 
 ```powershell
-python training/contrastive/stage_generator.py --base-dir 'C:/Program Files (x86)/Kotori' --generator target/accuracy-guide/native-joint-512-v1/native-q8_0.gguf --out target/accuracy-guide/learned-generator-bundle-v1
+python training/contrastive/stage_generator.py --base-dir 'C:/Program Files (x86)/Asteria' --generator target/accuracy-guide/native-joint-512-v1/native-q8_0.gguf --out target/accuracy-guide/learned-generator-bundle-v1
 ```
 
 モデル識別は `native_generator.json`。追加生成モデルは[モデル資産のプレリリース](https://github.com/aruiki/Asteria-Japanese-IME/releases/tag/model-native-generator-20261017)で公開済み。製品版のインストーラーとは別であり、`distribution_status` は製品候補用の公開モデル資産を示す。
 
 
-リリース候補では `fetch_generator.py --out target/kotori` が固定URLから取得し、固定SHAと一致するモデルだけを配置する。ローカル候補では `--source <GGUF>` を指定できる。既存の不一致モデルを上書きしない。2026-11-23 から MSI には含めない(genmai の後は正解を増やさない。docs/verification/candidates-phase2-20261123.md)。評価では `KOTORI_ZENZ_EXTRA_MODEL` に指定する。
+リリース候補では `fetch_generator.py --out target/asteria` が固定URLから取得し、固定SHAと一致するモデルだけを配置する。ローカル候補では `--source <GGUF>` を指定できる。既存の不一致モデルを上書きしない。モデルと `native_generator.json` はMSIへ含め、WiX実行前とMSI展開後に照合する。
 
 2026-10-19、利用者の明示許可後にモデル資産を公開。固定URLからの再取得で98,970,560bytes・SHA-256の一致を確認した。取得原票は `target/accuracy-guide/published-generator-verification-v1.json`。製品リリースと実アプリの受入れは別条件。

@@ -1,0 +1,20 @@
+[package]
+name = "asteria-session"
+description = "Asteria IME: 状態機械とキーマップ(11章)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+asteria-composer = { path = "../asteria-composer" }
+asteria-dict = { path = "../asteria-dict" }
+asteria-lattice = { path = "../asteria-lattice" }
+asteria-learn = { path = "../asteria-learn" }
+asteria-predict = { path = "../asteria-predict" }
+thiserror = "2"

@@ -1,0 +1,5 @@
+LIBRARY asteria_msi_action
+EXPORTS
+  StopAsteriaProcesses PRIVATE
+  RegisterTipDlls PRIVATE
+  UnregisterTipDlls PRIVATE

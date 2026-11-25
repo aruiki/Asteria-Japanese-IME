@@ -284,13 +284,6 @@ sealed partial class Acceptance : Form {
       Check("password_scope_ime_on_not_learned", row => {
         // IS_PASSWORD の欄で日本語入力をオンにして変換・確定しても、使用量(学習)を増やさない。
         // 先に普通の欄で数が増えることを見て、増えないことが記録の止まりによると確かめる。
-        // 固定の旧 MSI(使用量の記録より前)の検査では installer_smoke.py が飛ばすよう指示する。
-        if (Environment.GetEnvironmentVariable("KOTORI_ACCEPTANCE_SKIP_PASSWORD_LEARNING") == "legacy-candidate") {
-          row["skipped"] = "legacy candidate MSI predates usage counting";
-          report["password_scope_learning_verified"] = false;
-          report["password_scope_learning_skipped"] = true;
-          return;
-        }
         int before = Conversions(); Convert(a, "nihonngo", "日本語");
         WaitUntil(() => Conversions() > before, "Usage did not count an ordinary conversion");
         int ordinary = Conversions(); row["usage_after_ordinary"] = ordinary;
@@ -315,8 +308,8 @@ sealed partial class Acceptance : Form {
   [STAThread] static int Main(string[] args) {
     // 使い捨てCI、または利用者本人が実PCでの検証を許可したlocal_install_check.pyからだけ実行する。
     bool runner = Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
-        Environment.GetEnvironmentVariable("KOTORI_DISPOSABLE_RUNNER") == "github-hosted";
-    bool ownerApproved = Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved";
+        Environment.GetEnvironmentVariable("ASTERIA_DISPOSABLE_RUNNER") == "github-hosted";
+    bool ownerApproved = Environment.GetEnvironmentVariable("ASTERIA_LOCAL_ACCEPTANCE") == "owner-approved";
     if ((args.Length != 2 && (args.Length != 3 || args[2] != "--duplicate-stress")) &&
         !(args.Length == 3 && args[2] == "--click-probe" && ownerApproved)) return 2;
     if (!(runner || ownerApproved)) return 2;

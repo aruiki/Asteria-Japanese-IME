@@ -1,0 +1,2729 @@
+diff --git a/src/data/asteria/BUILD.bazel b/src/data/asteria/BUILD.bazel
+new file mode 100644
+index 000000000..10f4ad129
+--- /dev/null
++++ b/src/data/asteria/BUILD.bazel
+@@ -0,0 +1,66 @@
++# Asteria: MSI に同梱する物(docs/adr/0016、0017)。モデル(*.gguf)はコミットしないので、ビルドの前に
++# ここに置く(mozc/README.md)。
++package(default_visibility = ["//visibility:public"])
++
++exports_files([
++    "short_lexicon.tsv",
++    "short_lexicon.json",
++    "NOTICE-short-lexicon.txt",
++    "fast_collocations.txt",
++    "fast_collocations.json",
++    "NOTICE-fast-collocations.txt",
++    "zenz-v2.5-small-q8_0.gguf",
++    "zenz-v2.5-native-generator-20261017-q8_0.gguf",
++    "native_generator.json",
++    "genmai-310M-q8_0.gguf",
++    "tinyswallow-1.5b-q5_k_m.gguf",
++    "NOTICE-zenz.txt",
++    "NOTICE-tinyswallow.txt",
++    "NOTICE-third-party.txt",
++    "LICENSE-llvm-openmp.txt",
++    "LICENSE-GPL-3.0.txt",
++    "license.rtf",
++    "banner.bmp",
++    "dialog.bmp",
++])
++
++# Asteria: 最終比較した公開語彙を既定の辞書へ加える。falseは回帰比較専用。
++config_setting(
++    name = "without_short_lexicon",
++    define_values = {"asteria_short_lexicon": "false"},
++)
++
++genrule(
++    name = "empty_short_lexicon",
++    outs = ["empty_short_lexicon.tsv"],
++    cmd = "printf '' > $@",
++)
++
++filegroup(
++    name = "short_lexicon_data",
++    srcs = select({
++        ":without_short_lexicon": [":empty_short_lexicon"],
++        "//conditions:default": ["short_lexicon.tsv"],
++    }),
++)
++
++# Asteria: 2024年以降のWikipediaの記事題名から作る固有名詞・新語の辞書(mozc/tools/build_name_lexicon.py)。
++# 開発用の評価で確かめるまでは既定で入れない。trueのときだけ name_lexicon.tsv を辞書へ加える。
++config_setting(
++    name = "with_name_lexicon",
++    define_values = {"asteria_name_lexicon": "true"},
++)
++
++genrule(
++    name = "empty_name_lexicon",
++    outs = ["empty_name_lexicon.tsv"],
++    cmd = "printf '' > $@",
++)
++
++filegroup(
++    name = "name_lexicon_data",
++    srcs = select({
++        ":with_name_lexicon": ["name_lexicon.tsv"],
++        "//conditions:default": [":empty_name_lexicon"],
++    }),
++)
+diff --git a/src/data/asteria/LICENSE-GPL-3.0.txt b/src/data/asteria/LICENSE-GPL-3.0.txt
+new file mode 100644
+index 000000000..94a9ed024
+--- /dev/null
++++ b/src/data/asteria/LICENSE-GPL-3.0.txt
+@@ -0,0 +1,674 @@
++                    GNU GENERAL PUBLIC LICENSE
++                       Version 3, 29 June 2007
++
++ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
++ Everyone is permitted to copy and distribute verbatim copies
++ of this license document, but changing it is not allowed.
++
++                            Preamble
++
++  The GNU General Public License is a free, copyleft license for
++software and other kinds of works.
++
++  The licenses for most software and other practical works are designed
++to take away your freedom to share and change the works.  By contrast,
++the GNU General Public License is intended to guarantee your freedom to
++share and change all versions of a program--to make sure it remains free
++software for all its users.  We, the Free Software Foundation, use the
++GNU General Public License for most of our software; it applies also to
++any other work released this way by its authors.  You can apply it to
++your programs, too.
++
++  When we speak of free software, we are referring to freedom, not
++price.  Our General Public Licenses are designed to make sure that you
++have the freedom to distribute copies of free software (and charge for
++them if you wish), that you receive source code or can get it if you
++want it, that you can change the software or use pieces of it in new
++free programs, and that you know you can do these things.
++
++  To protect your rights, we need to prevent others from denying you
++these rights or asking you to surrender the rights.  Therefore, you have
++certain responsibilities if you distribute copies of the software, or if
++you modify it: responsibilities to respect the freedom of others.
++
++  For example, if you distribute copies of such a program, whether
++gratis or for a fee, you must pass on to the recipients the same
++freedoms that you received.  You must make sure that they, too, receive
++or can get the source code.  And you must show them these terms so they
++know their rights.
++
++  Developers that use the GNU GPL protect your rights with two steps:
++(1) assert copyright on the software, and (2) offer you this License
++giving you legal permission to copy, distribute and/or modify it.
++
++  For the developers' and authors' protection, the GPL clearly explains
++that there is no warranty for this free software.  For both users' and
++authors' sake, the GPL requires that modified versions be marked as
++changed, so that their problems will not be attributed erroneously to
++authors of previous versions.
++
++  Some devices are designed to deny users access to install or run
++modified versions of the software inside them, although the manufacturer
++can do so.  This is fundamentally incompatible with the aim of
++protecting users' freedom to change the software.  The systematic
++pattern of such abuse occurs in the area of products for individuals to
++use, which is precisely where it is most unacceptable.  Therefore, we
++have designed this version of the GPL to prohibit the practice for those
++products.  If such problems arise substantially in other domains, we
++stand ready to extend this provision to those domains in future versions
++of the GPL, as needed to protect the freedom of users.
++
++  Finally, every program is threatened constantly by software patents.
++States should not allow patents to restrict development and use of
++software on general-purpose computers, but in those that do, we wish to
++avoid the special danger that patents applied to a free program could
++make it effectively proprietary.  To prevent this, the GPL assures that
++patents cannot be used to render the program non-free.
++
++  The precise terms and conditions for copying, distribution and
++modification follow.
++
++                       TERMS AND CONDITIONS
++
++  0. Definitions.
++
++  "This License" refers to version 3 of the GNU General Public License.
++
++  "Copyright" also means copyright-like laws that apply to other kinds of
++works, such as semiconductor masks.
++
++  "The Program" refers to any copyrightable work licensed under this
++License.  Each licensee is addressed as "you".  "Licensees" and
++"recipients" may be individuals or organizations.
++
++  To "modify" a work means to copy from or adapt all or part of the work
++in a fashion requiring copyright permission, other than the making of an
++exact copy.  The resulting work is called a "modified version" of the
++earlier work or a work "based on" the earlier work.
++
++  A "covered work" means either the unmodified Program or a work based
++on the Program.
++
++  To "propagate" a work means to do anything with it that, without
++permission, would make you directly or secondarily liable for
++infringement under applicable copyright law, except executing it on a
++computer or modifying a private copy.  Propagation includes copying,
++distribution (with or without modification), making available to the
++public, and in some countries other activities as well.
++
++  To "convey" a work means any kind of propagation that enables other
++parties to make or receive copies.  Mere interaction with a user through
++a computer network, with no transfer of a copy, is not conveying.
++
++  An interactive user interface displays "Appropriate Legal Notices"
++to the extent that it includes a convenient and prominently visible
++feature that (1) displays an appropriate copyright notice, and (2)
++tells the user that there is no warranty for the work (except to the
++extent that warranties are provided), that licensees may convey the
++work under this License, and how to view a copy of this License.  If
++the interface presents a list of user commands or options, such as a
++menu, a prominent item in the list meets this criterion.
++
++  1. Source Code.
++
++  The "source code" for a work means the preferred form of the work
++for making modifications to it.  "Object code" means any non-source
++form of a work.
++
++  A "Standard Interface" means an interface that either is an official
++standard defined by a recognized standards body, or, in the case of
++interfaces specified for a particular programming language, one that
++is widely used among developers working in that language.
++
++  The "System Libraries" of an executable work include anything, other
++than the work as a whole, that (a) is included in the normal form of
++packaging a Major Component, but which is not part of that Major
++Component, and (b) serves only to enable use of the work with that
++Major Component, or to implement a Standard Interface for which an
++implementation is available to the public in source code form.  A
++"Major Component", in this context, means a major essential component
++(kernel, window system, and so on) of the specific operating system
++(if any) on which the executable work runs, or a compiler used to
++produce the work, or an object code interpreter used to run it.
++
++  The "Corresponding Source" for a work in object code form means all
++the source code needed to generate, install, and (for an executable
++work) run the object code and to modify the work, including scripts to
++control those activities.  However, it does not include the work's
++System Libraries, or general-purpose tools or generally available free
++programs which are used unmodified in performing those activities but
++which are not part of the work.  For example, Corresponding Source
++includes interface definition files associated with source files for
++the work, and the source code for shared libraries and dynamically
++linked subprograms that the work is specifically designed to require,
++such as by intimate data communication or control flow between those
++subprograms and other parts of the work.
++
++  The Corresponding Source need not include anything that users
++can regenerate automatically from other parts of the Corresponding
++Source.
++
++  The Corresponding Source for a work in source code form is that
++same work.
++
++  2. Basic Permissions.
++
++  All rights granted under this License are granted for the term of
++copyright on the Program, and are irrevocable provided the stated
++conditions are met.  This License explicitly affirms your unlimited
++permission to run the unmodified Program.  The output from running a
++covered work is covered by this License only if the output, given its
++content, constitutes a covered work.  This License acknowledges your
++rights of fair use or other equivalent, as provided by copyright law.
++
++  You may make, run and propagate covered works that you do not
++convey, without conditions so long as your license otherwise remains
++in force.  You may convey covered works to others for the sole purpose
++of having them make modifications exclusively for you, or provide you
++with facilities for running those works, provided that you comply with
++the terms of this License in conveying all material for which you do
++not control copyright.  Those thus making or running the covered works
++for you must do so exclusively on your behalf, under your direction
++and control, on terms that prohibit them from making any copies of
++your copyrighted material outside their relationship with you.
++
++  Conveying under any other circumstances is permitted solely under
++the conditions stated below.  Sublicensing is not allowed; section 10
++makes it unnecessary.
++
++  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
++
++  No covered work shall be deemed part of an effective technological
++measure under any applicable law fulfilling obligations under article
++11 of the WIPO copyright treaty adopted on 20 December 1996, or
++similar laws prohibiting or restricting circumvention of such
++measures.
++
++  When you convey a covered work, you waive any legal power to forbid
++circumvention of technological measures to the extent such circumvention
++is effected by exercising rights under this License with respect to
++the covered work, and you disclaim any intention to limit operation or
++modification of the work as a means of enforcing, against the work's
++users, your or third parties' legal rights to forbid circumvention of
++technological measures.
++
++  4. Conveying Verbatim Copies.
++
++  You may convey verbatim copies of the Program's source code as you
++receive it, in any medium, provided that you conspicuously and
++appropriately publish on each copy an appropriate copyright notice;
++keep intact all notices stating that this License and any
++non-permissive terms added in accord with section 7 apply to the code;
++keep intact all notices of the absence of any warranty; and give all
++recipients a copy of this License along with the Program.
++
++  You may charge any price or no price for each copy that you convey,
++and you may offer support or warranty protection for a fee.
++
++  5. Conveying Modified Source Versions.
++
++  You may convey a work based on the Program, or the modifications to
++produce it from the Program, in the form of source code under the
++terms of section 4, provided that you also meet all of these conditions:
++
++    a) The work must carry prominent notices stating that you modified
++    it, and giving a relevant date.
++
++    b) The work must carry prominent notices stating that it is
++    released under this License and any conditions added under section
++    7.  This requirement modifies the requirement in section 4 to
++    "keep intact all notices".
++
++    c) You must license the entire work, as a whole, under this
++    License to anyone who comes into possession of a copy.  This
++    License will therefore apply, along with any applicable section 7
++    additional terms, to the whole of the work, and all its parts,
++    regardless of how they are packaged.  This License gives no
++    permission to license the work in any other way, but it does not
++    invalidate such permission if you have separately received it.
++
++    d) If the work has interactive user interfaces, each must display
++    Appropriate Legal Notices; however, if the Program has interactive
++    interfaces that do not display Appropriate Legal Notices, your
++    work need not make them do so.
++
++  A compilation of a covered work with other separate and independent
++works, which are not by their nature extensions of the covered work,
++and which are not combined with it such as to form a larger program,
++in or on a volume of a storage or distribution medium, is called an
++"aggregate" if the compilation and its resulting copyright are not
++used to limit the access or legal rights of the compilation's users
++beyond what the individual works permit.  Inclusion of a covered work
++in an aggregate does not cause this License to apply to the other
++parts of the aggregate.
++
++  6. Conveying Non-Source Forms.
++
++  You may convey a covered work in object code form under the terms
++of sections 4 and 5, provided that you also convey the
++machine-readable Corresponding Source under the terms of this License,
++in one of these ways:
++
++    a) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by the
++    Corresponding Source fixed on a durable physical medium
++    customarily used for software interchange.
++
++    b) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by a
++    written offer, valid for at least three years and valid for as
++    long as you offer spare parts or customer support for that product
++    model, to give anyone who possesses the object code either (1) a
++    copy of the Corresponding Source for all the software in the
++    product that is covered by this License, on a durable physical
++    medium customarily used for software interchange, for a price no
++    more than your reasonable cost of physically performing this
++    conveying of source, or (2) access to copy the
++    Corresponding Source from a network server at no charge.
++
++    c) Convey individual copies of the object code with a copy of the
++    written offer to provide the Corresponding Source.  This
++    alternative is allowed only occasionally and noncommercially, and
++    only if you received the object code with such an offer, in accord
++    with subsection 6b.
++
++    d) Convey the object code by offering access from a designated
++    place (gratis or for a charge), and offer equivalent access to the
++    Corresponding Source in the same way through the same place at no
++    further charge.  You need not require recipients to copy the
++    Corresponding Source along with the object code.  If the place to
++    copy the object code is a network server, the Corresponding Source
++    may be on a different server (operated by you or a third party)
++    that supports equivalent copying facilities, provided you maintain
++    clear directions next to the object code saying where to find the
++    Corresponding Source.  Regardless of what server hosts the
++    Corresponding Source, you remain obligated to ensure that it is
++    available for as long as needed to satisfy these requirements.
++
++    e) Convey the object code using peer-to-peer transmission, provided
++    you inform other peers where the object code and Corresponding
++    Source of the work are being offered to the general public at no
++    charge under subsection 6d.
++
++  A separable portion of the object code, whose source code is excluded
++from the Corresponding Source as a System Library, need not be
++included in conveying the object code work.
++
++  A "User Product" is either (1) a "consumer product", which means any
++tangible personal property which is normally used for personal, family,
++or household purposes, or (2) anything designed or sold for incorporation
++into a dwelling.  In determining whether a product is a consumer product,
++doubtful cases shall be resolved in favor of coverage.  For a particular
++product received by a particular user, "normally used" refers to a
++typical or common use of that class of product, regardless of the status
++of the particular user or of the way in which the particular user
++actually uses, or expects or is expected to use, the product.  A product
++is a consumer product regardless of whether the product has substantial
++commercial, industrial or non-consumer uses, unless such uses represent
++the only significant mode of use of the product.
++
++  "Installation Information" for a User Product means any methods,
++procedures, authorization keys, or other information required to install
++and execute modified versions of a covered work in that User Product from
++a modified version of its Corresponding Source.  The information must
++suffice to ensure that the continued functioning of the modified object
++code is in no case prevented or interfered with solely because
++modification has been made.
++
++  If you convey an object code work under this section in, or with, or
++specifically for use in, a User Product, and the conveying occurs as
++part of a transaction in which the right of possession and use of the
++User Product is transferred to the recipient in perpetuity or for a
++fixed term (regardless of how the transaction is characterized), the
++Corresponding Source conveyed under this section must be accompanied
++by the Installation Information.  But this requirement does not apply
++if neither you nor any third party retains the ability to install
++modified object code on the User Product (for example, the work has
++been installed in ROM).
++
++  The requirement to provide Installation Information does not include a
++requirement to continue to provide support service, warranty, or updates
++for a work that has been modified or installed by the recipient, or for
++the User Product in which it has been modified or installed.  Access to a
++network may be denied when the modification itself materially and
++adversely affects the operation of the network or violates the rules and
++protocols for communication across the network.
++
++  Corresponding Source conveyed, and Installation Information provided,
++in accord with this section must be in a format that is publicly
++documented (and with an implementation available to the public in
++source code form), and must require no special password or key for
++unpacking, reading or copying.
++
++  7. Additional Terms.
++
++  "Additional permissions" are terms that supplement the terms of this
++License by making exceptions from one or more of its conditions.
++Additional permissions that are applicable to the entire Program shall
++be treated as though they were included in this License, to the extent
++that they are valid under applicable law.  If additional permissions
++apply only to part of the Program, that part may be used separately
++under those permissions, but the entire Program remains governed by
++this License without regard to the additional permissions.
++
++  When you convey a copy of a covered work, you may at your option
++remove any additional permissions from that copy, or from any part of
++it.  (Additional permissions may be written to require their own
++removal in certain cases when you modify the work.)  You may place
++additional permissions on material, added by you to a covered work,
++for which you have or can give appropriate copyright permission.
++
++  Notwithstanding any other provision of this License, for material you
++add to a covered work, you may (if authorized by the copyright holders of
++that material) supplement the terms of this License with terms:
++
++    a) Disclaiming warranty or limiting liability differently from the
++    terms of sections 15 and 16 of this License; or
++
++    b) Requiring preservation of specified reasonable legal notices or
++    author attributions in that material or in the Appropriate Legal
++    Notices displayed by works containing it; or
++
++    c) Prohibiting misrepresentation of the origin of that material, or
++    requiring that modified versions of such material be marked in
++    reasonable ways as different from the original version; or
++
++    d) Limiting the use for publicity purposes of names of licensors or
++    authors of the material; or
++
++    e) Declining to grant rights under trademark law for use of some
++    trade names, trademarks, or service marks; or
++
++    f) Requiring indemnification of licensors and authors of that
++    material by anyone who conveys the material (or modified versions of
++    it) with contractual assumptions of liability to the recipient, for
++    any liability that these contractual assumptions directly impose on
++    those licensors and authors.
++
++  All other non-permissive additional terms are considered "further
++restrictions" within the meaning of section 10.  If the Program as you
++received it, or any part of it, contains a notice stating that it is
++governed by this License along with a term that is a further
++restriction, you may remove that term.  If a license document contains
++a further restriction but permits relicensing or conveying under this
++License, you may add to a covered work material governed by the terms
++of that license document, provided that the further restriction does
++not survive such relicensing or conveying.
++
++  If you add terms to a covered work in accord with this section, you
++must place, in the relevant source files, a statement of the
++additional terms that apply to those files, or a notice indicating
++where to find the applicable terms.
++
++  Additional terms, permissive or non-permissive, may be stated in the
++form of a separately written license, or stated as exceptions;
++the above requirements apply either way.
++
++  8. Termination.
++
++  You may not propagate or modify a covered work except as expressly
++provided under this License.  Any attempt otherwise to propagate or
++modify it is void, and will automatically terminate your rights under
++this License (including any patent licenses granted under the third
++paragraph of section 11).
++
++  However, if you cease all violation of this License, then your
++license from a particular copyright holder is reinstated (a)
++provisionally, unless and until the copyright holder explicitly and
++finally terminates your license, and (b) permanently, if the copyright
++holder fails to notify you of the violation by some reasonable means
++prior to 60 days after the cessation.
++
++  Moreover, your license from a particular copyright holder is
++reinstated permanently if the copyright holder notifies you of the
++violation by some reasonable means, this is the first time you have
++received notice of violation of this License (for any work) from that
++copyright holder, and you cure the violation prior to 30 days after
++your receipt of the notice.
++
++  Termination of your rights under this section does not terminate the
++licenses of parties who have received copies or rights from you under
++this License.  If your rights have been terminated and not permanently
++reinstated, you do not qualify to receive new licenses for the same
++material under section 10.
++
++  9. Acceptance Not Required for Having Copies.
++
++  You are not required to accept this License in order to receive or
++run a copy of the Program.  Ancillary propagation of a covered work
++occurring solely as a consequence of using peer-to-peer transmission
++to receive a copy likewise does not require acceptance.  However,
++nothing other than this License grants you permission to propagate or
++modify any covered work.  These actions infringe copyright if you do
++not accept this License.  Therefore, by modifying or propagating a
++covered work, you indicate your acceptance of this License to do so.
++
++  10. Automatic Licensing of Downstream Recipients.
++
++  Each time you convey a covered work, the recipient automatically
++receives a license from the original licensors, to run, modify and
++propagate that work, subject to this License.  You are not responsible
++for enforcing compliance by third parties with this License.
++
++  An "entity transaction" is a transaction transferring control of an
++organization, or substantially all assets of one, or subdividing an
++organization, or merging organizations.  If propagation of a covered
++work results from an entity transaction, each party to that
++transaction who receives a copy of the work also receives whatever
++licenses to the work the party's predecessor in interest had or could
++give under the previous paragraph, plus a right to possession of the
++Corresponding Source of the work from the predecessor in interest, if
++the predecessor has it or can get it with reasonable efforts.
++
++  You may not impose any further restrictions on the exercise of the
++rights granted or affirmed under this License.  For example, you may
++not impose a license fee, royalty, or other charge for exercise of
++rights granted under this License, and you may not initiate litigation
++(including a cross-claim or counterclaim in a lawsuit) alleging that
++any patent claim is infringed by making, using, selling, offering for
++sale, or importing the Program or any portion of it.
++
++  11. Patents.
++
++  A "contributor" is a copyright holder who authorizes use under this
++License of the Program or a work on which the Program is based.  The
++work thus licensed is called the contributor's "contributor version".
++
++  A contributor's "essential patent claims" are all patent claims
++owned or controlled by the contributor, whether already acquired or
++hereafter acquired, that would be infringed by some manner, permitted
++by this License, of making, using, or selling its contributor version,
++but do not include claims that would be infringed only as a
++consequence of further modification of the contributor version.  For
++purposes of this definition, "control" includes the right to grant
++patent sublicenses in a manner consistent with the requirements of
++this License.
++
++  Each contributor grants you a non-exclusive, worldwide, royalty-free
++patent license under the contributor's essential patent claims, to
++make, use, sell, offer for sale, import and otherwise run, modify and
++propagate the contents of its contributor version.
++
++  In the following three paragraphs, a "patent license" is any express
++agreement or commitment, however denominated, not to enforce a patent
++(such as an express permission to practice a patent or covenant not to
++sue for patent infringement).  To "grant" such a patent license to a
++party means to make such an agreement or commitment not to enforce a
++patent against the party.
++
++  If you convey a covered work, knowingly relying on a patent license,
++and the Corresponding Source of the work is not available for anyone
++to copy, free of charge and under the terms of this License, through a
++publicly available network server or other readily accessible means,
++then you must either (1) cause the Corresponding Source to be so
++available, or (2) arrange to deprive yourself of the benefit of the
++patent license for this particular work, or (3) arrange, in a manner
++consistent with the requirements of this License, to extend the patent
++license to downstream recipients.  "Knowingly relying" means you have
++actual knowledge that, but for the patent license, your conveying the
++covered work in a country, or your recipient's use of the covered work
++in a country, would infringe one or more identifiable patents in that
++country that you have reason to believe are valid.
++
++  If, pursuant to or in connection with a single transaction or
++arrangement, you convey, or propagate by procuring conveyance of, a
++covered work, and grant a patent license to some of the parties
++receiving the covered work authorizing them to use, propagate, modify
++or convey a specific copy of the covered work, then the patent license
++you grant is automatically extended to all recipients of the covered
++work and works based on it.
++
++  A patent license is "discriminatory" if it does not include within
++the scope of its coverage, prohibits the exercise of, or is
++conditioned on the non-exercise of one or more of the rights that are
++specifically granted under this License.  You may not convey a covered
++work if you are a party to an arrangement with a third party that is
++in the business of distributing software, under which you make payment
++to the third party based on the extent of your activity of conveying
++the work, and under which the third party grants, to any of the
++parties who would receive the covered work from you, a discriminatory
++patent license (a) in connection with copies of the covered work
++conveyed by you (or copies made from those copies), or (b) primarily
++for and in connection with specific products or compilations that
++contain the covered work, unless you entered into that arrangement,
++or that patent license was granted, prior to 28 March 2007.
++
++  Nothing in this License shall be construed as excluding or limiting
++any implied license or other defenses to infringement that may
++otherwise be available to you under applicable patent law.
++
++  12. No Surrender of Others' Freedom.
++
++  If conditions are imposed on you (whether by court order, agreement or
++otherwise) that contradict the conditions of this License, they do not
++excuse you from the conditions of this License.  If you cannot convey a
++covered work so as to satisfy simultaneously your obligations under this
++License and any other pertinent obligations, then as a consequence you may
++not convey it at all.  For example, if you agree to terms that obligate you
++to collect a royalty for further conveying from those to whom you convey
++the Program, the only way you could satisfy both those terms and this
++License would be to refrain entirely from conveying the Program.
++
++  13. Use with the GNU Affero General Public License.
++
++  Notwithstanding any other provision of this License, you have
++permission to link or combine any covered work with a work licensed
++under version 3 of the GNU Affero General Public License into a single
++combined work, and to convey the resulting work.  The terms of this
++License will continue to apply to the part which is the covered work,
++but the special requirements of the GNU Affero General Public License,
++section 13, concerning interaction through a network will apply to the
++combination as such.
++
++  14. Revised Versions of this License.
++
++  The Free Software Foundation may publish revised and/or new versions of
++the GNU General Public License from time to time.  Such new versions will
++be similar in spirit to the present version, but may differ in detail to
++address new problems or concerns.
++
++  Each version is given a distinguishing version number.  If the
++Program specifies that a certain numbered version of the GNU General
++Public License "or any later version" applies to it, you have the
++option of following the terms and conditions either of that numbered
++version or of any later version published by the Free Software
++Foundation.  If the Program does not specify a version number of the
++GNU General Public License, you may choose any version ever published
++by the Free Software Foundation.
++
++  If the Program specifies that a proxy can decide which future
++versions of the GNU General Public License can be used, that proxy's
++public statement of acceptance of a version permanently authorizes you
++to choose that version for the Program.
++
++  Later license versions may give you additional or different
++permissions.  However, no additional obligations are imposed on any
++author or copyright holder as a result of your choosing to follow a
++later version.
++
++  15. Disclaimer of Warranty.
++
++  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
++APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
++HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
++OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
++THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
++IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
++ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
++
++  16. Limitation of Liability.
++
++  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
++WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
++THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
++GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
++USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
++DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
++PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
++EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGES.
++
++  17. Interpretation of Sections 15 and 16.
++
++  If the disclaimer of warranty and limitation of liability provided
++above cannot be given local legal effect according to their terms,
++reviewing courts shall apply local law that most closely approximates
++an absolute waiver of all civil liability in connection with the
++Program, unless a warranty or assumption of liability accompanies a
++copy of the Program in return for a fee.
++
++                     END OF TERMS AND CONDITIONS
++
++            How to Apply These Terms to Your New Programs
++
++  If you develop a new program, and you want it to be of the greatest
++possible use to the public, the best way to achieve this is to make it
++free software which everyone can redistribute and change under these terms.
++
++  To do so, attach the following notices to the program.  It is safest
++to attach them to the start of each source file to most effectively
++state the exclusion of warranty; and each file should have at least
++the "copyright" line and a pointer to where the full notice is found.
++
++    <one line to give the program's name and a brief idea of what it does.>
++    Copyright (C) <year>  <name of author>
++
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++Also add information on how to contact you by electronic and paper mail.
++
++  If the program does terminal interaction, make it output a short
++notice like this when it starts in an interactive mode:
++
++    <program>  Copyright (C) <year>  <name of author>
++    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
++    This is free software, and you are welcome to redistribute it
++    under certain conditions; type `show c' for details.
++
++The hypothetical commands `show w' and `show c' should show the appropriate
++parts of the General Public License.  Of course, your program's commands
++might be different; for a GUI interface, you would use an "about box".
++
++  You should also get your employer (if you work as a programmer) or school,
++if any, to sign a "copyright disclaimer" for the program, if necessary.
++For more information on this, and how to apply and follow the GNU GPL, see
++<http://www.gnu.org/licenses/>.
++
++  The GNU General Public License does not permit incorporating your program
++into proprietary programs.  If your program is a subroutine library, you
++may consider it more useful to permit linking proprietary applications with
++the library.  If this is what you want to do, use the GNU Lesser General
++Public License instead of this License.  But first, please read
++<http://www.gnu.org/philosophy/why-not-lgpl.html>.
+diff --git a/src/data/asteria/LICENSE-llvm-openmp.txt b/src/data/asteria/LICENSE-llvm-openmp.txt
+new file mode 100644
+index 000000000..990756638
+--- /dev/null
++++ b/src/data/asteria/LICENSE-llvm-openmp.txt
+@@ -0,0 +1,361 @@
++==============================================================================
++The LLVM Project is under the Apache License v2.0 with LLVM Exceptions:
++==============================================================================
++
++                                 Apache License
++                           Version 2.0, January 2004
++                        http://www.apache.org/licenses/
++
++    TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
++
++    1. Definitions.
++
++      "License" shall mean the terms and conditions for use, reproduction,
++      and distribution as defined by Sections 1 through 9 of this document.
++
++      "Licensor" shall mean the copyright owner or entity authorized by
++      the copyright owner that is granting the License.
++
++      "Legal Entity" shall mean the union of the acting entity and all
++      other entities that control, are controlled by, or are under common
++      control with that entity. For the purposes of this definition,
++      "control" means (i) the power, direct or indirect, to cause the
++      direction or management of such entity, whether by contract or
++      otherwise, or (ii) ownership of fifty percent (50%) or more of the
++      outstanding shares, or (iii) beneficial ownership of such entity.
++
++      "You" (or "Your") shall mean an individual or Legal Entity
++      exercising permissions granted by this License.
++
++      "Source" form shall mean the preferred form for making modifications,
++      including but not limited to software source code, documentation
++      source, and configuration files.
++
++      "Object" form shall mean any form resulting from mechanical
++      transformation or translation of a Source form, including but
++      not limited to compiled object code, generated documentation,
++      and conversions to other media types.
++
++      "Work" shall mean the work of authorship, whether in Source or
++      Object form, made available under the License, as indicated by a
++      copyright notice that is included in or attached to the work
++      (an example is provided in the Appendix below).
++
++      "Derivative Works" shall mean any work, whether in Source or Object
++      form, that is based on (or derived from) the Work and for which the
++      editorial revisions, annotations, elaborations, or other modifications
++      represent, as a whole, an original work of authorship. For the purposes
++      of this License, Derivative Works shall not include works that remain
++      separable from, or merely link (or bind by name) to the interfaces of,
++      the Work and Derivative Works thereof.
++
++      "Contribution" shall mean any work of authorship, including
++      the original version of the Work and any modifications or additions
++      to that Work or Derivative Works thereof, that is intentionally
++      submitted to Licensor for inclusion in the Work by the copyright owner
++      or by an individual or Legal Entity authorized to submit on behalf of
++      the copyright owner. For the purposes of this definition, "submitted"
++      means any form of electronic, verbal, or written communication sent
++      to the Licensor or its representatives, including but not limited to
++      communication on electronic mailing lists, source code control systems,
++      and issue tracking systems that are managed by, or on behalf of, the
++      Licensor for the purpose of discussing and improving the Work, but
++      excluding communication that is conspicuously marked or otherwise
++      designated in writing by the copyright owner as "Not a Contribution."
++
++      "Contributor" shall mean Licensor and any individual or Legal Entity
++      on behalf of whom a Contribution has been received by Licensor and
++      subsequently incorporated within the Work.
++
++    2. Grant of Copyright License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      copyright license to reproduce, prepare Derivative Works of,
++      publicly display, publicly perform, sublicense, and distribute the
++      Work and such Derivative Works in Source or Object form.
++
++    3. Grant of Patent License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      (except as stated in this section) patent license to make, have made,
++      use, offer to sell, sell, import, and otherwise transfer the Work,
++      where such license applies only to those patent claims licensable
++      by such Contributor that are necessarily infringed by their
++      Contribution(s) alone or by combination of their Contribution(s)
++      with the Work to which such Contribution(s) was submitted. If You
++      institute patent litigation against any entity (including a
++      cross-claim or counterclaim in a lawsuit) alleging that the Work
++      or a Contribution incorporated within the Work constitutes direct
++      or contributory patent infringement, then any patent licenses
++      granted to You under this License for that Work shall terminate
++      as of the date such litigation is filed.
++
++    4. Redistribution. You may reproduce and distribute copies of the
++      Work or Derivative Works thereof in any medium, with or without
++      modifications, and in Source or Object form, provided that You
++      meet the following conditions:
++
++      (a) You must give any other recipients of the Work or
++          Derivative Works a copy of this License; and
++
++      (b) You must cause any modified files to carry prominent notices
++          stating that You changed the files; and
++
++      (c) You must retain, in the Source form of any Derivative Works
++          that You distribute, all copyright, patent, trademark, and
++          attribution notices from the Source form of the Work,
++          excluding those notices that do not pertain to any part of
++          the Derivative Works; and
++
++      (d) If the Work includes a "NOTICE" text file as part of its
++          distribution, then any Derivative Works that You distribute must
++          include a readable copy of the attribution notices contained
++          within such NOTICE file, excluding those notices that do not
++          pertain to any part of the Derivative Works, in at least one
++          of the following places: within a NOTICE text file distributed
++          as part of the Derivative Works; within the Source form or
++          documentation, if provided along with the Derivative Works; or,
++          within a display generated by the Derivative Works, if and
++          wherever such third-party notices normally appear. The contents
++          of the NOTICE file are for informational purposes only and
++          do not modify the License. You may add Your own attribution
++          notices within Derivative Works that You distribute, alongside
++          or as an addendum to the NOTICE text from the Work, provided
++          that such additional attribution notices cannot be construed
++          as modifying the License.
++
++      You may add Your own copyright statement to Your modifications and
++      may provide additional or different license terms and conditions
++      for use, reproduction, or distribution of Your modifications, or
++      for any such Derivative Works as a whole, provided Your use,
++      reproduction, and distribution of the Work otherwise complies with
++      the conditions stated in this License.
++
++    5. Submission of Contributions. Unless You explicitly state otherwise,
++      any Contribution intentionally submitted for inclusion in the Work
++      by You to the Licensor shall be under the terms and conditions of
++      this License, without any additional terms or conditions.
++      Notwithstanding the above, nothing herein shall supersede or modify
++      the terms of any separate license agreement you may have executed
++      with Licensor regarding such Contributions.
++
++    6. Trademarks. This License does not grant permission to use the trade
++      names, trademarks, service marks, or product names of the Licensor,
++      except as required for reasonable and customary use in describing the
++      origin of the Work and reproducing the content of the NOTICE file.
++
++    7. Disclaimer of Warranty. Unless required by applicable law or
++      agreed to in writing, Licensor provides the Work (and each
++      Contributor provides its Contributions) on an "AS IS" BASIS,
++      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
++      implied, including, without limitation, any warranties or conditions
++      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
++      PARTICULAR PURPOSE. You are solely responsible for determining the
++      appropriateness of using or redistributing the Work and assume any
++      risks associated with Your exercise of permissions under this License.
++
++    8. Limitation of Liability. In no event and under no legal theory,
++      whether in tort (including negligence), contract, or otherwise,
++      unless required by applicable law (such as deliberate and grossly
++      negligent acts) or agreed to in writing, shall any Contributor be
++      liable to You for damages, including any direct, indirect, special,
++      incidental, or consequential damages of any character arising as a
++      result of this License or out of the use or inability to use the
++      Work (including but not limited to damages for loss of goodwill,
++      work stoppage, computer failure or malfunction, or any and all
++      other commercial damages or losses), even if such Contributor
++      has been advised of the possibility of such damages.
++
++    9. Accepting Warranty or Additional Liability. While redistributing
++      the Work or Derivative Works thereof, You may choose to offer,
++      and charge a fee for, acceptance of support, warranty, indemnity,
++      or other liability obligations and/or rights consistent with this
++      License. However, in accepting such obligations, You may act only
++      on Your own behalf and on Your sole responsibility, not on behalf
++      of any other Contributor, and only if You agree to indemnify,
++      defend, and hold each Contributor harmless for any liability
++      incurred by, or claims asserted against, such Contributor by reason
++      of your accepting any such warranty or additional liability.
++
++    END OF TERMS AND CONDITIONS
++
++    APPENDIX: How to apply the Apache License to your work.
++
++      To apply the Apache License to your work, attach the following
++      boilerplate notice, with the fields enclosed by brackets "[]"
++      replaced with your own identifying information. (Don't include
++      the brackets!)  The text should be enclosed in the appropriate
++      comment syntax for the file format. We also recommend that a
++      file or class name and description of purpose be included on the
++      same "printed page" as the copyright notice for easier
++      identification within third-party archives.
++
++    Copyright [yyyy] [name of copyright owner]
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++
++
++---- LLVM Exceptions to the Apache 2.0 License ----
++
++As an exception, if, as a result of your compiling your source code, portions
++of this Software are embedded into an Object form of such source code, you
++may redistribute such embedded portions in such Object form without complying
++with the conditions of Sections 4(a), 4(b) and 4(d) of the License.
++
++In addition, if you combine or link compiled forms of this Software with
++software that is licensed under the GPLv2 ("Combined Software") and if a
++court of competent jurisdiction determines that the patent provision (Section
++3), the indemnity provision (Section 9) or other Section of the License
++conflicts with the conditions of the GPLv2, you may retroactively and
++prospectively choose to deem waived or otherwise exclude such Section(s) of
++the License, but only in their entirety and only with respect to the Combined
++Software.
++
++==============================================================================
++Software from third parties included in the LLVM Project:
++==============================================================================
++The LLVM Project contains third party software which is under different license
++terms. All such code will be identified clearly using at least one of two
++mechanisms:
++1) It will be in a separate directory tree with its own `LICENSE.txt` or
++   `LICENSE` file at the top containing the specific license and restrictions
++   which apply to that software, or
++2) It will contain specific license and restriction terms at the top of every
++   file.
++
++==============================================================================
++Legacy LLVM License (https://llvm.org/docs/DeveloperPolicy.html#legacy):
++==============================================================================
++
++The software contained in this directory tree is dual licensed under both the
++University of Illinois "BSD-Like" license and the MIT license.  As a user of
++this code you may choose to use it under either license.  As a contributor,
++you agree to allow your code to be used under both.  The full text of the
++relevant licenses is included below.
++
++In addition, a license agreement from the copyright/patent holders of the
++software contained in this directory tree is included below.
++
++==============================================================================
++
++University of Illinois/NCSA
++Open Source License
++
++Copyright (c) 1997-2019 Intel Corporation
++
++All rights reserved.
++
++Developed by:
++    OpenMP Runtime Team
++    Intel Corporation
++    http://www.openmprtl.org
++
++Permission is hereby granted, free of charge, to any person obtaining a copy of
++this software and associated documentation files (the "Software"), to deal with
++the Software without restriction, including without limitation the rights to
++use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
++of the Software, and to permit persons to whom the Software is furnished to do
++so, subject to the following conditions:
++
++    * Redistributions of source code must retain the above copyright notice,
++      this list of conditions and the following disclaimers.
++
++    * Redistributions in binary form must reproduce the above copyright notice,
++      this list of conditions and the following disclaimers in the
++      documentation and/or other materials provided with the distribution.
++
++    * Neither the names of Intel Corporation OpenMP Runtime Team nor the
++      names of its contributors may be used to endorse or promote products
++      derived from this Software without specific prior written permission.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
++FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE
++SOFTWARE.
++
++==============================================================================
++
++Copyright (c) 1997-2019 Intel Corporation
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++THE SOFTWARE.
++
++==============================================================================
++
++Intel Corporation
++
++Software Grant License Agreement ("Agreement")
++
++Except for the license granted herein to you, Intel Corporation ("Intel") reserves
++all right, title, and interest in and to the Software (defined below).
++
++Definition
++
++"Software" means the code and documentation as well as any original work of
++authorship, including any modifications or additions to an existing work, that
++is intentionally submitted by Intel to llvm.org (http://llvm.org) ("LLVM") for
++inclusion in, or documentation of, any of the products owned or managed by LLVM
++(the "Work"). For the purposes of this definition, "submitted" means any form of
++electronic, verbal, or written communication sent to LLVM or its
++representatives, including but not limited to communication on electronic
++mailing lists, source code control systems, and issue tracking systems that are
++managed by, or on behalf of, LLVM for the purpose of discussing and improving
++the Work, but excluding communication that is conspicuously marked otherwise.
++
++1. Grant of Copyright License. Subject to the terms and conditions of this
++   Agreement, Intel hereby grants to you and to recipients of the Software
++   distributed by LLVM a perpetual, worldwide, non-exclusive, no-charge,
++   royalty-free, irrevocable copyright license to reproduce, prepare derivative
++   works of, publicly display, publicly perform, sublicense, and distribute the
++   Software and such derivative works.
++
++2. Grant of Patent License. Subject to the terms and conditions of this
++   Agreement, Intel hereby grants you and to recipients of the Software
++   distributed by LLVM a perpetual, worldwide, non-exclusive, no-charge,
++   royalty-free, irrevocable (except as stated in this section) patent license
++   to make, have made, use, offer to sell, sell, import, and otherwise transfer
++   the Work, where such license applies only to those patent claims licensable
++   by Intel that are necessarily infringed by Intel's Software alone or by
++   combination of the Software with the Work to which such Software was
++   submitted. If any entity institutes patent litigation against Intel or any
++   other entity (including a cross-claim or counterclaim in a lawsuit) alleging
++   that Intel's Software, or the Work to which Intel has contributed constitutes
++   direct or contributory patent infringement, then any patent licenses granted
++   to that entity under this Agreement for the Software or Work shall terminate
++   as of the date such litigation is filed.
++
++Unless required by applicable law or agreed to in writing, the software is
++provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
++either express or implied, including, without limitation, any warranties or
++conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
++PARTICULAR PURPOSE.
++
++==============================================================================
+diff --git a/src/data/asteria/NOTICE-third-party.txt b/src/data/asteria/NOTICE-third-party.txt
+new file mode 100644
+index 000000000..eeafe698f
+--- /dev/null
++++ b/src/data/asteria/NOTICE-third-party.txt
+@@ -0,0 +1,87 @@
++Asteria日本語入力に同梱している第三者のソフトウェア
++
++この PC のインストール先(C:\Program Files (x86)\Asteria)にあるファイルと、そのライセンスの一覧です。
++AI のモデルは NOTICE-zenz.txt と NOTICE-tinyswallow.txt にあります。
++カタカナ英語辞書は NOTICE-katakana-english.txt、加工済みデータは AsteriaEnglish.tsv にあります。
++
++■ Mozc(mozc_*.exe、mozc_tip*.dll、辞書)
++  BSD-3-Clause、Copyright Google Inc. https://github.com/google/mozc
++  Asteria は Mozc を改変したもので、Google が提供・推奨するものではありません。
++  Mozc が使う Abseil、Protocol Buffers、Windows Implementation Library、IPAdic などの表示は
++  documents\credits_en.html にあります。
++
++■ Qt 6.9.1(Qt6Core.dll、Qt6Gui.dll、Qt6Widgets.dll、platforms\qwindows.dll)
++  GNU Lesser General Public License v3.0(LGPL-3.0)。全文は documents\credits_en.html の「Qt Base」、
++  LGPL-3.0 が取り込んでいる GNU GPL v3.0 の全文は LICENSE-GPL-3.0.txt。
++  Asteria は Qt を改変していません。設定画面(mozc_tool.exe)が上の DLL を動的に読み込みます。
++  - ソース: https://download.qt.io/archive/qt/6.9/6.9.1/submodules/qtbase-everywhere-src-6.9.1.tar.xz
++  - ビルドの手順: Mozc の src/build_tools/build_qt.py(Asteria が固定している Mozc のコミットのもの。
++    https://github.com/aruiki/Asteria-Japanese-IME の docs/DEVELOPMENT.md)
++  - 差し替え方: 同じ版(6.9.x)で、同じ設定でビルドした DLL を、インストール先の同じ名前のファイルと
++    置き換えると、その Qt で動きます。
++  - Asteria のソース一式(Mozc への変更を含む)は上のリポジトリで公開しています。
++
++■ Microsoft Edge WebView2 SDK 1.0.3179.45(WebView2LoaderStatic.lib を mozc_tool.exe に静的リンク)
++  設定画面を Edge の表示部品(WebView2)で開くために使います。WebView2 の実行環境は同梱しません
++  (Windows に入っているものを使い、なければ以前の設定画面を開きます)。
++  Copyright (C) Microsoft Corporation. All rights reserved.
++
++  Redistribution and use in source and binary forms, with or without
++  modification, are permitted provided that the following conditions are
++  met:
++
++     * Redistributions of source code must retain the above copyright
++  notice, this list of conditions and the following disclaimer.
++     * Redistributions in binary form must reproduce the above
++  copyright notice, this list of conditions and the following disclaimer
++  in the documentation and/or other materials provided with the
++  distribution.
++     * The name of Microsoft Corporation, or the names of its contributors
++  may not be used to endorse or promote products derived from this
++  software without specific prior written permission.
++
++  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++■ llama.cpp / ggml b11259(llama.dll、ggml*.dll)
++  MIT License、Copyright The ggml authors。全文は LICENSE-llama.cpp.txt。
++  https://github.com/ggml-org/llama.cpp の公式の Windows ビルドを使用しています。
++  ggml-base.dllだけは同じb11259のソースから再構築しています。
++  変更: context bufferの確保失敗をNULL/例外で返し、IME全体の強制終了を避けます。
++  変更箇所とビルド手順: AsteriaのMozcパッチ内src/bazel/llama_oom.patchとBUILD.llama_cpp.bazel。
++
++■ 短文の追加語彙(short_lexicon.tsv)
++  SudachiDict 20261015、Works Applications Co., Ltd.、Apache-2.0。
++  UniDic・NEologd等の全帰属・ライセンス全文はNOTICE-short-lexicon.txt。
++  名詞をMozcの品詞・共通語彙コストへ対応し、既存の読み/表記を上書きしない。
++  全量Wikipedia頻度による選択・コスト加工はCC BY-SA 4.0。
++  Wikipedia日本語版の執筆者、Keita Miwa / zenz-v2.5-dataset。
++  加工済みTSVと固定生成記録short_lexicon.jsonを同梱する。
++
++■ 初期変換の追加連語(fast_collocations.txt)
++  CC BY-SA 4.0、Wikipedia日本語版の執筆者、Keita Miwa。
++  zenz-v2.5-datasetのWikipedia学習区間から短い連語へ加工。
++  取得区間・変更・帰属はNOTICE-fast-collocations.txtとfast_collocations.json。
++  元のMozc40件はBSD-3-Clause。
++
++■ 用例由来の追加連語
++  Japanese Usage Dictionary 2025-01-25、BSD-2-Clause。
++  Copyright 2011 Hiroyuki Komatsu, Shoji Ogura, Tsuyoshi Horo。
++  引用用例の短い連語を抽出し、末尾をMozcの活用規則で展開。
++  出典とライセンス全文はNOTICE-fast-collocations.txt。
++
++■ LLVM OpenMP ランタイム(libomp.dll)
++  Apache License 2.0 with LLVM Exceptions。全文は LICENSE-llvm-openmp.txt。
++  https://github.com/llvm/llvm-project(llama.cpp の公式の Windows ビルドに含まれるもの)。
++
++■ Microsoft Visual C++ ランタイム(vcruntime140*.dll、msvcp140*.dll)
++  Microsoft Visual Studio のライセンスで再配布が認められたもの。
+diff --git a/src/data/asteria/NOTICE-tinyswallow.txt b/src/data/asteria/NOTICE-tinyswallow.txt
+new file mode 100644
+index 000000000..2ed822c00
+--- /dev/null
++++ b/src/data/asteria/NOTICE-tinyswallow.txt
+@@ -0,0 +1,11 @@
++Asteria日本語入力に同梱している言語モデル(LLM)
++
++TinySwallow-1.5B (c) Sakana AI
++  https://huggingface.co/SakanaAI/TinySwallow-1.5B
++  ライセンス: Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
++
++変更点: 公開されている重みを llama.cpp で GGUF(f16)にし、Q5_K_M に量子化した。
++学習した内容は変えていない。
++
++llama.cpp / ggml (MIT): https://github.com/ggml-org/llama.cpp
++  インストール先の LICENSE-llama.cpp.txt を参照。
+diff --git a/src/data/asteria/NOTICE-zenz.txt b/src/data/asteria/NOTICE-zenz.txt
+new file mode 100644
+index 000000000..d903c195f
+--- /dev/null
++++ b/src/data/asteria/NOTICE-zenz.txt
+@@ -0,0 +1,29 @@
++Asteria IME に同梱している言語モデル
++
++zenz-v2.5-small (c) Keita Miwa
++  https://huggingface.co/Miwa-Keita/zenz-v2.5-small
++  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
++  元にしたモデル: ku-nlp/gpt2-small-japanese-char (CC BY-SA 4.0)
++
++genmai-310M (c) subdiox
++  https://huggingface.co/subdiox/genmai-310M
++  ライセンス: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
++  元にしたモデル: zenz-v2.5-medium (c) Keita Miwa (CC BY-SA 4.0)、ku-nlp/gpt2-medium-japanese-char (CC BY-SA 4.0)
++
++変更点: 公開されている重みを llama.cpp の convert_hf_to_gguf.py で GGUF にし、
++8 bit(q8_0)に量子化した。語彙と学習した内容は変えていない。
++これらのファイル(zenz-v2.5-small-q8_0.gguf、genmai-310M-q8_0.gguf)は同じ CC BY-SA 4.0 で
++利用できる。
++
++llama.cpp (MIT): https://github.com/ggml-org/llama.cpp
++
++
++追加生成モデル: zenz-v2.5-native-generator-20261017-q8_0.gguf
++  zenz-v2.5-small (c) Keita Miwa をAsteria開発者が追加学習した派生モデル。
++  CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
++  元モデル: https://huggingface.co/Miwa-Keita/zenz-v2.5-small
++  変更: 公開コーパスの参照表記と実変換候補からLoRA対比学習(step400)し、統合後Q8_0へ量子化。
++  用途: 追加の候補生成のみ。元のzenzとTinySwallowで候補を採点する。
++  SHA-256と学習原票識別: native_generator.json
++  学習・取得手順: https://github.com/aruiki/Asteria-Japanese-IME/tree/main/training/contrastive
++  この派生モデルもCC BY-SA 4.0で利用できる。原モデル提供者はAsteriaを推奨していない。
+diff --git a/src/data/asteria/banner.bmp b/src/data/asteria/banner.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb01b211f568c8f4c1d22b1c57099f972e79ca97
+GIT binary patch
+literal 85894
+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
+Wt^jlV%C+K}tN<&(3fzbaH2Du{FuSw>
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/data/asteria/dialog.bmp b/src/data/asteria/dialog.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ff7c974f59a83edeb0c8a8593d217fa2fbad520
+GIT binary patch
+literal 461814
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/data/asteria/license.rtf b/src/data/asteria/license.rtf
+new file mode 100644
+index 000000000..52bc37a2f
+--- /dev/null
++++ b/src/data/asteria/license.rtf
+@@ -0,0 +1,26 @@
++{\rtf1\ansi\ansicpg932\deff0{\fonttbl{\f0\fnil\fcharset128 Yu Gothic UI;}}\viewkind4\uc1\pard\f0\fs18 Asteria\u26085?\u26412?\u-30050?\u20837?\u21147? \u20351?\u29992?\u-30159?\u-29954?\u12392?\u31532?\u19977?\u-32763?\u12477?\u12501?\u12488?\u12454?\u12455?\u12450?\u12398?\u-30616?\u31034?\par
++\par
++Asteria\u26085?\u26412?\u-30050?\u20837?\u21147?(\u20197?\u19979? Asteria)\u12399? Mozc(Copyright 2010-2026 Google Inc.\u12289?BSD-3-Clause)\u12434?\u25913?\u22793?\u12375?\u12383?\u26085?\u26412?\u-30050?\u20837?\u21147?\u12391?\u12377?\u12290?Asteria \u12399? Google \u12364?\u25552?\u20379?\u12539?\u25512?\u22888?\u12377?\u12427?\u12418?\u12398?\u12391?\u12399?\u12354?\u12426?\u12414?\u12379?\u12435?\u12290?Asteria \u29420?\u-32278?\u12398?\u25913?\u22793?\u-28440?\u20998?\u12418? BSD-3-Clause \u12391?\u25552?\u20379?\u12375?\u12414?\u12377?\u12290?\par
++\par
++\u26412?\u12477?\u12501?\u12488?\u12454?\u12455?\u12450?\u12399?\u12300?\u29694?\u29366?\u12398?\u12414?\u12414?\u12301?\u25552?\u20379?\u12373?\u12428?\u12289?\u26126?\u31034?\u12414?\u12383?\u12399?\u-24871?\u31034?\u12434?\u21839?\u12431?\u12378?\u12289?\u12356?\u12363?\u12394?\u12427?\u20445?\u-30148?\u12418?\u12354?\u12426?\u12414?\u12379?\u12435?\u12290?\par
++\par
++\u21516?\u26801?\u12375?\u12390?\u12356?\u12427?\u-28440?\u21697?\u12392?\u12521?\u12452?\u12475?\u12531?\u12473?:\par
++\u12539?Mozc: BSD-3-Clause(Google Inc.)\par
++\u12539?Qt 6: LGPL-3.0(\u21205?\u30340?\u12522?\u12531?\u12463?\u12290?\u24046?\u12375?\u26367?\u12360?\u26041?\u12392?\u12477?\u12540?\u12473?\u12398?\u20837?\u25163?\u20808?\u12399? NOTICE-third-party.txt)\par
++\u12539?Microsoft Edge WebView2 SDK(\u12525?\u12540?\u12480?\u12540?): BSD-3-Clause \u30456?\u24403?(Copyright Microsoft Corporation)\u12290?\u-30163?\u23450?\u30011?\u-26782?\u12364?\u20351?\u12358?\u12290?\u20840?\u25991?\u12399? NOTICE-third-party.txt\par
++\u12539?llama.cpp / ggml: MIT(Copyright The ggml authors)\par
++\u12539?LLVM OpenMP \u12521?\u12531?\u12479?\u12452?\u12512?(libomp.dll): Apache-2.0 WITH LLVM-exception\par
++\u12539?zenz-v2.5-small: CC BY-SA 4.0(\u169? Keita Miwa\u12290?\u20803?\u12399? ku-nlp/gpt2-small-japanese-char)\u12290?8 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
++\u12539?genmai-310M: CC BY-SA 4.0(subdiox\u12290?zenz-v2.5-medium \u169? Keita Miwa \u12434?\u22793?\u25563?\u29992?\u12395?\u-28675?\u21152?\u23398?\u32722?\u12375?\u12383?\u12418?\u12398?\u12290?\u20803?\u12399? ku-nlp/gpt2-medium-japanese-char)\u12290?8 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
++\u12539?zenz-v2.5-native-generator-20261017: zenz-v2.5-small\u12398?\u-28675?\u21152?\u23398?\u32722?\u12514?\u12487?\u12523?\u12289?CC BY-SA 4.0\u12290?\u-28675?\u21152?\u29983?\u25104?\u12395?\u20351?\u29992?\par
++\u12539?TinySwallow-1.5B: Apache-2.0(Sakana AI)\u12290?5 bit \u12395?\u-28209?\u23376?\u21270?\u12375?\u12390?\u21516?\u26801?\par
++\u12539?\u12459?\u12479?\u12459?\u12490?\u-32015?\u-30050?\u-28770?\u26360?: CC BY-SA 3.0(\u12459?\u12479?\u12459?\u12490?\u-30050?\u-32015?\u23383?\u-28770?\u20856?\u12467?\u12511?\u12517?\u12491?\u12486?\u12451?\u12289?KEINOS\u12289?EDICT/EDRDG)\u12290?\u21152?\u24037?\u28168?\u12415?\u12487?\u12540?\u12479?\u12392?\u20986?\u25152?\u12399? AsteriaEnglish.tsv\u12289?AsteriaEnglish-source.json\u12289?NOTICE-katakana-english.txt\par
++\u12539?\u21021?\u26399?\u22793?\u25563?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: CC BY-SA 4.0(Wikipedia\u26085?\u26412?\u-30050?\u29256?\u12398?\u22519?\u31558?\u-32763?\u12289?Keita Miwa)\u12290?\u30701?\u12356?\u-28637?\u-30050?\u12408?\u21152?\u24037?\u12290?\u20803?\u12398?Mozc40\u20214?\u12399?BSD-3-Clause\u12290?\u20986?\u20856?\u12392?\u22793?\u26356?\u20869?\u23481?\u12399? NOTICE-fast-collocations.txt\par
++\u12539?\u29992?\u20363?\u30001?\u26469?\u12398?\u-28675?\u21152?\u-28637?\u-30050?: Japanese Usage Dictionary\u12289?BSD-2-Clause(Hiroyuki Komatsu\u12289?Shoji Ogura\u12289?Tsuyoshi Horo)\u12290?\u24341?\u29992?\u20363?\u12398?\u25277?\u20986?\u12539?\u26411?\u23614?\u12398?\u27963?\u29992?\u23637?\u-27253?\u12290?\u24112?\u23646?\u12392?\u20840?\u25991?\u12399? NOTICE-fast-collocations.txt\par
++\u12539?\u30701?\u25991?\u12398?\u-28675?\u21152?\u-30050?\u24409?: SudachiDict 20261015\u12289?Apache-2.0\u12290?UniDic\u12539?NEologd\u31561?\u12398?\u20840?\u24112?\u23646?\u12392?\u20840?\u25991?\u12399?NOTICE-short-lexicon.txt\u12290?\u20840?\u-28209?Wikipedia\u-26565?\u24230?\u12395?\u12424?\u12427?\u-28552?\u25246?\u12539?\u12467?\u12473?\u12488?\u21152?\u24037?\u12399?CC BY-SA 4.0(Wikipedia\u26085?\u26412?\u-30050?\u29256?\u12398?\u22519?\u31558?\u-32763?\u12289?Keita Miwa)\u12290?\u21152?\u24037?TSV\u12392?\u29983?\u25104?\u-30184?\u-27854?\u12434?\u21516?\u26801?\par
++\u12539?Microsoft Visual C++ \u12521?\u12531?\u12479?\u12452?\u12512?: Microsoft \u12398?\u12521?\u12452?\u12475?\u12531?\u12473?\par
++\par
++\u21508?\u12521?\u12452?\u12475?\u12531?\u12473?\u12398?\u20869?\u23481?\u12539?\u21442?\u29031?\u20808?\u12392?\u24112?\u23646?\u-30616?\u31034?\u12399?\u12289?\u12452?\u12531?\u12473?\u12488?\u12540?\u12523?\u20808?(C:\\Program Files (x86)\\Asteria)\u12398? NOTICE-*.txt \u12392? documents \u12501?\u12457?\u12523?\u12480?\u12395?\u12354?\u12426?\u12414?\u12377?\u12290?\par
++\par
++Asteria \u12399?\u12452?\u12531?\u12479?\u12540?\u12493?\u12483?\u12488?\u12395?\u25509?\u32154?\u12375?\u12414?\u12379?\u12435?\u12290?\u22793?\u25563?\u12392? AI \u12398?\u20966?\u29702?\u12399?\u12289?\u12377?\u12409?\u12390?\u12371?\u12398? PC \u12398?\u20013?\u12391?\u-30644?\u12356?\u12414?\u12377?\u12290?\par
++}
+\ No newline at end of file
+diff --git a/src/data/asteria/native_generator.json b/src/data/asteria/native_generator.json
+new file mode 100644
+index 000000000..a88d2c1a9
+--- /dev/null
++++ b/src/data/asteria/native_generator.json
+@@ -0,0 +1,17 @@
++{
++  "filename": "zenz-v2.5-native-generator-20261017-q8_0.gguf",
++  "sha256": "49112e8b52e5da18fdb74d066111d44f92beaffe06c3d559807fb1aab1e38924",
++  "training_receipt_sha256": "414e8ad7aa3f109ac45eec217d458f46cc6e6b92d66bbdc300587ccb6bfadc90",
++  "dataset_manifest_sha256": "bff794466fd299c9db39170b0b71b519bc733f0779d48c522da48e04f6a3a676",
++  "selected_step": 400,
++  "role": "additional_generation_only_original_scorer_retained",
++  "distribution_status": "published_model_asset_product_candidate",
++  "base_models": {
++    "zenz-v2.5-small-q8_0.gguf": "4edf21153454bdbb51f7c51326d9c842c5c392fd52cf0947698f29d4fd9faa4c",
++    "zenz-v2.5-medium-q8_0.gguf": "2a48bc3cab80a68a249ff09e65dc82b373756cf83ce0250fc1df714565a81fac",
++    "tinyswallow-1.5b-q5_k_m.gguf": "0aa55c79e7741c4c58fe25a6a24fc45f1587bbd5fdd0b0a1482fc6244626ebc8"
++  },
++  "download_url": "https://github.com/aruiki/Asteria-Japanese-IME/releases/download/model-native-generator-20261017/zenz-v2.5-native-generator-20261017-q8_0.gguf",
++  "license": "CC-BY-SA-4.0",
++  "source_model": "Miwa-Keita/zenz-v2.5-small"
++}
+diff --git a/src/win32/installer/BUILD.bazel b/src/win32/installer/BUILD.bazel
+index 1c31b5159..ad39aa498 100644
+--- a/src/win32/installer/BUILD.bazel
++++ b/src/win32/installer/BUILD.bazel
+@@ -56,6 +56,7 @@ mozc_py_binary(
+ exports_files([
+     "installer_64bit.wxs",
+     "installer_oss_64bit.wxs",
++    "asteria-ja-jp.wxl",
+ ])
+ 
+ config_setting(
+@@ -81,6 +82,7 @@ selects.config_setting_group(
+ genrule(
+     name = "installer",
+     srcs = [
++        ":asteria-ja-jp.wxl",
+         "//gui/tool:mozc_tool_win",
+         "//renderer/win32:win32_renderer_main",
+         "//server:mozc_server_win",
+@@ -93,6 +95,35 @@ genrule(
+         "//base:mozc_version_txt",
+         "//data/images/win:product_icon.ico",
+         "//data/installer:credits_en.html",
++        "//data/asteria:NOTICE-zenz.txt",
++        "//rewriter:AsteriaEnglish.tsv",
++        "//rewriter:AsteriaEnglish-source.json",
++        "//rewriter:NOTICE-katakana-english.txt",
++        "//data/asteria:zenz-v2.5-small-q8_0.gguf",
++        "//data/asteria:zenz-v2.5-native-generator-20261017-q8_0.gguf",
++        "//data/asteria:native_generator.json",
++        "//data/asteria:short_lexicon.tsv",
++        "//data/asteria:short_lexicon.json",
++        "//data/asteria:NOTICE-short-lexicon.txt",
++        "//data/asteria:fast_collocations.txt",
++        "//data/asteria:fast_collocations.json",
++        "//data/asteria:NOTICE-fast-collocations.txt",
++        "//data/asteria:genmai-310M-q8_0.gguf",
++        "//data/asteria:NOTICE-tinyswallow.txt",
++        # Asteria: build_installer.py は AsteriaNoticeDir から読む。変わったら作り直すように並べる。
++        "//data/asteria:NOTICE-third-party.txt",
++        "//data/asteria:LICENSE-llvm-openmp.txt",
++        "//data/asteria:LICENSE-GPL-3.0.txt",
++        "//data/asteria:tinyswallow-1.5b-q5_k_m.gguf",
++        "//data/asteria:license.rtf",
++        "//data/images/win:tools_dictionary.ico",
++        "//data/asteria:banner.bmp",
++        "//data/asteria:dialog.bmp",
++        "@llama_cpp//:LICENSE",
++        "@llama_cpp//:ggml-base.dll",
++        "@llama_cpp_win//:runtime",
++        "@llama_cpp_win//:llama.dll",
++        "@wixui_ext//:wixext5/WixToolset.UI.wixext.dll",
+         "@qt_win//:bin/Qt6Core.dll",
+         "@wix//:wix.exe",
+     ] + select({
+@@ -117,6 +148,29 @@ genrule(
+         "--custom_action=$(location //win32/custom_action)",
+         "--icon_path=$(location //data/images/win:product_icon.ico)",
+         "--credit_file=$(location //data/installer:credits_en.html)",
++        "--zenz_model=$(location //data/asteria:zenz-v2.5-small-q8_0.gguf)",
++        "--zenz_generator=$(location //data/asteria:zenz-v2.5-native-generator-20261017-q8_0.gguf)",
++        "--generator_manifest=$(location //data/asteria:native_generator.json)",
++        "--short_lexicon=$(location //data/asteria:short_lexicon.tsv)",
++        "--short_lexicon_manifest=$(location //data/asteria:short_lexicon.json)",
++        "--short_lexicon_notice=$(location //data/asteria:NOTICE-short-lexicon.txt)",
++        "--collocations=$(location //data/asteria:fast_collocations.txt)",
++        "--collocations_manifest=$(location //data/asteria:fast_collocations.json)",
++        "--collocations_notice=$(location //data/asteria:NOTICE-fast-collocations.txt)",
++        "--genmai_model=$(location //data/asteria:genmai-310M-q8_0.gguf)",
++        "--zenz_notice=$(location //data/asteria:NOTICE-zenz.txt)",
++        "--english_dictionary=$(location //rewriter:AsteriaEnglish.tsv)",
++        "--llm_model=$(location //data/asteria:tinyswallow-1.5b-q5_k_m.gguf)",
++        "--llm_notice=$(location //data/asteria:NOTICE-tinyswallow.txt)",
++        "--llama_dll=$(location @llama_cpp_win//:llama.dll)",
++        "--llama_base=$(location @llama_cpp//:ggml-base.dll)",
++        "--llama_license=$(location @llama_cpp//:LICENSE)",
++        "--ui_ext=$(location @wixui_ext//:wixext5/WixToolset.UI.wixext.dll)",
++        "--license_rtf=$(location //data/asteria:license.rtf)",
++        "--settings_icon=$(location //data/images/win:product_icon.ico)",
++        "--dictionary_icon=$(location //data/images/win:tools_dictionary.ico)",
++        "--banner_bmp=$(location //data/asteria:banner.bmp)",
++        "--dialog_bmp=$(location //data/asteria:dialog.bmp)",
+         "--qt_core_dll=$(location @qt_win//:bin/Qt6Core.dll)",
+         "--wxs_path=$(location " + _WXS_FILE + ")",
+         "--wix_path=$(location @wix//:wix.exe)",
+diff --git a/src/win32/installer/asteria-ja-jp.wxl b/src/win32/installer/asteria-ja-jp.wxl
+new file mode 100644
+index 000000000..cb12e3fc0
+--- /dev/null
++++ b/src/win32/installer/asteria-ja-jp.wxl
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<WixLocalization Culture="ja-JP" Codepage="932" xmlns="http://wixtoolset.org/schemas/v4/wxl">
++  <String Id="ProgressDlgStatusLabel" Value="進行状況" />
++  <String Id="ProgressDlgTextInstalling" Value="Asteriaをインストールしています。完了までそのままお待ちください。" />
++  <String Id="ProgressDlgTextUpdating" Value="Asteriaを更新しています。完了までそのままお待ちください。" />
++</WixLocalization>
+diff --git a/src/win32/installer/build_installer.py b/src/win32/installer/build_installer.py
+index c2e71a077..01785bb70 100644
+--- a/src/win32/installer/build_installer.py
++++ b/src/win32/installer/build_installer.py
+@@ -154,6 +154,33 @@ def run_wix4(args) -> None:
+       '-define', f'MozcTIP64Path={mozc_tip64}',
+       '-define', f'MozcBroker64Path={mozc_broker}',
+       '-define', f'MozcServer64Path={mozc_server}',
++      '-define', f'AsteriaZenzModelPath={pathlib.Path(args.zenz_model).resolve()}',
++      '-define', f'AsteriaZenzGeneratorPath={pathlib.Path(args.zenz_generator).resolve()}',
++      '-define', f'AsteriaGeneratorManifestPath={pathlib.Path(args.generator_manifest).resolve()}',
++      '-define', f'AsteriaShortLexiconPath={pathlib.Path(args.short_lexicon).resolve()}',
++      '-define', f'AsteriaShortLexiconManifestPath={pathlib.Path(args.short_lexicon_manifest).resolve()}',
++      '-define', f'AsteriaShortLexiconNoticePath={pathlib.Path(args.short_lexicon_notice).resolve()}',
++      '-define', f'AsteriaCollocationsPath={pathlib.Path(args.collocations).resolve()}',
++      '-define', f'AsteriaCollocationsManifestPath={pathlib.Path(args.collocations_manifest).resolve()}',
++      '-define', f'AsteriaCollocationsNoticePath={pathlib.Path(args.collocations_notice).resolve()}',
++      '-define', f'AsteriaGenmaiModelPath={pathlib.Path(args.genmai_model).resolve()}',
++      '-define', f'AsteriaZenzNoticePath={pathlib.Path(args.zenz_notice).resolve()}',
++      # Asteria: 第三者の表示は NOTICE-zenz.txt と同じ data/asteria に置く(カード 41)。
++      '-define', f'AsteriaNoticeDir={pathlib.Path(args.zenz_notice).resolve().parent}',
++      '-define', f'AsteriaEnglishDir={pathlib.Path(args.english_dictionary).resolve().parent}',
++      '-define', f'AsteriaLlmModelPath={pathlib.Path(args.llm_model).resolve()}',
++      '-define', f'AsteriaLlmNoticePath={pathlib.Path(args.llm_notice).resolve()}',
++      '-define', f'LlamaRuntimeDir={pathlib.Path(args.llama_dll).resolve().parent}',
++      '-define', f'LlamaBasePath={pathlib.Path(args.llama_base).resolve()}',
++      '-define', f'LlamaLicensePath={pathlib.Path(args.llama_license).resolve()}',
++      '-define', f'AsteriaLicenseRtf={pathlib.Path(args.license_rtf).resolve()}',
++      '-define', f'AsteriaBannerBmp={pathlib.Path(args.banner_bmp).resolve()}',
++      '-define', f'AsteriaDialogBmp={pathlib.Path(args.dialog_bmp).resolve()}',
++      '-define', f'AsteriaSettingsIcon={pathlib.Path(args.settings_icon).resolve()}',
++      '-define', f'AsteriaDictionaryIcon={pathlib.Path(args.dictionary_icon).resolve()}',
++      '-ext', str(pathlib.Path(args.ui_ext).resolve()),
++      '-culture', 'ja-JP',
++      '-loc', str(pathlib.Path(args.wxs_path).parent / 'asteria-ja-jp.wxl'),
+       '-define', f'MozcCacheService64Path={mozc_cache_service}',
+       '-define', f'MozcRenderer64Path={mozc_renderer}',
+       '-define', f'MozcToolPath={mozc_tool}',
+@@ -176,6 +203,66 @@ def run_wix4(args) -> None:
+   exec_command(commands, cwd=os.getcwd())
+ 
+ 
++def verify_generator(model, manifest):
++  # Asteria: 評価した追加生成モデルと違うバイトをMSIへ入れない。
++  import hashlib
++  import json
++  identity = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
++  with pathlib.Path(model).open('rb') as stream:
++    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
++  if pathlib.Path(model).name != identity['filename'] or digest != identity['sha256']:
++    raise ValueError('追加生成モデルの名前またはSHA-256が評価対象と一致しません')
++
++
++def verify_short_lexicon(data_path, manifest, notice_path):
++  # Asteria: 辞書・manifest・帰属を同時に差し替えても固定候補とは認めない。
++  import hashlib
++  import json
++  expected = (('short_lexicon.tsv', '2c6cfc7cac6e33e8c28c21a90b5d67842490ee338833953ad526d61e2454575b'), ('short_lexicon.json', '28a097c09e960939aec029c65872e4aa8624233c6f72d274567ea731d3b8a3ce'), ('NOTICE-short-lexicon.txt', '9b4133cdf29bee4136140da9bd2b890f7f5736dce36b7ec6f941e45f26b33678'))
++  for path, (name, digest) in zip((data_path, manifest, notice_path), expected):
++    path = pathlib.Path(path)
++    if path.name != name or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
++      raise ValueError('短文語彙の名前または固定SHAが一致しません: ' + name)
++  metadata = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
++  if (metadata['output_entries'] != 115318 or
++      metadata['evaluation_labels_used'] is not False or
++      metadata['sha256'] != expected[0][1] or
++      len(pathlib.Path(data_path).read_bytes().splitlines()) != 115318):
++    raise ValueError('短文語彙の件数・評価参照未使用・SHAが不一致です')
++
++
++def verify_collocations(data_path, manifest, notice_path):
++  # Asteria: manifestと辞書を同時に変えても比較対象の代わりにはしない。
++  import hashlib
++  import json
++  expected = 'c615bb88d82db2bdb19f3cc401b785e252d4efebdbd71cf9403538eb6457acc0'
++  revision = '7d9c9ea36347b638a627c1d264da48ebc7eb38aa'
++  source = 'Miwa-Keita/zenz-v2.5-dataset'
++  data = pathlib.Path(data_path).read_bytes()
++  metadata = json.loads(pathlib.Path(manifest).read_text(encoding='utf-8'))
++  notice = pathlib.Path(notice_path).read_text(encoding='utf-8')
++  usage = {
++      'repository': 'hiroyuki-komatsu/japanese-usage-dictionary', 'tag': '2025-01-25',
++      'usage_sha256': '9a5ff4ab0be399e01e6aeb8637a166d421299f92a3c39df93fab6bcbaf3e68b8',
++      'license_sha256': '91e74c9b189a60a3f5ba13b4aa28f87f25ee9252a64d547784e72752d089631a',
++      'cforms_sha256': '947d82de803181bb9df8bb4fede6d0d3c3677c7de88c946ff3a35dbfc2bce0ab',
++  }
++  if (pathlib.Path(data_path).name != 'fast_collocations.txt' or
++      hashlib.sha256(data).hexdigest() != expected or
++      metadata.get('result_sha256') != expected or
++      metadata.get('filename') != 'fast_collocations.txt' or
++      metadata.get('source') != source or metadata.get('revision') != revision or
++      metadata.get('corpus_sha256') != 'f886d411a7565171733edc9a3e6aa5f659affcc030eae277e5a6213165564255' or
++      metadata.get('evaluation_labels_used') is not False or
++      metadata.get('usage_source') != usage or
++      not all(value in notice for value in (usage['repository'], usage['tag'],
++          usage['usage_sha256'], usage['cforms_sha256'], 'BSD-2-Clause',
++          'Hiroyuki Komatsu', 'Shoji Ogura', 'Tsuyoshi Horo')) or
++      metadata.get('combined_entries') != len(data.splitlines()) or
++      not all(value in notice for value in ('CC BY-SA 4.0', source, revision, expected))):
++    raise ValueError('初期連語データまたは出典が固定した比較対象と一致しません')
++
++
+ def main():
+   parser = argparse.ArgumentParser()
+   parser.add_argument('--output', type=str)
+@@ -192,6 +279,23 @@ def main():
+   parser.add_argument('--custom_action', type=str)
+   parser.add_argument('--icon_path', type=str)
+   parser.add_argument('--credit_file', type=str)
++  parser.add_argument('--zenz_model', type=str)
++  parser.add_argument('--zenz_generator', type=str, required=True)
++  parser.add_argument('--generator_manifest', type=str, required=True)
++  parser.add_argument('--short_lexicon', type=str, required=True)
++  parser.add_argument('--short_lexicon_manifest', type=str, required=True)
++  parser.add_argument('--short_lexicon_notice', type=str, required=True)
++  parser.add_argument('--collocations', type=str, required=True)
++  parser.add_argument('--collocations_manifest', type=str, required=True)
++  parser.add_argument('--collocations_notice', type=str, required=True)
++  parser.add_argument('--llama_base', type=str, required=True)
++  parser.add_argument('--genmai_model', type=str)
++  parser.add_argument('--zenz_notice', type=str)
++  parser.add_argument('--english_dictionary', type=str)
++  for name in ('llm_model', 'llm_notice', 'llama_dll', 'llama_license', 'ui_ext',
++               'license_rtf', 'banner_bmp', 'dialog_bmp', 'settings_icon',
++               'dictionary_icon'):
++    parser.add_argument('--' + name, type=str)
+   parser.add_argument('--qt_core_dll', type=str)
+   parser.add_argument('--wxs_path', type=str)
+   parser.add_argument('--wix_path', type=str)
+@@ -220,6 +324,9 @@ def main():
+ 
+   args = parser.parse_args()
+ 
++  verify_generator(args.zenz_generator, args.generator_manifest)
++  verify_short_lexicon(args.short_lexicon, args.short_lexicon_manifest, args.short_lexicon_notice)
++  verify_collocations(args.collocations, args.collocations_manifest, args.collocations_notice)
+   run_wix4(args)
+ 
+ 
+diff --git a/src/win32/installer/installer_oss_64bit.wxs b/src/win32/installer/installer_oss_64bit.wxs
+index e30c37ad4..2cb76cc40 100644
+--- a/src/win32/installer/installer_oss_64bit.wxs
++++ b/src/win32/installer/installer_oss_64bit.wxs
+@@ -48,7 +48,7 @@
+   <?define MozcUniversalInstaller="" ?>
+ <?endif?>
+ 
+-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
++<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+ 
+   <!--
+     It appears that Windows Installer emits error on upgrade saying "Another
+@@ -57,8 +57,8 @@
+     http://msdn.microsoft.com/en-us/library/aa367850.aspx.
+     So we change the product ID for every new version.
+   -->
+-  <Package Name="Asteria" Language="1041" Codepage="932" Version="$(var.MozcVersion)" Manufacturer="Asteria Project" UpgradeCode="$(var.UpgradeCode)" InstallerVersion="500">
+-    <SummaryInformation Keywords="Installer" Description="Asteria インストーラー" Manufacturer="Asteria Project" Codepage="932" />
++  <Package Name="Asteria日本語入力" Language="1041" Codepage="932" Version="$(var.MozcVersion)" Manufacturer="Asteria Project" UpgradeCode="$(var.UpgradeCode)" InstallerVersion="500">
++    <SummaryInformation Keywords="Installer" Description="Asteria日本語入力 インストーラー" Manufacturer="Asteria Project" Codepage="932" />
+ 
+     <!--
+        While obtaining the OS build number from the registry does not seem to be officially
+@@ -101,10 +101,10 @@
+     <Property Id="OS_BUILD_NUMBER" Secure="yes">
+       <RegistrySearch Id="CurrentBuildNumberValue" Type="raw" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" />
+     </Property>
+-    <Launch Condition="(OS_BUILD_NUMBER AND (OS_BUILD_NUMBER &gt;= 17763)) OR (REMOVE=&quot;ALL&quot;)" Message="Asteria をインストールするには Windows 10 1809 以降にアップグレードする必要があります。" />
++    <Launch Condition="(OS_BUILD_NUMBER AND (OS_BUILD_NUMBER &gt;= 17763)) OR (REMOVE=&quot;ALL&quot;)" Message="Asteria日本語入力をインストールするには Windows 10 1809 以降にアップグレードする必要があります。" />
+ 
+     <!-- Check if the user have the administrative privileges. -->
+-    <Launch Condition="Privileged" Message="Asteria をインストールするには管理者権限が必要です。" />
++    <Launch Condition="Privileged" Message="Asteria日本語入力をインストールするには管理者権限が必要です。" />
+     <Media Id="1" Cabinet="Asteria.cab" EmbedCab="yes" CompressionLevel="high" />
+ 
+     <?if $(var.MozcTIP64ArmPath) == "" and $(var.MozcTIP64XPath) == "" and $(var.MozcUniversalInstaller) == "" ?>
+@@ -123,7 +123,7 @@
+     <Property Id="ARPPRODUCTICON" Value="add_remove_program_icon.ico" />
+ 
+     <!-- Disable Modify and Repair buttons. -->
+-    <Property Id="ARPNOMODIFY" Value="1" />
++    <!-- ARPNOMODIFY は WixUI_Minimal が設定する。 -->
+     <Property Id="ARPNOREPAIR" Value="1" />
+ 
+     <!--
+@@ -133,13 +133,150 @@
+     <Upgrade Id="$(var.UpgradeCode)">
+       <UpgradeVersion Minimum="0.0.0.0" IncludeMinimum="yes" Maximum="$(var.MozcVersion)" IncludeMaximum="yes" OnlyDetect="no" Property="UPGRADING" />
+       <UpgradeVersion Minimum="$(var.MozcVersion)" IncludeMinimum="no" OnlyDetect="yes" Property="NEWERVERSIONDETECTED" />
++      <!--
++        Asteria: 6448 より前の版は Program Files (x86)\Asteria に入っている。その版の IME の DLL は Asteria の
++        フォルダの変換エンジンとしか通信しないので、更新の前から開いていたアプリは、Windows を再起動するまで
++        日本語に変換できない(2026-10-24、v2.0.0 → 6452 で確認)。この更新でだけ、完了の画面で再起動を
++        お願いする(最初の画面には書かない。利用者の指定)。アプリを閉じるようには求めない。
++      -->
++      <UpgradeVersion Minimum="0.0.0.0" IncludeMinimum="yes" Maximum="3.34.6448.0" IncludeMaximum="no" OnlyDetect="yes" Property="LEGACYUPGRADING" />
+     </Upgrade>
+ 
++    <!--
++      Asteria: インストーラーの画面は1枚だけ(docs/adr/0072)。「インストール」(更新なら「更新」)、
++      デスクトップのショートカットを作るか、ライセンスへのリンク。同意のクリックはない(同梱物のライセンスは
++      どれも同意を求めない)。押した後は管理者の確認 → 進行 → 完了の画面(「閉じる」だけ。2026-10-24、終わったことが分からないと
++      利用者が指摘して戻した)
++      (利用者が押すのは管理者の確認と、本当に必要なときの再起動の確認だけ)。使い始め方は最初の画面に書く。
++      「アプリを閉じますか」の画面(FilesInUse / MsiRMFilesInUse)は置かない。使用中の IME の DLL は
++      上書きしない作りにしたため。
++      使用中の判定は Restart Manager に任せ、アプリの終了はさせない(DisableShutdown)。Restart Manager を
++      止めると Windows Installer 組み込みの判定になり、ファイル名だけで照合するため、Windows の
++      vcruntime140.dll などを読み込んでいる無関係のプロセス(サービスやほかの IME)を見つけて、削除で
++      「次のアプリケーションを終了する必要があります」を出していた(2026-10-24、6451 の削除。IME の DLL は
++      CRT を静的に持ち、同梱の vcruntime140.dll などを読み込まない)。
++    -->
++    <Property Id="MSIRESTARTMANAGERCONTROL" Value="DisableShutdown" />
++    <!-- デスクトップのショートカット: 前回の選択(desktop_choice)を引き継ぐ。初めてなら作る。 -->
++    <Property Id="DESKTOPCHOICE" Secure="yes">
++      <RegistrySearch Id="DesktopChoiceSearch" Root="HKLM" Key="Software\Asteria\Shortcuts" Name="desktop_choice" Type="raw" Bitness="always64" />
++    </Property>
++    <Property Id="INSTALLDESKTOPSHORTCUT" Secure="yes" />
++    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Value="1" After="AppSearch" Sequence="first" Condition="NOT (DESKTOPCHOICE = &quot;no&quot;)" />
++    <SetProperty Action="SetDesktopChoiceYes" Id="DESKTOPCHOICEOUT" Value="yes" Before="InstallInitialize" Sequence="execute" Condition="INSTALLDESKTOPSHORTCUT" />
++    <SetProperty Action="SetDesktopChoiceNo" Id="DESKTOPCHOICEOUT" Value="no" Before="InstallInitialize" Sequence="execute" Condition="NOT INSTALLDESKTOPSHORTCUT" />
++    <SetProperty Action="SetAsteriaActionInstall" Id="ASTERIAACTION" Value="インストール" After="FindRelatedProducts" Sequence="ui" Condition="NOT UPGRADING" />
++    <SetProperty Action="SetAsteriaActionUpdate" Id="ASTERIAACTION" Value="更新" After="FindRelatedProducts" Sequence="ui" Condition="UPGRADING" />
++    <SetProperty Action="SetAsteriaLeadInstall" Id="ASTERIALEAD" Value="変換精度の高い日本語入力です。入力した文章は外へ送りません。インストール後、Windows キー + Space で選ぶと使えます。" After="FindRelatedProducts" Sequence="ui" Condition="NOT UPGRADING" />
++    <SetProperty Action="SetAsteriaLeadUpdate" Id="ASTERIALEAD" Value="新しい版に更新します。設定・学習・ユーザー辞書は引き継ぎます。使っているアプリを閉じる必要も、再起動もいりません。" After="FindRelatedProducts" Sequence="ui" Condition="UPGRADING AND (NOT LEGACYUPGRADING)" />
++    <!-- 完了の画面の文。導入・更新・旧版からの更新・削除で分ける。 -->
++    <Property Id="ASTERIADONE" Value="終わりました。" />
++    <SetProperty Action="SetAsteriaDoneInstall" Id="ASTERIADONE" Value="インストールが終わりました。Windows キー + Space で「Asteria日本語入力」を選ぶと使えます。" After="FindRelatedProducts" Sequence="ui" Condition="NOT Installed AND NOT UPGRADING" />
++    <SetProperty Action="SetAsteriaDoneUpdate" Id="ASTERIADONE" Value="更新が終わりました。このまま使えます。" After="FindRelatedProducts" Sequence="ui" Condition="NOT Installed AND UPGRADING AND (NOT LEGACYUPGRADING)" />
++    <SetProperty Action="SetAsteriaDoneLegacyUpdate" Id="ASTERIADONE" Value="更新が終わりました。Windows を再起動すると、開いていたアプリでも新しい版で入力できます。" After="FindRelatedProducts" Sequence="ui" Condition="NOT Installed AND UPGRADING AND LEGACYUPGRADING" />
++    <SetProperty Action="SetAsteriaDoneRemove" Id="ASTERIADONE" Value="Asteria日本語入力を削除しました。" After="FindRelatedProducts" Sequence="ui" Condition="Installed AND (REMOVE=&quot;ALL&quot;)" />
++    <SetProperty Action="SetAsteriaLeadLegacyUpdate" Id="ASTERIALEAD" Value="新しい版に更新します。設定・学習・ユーザー辞書は引き継ぎます。開いているアプリを閉じる必要はありません。" After="FindRelatedProducts" Sequence="ui" Condition="UPGRADING AND LEGACYUPGRADING" />
++    <WixVariable Id="WixUILicenseRtf" Value="$(var.AsteriaLicenseRtf)" />
++    <UI Id="AsteriaUI">
++      <TextStyle Id="WixUI_Font_Normal" FaceName="!(loc.Advanced_Font_FaceName)" Size="!(loc.Advanced_Font_Normal_Size)" />
++      <TextStyle Id="WixUI_Font_Bigger" FaceName="!(loc.Advanced_Font_FaceName)" Size="!(loc.Advanced_Font_Bigger_Size)" />
++      <TextStyle Id="WixUI_Font_Title" FaceName="!(loc.Advanced_Font_FaceName)" Size="!(loc.Advanced_Font_Title_Size)" Bold="yes" />
++      <TextStyle Id="AsteriaFont_Heading" FaceName="!(loc.Advanced_Font_FaceName)" Size="14" />
++      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
++      <Property Id="WixUI_Mode" Value="Minimal" />
++      <DialogRef Id="ErrorDlg" />
++      <DialogRef Id="FatalError" />
++      <DialogRef Id="PrepareDlg" />
++      <DialogRef Id="ProgressDlg" />
++      <DialogRef Id="ResumeDlg" />
++      <DialogRef Id="UserExit" />
++      <DialogRef Id="OutOfDiskDlg" />
++      <!--
++        Asteria: 予備の画面。ShutdownServer が Asteria のプログラムを終わらせるので通常は出ない。それでも
++        使用中のファイルが残ったときに、Restart Manager がこの名前の画面を出す(無いとエラー 2803 になる)。
++        アプリを閉じるようには求めず、閉じないまま続けて、終わったあとに再起動をお願いする
++        (MSIRMSHUTDOWN=2。2026-10-24 の利用者の方針)。
++      -->
++      <Dialog Id="MsiRMFilesInUse" Width="370" Height="270" Title="Asteria日本語入力" KeepModeless="yes">
++        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
++        <Control Id="Title" Type="Text" X="135" Y="24" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="{\AsteriaFont_Heading}Asteria日本語入力" />
++        <Control Id="Lead" Type="Text" X="135" Y="68" Width="220" Height="76" Transparent="yes" NoPrefix="yes" Text="Asteria のファイルの一部がまだ使われています。このまま続けて、終わったら Windows の再起動をお願いします。開いているアプリを閉じる必要はありません。" />
++        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
++        <Control Id="OK" Type="PushButton" X="304" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="続ける">
++          <Publish Property="MSIRMSHUTDOWN" Value="2" />
++          <Publish Event="EndDialog" Value="Return" />
++        </Control>
++      </Dialog>
++      <Dialog Id="AsteriaInstallDlg" Width="370" Height="270" Title="Asteria日本語入力">
++        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
++        <Control Id="Title" Type="Text" X="135" Y="24" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="{\AsteriaFont_Heading}Asteria日本語入力" />
++        <Control Id="Lead" Type="Text" X="135" Y="68" Width="220" Height="76" Transparent="yes" NoPrefix="yes" Text="[ASTERIALEAD]" />
++        <Control Id="Desktop" Type="CheckBox" X="135" Y="150" Width="220" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="デスクトップに設定のショートカットを作る" />
++        <Control Id="License" Type="Hyperlink" X="135" Y="206" Width="220" Height="14" Text="&lt;a href=&quot;https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/licenses.md&quot;&gt;ライセンスと同梱しているもの&lt;/a&gt;" />
++        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
++        <Control Id="Install" Type="PushButton" X="220" Y="243" Width="76" Height="17" Default="yes" ElevationShield="yes" Text="[ASTERIAACTION]">
++          <Publish Event="EndDialog" Value="Return" Condition="OutOfDiskSpace &lt;&gt; 1" />
++          <Publish Event="SpawnDialog" Value="OutOfDiskDlg" Condition="OutOfDiskSpace = 1" />
++        </Control>
++        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="キャンセル">
++          <Publish Event="SpawnDialog" Value="CancelDlg" />
++        </Control>
++      </Dialog>
++      <Dialog Id="AsteriaExitDlg" Width="370" Height="270" Title="Asteria日本語入力">
++        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
++        <Control Id="Title" Type="Text" X="135" Y="24" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="{\AsteriaFont_Heading}Asteria日本語入力" />
++        <Control Id="Done" Type="Text" X="135" Y="68" Width="220" Height="76" Transparent="yes" NoPrefix="yes" Text="[ASTERIADONE]" />
++        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
++        <Control Id="Close" Type="PushButton" X="304" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="閉じる">
++          <Publish Event="EndDialog" Value="Return" />
++        </Control>
++      </Dialog>
++      <InstallUISequence>
++        <Show Dialog="AsteriaInstallDlg" Before="ProgressDlg" Condition="NOT Installed" />
++        <Custom Action="StartServer" After="ExecuteAction" Condition="NOT Installed" />
++        <Show Dialog="AsteriaExitDlg" OnExit="success" />
++      </InstallUISequence>
++      <AdminUISequence>
++        <Show Dialog="AsteriaExitDlg" OnExit="success" />
++      </AdminUISequence>
++      <Property Id="ARPNOMODIFY" Value="1" />
++    </UI>
++    <UIRef Id="WixUI_Common" />
++    <WixVariable Id="WixUIBannerBmp" Value="$(var.AsteriaBannerBmp)" />
++    <WixVariable Id="WixUIDialogBmp" Value="$(var.AsteriaDialogBmp)" />
++
+     <UI>
+-      <Error Id="4000" Message="新しいバージョンの Asteria が既にインストールされています。" />
++      <!-- Asteria: 内部のファイル名・置換記号を進行表示へ出さない。 -->
++      <ProgressText Action="InstallValidate" Message="インストールの準備をしています" />
++      <ProgressText Action="InstallFiles" Message="必要なファイルを配置しています" />
++      <!-- Asteria: Windows の既定の表示(「コンポーネントの登録を更新しています」など)は専門用語なので、
++           進行の画面に出るものをすべて普段の言葉にする(2026-10-24)。 -->
++      <ProgressText Action="ProcessComponents" Message="インストールを進めています" />
++      <ProgressText Action="UnpublishFeatures" Message="以前の登録を整理しています" />
++      <ProgressText Action="RemoveFolders" Message="以前のファイルを整理しています" />
++      <ProgressText Action="CreateFolders" Message="フォルダーを用意しています" />
++      <ProgressText Action="StopServices" Message="日本語入力を一時停止しています" />
++      <ProgressText Action="DeleteServices" Message="以前の設定を整理しています" />
++      <ProgressText Action="InstallServices" Message="日本語入力の設定を登録しています" />
++      <ProgressText Action="StartServices" Message="日本語入力を開始しています" />
++      <ProgressText Action="RemoveDuplicateFiles" Message="以前のファイルを整理しています" />
++      <ProgressText Action="RegisterUser" Message="アプリの情報を登録しています" />
++      <ProgressText Action="UnregisterTIP64" Message="日本語入力の登録を外しています" />
++      <ProgressText Action="RegisterTIP64" Message="日本語入力を登録しています" />
++      <ProgressText Action="RemoveFiles" Message="以前のファイルを整理しています" />
++      <ProgressText Action="RemoveExistingProducts" Message="以前のバージョンを更新しています" />
++      <ProgressText Action="CreateShortcuts" Message="ショートカットを作成しています" />
++      <ProgressText Action="RemoveShortcuts" Message="ショートカットを整理しています" />
++      <ProgressText Action="WriteRegistryValues" Message="日本語入力の設定を登録しています" />
++      <ProgressText Action="RemoveRegistryValues" Message="以前の設定を整理しています" />
++      <ProgressText Action="RegisterProduct" Message="アプリの情報を登録しています" />
++      <ProgressText Action="PublishProduct" Message="アプリの登録を仕上げています" />
++      <ProgressText Action="PublishFeatures" Message="インストールを仕上げています" />
++      <ProgressText Action="InstallFinalize" Message="インストールを仕上げています" />
++      <Error Id="4000" Message="新しいバージョンの Asteria日本語入力が既にインストールされています。" />
+     </UI>
+ 
+-    <Feature Id="MozcInstall" Title="Asteria" Level="1">
++    <Feature Id="MozcInstall" Title="Asteria日本語入力" Level="1">
+       <ComponentRef Id="MozcTIP32" />
+       <ComponentRef Id="MozcTIP64" />
+       <?if $(var.MozcTIP64ArmPath) != "" and $(var.MozcTIP64XPath) != "" ?>
+@@ -148,6 +285,29 @@
+       <?endif?>
+       <ComponentRef Id="MozcBroker" />
+       <ComponentRef Id="MozcConverter" />
++      <ComponentRef Id="AsteriaZenzModel" />
++      <ComponentRef Id="AsteriaZenzGenerator" />
++      <ComponentRef Id="AsteriaGeneratorManifest" />
++      <ComponentRef Id="AsteriaShortLexicon" />
++      <ComponentRef Id="AsteriaShortLexiconManifest" />
++      <ComponentRef Id="AsteriaShortLexiconNotice" />
++      <ComponentRef Id="AsteriaCollocations" />
++      <ComponentRef Id="AsteriaCollocationsManifest" />
++      <ComponentRef Id="AsteriaCollocationsNotice" />
++      <ComponentRef Id="AsteriaGenmaiModel" />
++      <ComponentRef Id="AsteriaZenzNotice" />
++      <ComponentRef Id="AsteriaLlmModel" />
++      <ComponentRef Id="AsteriaDesktopShortcut" />
++      <ComponentRef Id="AsteriaStartMenuShortcuts" />
++      <ComponentRef Id="AsteriaLlmNotice" />
++      <ComponentRef Id="AsteriaLlamaLicense" />
++      <ComponentRef Id="AsteriaThirdPartyNotice" />
++      <ComponentRef Id="AsteriaEnglishDictionary" />
++      <ComponentRef Id="AsteriaEnglishSource" />
++      <ComponentRef Id="AsteriaEnglishNotice" />
++      <ComponentRef Id="AsteriaLlvmOpenmpLicense" />
++      <ComponentRef Id="AsteriaGpl3License" />
++      <ComponentGroupRef Id="AsteriaLlamaRuntime" />
+       <ComponentRef Id="MozcCacheService" />
+       <ComponentRef Id="MozcRenderer" />
+       <ComponentRef Id="MozcTool" />
+@@ -190,9 +350,24 @@
+     <CustomAction Id="RestoreServiceState" DllEntry="RestoreServiceState" Impersonate="no" Execute="deferred" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
+     <CustomAction Id="StopCacheServiceForRollback" DllEntry="StopCacheService" Impersonate="no" Execute="rollback" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
+     <CustomAction Id="NewerVersionError" Error="4000" />
++    <!-- Asteria: 使用中の IME の DLL を上書き・削除しないための操作(docs/adr/0072)。 -->
++    <CustomAction Id="RestoreMovedTipRollback" DllEntry="RestoreMovedTip" Execute="rollback" Impersonate="no" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
++    <CustomAction Id="RestoreMovedTipUninstallRollback" DllEntry="RestoreMovedTip" Execute="rollback" Impersonate="no" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
++    <CustomAction Id="MoveAsideOldTip" DllEntry="MoveAsideOldTip" Execute="deferred" Impersonate="no" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
++    <CustomAction Id="StartServer" DllEntry="StartServer" Impersonate="yes" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
++    <CustomAction Id="ShowRemovedMessage" DllEntry="ShowRemovedMessage" Impersonate="yes" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
++    <CustomAction Id="MoveAsideAllTip" DllEntry="MoveAsideAllTip" Execute="deferred" Impersonate="no" Return="ignore" BinaryRef="mozc_installer_helper.dll" />
+ 
+     <InstallExecuteSequence>
+       <Custom Action="InitialInstallation" After="InstallInitialize" Condition="(NOT (REMOVE=&quot;ALL&quot;)) AND (NOT UPGRADING)" />
++      <!--
++        Asteria: 前の版の IME の DLL(入力中のアプリが読み込んでいる)を、前の版を消す前に退ける。
++        前の版の削除はファイルがないとみなし、再起動を求めない。途中で失敗したら元の名前へ戻す。
++      -->
++      <Custom Action="RestoreMovedTipRollback" Before="MoveAsideOldTip" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
++      <Custom Action="MoveAsideOldTip" Before="InstallFiles" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
++      <Custom Action="RestoreMovedTipUninstallRollback" Before="MoveAsideAllTip" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
++      <Custom Action="MoveAsideAllTip" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+       <Custom Action="HideCancelButton" After="InitialInstallation" />
+       <Custom Action="SaveCustomActionData" Before="StopServices" Condition="(NOT (REMOVE=&quot;ALL&quot;))" />
+       <StopServices />
+@@ -208,6 +383,8 @@
+         needs to be callled before the InstallValidate action.
+       -->
+       <Custom Action="ShutdownServer" Before="InstallValidate" />
++      <!-- Asteria: 設定アプリからの削除は簡易な画面で動き、完了の画面が出ないので、最後に知らせる。 -->
++      <Custom Action="ShowRemovedMessage" After="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+       <Custom Action="NewerVersionError" After="FindRelatedProducts" Condition="NEWERVERSIONDETECTED" />
+       <!--
+         RemoveExistingProducts needs to be scheduled between InstallExecute and
+@@ -234,14 +411,79 @@
+       <Custom Action="InitialInstallationCommit" Before="FixupConfigFilePermission" Condition="(NOT (REMOVE=&quot;ALL&quot;)) AND (NOT UPGRADING)" />
+       <Custom Action="FixupConfigFilePermission" Before="EnableTipProfile" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+       <Custom Action="EnableTipProfile" Before="InstallFinalize" Condition="(NOT (REMOVE=&quot;ALL&quot;)) AND (NOT UPGRADING)" />
+-      <!-- show reboot dialog to execute pending file opartions -->
+-      <?if ($(var.VSConfigurationName) = "Release") ?>
+-        <ScheduleReboot After="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;)" />
+-      <?endif?>
++      <!--
++        Asteria: アンインストールでも再起動を求めない。使用中で消せない IME の DLL は退けてあり、
++        使われなくなった時か次の再起動で消える(docs/adr/0072)。
++      -->
+     </InstallExecuteSequence>
+ 
+     <StandardDirectory Id="ProgramFilesFolder">
+-      <Directory Id="MozcDir" Name="Asteria">
++      <Directory Id="MozcDir" Name="Asteria">
++        <Component Id="AsteriaZenzModel">
++          <File Id="zenz_model.gguf" Name="zenz-v2.5-small-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.AsteriaZenzModelPath)" Vital="yes" />
++        </Component>
++        <!-- Asteria: 変換の中心の zenz(genmai-310M、全品質。docs/adr/0085)。 -->
++        <Component Id="AsteriaGenmaiModel">
++          <File Id="genmai_model.gguf" Name="genmai-310M-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.AsteriaGenmaiModelPath)" Vital="yes" />
++        </Component>
++        <!-- Asteria: 追加生成だけに使う学習済みモデルと固定情報。 -->
++        <Component Id="AsteriaZenzGenerator">
++          <File Id="zenz_generator.gguf" Name="zenz-v2.5-native-generator-20261017-q8_0.gguf" DiskId="1" Checksum="yes" Source="$(var.AsteriaZenzGeneratorPath)" Vital="yes" />
++        </Component>
++        <!-- Asteria: コンパイルした追加語彙と同じTSV・出典・全帰属を提供する。 -->
++        <Component Id="AsteriaShortLexicon">
++          <File Id="short_lexicon.tsv" Name="short_lexicon.tsv" DiskId="1" Source="$(var.AsteriaShortLexiconPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaShortLexiconManifest">
++          <File Id="short_lexicon.json" Name="short_lexicon.json" DiskId="1" Source="$(var.AsteriaShortLexiconManifestPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaShortLexiconNotice">
++          <File Id="NOTICE_short_lexicon.txt" Name="NOTICE-short-lexicon.txt" DiskId="1" Source="$(var.AsteriaShortLexiconNoticePath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaCollocations">
++          <File Id="fast_collocations.txt" Name="fast_collocations.txt" DiskId="1" Source="$(var.AsteriaCollocationsPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaCollocationsManifest">
++          <File Id="fast_collocations.json" Name="fast_collocations.json" DiskId="1" Source="$(var.AsteriaCollocationsManifestPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaCollocationsNotice">
++          <File Id="NOTICE_fast_collocations.txt" Name="NOTICE-fast-collocations.txt" DiskId="1" Source="$(var.AsteriaCollocationsNoticePath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaGeneratorManifest">
++          <File Id="native_generator.json" Name="native_generator.json" DiskId="1" Source="$(var.AsteriaGeneratorManifestPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaLlmModel">
++          <File Id="llm_model.gguf" Name="tinyswallow-1.5b-q5_k_m.gguf" DiskId="1" Checksum="yes" Source="$(var.AsteriaLlmModelPath)" Vital="yes" />
++        </Component>
++        <Component Id="AsteriaLlmNotice">
++          <File Id="NOTICE_tinyswallow.txt" Name="NOTICE-tinyswallow.txt" DiskId="1" Source="$(var.AsteriaLlmNoticePath)" />
++        </Component>
++        <Component Id="AsteriaLlamaLicense">
++          <File Id="LICENSE_llama.cpp.txt" Name="LICENSE-llama.cpp.txt" DiskId="1" Source="$(var.LlamaLicensePath)" />
++        </Component>
++        <Component Id="AsteriaZenzNotice">
++          <File Id="NOTICE_zenz.txt" Name="NOTICE-zenz.txt" DiskId="1" Source="$(var.AsteriaZenzNoticePath)" />
++        </Component>
++        <!-- Asteria: 第三者の表示(Qt の差し替え方とソース、LLVM OpenMP、GPL-3.0 の全文。カード 41)。 -->
++        <!-- Asteria: 辞書の加工済みデータとCC BY-SA 3.0の表示を同梱。 -->
++        <Component Id="AsteriaEnglishDictionary">
++          <File Id="AsteriaEnglish.tsv" Name="AsteriaEnglish.tsv" DiskId="1" Source="$(var.AsteriaEnglishDir)\AsteriaEnglish.tsv" />
++        </Component>
++        <Component Id="AsteriaEnglishSource">
++          <File Id="AsteriaEnglish_source.json" Name="AsteriaEnglish-source.json" DiskId="1" Source="$(var.AsteriaEnglishDir)\AsteriaEnglish-source.json" />
++        </Component>
++        <Component Id="AsteriaEnglishNotice">
++          <File Id="NOTICE_katakana_english.txt" Name="NOTICE-katakana-english.txt" DiskId="1" Source="$(var.AsteriaEnglishDir)\NOTICE-katakana-english.txt" />
++        </Component>
++        <Component Id="AsteriaThirdPartyNotice">
++          <File Id="NOTICE_third_party.txt" Name="NOTICE-third-party.txt" DiskId="1" Source="$(var.AsteriaNoticeDir)\NOTICE-third-party.txt" />
++        </Component>
++        <Component Id="AsteriaLlvmOpenmpLicense">
++          <File Id="LICENSE_llvm_openmp.txt" Name="LICENSE-llvm-openmp.txt" DiskId="1" Source="$(var.AsteriaNoticeDir)\LICENSE-llvm-openmp.txt" />
++        </Component>
++        <Component Id="AsteriaGpl3License">
++          <File Id="LICENSE_GPL_3.0.txt" Name="LICENSE-GPL-3.0.txt" DiskId="1" Source="$(var.AsteriaNoticeDir)\LICENSE-GPL-3.0.txt" />
++        </Component>
+         <Component Id="MozcConverter">
+           <File Id="mozc_server.exe" Name="mozc_server.exe" DiskId="1" Checksum="yes" Source="$(var.MozcServer64Path)" Vital="yes" />
+         </Component>
+@@ -270,18 +512,28 @@
+           -->
+           <ServiceControl Id="StopMozcCacheService" Name="AsteriaCacheService" Stop="both" Remove="uninstall" Wait="yes" />
+         </Component>
+-        <Component Id="MozcTIP32" Permanent="no" Bitness="always32">
+-          <File Id="mozc_tip32.dll" Name="mozc_tip32.dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP32Path)" Vital="yes" />
++        <!--
++          Asteria: IME の DLL は版ごとの名前にする(docs/adr/0072)。入力中のアプリが読み込んでいる前の版の DLL を
++          上書きしないので、更新に再起動が要らない。名前は custom_action.cc の VersionedTipName と同じ。
++        -->
++        <!--
++          Asteria: IME の DLL は Windows Installer に消させない(Guid="" の管理しない部品。登録も参照数も残らない)。
++          消す対象にすると、入力中のアプリが読み込んでいるため、アンインストールで「アプリを終了してください」の
++          画面(FilesInUse)が出る。代わりに custom_action の MoveAsideAllTip / MoveAsideOldTip が退けて消す
++          (使用中なら次の再起動で消える)。Permanent にしないのは、部品の登録が製品なしで残るため。
++        -->
++        <Component Id="MozcTIP32" Guid="" Bitness="always32">
++          <File Id="mozc_tip32.dll" Name="mozc_tip32-$(var.MozcVersion).dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP32Path)" Vital="yes" />
+         </Component>
+-        <Component Id="MozcTIP64" Permanent="no" Bitness="always64">
+-          <File Id="mozc_tip64.dll" Name="mozc_tip64.dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64Path)" Vital="yes" />
++        <Component Id="MozcTIP64" Guid="" Bitness="always64">
++          <File Id="mozc_tip64.dll" Name="mozc_tip64-$(var.MozcVersion).dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64Path)" Vital="yes" />
+         </Component>
+         <?if $(var.MozcTIP64ArmPath) != "" and $(var.MozcTIP64XPath) != "" ?>
+-          <Component Id="MozcTIP64Arm" Permanent="no" Bitness="always64">
+-            <File Id="mozc_tip64arm.dll" Name="mozc_tip64arm.dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64ArmPath)" Vital="yes" />
++          <Component Id="MozcTIP64Arm" Guid="" Bitness="always64">
++            <File Id="mozc_tip64arm.dll" Name="mozc_tip64arm-$(var.MozcVersion).dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64ArmPath)" Vital="yes" />
+           </Component>
+-          <Component Id="MozcTIP64X" Permanent="no" Bitness="always64">
+-            <File Id="mozc_tip64x.dll" Name="mozc_tip64x.dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64XPath)" Vital="yes" />
++          <Component Id="MozcTIP64X" Guid="" Bitness="always64">
++            <File Id="mozc_tip64x.dll" Name="mozc_tip64x-$(var.MozcVersion).dll" DiskId="1" Checksum="yes" Source="$(var.MozcTIP64XPath)" Vital="yes" />
+           </Component>
+         <?endif?>
+         <Component Id="MozcBroker" Permanent="no">
+@@ -379,7 +631,49 @@
+       mozc_renderer.exe automatically after user logon.
+     -->
+     <Component Id="PrelaunchProcesses" Directory="TARGETDIR">
+-      <RegistryValue Id="RunBroker" Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Asteria Prelauncher" Action="write" Type="string" Value="&quot;[MozcDir]mozc_broker.exe&quot; --mode=prelaunch_processes" />
++      <RegistryValue Id="RunBroker" Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Asteria" Action="write" Type="string" Value="&quot;[MozcDir]mozc_broker.exe&quot; --mode=prelaunch_processes" />
+     </Component>
++    <!-- Asteria: 設定と辞書ツールのショートカット(デスクトップとスタートメニュー)。 -->
++    <Icon Id="AsteriaSettingsIcon.ico" SourceFile="$(var.AsteriaSettingsIcon)" />
++    <Icon Id="AsteriaDictionaryIcon.ico" SourceFile="$(var.AsteriaDictionaryIcon)" />
++    <StandardDirectory Id="DesktopFolder">
++      <Component Id="AsteriaDesktopShortcut" Condition="INSTALLDESKTOPSHORTCUT">
++        <Shortcut Id="AsteriaDesktopSettings" Name="Asteria" Description="日本語入力とAI変換の設定"
++                  Target="[MozcDir]mozc_tool.exe" Arguments="--mode=config_dialog" WorkingDirectory="MozcDir"
++                  Icon="AsteriaSettingsIcon.ico" />
++        <RegistryValue Root="HKLM" Key="Software\Asteria\Shortcuts" Name="desktop" Type="integer" Value="1" KeyPath="yes" />
++      </Component>
++    </StandardDirectory>
++    <StandardDirectory Id="ProgramMenuFolder">
++      <Directory Id="AsteriaProgramMenu" Name="Asteria">
++        <Component Id="AsteriaStartMenuShortcuts">
++          <Shortcut Id="AsteriaMenuSettings" Name="Asteria" Description="日本語入力とAI変換の設定"
++                    Target="[MozcDir]mozc_tool.exe" Arguments="--mode=config_dialog" WorkingDirectory="MozcDir"
++                    Icon="AsteriaSettingsIcon.ico">
++            <ShortcutProperty Key="System.AppUserModel.ID" Value="Aruiki.Asteria.Support" />
++            <ShortcutProperty Key="System.AppUserModel.ToastActivatorCLSID" Value="{378F9411-77E0-46BD-9E01-A0A14EF95391}" />
++          </Shortcut>
++          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{378F9411-77E0-46BD-9E01-A0A14EF95391}\LocalServer32" Type="string" Value="&quot;[MozcDir]mozc_tool.exe&quot; --mode=support_activation" />
++          <Shortcut Id="AsteriaMenuDictionary" Name="Asteria日本語入力の辞書ツール" Description="ユーザー辞書の編集"
++                    Target="[MozcDir]mozc_tool.exe" Arguments="--mode=dictionary_tool" WorkingDirectory="MozcDir"
++                    Icon="AsteriaDictionaryIcon.ico" />
++          <RemoveFolder Id="RemoveAsteriaProgramMenu" On="uninstall" />
++          <RegistryValue Root="HKLM" Key="Software\Asteria\Shortcuts" Name="startmenu" Type="integer" Value="1" KeyPath="yes" />
++          <!-- Asteria: デスクトップのショートカットを作るかの選択。次の更新で引き継ぐ。 -->
++          <RegistryValue Root="HKLM" Key="Software\Asteria\Shortcuts" Name="desktop_choice" Type="string" Value="[DESKTOPCHOICEOUT]" />
++        </Component>
++      </Directory>
++    </StandardDirectory>
++
++    <!-- Asteria: llama.cpp b11259。baseだけ確保失敗の修正を加えて再構築する。 -->
++    <!-- Asteria: ggml-rpc.dll(別の PC に計算を任せる通信の部品)は使わないので入れない(REQ-15-1、カード 41)。 -->
++    <ComponentGroup Id="AsteriaLlamaRuntime" Directory="MozcDir">
++      <Files Include="$(var.LlamaRuntimeDir)\ggml.dll" />
++      <Files Include="$(var.LlamaBasePath)" />
++      <Files Include="$(var.LlamaRuntimeDir)\ggml-vulkan.dll" />
++      <Files Include="$(var.LlamaRuntimeDir)\ggml-cpu-*.dll" />
++      <Files Include="$(var.LlamaRuntimeDir)\llama.dll" />
++      <Files Include="$(var.LlamaRuntimeDir)\libomp.dll" />
++    </ComponentGroup>
+   </Package>
+ </Wix>

@@ -1,0 +1,25 @@
+[package]
+name = "asteria-eval"
+description = "Asteria IME: 評価・ベンチマーク・セッション検証・大量入力ハーネス"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+asteria-common = { path = "../asteria-common" }
+asteria-corpus = { path = "../asteria-corpus" }
+flate2 = "1"
+rand = "0.9"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sudachi = { package = "suiko-sudachi", version = "0.7" }
+tempfile = "3"
+unicode-normalization = "0.1.25"

@@ -39,12 +39,12 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
 | 何を | 道具 | 基準 |
 | --- | --- | --- |
 | 精度(調整・回帰用) | `mozc/tools/eval_all.sh`(AJIMEE・慣用句・ニュアンス・日常) | 下がらないこと。Mozc より悪くなった問題を見る |
-| 精度(最終評価用) | `eval_baseline.py --data eval/sets/kotori-heldout.json` | **調整に使わない**。報告にだけ使う(eval/README.md) |
+| 精度(最終評価用) | `eval_baseline.py --data eval/sets/asteria-heldout.json` | **調整に使わない**。報告にだけ使う(eval/README.md) |
 | GPU の負荷 | `mozc/tools/cost_bench.py`(AI の稼働率) | GPU の使用率は他のアプリで揺れるので、計算の時間で比べる |
-| Space の待ち・ノート PC | `mozc/tools/space_latency.py KOTORI_LM_DEVICE=cpu` | 固まらない。正解数も出る |
-| 落ちない・待たせない | `mozc/tools/stress_test.py`(GPU と `KOTORI_LM_DEVICE=cpu`) | 異常終了なし、変換の最大が上限内 |
+| Space の待ち・ノート PC | `mozc/tools/space_latency.py ASTERIA_LM_DEVICE=cpu` | 固まらない。正解数も出る |
+| 落ちない・待たせない | `mozc/tools/stress_test.py`(GPU と `ASTERIA_LM_DEVICE=cpu`) | 異常終了なし、変換の最大が上限内 |
 | 予測 | `mozc/eval_predict.py --warm 1`(`--suggest` で入力中の候補) | 当たり・節約文字数・外れ候補の割合 |
-| 単体テスト | `bazelisk test //rewriter:lm_rewriter_test //base:kotori_diagnostics_test //session:session_test` | 通る(CI でも回る) |
+| 単体テスト | `bazelisk test //rewriter:lm_rewriter_test //base:asteria_diagnostics_test //session:session_test` | 通る(CI でも回る) |
 | 設定画面 | `mozc/tools/capture_window.py`(MSI を展開した mozc_tool) | 崩れない。倍率・ダークモード |
 
 評価と調整の環境変数は `mozc/README.md` の一覧。性能表は `docs/PERFORMANCE.md`。
@@ -72,7 +72,7 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   写して 13 個を空にした。今は 1 行ずつ確かめて止まる。`~/mz` 以外の所で Bazel を動かしたら `bazelisk shutdown` してから
   作り直す。壊れたときは、素の Mozc に main のパッチを当てた木から写して戻す(`git worktree add`)。
 - **作業ツリー ~/ag16 でのテスト**: `--repo_env=BAZEL_LLVM=C:/Users/aruik/mz/src/third_party/llvm` を付けないと、
-  「absolute path inclusion(s) found」で止まる。Qt を使うテスト(`//gui/tool:kotori_support_reminder_test`・`//gui/config_dialog:kotori_dashboard_test`)は、
+  「absolute path inclusion(s) found」で止まる。Qt を使うテスト(`//gui/tool:asteria_support_reminder_test`・`//gui/config_dialog:asteria_dashboard_test`)は、
   CI と同じく PowerShell で `$env:PATH` に `third_party/qt/bin`、`QT_PLUGIN_PATH` に `third_party/qt/plugins` を入れ、
   `--test_env=PATH=… --test_env=QT_PLUGIN_PATH=… --test_env=QT_QPA_PLATFORM=offscreen` を付けて bazel で動かす
   (付けないと Qt の DLL が見つからず `Exit -1073741515`、設定画面のテストは止まったままになる)。
@@ -96,32 +96,10 @@ Asteria日本語入力を開発する AI エージェント(Claude Code、Codex 
   ファイルは入れ替わらない。Mozc の `mozc_version.py` は `BUILD = <数>` の数しか読まない(足し算は無視される)。
   CI のログで書き換えが成功していても、**出来上がった MSI の ProductVersion で確かめる**(beta.5 で見落とした)。
 - **内蔵 GPU は既定では AI に使わない**: 専用 GPU(VRAM 3 GiB 以上)だけを使う(docs/adr/0024)。設定「内蔵 GPU で AI を動かす(試験的)」がオンで専用 GPU がないときだけ、内蔵 GPU に zenz を載せ、品質や時間の上限は GPU のない PC と同じにする(docs/adr/0078)。
-- **実入力の計測(eval/imebench)の落とし穴(2026-11-11)**: 道具の窓が前面になれないままキーを送り、チャットの
-  入力欄に打ち込んで送信した(今は前面を確かめ、出せなければ止める)。また、道具を続けて起動すると、指定した IME
-  ではなく直前の IME で変換されることがあり、`GetActiveProfile` では分からない。計測の間を 20 秒ほど空け、
-  Asteria の使用量(`asteria_usage.txt` の `total_conversions`)が Asteria の計測で問の数だけ増え、他の IME の計測で
-  増えないことを必ず確かめる([記録](docs/verification/accuracy-realinput-20261111.md))。
-- **Claude デスクトップアプリの中から動かすと AppData が別の場所になる(2026-11-11)**: アプリは MSIX パッケージなので、
-  そのシェルから起動したプロセス(mozc_tool・計測の道具・それが起こした mozc_server)が `%USERPROFILE%\AppData\LocalLow\Asteria`
-  に書くと `AppData\Local\Packages\Claude_*\LocalCache\LocalLow\Asteria` に振り向けられ、読むときもそちらが優先される。
-  利用者の設定画面(累計 122)と自分で起動した設定画面(134)の数字が食い違い、利用者のプロファイルを「戻した」つもりの写しも
-  そちらに入った。本物のファイルを見るには、パッケージの外でプロセスを起こす
-  (`Invoke-CimMethod Win32_Process -MethodName Create` で `cmd /c copy … D:\…`)。製品の不具合と決める前に確かめる。
-- **評価は道具で流す(2026-11-23)**: 手で評価のループを書くと、`KOTORI_LM_PRELOAD=0` の付け忘れ(AI が動かず
-  前後が同じ数になる)、パスの書き間違い、`--profile` の使い回し(前の回の学習が残る)を起こした。作業ツリーとバイナリは
-  `mozc/tools/setup_mozc_tree.ps1`、前後比較は `mozc/tools/ab_suite.py`(`docs/DEVELOPMENT.md` の 1.3)。
-- **GPU の取り合いで正解数が下がる(2026-11-23)**: 別のアプリが GPU を使っている間に測ると、AI が時間内に終わらない問が出て
-  AJIMEE が 189 → 165/200 に下がった(変更のせいではない)。`ab_suite.py` は GPU の使用率を見て待ち、同時に 1 つしか流さない。
-  並行のセッションでは GPU を使う評価をしない。
-- **`converter_main` は製品の経路の一部だけ**: `eval_baseline.py`(converter_main、KOTORI_LM_PRELOAD=0)は先回りの変換・
-  入力中の取り直し・Space 直後の打ち間違いの補正を通らない。リリースの前は `ab_suite.py --session`(session_eval.py)で
-  前の版と比べる。
-- **MSI の CI の最中に push しない**: 同じ PR に文書だけの commit を push すると、40 分の MSI のビルドが最初からやり直しになる
-  (`cancel-in-progress`)。文書は push の前にまとめる。
 - 旧 Rust 版の CI でだけ落ちるテスト、CRLF、UNIX ソケットのパス長などは `docs/HANDOFF_HISTORY_20261012.md` の「はまりどころ」。
 
 ## コーディング規約
 
-- Mozc のパッチ(C++): Mozc の書き方に合わせる(Google C++ スタイル、`absl`、`// Kotori:` で始まるコメントで
-  Kotori の変更だと分かるようにする)。コメントと文書は日本語。
+- Mozc のパッチ(C++): Mozc の書き方に合わせる(Google C++ スタイル、`absl`、`// Asteria:` で始まるコメントで
+  Asteria の変更だと分かるようにする)。コメントと文書は日本語。
 - 旧 Rust 版: edition 2021、MSRV 1.80、`rustfmt`、`clippy -D warnings`、`unsafe` は FFI 境界だけ(`// SAFETY:`)。

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""zenz-v2.5(Hugging Face の safetensors)を Kotori 用の GGUF にする(docs/SPEC.md 6.4、docs/adr/0007)。
+"""zenz-v2.5(Hugging Face の safetensors)を Asteria 用の GGUF にする(docs/SPEC.md 6.4、docs/adr/0007)。
 
 使い方:
     python training/zenz/convert.py <fetch.sh の出力ディレクトリ> <出力 .gguf> [--outtype f16]
@@ -13,7 +13,7 @@ llama.cpp 本体は変更せず、次の2点だけをこのスクリプトで補
 2. config.json の特殊トークン ID は元モデルのままで、語彙と合っていない(eos_token_id=2 は
    `<s>`)。学習で使われた終端は `</s>`(3)なので、tokenizer_config.json のトークン名から
    ID を引き直す。
-3. 6.4 が必須とするメタデータ `kotori.*` を書き込む。
+3. 6.4 が必須とするメタデータ `asteria.*` を書き込む。
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from conversion import base  # noqa: E402
 
 # zenz-v2.5-small のリビジョン 1e408d69 の vocab.json(training/zenz/zenz-v2.5-small.sha256)。
 ZENZ_VOCAB_SHA256 = "67fd752abb091e649a9bb08bcb2b52b27cd6e3893ff5ee6e391e5555c0a90e0f"
-# fetch.sh が固定したリビジョン。出力の kotori.model_version に書く。
+# fetch.sh が固定したリビジョン。出力の asteria.model_version に書く。
 REVISIONS = {
     "zenz-v2.5-xsmall": "9bfb00e795f89284fe9164f0fbde171d046fc546",
     "zenz-v2.5-small": "1e408d69a7e284efa4e4d63e456f50e363a82953",
@@ -99,10 +99,10 @@ def main() -> None:
         original_prepare(self, vocab_only)
         w = self.gguf_writer
         name = model_dir.name
-        w.add_string("kotori.model_version", f"{name}@{REVISIONS.get(name, 'unknown')}")
-        w.add_string("kotori.vocab_hash", vocab_hash(model_dir))
-        w.add_string("kotori.score_weights", json.dumps(SCORE_WEIGHTS, sort_keys=True))
-        w.add_string("kotori.license", LICENSE)
+        w.add_string("asteria.model_version", f"{name}@{REVISIONS.get(name, 'unknown')}")
+        w.add_string("asteria.vocab_hash", vocab_hash(model_dir))
+        w.add_string("asteria.score_weights", json.dumps(SCORE_WEIGHTS, sort_keys=True))
+        w.add_string("asteria.license", LICENSE)
 
     base.TextModel.get_vocab_base_pre = get_vocab_base_pre
     base.TextModel.prepare_metadata = prepare_metadata

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 同梱する LLM(TinySwallow-1.5B、Apache-2.0)を GGUF の Q5_K_M にする(docs/adr/0016)。
-# モデルはコミットしない。出力は target/kotori/tinyswallow-1.5b-q5_k_m.gguf。
+# モデルはコミットしない。出力は target/asteria/tinyswallow-1.5b-q5_k_m.gguf。
 #
 # 使い方: bash training/llm/make.sh <llama-quantize の実行ファイル>
 #   llama-quantize は llama.cpp の公式ビルド(Windows なら llama-b11259-bin-win-cpu-x64.zip)か、
@@ -17,7 +17,7 @@ python="${PYTHON:-python3}"
 
 REPO="SakanaAI/TinySwallow-1.5B"
 REVISION="535d1322615c9f8171c3d60b10ef6955cc896fe9"
-out="$root/target/kotori"
+out="$root/target/asteria"
 mkdir -p "$out"
 
 src="$("$python" -c "

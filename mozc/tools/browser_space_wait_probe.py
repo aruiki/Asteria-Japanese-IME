@@ -2,7 +2,7 @@
 
 browser_duplicate_probe.pyと同じ一時プロファイルのEdgeとBrowserDuplicateDriverを使う。合否は付けず、
 Space後の各待ち時間でのcompositionupdate（表示の文字列と時刻）とEnter後の確定を記録する。
-利用者本人が実PCでの検証を許可した場合だけ実行する（KOTORI_LOCAL_ACCEPTANCE=owner-approved）。
+利用者本人が実PCでの検証を許可した場合だけ実行する（ASTERIA_LOCAL_ACCEPTANCE=owner-approved）。
 """
 import argparse
 import json
@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--install", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
-    if os.environ.get("KOTORI_LOCAL_ACCEPTANCE") != "owner-approved":
+    if os.environ.get("ASTERIA_LOCAL_ACCEPTANCE") != "owner-approved":
         raise RuntimeError("利用者の許可がある実PCでだけ実行できます")
     from playwright.sync_api import sync_playwright
 

@@ -13,4 +13,4 @@ python -X utf8 training/initial_ranker/collect.py --exe <診断converter_main.ex
 python -X utf8 training/initial_ranker/calibrate.py --model <モデル出力> --calibration <較正原票> --out <新規係数出力>
 ```
 
-診断converterの`--kotori_lattice_trace`は通常false。明示的に指定したCLIだけで、候補の読み/表記をUTF-8のhexと元コストで出す。収集器は欠落・重複・かな/数字が違う読みを拒否する。Composerが英数/括弧の後で揃える句読点のASCII表記だけは同じ読みとして扱う。参照表記の採点は変えない。較正収集v1はこの句読点差2件で失敗し原票を保持、陰性回帰を追加してv2を作成した。
+診断converterの`--asteria_lattice_trace`は通常false。明示的に指定したCLIだけで、候補の読み/表記をUTF-8のhexと元コストで出す。収集器は欠落・重複・かな/数字が違う読みを拒否する。Composerが英数/括弧の後で揃える句読点のASCII表記だけは同じ読みとして扱う。参照表記の採点は変えない。較正収集v1はこの句読点差2件で失敗し原票を保持、陰性回帰を追加してv2を作成した。

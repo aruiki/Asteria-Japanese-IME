@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asteria の設定</title>
+  <link rel="stylesheet" href="settings.css">
+  <script src="settings.js" defer></script>
+</head>
+<body>
+  <div class="loading" id="loading" role="status">
+    <div class="spinner" aria-hidden="true"></div>
+    <div>設定を読み込んでいます…</div>
+  </div>
+
+  <div class="app" id="app" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path fill="#d9c59e" d="M27.22 20.25A12 12 0 1 1 13.77 4.21A10.6 10.6 0 1 0 27.22 20.25Z"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">Asteria</div>
+          <div class="brand-sub">日本語入力の設定</div>
+        </div>
+      </div>
+      <div class="search" role="search">
+        <svg class="icon-search" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6.5 1a5.5 5.5 0 0 1 4.38 8.82l3.65 3.65-.7.7-3.65-3.65A5.5 5.5 0 1 1 6.5 1zm0 1a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
+        <input id="search" type="search" placeholder="設定を検索" aria-label="設定を検索" autocomplete="off" spellcheck="false">
+        <kbd>Ctrl+F</kbd>
+      </div>
+      <nav aria-label="設定のページ">
+        <ul class="nav" id="nav"></ul>
+      </nav>
+      <div class="sidebar-foot" id="foot"></div>
+    </aside>
+    <main class="main" id="main" tabindex="-1"></main>
+  </div>
+
+  <div class="save-state" id="save-state" role="status" aria-live="polite"></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <div class="dialog-body">
+      <h2 class="dialog-title" id="confirm-title"></h2>
+      <p class="dialog-text" id="confirm-text"></p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" id="confirm-cancel">やめる</button>
+      <button class="btn primary" id="confirm-ok"></button>
+    </div>
+  </dialog>
+
+  <dialog id="diagnostics" class="wide" aria-labelledby="diag-title">
+    <div class="dialog-body">
+      <h2 class="dialog-title" id="diag-title">診断情報</h2>
+      <p class="dialog-text">次の内容をファイルに保存します。不具合の報告(GitHub の Issue)に添付してください。入力した文字は含みません。どこにも送信しません。</p>
+      <textarea class="diag" id="diag-text" readonly aria-label="診断情報の中身"></textarea>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" id="diag-close">閉じる</button>
+      <button class="btn primary" id="diag-save">ファイルに保存…</button>
+    </div>
+  </dialog>
+</body>
+</html>

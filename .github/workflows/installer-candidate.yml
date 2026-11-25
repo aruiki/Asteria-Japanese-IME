@@ -6,8 +6,8 @@ on:
       - .github/workflows/installer-candidate.yml
       - eval/imebench/ImeAcceptance.cs
       - eval/imebench/ImeDuplicateStress.cs
-      - mozc/tools/installer_smoke.py
-      - mozc/tools/test_installer_smoke.py
+      - crates/asteria-release/**
+      - crates/asteria-cli/**
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 25
     env:
-      KOTORI_DISPOSABLE_RUNNER: github-hosted
+      ASTERIA_DISPOSABLE_RUNNER: github-hosted
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,9 +38,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '固定MSIを取得できない' }
           $hash = (Get-FileHash installer/Asteria64.msi -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne 'c21972edab537e1ea1473f63312f188b5b533baa700aa77fa9c3111364818c32') { throw '固定MSIのSHA-256が違う' }
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install, exercise native controls, reinstall and uninstall
         shell: pwsh
-        run: python -u -X utf8 mozc/tools/installer_smoke.py --msi installer/Asteria64.msi --out candidate-acceptance --acceptance --reinstall --legacy-candidate
+        run: cargo run --release --locked --bin asteria-tools -- installer-smoke --msi installer/Asteria64.msi --out candidate-acceptance --acceptance --reinstall
       - uses: actions/upload-artifact@v4
         if: always()
         with:

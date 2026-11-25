@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.45" y2="1">
+      <stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#F1F2F6"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#425BA6"/><stop offset="1" stop-color="#202F67"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="0.75" y2="1">
+      <stop stop-color="#526DB9"/><stop offset="1" stop-color="#2B3E7C"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECEEF4"/>
+    </linearGradient>
+    <linearGradient id="beak" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FF9277"/><stop offset="1" stop-color="#EF624A"/>
+    </linearGradient>
+  </defs>
+  <rect x="66" y="70" width="892" height="888" rx="204" fill="#000000" opacity="0.045"/>
+  <rect x="64" y="64" width="896" height="892" rx="204" fill="url(#tile)" stroke="#DFE2EA" stroke-width="2"/>
+  <g stroke-linejoin="round">
+    <path d="M199 391 389 486 652 323 768 380 834 414 768 464 589 739 312 665Z" fill="#142350" opacity="0.07" transform="translate(0 8)"/>
+    <path d="M382 478 652 320 586 736Z" fill="url(#body)"/>
+    <path d="M652 320 766 378 586 736Z" fill="url(#head)" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.5"/>
+    <path d="M766 378 832 412 766 460Z" fill="url(#beak)"/>
+    <path d="M194 380 434 506 586 736 310 662Z" fill="url(#wing)"/>
+    <path d="M194 380 434 506 586 736" fill="none" stroke="#8296D1" stroke-opacity="0.5" stroke-width="2"/>
+    <path d="M652 320 586 736" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="2"/>
+    <circle cx="700" cy="405" r="20" fill="#233463"/>
+  </g>
+</svg>

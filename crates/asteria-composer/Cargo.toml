@@ -1,0 +1,19 @@
+[package]
+name = "asteria-composer"
+description = "Asteria IME: ローマ字かな変換(5.2)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = "2"
+unicode-normalization = "0.1.25"
+
+[dev-dependencies]
+proptest = "1.8.0"

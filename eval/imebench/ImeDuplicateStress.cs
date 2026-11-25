@@ -27,7 +27,7 @@ static class DuplicateNative {
     IntPtr found = IntPtr.Zero;
     EnumWindows((window, unused) => {
       var name = new StringBuilder(128); GetClassNameW(window, name, name.Capacity);
-      if (name.ToString() == "KotoriCandidateWindow" && IsWindowVisible(window)) {
+      if (name.ToString() == "AsteriaCandidateWindow" && IsWindowVisible(window)) {
         found = window; return false;
       }
       return true;
@@ -148,8 +148,8 @@ sealed partial class Acceptance {
     report["duplicate_stress"] = summary;
     // 利用者の実PCでは、合成クリックで前面窓が外れる環境がある（無関係な対照窓でも再現）。
     // そのPCに限り、クリック試験を合格扱いにせず「未検証」として残し、他の試験を続ける。
-    bool skipClick = Environment.GetEnvironmentVariable("KOTORI_LOCAL_ACCEPTANCE") == "owner-approved" &&
-        Environment.GetEnvironmentVariable("KOTORI_SKIP_CLICK") == "environment";
+    bool skipClick = Environment.GetEnvironmentVariable("ASTERIA_LOCAL_ACCEPTANCE") == "owner-approved" &&
+        Environment.GetEnvironmentVariable("ASTERIA_SKIP_CLICK") == "environment";
     summary["click_skipped"] = skipClick;
     var edits = new ImeObservation[] {a, r};
     for (int i = 0; i < edits.Length; i++) {
