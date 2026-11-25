@@ -6,6 +6,8 @@ accepted = [
     "Unlicense",
     "Zlib",
     "Unicode-3.0",
+    # libloading(suiko-sudachi 経由)。MIT と同等の許容型ライセンス。
+    "ISC",
 ]
 # 配布するのは Windows の x64 と x86。
 targets = [
