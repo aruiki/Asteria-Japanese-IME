@@ -1,5 +1,8 @@
 //! 候補ウィンドウのページ分割・配色・行高さ・ヒットテスト計算 (OS 非依存)。
 
+// 定数や色の変換の多くは Windows の win_ui だけが使う。ほかの OS の CI(clippy -D warnings)で dead_code にしない。
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use asteria_proto::renderer::Show;
 
 use crate::placement::Size;
