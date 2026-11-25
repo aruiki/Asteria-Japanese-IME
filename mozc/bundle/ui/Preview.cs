@@ -25,7 +25,7 @@ namespace Asteria.Setup
             };
             foreach (var (name, set) in shots)
             {
-                var model = new SetupModel { Version = "5.4.0" };
+                var model = new SetupModel { Version = "5.5.0" };
                 set(model);
                 var w = new SetupWindow(null, model) { ShowActivated = false, Left = -10000, Top = -10000,
                                                       PreviewElapsed = TimeSpan.FromSeconds(95) };

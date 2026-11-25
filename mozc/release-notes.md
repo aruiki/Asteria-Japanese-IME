@@ -1,109 +1,66 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/asteria-icon-240.png" alt="" width="88">
+</p>
+
 <h2 align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.4.0/Asteria-5.4.0-x64.msi">
-    ⬇ Asteria-5.4.0-x64.msi をダウンロード
-  </a>
+  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.5.0/Asteria-Setup.exe">Asteria-Setup.exe をダウンロード</a>
 </h2>
 
-<p align="center">
-  <strong>Windows 10 / 11・64bit</strong>　·　約1.7 GB　·　無料・オープンソース
-</p>
-
-<p align="center">
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest">
-    <img alt="最新版" src="https://img.shields.io/github/v/release/aruiki/Asteria-Japanese-IME?label=%E6%9C%80%E6%96%B0%E7%89%88&color=111C2D">
-  </a>
-  <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases">
-    <img alt="ダウンロード数" src="https://img.shields.io/github/downloads/aruiki/Asteria-Japanese-IME/total?label=%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89&color=111C2D">
-  </a>
-  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-111C2D?logo=windows">
-  <img alt="オフライン動作" src="https://img.shields.io/badge/AI-%E3%82%AA%E3%83%95%E3%83%A9%E3%82%A4%E3%83%B3-536779">
-</p>
-
-## Asteria とは
-
-前の文まで読む AI が、あなたの PC の中で変換を選ぶ Windows の日本語入力です。打ち方は今までと同じで、Space で変換し、Enter で確定します。
-
-- **前の文で決まる同音語に強い。** 同じ PC・同じ打ち方で、調整に使っていない問題を変換し、最初の候補が正しかった割合を比べました。
-
-  | | Asteria | Google日本語入力 |
-  | --- | ---: | ---: |
-  | 前の文で正解が決まる同音語（300問） | **91%** | 45% |
-  | 日常の短い文（500問） | **95%** | 87% |
-
-  <sub>Google日本語入力 3.34.6260、2026年11月。[測り方と全結果](https://github.com/aruiki/Asteria-Japanese-IME/blob/main/docs/verification/accuracy-realinput-20261111.md)</sub>
-- **打った文章は PC の外へ出ません。** AI のモデルも辞書も PC の中にあり、変換にインターネットを使いません。パスワード欄では日本語入力にならず、学習もしません。
-- **入力モードがアプリごとに戻りません。** アプリや入力欄を移っても、最後に切り替えた日本語・英字のモードを保ちます。
-- **NVIDIA の GPU ならさらに速く(任意)。** 本体を入れたあとに `AsteriaCuda64.msi` を入れると、AI の計算に CUDA を使います。入れなくても動きます。
-- **完全無料・オープンソース。** 有料版も課金も、アカウント登録もありません。
-
-> [!NOTE]
-> インストーラーの実行時に Microsoft Defender SmartScreen の<br>
-> **「WindowsによってPCが保護されました」**
-> という画面が表示される場合があります。下の手順で続けられます。
+<p align="center">Windows 10 / 11（64bit）　約 2.1 GB　無料・オープンソース</p>
 
 ---
 
-## インストールの流れ
+## 5.5.0 で変わったこと
 
-1. 上の **Asteria-5.4.0-x64.msi** をダウンロードして開きます。
-2. SmartScreen が出たら、**詳細情報 → 実行**（下の説明）。
-3. **「インストール」**（入っている場合は「更新」）を押し、Windows の確認（UAC）を許可します。完了の画面が出たら終わりです。
-4. **Windows + Space** で「Asteria日本語入力」を選ぶと使えます。
+**インストーラーが 1 つになりました。** ダウンロードは `Asteria-Setup.exe` だけです。開いて「インストール」を押すと、
+NVIDIA の GPU がある PC では、変換を速くする部品（CUDA）も自動で入ります。今までのように 2 つのファイルを入れ分ける必要はありません。
 
-「開いているアプリを閉じてください」と求めることはありません。
-古い版(v2.0.0 以前)から更新したときだけ、最後に Windows を再起動してください。設定・学習・ユーザー辞書は引き継ぎます。
+<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/installer.png" alt="Asteria のインストーラーの画面。アイコンと名前、インストールのボタンだけがある" width="400"></p>
 
----
+5.4.0 からの変換の速さ（Space を押してから候補が出るまで）も、そのまま引き継いでいます。
 
-## SmartScreenが表示された場合
+## インストール
 
-> [!IMPORTANT]
-> このGitHub Releaseからダウンロードした
-> **`Asteria-5.4.0-x64.msi`**（または `Asteria64.msi`）であることを確認してください。
+1. 上の **Asteria-Setup.exe** を開きます。
+2. 「WindowsによってPCが保護されました」と出たら、**詳細情報 → 実行**（下の説明）。
+3. **インストール** を押し、Windows の確認（UAC）を許可します。
+4. 終わったら **Windows + Space** で「Asteria日本語入力」を選びます。
 
-**1. <kbd>詳細情報</kbd> をクリック**
+前の版が入っていても、そのまま上書きできます。設定・学習・ユーザー辞書は引き継ぎます。
 
-<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-1.png" alt="WindowsによってPCが保護されました の画面で、詳細情報を押す" width="500"></p>
+## 「WindowsによってPCが保護されました」と出たら
 
-**2. アプリ名がダウンロードしたファイルの名前であることを確かめて、<kbd>実行</kbd> をクリック**
+Asteria のインストーラーはコード署名をしていないため、Microsoft Defender SmartScreen がこの画面を出すことがあります。
+ウイルスが見つかったという意味ではありません。
 
-<p align="center"><img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-2.png" alt="詳細情報を開いた画面で、実行を押す" width="500"></p>
+1. <kbd>詳細情報</kbd> を押します。
 
-これで通常のAsteriaインストーラーが起動します。
-**SmartScreenやMicrosoft Defenderを無効にする必要はありません。**
+   <img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-1.png" alt="WindowsによってPCが保護されました の画面で、詳細情報を押す" width="420">
 
-### なぜこの警告が出るの？
+2. アプリ名が `Asteria-Setup.exe` であることを確かめて、<kbd>実行</kbd> を押します。
 
-SmartScreenは、ウイルスの検査だけでなく、ダウンロードしたアプリや発行元に
-**Windows上で十分な「評判（reputation）」があるか**も見ています。
-Asteriaのインストーラーはコード署名をしていないため、この画面が出ることがあります。
+   <img src="https://raw.githubusercontent.com/aruiki/Asteria-Japanese-IME/main/docs/images/smartscreen-2.png" alt="詳細情報を開いた画面で、実行を押す" width="420">
 
-**「WindowsによってPCが保護されました」＝「マルウェアが検出された」ではありません。**
-[Microsoft公式：SmartScreenの評判について](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
+SmartScreen や Microsoft Defender を無効にする必要はありません。具体的な脅威名やマルウェア名が出た場合は、実行しないでください。
+[SmartScreen の評判について（Microsoft）](https://learn.microsoft.com/ja-jp/windows/apps/package-and-deploy/smartscreen-reputation)
 
-<details>
-<summary><strong>安全性をさらに確認する</strong></summary>
+## 添付ファイル
 
-<br>
+| ファイル | 用途 |
+| --- | --- |
+| **Asteria-Setup.exe** | ふつうはこれだけ。本体と、NVIDIA の GPU 向けの高速化を中に持ち、PC に合わせて入れます |
+| Asteria-5.5.0-x64.msi・Asteria64.msi | 本体だけの MSI（管理者の一括導入など） |
+| AsteriaCuda64.msi | NVIDIA の GPU 向けの高速化だけ（本体の MSI の後に入れる） |
+| `*.sha256` | 各ファイルの SHA-256 |
 
-- [ソースコード](https://github.com/aruiki/Asteria-Japanese-IME)
-- [Security Policy](https://github.com/aruiki/Asteria-Japanese-IME/security/policy)
-- ファイルの照合: PowerShell で `Get-FileHash -Algorithm SHA256 .\Asteria-5.4.0-x64.msi` を実行し、添付の `Asteria-5.4.0-x64.msi.sha256` と同じか確かめます。
-
-AsteriaのAIモデル・辞書・日本語変換はPCの中で動き、
-**入力した文章をAsteriaのサーバーや外部AIサービスへ送信しません。**
-
-</details>
-
-> [!WARNING]
-> SmartScreenの「認識されないアプリ」という警告ではなく、
-> Microsoft Defenderなどから**具体的な脅威名やマルウェア名**が表示された場合は実行しないでください。
-
----
+ファイルの照合: PowerShell で `Get-FileHash -Algorithm SHA256 .\Asteria-Setup.exe` を実行し、添付の
+`Asteria-Setup.exe.sha256` と同じか確かめます。
 
 ## 動作環境
 
 - Windows 10 1809 以降 / Windows 11（64bit）、メモリ 8 GB 以上（16 GB 推奨）、ディスク約 1.7 GB
-- AI は Vulkan 対応の専用 GPU（VRAM 3 GiB 以上）で動きます。GPU のない PC は CPU 向けの設定で動きます。
+- AI は Vulkan に対応した専用 GPU（VRAM 3 GB 以上）で動きます。GPU のない PC では CPU 向けの設定で動きます。
 
-[使い方と紹介（README）](https://github.com/aruiki/Asteria-Japanese-IME#readme) ／ [不具合・誤変換を報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
+AI のモデル・辞書・変換はすべて PC の中で動き、入力した文章を外へ送りません。
+
+[README](https://github.com/aruiki/Asteria-Japanese-IME#readme)　[ソースコード](https://github.com/aruiki/Asteria-Japanese-IME)　[不具合・誤変換の報告](https://github.com/aruiki/Asteria-Japanese-IME/issues/new/choose)
