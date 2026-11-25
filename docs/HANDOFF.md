@@ -1,7 +1,7 @@
 # 現在の引き継ぎ（2026-11-25、v5.5.0 を出す）
 
 - v5.5.0 = 1 つの exe のインストーラー `Asteria-Setup.exe`（[ADR0091](adr/0091-one-installer.md)。WPF の画面、NVIDIA の高速化を自動で入れる）。
-  README・リリースノート・紹介動画と GIF を作り直した（[録画の記録](verification/promo-v5-20261125.md)）。
+  README とリリースノートを作り直した（紹介動画と GIF は元のまま。利用者の判断）。
 - 次: カード 98（候補の窓の Rust 化、#245）。
 
 ---
