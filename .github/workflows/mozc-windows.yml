@@ -457,6 +457,21 @@ jobs:
           foreach ($f in 'Asteria64.msi', 'AsteriaCuda64.msi') {
             if ($inside -notcontains (Get-FileHash $f).Hash) { throw "$f がそのまま入っていない" }
           }
+      # 使い捨てのランナーで、画面なし(/quiet)で入れて外す。WPF の画面の流れ(見分け → 計画 → 実行)を通る。
+      # ランナーには NVIDIA の GPU がないので、高速化は入らないことも確かめる。
+      - name: 入れて外す
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'setup-install.log'
+          $p = Start-Process .\Asteria-Setup.exe -ArgumentList "/quiet /norestart /log `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "インストールが $($p.ExitCode) で失敗した" }
+          $dir = "${env:ProgramFiles(x86)}\Asteria"
+          if (-not (Test-Path "$dir\mozc_server.exe")) { throw '本体が入っていない' }
+          if (Test-Path "$dir\cuda\ggml-cuda.dll") { throw 'NVIDIA の GPU がないのに高速化が入った' }
+          $log2 = Join-Path $env:RUNNER_TEMP 'setup-uninstall.log'
+          $p = Start-Process .\Asteria-Setup.exe -ArgumentList "/uninstall /quiet /norestart /log `"$log2`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log2 -Tail 40; throw "アンインストールが $($p.ExitCode) で失敗した" }
+          if (Test-Path "$dir\mozc_server.exe") { throw 'アンインストールの後も本体が残っている' }
       - uses: actions/upload-artifact@v4
         with:
           name: Asteria-Setup.exe
