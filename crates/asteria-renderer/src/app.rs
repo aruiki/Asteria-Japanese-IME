@@ -3,6 +3,7 @@
 #![allow(unsafe_code)]
 
 use std::cell::RefCell;
+use std::os::windows::ffi::OsStrExt;
 use std::sync::mpsc::{channel, Receiver};
 
 use asteria_renderer::layout::{self, Content, Rect};
@@ -89,8 +90,15 @@ fn color(c: Rgb) -> D2D1_COLOR_F {
 }
 
 pub fn run(args: Vec<String>) -> anyhow::Result<()> {
-    let profile = arg(&args, "--profile").ok_or_else(|| anyhow::anyhow!("--profile がない"))?;
-    let version = arg(&args, "--version").unwrap_or_else(|| "0.0.0.0".to_string());
+    // TIP は引数なしで起こす(Mozc の RendererLauncher)。そのときは Mozc と同じ場所・版を自分で求める。
+    let profile = match arg(&args, "--profile") {
+        Some(p) => p,
+        None => default_profile()?,
+    };
+    let version = match arg(&args, "--version") {
+        Some(v) => v,
+        None => sibling_version("mozc_server.exe")?,
+    };
     let sid = asteria_renderer::win::current_user_sid()?;
 
     let mut random = [0u8; 16];
@@ -160,6 +168,57 @@ pub fn run(args: Vec<String>) -> anyhow::Result<()> {
         unsafe { DispatchMessageW(&msg) };
     }
     Ok(())
+}
+
+/// Mozc の Windows のプロファイル(`LocalLow\Asteria`。base/system_util.cc、docs/adr/0072)。
+fn default_profile() -> anyhow::Result<String> {
+    use windows::Win32::UI::Shell::{
+        FOLDERID_LocalAppDataLow, SHGetKnownFolderPath, KF_FLAG_DEFAULT,
+    };
+    // SAFETY: 返された文字列は CoTaskMemFree で解放する。
+    let path = unsafe { SHGetKnownFolderPath(&FOLDERID_LocalAppDataLow, KF_FLAG_DEFAULT, None)? };
+    // SAFETY: SHGetKnownFolderPath が返した NUL 終端の文字列。
+    let s = unsafe { path.to_string()? };
+    // SAFETY: SHGetKnownFolderPath が CoTaskMemAlloc で確保した領域。
+    unsafe { windows::Win32::System::Com::CoTaskMemFree(Some(path.0 as *const _)) };
+    let dir = std::path::Path::new(&s).join("Asteria");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+/// 同じフォルダの実行ファイルの版(`3.34.6518.100` の形)。TIP は版が自分と同じ窓だけを使う。
+fn sibling_version(name: &str) -> anyhow::Result<String> {
+    use windows::Win32::Storage::FileSystem::{
+        GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO,
+    };
+    let exe = std::env::current_exe()?;
+    let path = exe.with_file_name(name);
+    let wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let pcw = PCWSTR(wide.as_ptr());
+    // SAFETY: pcw は NUL 終端で、呼び出しの間生きている。
+    let size = unsafe { GetFileVersionInfoSizeW(pcw, None) };
+    anyhow::ensure!(size > 0, "{} の版を読めない", path.display());
+    let mut data = vec![0u8; size as usize];
+    // SAFETY: data は size バイトある。
+    unsafe { GetFileVersionInfoW(pcw, 0, size, data.as_mut_ptr().cast())? };
+    let mut info: *mut std::ffi::c_void = std::ptr::null_mut();
+    let mut len = 0u32;
+    // SAFETY: data は GetFileVersionInfoW が書いた版の情報。
+    let ok = unsafe { VerQueryValueW(data.as_ptr().cast(), w!("\\"), &mut info, &mut len) };
+    anyhow::ensure!(ok.as_bool() && !info.is_null(), "版の情報がない");
+    // SAFETY: ルート("\\")の値は VS_FIXEDFILEINFO。
+    let f = unsafe { &*(info as *const VS_FIXEDFILEINFO) };
+    Ok(format!(
+        "{}.{}.{}.{}",
+        f.dwProductVersionMS >> 16,
+        f.dwProductVersionMS & 0xffff,
+        f.dwProductVersionLS >> 16,
+        f.dwProductVersionLS & 0xffff
+    ))
 }
 
 fn create_window() -> anyhow::Result<HWND> {

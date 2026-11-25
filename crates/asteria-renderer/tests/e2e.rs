@@ -1,7 +1,12 @@
 //! 実際の asteria-renderer.exe を起こし、Mozc の TIP と同じ手順で命令を送って、窓が出る・消えることを確かめる。
 
 #![cfg(windows)]
-#![allow(unsafe_code, clippy::expect_used, clippy::unwrap_used, clippy::zombie_processes)]
+#![allow(
+    unsafe_code,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::zombie_processes
+)]
 
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
