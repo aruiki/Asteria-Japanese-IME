@@ -15,7 +15,8 @@
 | [READMEヒーロー](assets/hero.png)・1600×720 | リポジトリの紹介 |
 | [短文・長文の告知コピー](announcements.md) | v5.2.0 の SNS・ブログ・配布先の紹介文 |
 | [現行Release本文](release-copy.md) | Release の本文の置き場(mozc/release-notes.md) |
-| [紹介動画](assets/asteria-v3-promo.mp4) | 39 秒。比較グラフと設定画面は 2026-11-11 に更新([記録](../verification/promo-graph-20261111.md)) |
+| [紹介動画](assets/asteria-promo.mp4) | v5.5、約 32 秒、音なし。実際の入力の録画・精度の比較・新しいインストーラー([記録](../verification/promo-v5-20261125.md)、[作り方](make_promo_v5.py)) |
+| [前の紹介動画](assets/asteria-v3-promo.mp4) | v3、39 秒、BGM あり(公式サイト用) |
 | [導入ガイド](../INSTALL.md) | 未署名・SmartScreen・SHA-256の説明 |
 
 ![Asteria紹介画像。変換精度の高い日本語IME。無料・オープンソース。オフラインで使えます。](assets/social.png)
