@@ -136,10 +136,32 @@ namespace Asteria.Setup
 
         // --- いま何をしているか(段階と、扱っているファイル) ---
 
+        // MSI はインストールのときに受け取る(docs/adr/0092)。受け取っている間は大きさの進み具合を出す。
+        private bool _downloading;
+        private bool _downloadFailed;
+
         protected override void OnCacheAcquireBegin(CacheAcquireBeginEventArgs args)
         {
             base.OnCacheAcquireBegin(args);
-            Phase("インストーラーの中身を取り出しています", "");
+            _downloading = args.Action == CacheOperation.Download;
+            Phase(_downloading ? "ダウンロードしています" : "インストーラーの中身を取り出しています", "");
+        }
+
+        protected override void OnCacheAcquireProgress(CacheAcquireProgressEventArgs args)
+        {
+            base.OnCacheAcquireProgress(args);
+            if (_downloading && args.Total > 0)
+            {
+                string detail = ProgressText.Bytes(args.Progress, args.Total);
+                _dispatcher.BeginInvoke(new Action(() => Model.Detail = detail));
+            }
+            if (_canceled) args.Cancel = true;
+        }
+
+        protected override void OnCacheAcquireComplete(CacheAcquireCompleteEventArgs args)
+        {
+            base.OnCacheAcquireComplete(args);
+            if (_downloading && args.Status < 0) _downloadFailed = true;
         }
 
         protected override void OnCacheVerifyBegin(CacheVerifyBeginEventArgs args)
@@ -202,7 +224,10 @@ namespace Asteria.Setup
                 Model.RestartRequired = args.Restart == ApplyRestart.RestartRequired;
                 if (args.Status < 0)
                 {
-                    Fail(args.Status, _canceled ? "セットアップをやめました。" : null);
+                    string message = _canceled ? "セットアップをやめました。"
+                        : _downloadFailed ? "ダウンロードできませんでした。インターネットにつながっているか確かめて、もう一度お試しください。"
+                        : null;
+                    Fail(args.Status, message);
                     return;
                 }
                 _exitCode = 0;

@@ -9,7 +9,7 @@
 ## What's new
 
 - **A new engine written in Rust.** The text service, dictionary, conversion search, learning, IPC server and settings UI are now written in Rust, across 19 crates. The foundation crates use `#![deny(unsafe_code)]`.
-- **One installer.** `Asteria-Setup.exe` installs everything. On PCs with an NVIDIA GPU, it adds the CUDA add-on automatically.
+- **One small installer.** `Asteria-Setup.exe` is about 1 MB and downloads only what your PC needs. On PCs with an NVIDIA GPU, it adds the CUDA add-on automatically.
 - **Updates without restarting.** New versions install without closing your apps or restarting Windows.
 - **Fewer wrong conversions.**
   - Every AI candidate is checked against what you typed, and any whose reading does not match is never shown. Compound words whose sounds change when joined, such as 夜駆け and 支援試合, still come through correctly.
@@ -33,7 +33,7 @@ Against Google Japanese Input / Mozc (v3.34) under the same procedure, total tim
 
 ## Install
 
-1. Download and run [Asteria-Setup.exe](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.5.0/Asteria-Setup.exe). It is the only file you need. On PCs with an NVIDIA GPU, it also installs the CUDA add-on.
+1. Download and run [Asteria-Setup.exe](https://github.com/aruiki/Asteria-Japanese-IME/releases/download/v5.5.0/Asteria-Setup.exe). It is the only file you need (about 1 MB). During setup it downloads Asteria itself (about 1.6 GB), plus the CUDA add-on (about 0.5 GB) on PCs with a supported NVIDIA GPU. An internet connection is needed only while installing.
 2. The installer is not code-signed, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**.
 3. Press **Windows + Space** and choose **Asteria 日本語入力**.
 
