@@ -2,7 +2,7 @@
 //!
 //! 約束(Mozc の ipc/ipc_path_manager.cc・ipc/win32_ipc.cc・renderer/renderer_server.cc):
 //! - プロファイルの `renderer.ipc` に `IPCPathInfo`(鍵・pid・版)をそのまま書く。
-//! - 名前付きパイプ `\.\pipe\kotori.<鍵>.renderer` をメッセージ単位で開く。1 回の書き込みが
+//! - 名前付きパイプ `\\.\pipe\kotori.<鍵>.renderer` をメッセージ単位で開く。1 回の書き込みが
 //!   `RendererCommand` 1 つ。返事は空。
 
 // 生成したコード(Mozc の .proto のコメントをそのまま持つ)には lint をかけない。
@@ -30,7 +30,7 @@ use prost::Message;
 /// Mozc の `IPC_PROTOCOL_VERSION`(ipc/ipc.h)。
 pub const IPC_PROTOCOL_VERSION: u32 = 3;
 /// Mozc の `kIPCPrefix`(base/const.h、Asteria のブランド)。
-pub const IPC_PREFIX: &str = r"\.\pipe\kotori.";
+pub const IPC_PREFIX: &str = r"\\.\pipe\kotori.";
 /// 鍵の長さ(Mozc の kKeySize)。
 pub const KEY_SIZE: usize = 32;
 
@@ -81,7 +81,7 @@ mod tests {
     fn pipe_name_matches_mozc() {
         assert_eq!(
             pipe_name("0123456789abcdef0123456789abcdef"),
-            r"\.\pipe\kotori.0123456789abcdef0123456789abcdef.renderer"
+            r"\\.\pipe\kotori.0123456789abcdef0123456789abcdef.renderer"
         );
     }
 
@@ -123,6 +123,7 @@ mod tests {
 }
 
 pub mod layout;
+pub mod palette;
 
 #[cfg(windows)]
 pub mod win;

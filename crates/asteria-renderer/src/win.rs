@@ -11,12 +11,16 @@ use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle};
 use std::ptr;
 
 use windows_sys::Win32::Foundation::{
-    GetLastError, LocalFree, ERROR_MORE_DATA, ERROR_PIPE_CONNECTED, INVALID_HANDLE_VALUE,
+    GetLastError, LocalFree, ERROR_INSUFFICIENT_BUFFER, ERROR_MORE_DATA, ERROR_PIPE_CONNECTED,
+    INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::Security::Authorization::{
-    ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
 };
-use windows_sys::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
+use windows_sys::Win32::Security::{
+    GetTokenInformation, TokenUser, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY,
+    TOKEN_USER,
+};
 use windows_sys::Win32::Storage::FileSystem::{
     FlushFileBuffers, ReadFile, WriteFile, FILE_FLAG_FIRST_PIPE_INSTANCE, PIPE_ACCESS_DUPLEX,
 };
@@ -24,6 +28,7 @@ use windows_sys::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_MESSAGE,
     PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
 };
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 const BUFFER_SIZE: u32 = 64 * 1024;
 
@@ -46,11 +51,68 @@ impl Drop for LocalBox {
     }
 }
 
+/// このプロセスのユーザー SID(`S-1-5-21-...`)。パイプの DACL に使う(Mozc と同じ)。
+pub fn current_user_sid() -> io::Result<String> {
+    let mut token = ptr::null_mut();
+    // SAFETY: GetCurrentProcess は擬似ハンドル、token は有効な出力先。
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: OpenProcessToken が成功したので token は所有権を持つ有効なハンドル。
+    let token = unsafe { OwnedHandle::from_raw_handle(token) };
+    let mut len = 0u32;
+    // SAFETY: 長さを問い合わせるだけ。
+    let ok = unsafe {
+        GetTokenInformation(
+            token.as_raw_handle(),
+            TokenUser,
+            ptr::null_mut(),
+            0,
+            &mut len,
+        )
+    };
+    // SAFETY: 直前の Win32 呼び出しのエラー値を読むだけ。
+    if ok == 0 && unsafe { GetLastError() } != ERROR_INSUFFICIENT_BUFFER {
+        return Err(io::Error::last_os_error());
+    }
+    let mut buf = vec![0u64; (len as usize).div_ceil(8)];
+    // SAFETY: buf は len バイト以上あり、呼び出しの間生きている。
+    let ok = unsafe {
+        GetTokenInformation(
+            token.as_raw_handle(),
+            TokenUser,
+            buf.as_mut_ptr().cast(),
+            len,
+            &mut len,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: 成功した GetTokenInformation(TokenUser) は buf の先頭に TOKEN_USER を書く。
+    let user = unsafe { &*buf.as_ptr().cast::<TOKEN_USER>() };
+    let mut wstr = ptr::null_mut();
+    // SAFETY: user.User.Sid は buf 内の有効な SID、wstr は有効な出力先。
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut wstr) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let owned = LocalBox(wstr.cast());
+    // SAFETY: ConvertSidToStringSidW は NUL 終端の UTF-16 を返す。
+    let n = unsafe { (0..).take_while(|&i| *wstr.add(i) != 0).count() };
+    // SAFETY: wstr から n 要素は NUL の手前まで読める範囲。
+    let sid = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(wstr, n) });
+    drop(owned);
+    Ok(sid)
+}
+
 /// Mozc の IPC サーバー。1 つのパイプのインスタンスで、1 往復ずつ受ける(Mozc の renderer と同じ)。
 pub struct MessageServer {
     pipe: OwnedHandle,
     _descriptor: LocalBox,
 }
+
+// SAFETY: パイプのハンドルと記述子はこの値だけが持ち、ほかのスレッドと共有しない(受けるスレッドへ移すだけ)。
+unsafe impl Send for MessageServer {}
 
 impl MessageServer {
     /// `name` でパイプを開く。同名のパイプが既にあれば失敗する(乗っ取りの防止)。
