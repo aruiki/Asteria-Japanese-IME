@@ -22,9 +22,6 @@
   <img alt="License" src="https://img.shields.io/badge/License-Apache--2.0%20OR%20MIT-536779">
 </p>
 
-<p align="center">
-  <img src="docs/marketing/assets/hero.png" alt="Asteria — a Japanese IME written in Rust with local GPU AI" width="100%">
-</p>
 
 <h3 align="center">
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria-Setup.exe">Download Asteria-Setup.exe</a>
