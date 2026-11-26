@@ -85,12 +85,17 @@ pub fn pick_best_gpu(
 #[cfg(windows)]
 mod platform {
     use super::{GpuDeviceInfo, GpuKind};
+    use std::collections::HashMap;
     use std::ffi::{c_char, c_void, CStr};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, OnceLock};
     use windows_sys::Win32::Foundation::{FreeLibrary, HMODULE};
     use windows_sys::Win32::System::LibraryLoader::{
         GetProcAddress, LoadLibraryExW, SetDllDirectoryW, LOAD_WITH_ALTERED_SEARCH_PATH,
     };
+
+    type CachedDevs = Vec<(GpuKind, String, usize)>;
+    static PROBE_CACHE: OnceLock<Mutex<HashMap<PathBuf, CachedDevs>>> = OnceLock::new();
 
     const GGML_TYPE_GPU: i32 = 1;
     const GGML_TYPE_IGPU: i32 = 2;
@@ -126,6 +131,14 @@ mod platform {
     type ProbeResult = Result<(bool, Vec<(GpuKind, String, usize)>), String>;
 
     pub fn probe_runtime_gpus(runtime_dir: &Path) -> ProbeResult {
+        let key = std::fs::canonicalize(runtime_dir).unwrap_or_else(|_| runtime_dir.to_path_buf());
+        let cache = PROBE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Ok(guard) = cache.lock() {
+            if let Some(devs) = guard.get(&key) {
+                return Ok((true, devs.clone()));
+            }
+        }
+
         let wide_dir: Vec<u16> = runtime_dir
             .to_string_lossy()
             .encode_utf16()
@@ -203,13 +216,12 @@ mod platform {
                     list.push((kind, name, total));
                 }
             }
-            let _ = FreeLibrary(llama_mod);
-            if let Some(m) = ggml {
-                let _ = FreeLibrary(m);
-            }
-            if let Some(m) = ggml_base {
-                let _ = FreeLibrary(m);
-            }
+            // ggml.dll の static terminate ハンドラ再初期化 (`GGML_ASSERT(prev != ggml_uncaught_exception)`)
+            // を防ぐため、一度ロードした ggml*/llama.dll はプロセス終了まで保持する。
+            let _ = (llama_mod, ggml, ggml_base);
+        }
+        if let Ok(mut guard) = cache.lock() {
+            guard.insert(key, list.clone());
         }
         Ok((true, list))
     }

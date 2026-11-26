@@ -1,4 +1,5 @@
 //! Asteria 設定 GUI (`asteria-config`, WebView2 ホスト + SettingsBridge)。
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 pub mod bridge;
 pub mod downloader;

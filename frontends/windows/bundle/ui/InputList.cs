@@ -25,6 +25,7 @@ namespace Asteria.Setup
                 if (!LegacyDllExists())
                 {
                     result += "legacy-removed=" + InstallLayoutOrTip(LegacyTip, ILOT_UNINSTALL) + " ";
+                    RemoveProfileEntry(LegacyTip);
                 }
                 result += "current-added=" + InstallLayoutOrTip(CurrentTip, 0);
             }
@@ -33,6 +34,18 @@ namespace Asteria.Setup
                 result += "error " + e.GetType().Name;
             }
             return result;
+        }
+
+        private static void RemoveProfileEntry(string tip)
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\International\User Profile\ja", writable: true))
+                {
+                    key?.DeleteValue(tip, throwOnMissingValue: false);
+                }
+            }
+            catch { }
         }
 
         /// <summary>アンインストール時に現在のユーザーの入力方式一覧から Asteria を外す。</summary>

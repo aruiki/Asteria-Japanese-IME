@@ -14,20 +14,21 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::System::Com::{IClassFactory, IClassFactory_Impl};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyState, GetKeyboardState, ToUnicode, VK_CONTROL, VK_MENU, VK_SHIFT,
+    GetKeyState, GetKeyboardState, ToUnicode, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::TextServices::{
     IEnumTfDisplayAttributeInfo, ITfCompartmentEventSink, ITfCompartmentEventSink_Impl,
     ITfCompartmentMgr, ITfComposition, ITfCompositionSink, ITfCompositionSink_Impl, ITfContext,
     ITfContextComposition, ITfDisplayAttributeInfo, ITfDisplayAttributeProvider,
     ITfDisplayAttributeProvider_Impl, ITfDocumentMgr, ITfEditSession, ITfEditSession_Impl,
-    ITfInputScope, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfLangBarItem, ITfLangBarItemMgr,
-    ITfRange, ITfReadOnlyProperty, ITfSource, ITfTextInputProcessor, ITfTextInputProcessorEx,
-    ITfTextInputProcessorEx_Impl, ITfTextInputProcessor_Impl, ITfThreadMgr, ITfThreadMgrEventSink,
-    ITfThreadMgrEventSink_Impl, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_PROP_ATTRIBUTE,
-    GUID_PROP_INPUTSCOPE, TF_AE_NONE, TF_ANCHOR_END, TF_ANCHOR_START, TF_DEFAULT_SELECTION,
-    TF_ES_ASYNCDONTCARE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC, TF_INVALID_COOKIE, TF_SELECTION,
-    TF_SELECTIONSTYLE,
+    ITfInputScope, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfKeystrokeMgr, ITfLangBarItem,
+    ITfLangBarItemMgr, ITfRange, ITfReadOnlyProperty, ITfSource, ITfTextInputProcessor,
+    ITfTextInputProcessorEx, ITfTextInputProcessorEx_Impl, ITfTextInputProcessor_Impl,
+    ITfThreadMgr, ITfThreadMgrEventSink, ITfThreadMgrEventSink_Impl,
+    GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
+    GUID_PROP_ATTRIBUTE, GUID_PROP_INPUTSCOPE, TF_AE_NONE, TF_ANCHOR_END, TF_ANCHOR_START,
+    TF_DEFAULT_SELECTION, TF_ES_ASYNCDONTCARE, TF_ES_READ, TF_ES_READWRITE, TF_ES_SYNC,
+    TF_INVALID_COOKIE, TF_SELECTION, TF_SELECTIONSTYLE,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetAncestor, GetWindowLongPtrW, KillTimer,
@@ -40,10 +41,14 @@ use windows_core::{
 
 use crate::display_attribute::make_enum;
 use crate::engine_bridge::{EngineBridge, EngineOutput};
-use crate::mode_item::{is_keyboard_open, set_keyboard_open, ModeItem};
+use crate::mode_item::{
+    ensure_keyboard_open_default, is_keyboard_open, set_keyboard_open, sync_conversion_mode,
+    ModeItem,
+};
 use crate::text::{
     attribute_guid_bytes, build_composition, focused_range, is_converting, is_open_close_key,
-    is_private_input_scope, last_chars_utf16, MAX_LEFT_CONTEXT,
+    is_passthrough_modifier_or_win, is_private_input_scope, last_chars_utf16, open_close_action,
+    MAX_LEFT_CONTEXT,
 };
 
 pub static G_DLL_REFS: AtomicI32 = AtomicI32::new(0);
@@ -292,6 +297,7 @@ struct Inner {
     private_field: Option<bool>,
     thread_mgr_cookie: u32,
     open_close_cookie: u32,
+    key_sink_advised: bool,
     attr_atoms: [u32; 3],
     candidates_shown: bool,
     mode_item: Option<windows_core::ComObject<ModeItem>>,
@@ -310,6 +316,7 @@ impl Default for Inner {
             private_field: None,
             thread_mgr_cookie: TF_INVALID_COOKIE,
             open_close_cookie: TF_INVALID_COOKIE,
+            key_sink_advised: false,
             attr_atoms: [0; 3],
             candidates_shown: false,
             mode_item: None,
@@ -574,7 +581,7 @@ impl TextService_Impl {
                         } else {
                             ctx_clone.GetStart(cookie)?
                         };
-                        let sink: ITfCompositionSink = return_noop_sink(&inner_ref, &ctx_clone); // replaced below
+                        let sink: ITfCompositionSink = active_comp_sink(&inner_ref);
                         let new_c = cc.StartComposition(cookie, &insert_range, &sink)?;
                         inner_ref.borrow_mut().composition = Some(new_c.clone());
                         new_c
@@ -729,8 +736,14 @@ impl TextService_Impl {
             eng.hide_candidates();
         }
         if let Some(tm) = st.thread_mgr.clone() {
-            // SAFETY: AdviseSink で登録したシンクをすべて解除する。
+            // SAFETY: AdviseSink / AdviseKeyEventSink で登録したシンクをすべて解除する。
             unsafe {
+                if st.key_sink_advised {
+                    if let Ok(km) = tm.cast::<ITfKeystrokeMgr>() {
+                        let _ = km.UnadviseKeyEventSink(st.client_id);
+                    }
+                    st.key_sink_advised = false;
+                }
                 if st.thread_mgr_cookie != TF_INVALID_COOKIE {
                     if let Ok(src) = tm.cast::<ITfSource>() {
                         let _ = src.UnadviseSink(st.thread_mgr_cookie);
@@ -760,19 +773,30 @@ impl TextService_Impl {
 }
 
 #[implement(ITfCompositionSink)]
-struct NoopCompSink;
-impl ITfCompositionSink_Impl for NoopCompSink_Impl {
+struct ActiveCompSink {
+    inner: Rc<RefCell<Inner>>,
+}
+impl ITfCompositionSink_Impl for ActiveCompSink_Impl {
     fn OnCompositionTerminated(
         &self,
         _ecwrite: u32,
         _pcomposition: Option<&ITfComposition>,
     ) -> Result<()> {
+        let mut st = self.inner.borrow_mut();
+        st.composition = None;
+        if let Some(eng) = st.engine.as_mut() {
+            eng.hide_candidates();
+        }
+        st.candidates_shown = false;
         Ok(())
     }
 }
 
-fn return_noop_sink(_inner: &Rc<RefCell<Inner>>, _ctx: &ITfContext) -> ITfCompositionSink {
-    NoopCompSink.into()
+fn active_comp_sink(inner: &Rc<RefCell<Inner>>) -> ITfCompositionSink {
+    ActiveCompSink {
+        inner: Rc::clone(inner),
+    }
+    .into()
 }
 
 impl ITfTextInputProcessor_Impl for TextService_Impl {
@@ -802,8 +826,14 @@ impl ITfTextInputProcessorEx_Impl for TextService_Impl {
         let notify = NotifyWindow::create(self);
         let mode_obj = windows_core::ComObject::new(ModeItem::new(tm.clone(), tid));
 
-        // SAFETY: TSF シンクと言語バー項目を登録する。
+        // SAFETY: TSF キーイベント・言語バー・コンパートメント・スレッドマネージャシンクを登録する。
         unsafe {
+            if let Ok(km) = tm.cast::<ITfKeystrokeMgr>() {
+                let sink = self.as_interface::<ITfKeyEventSink>();
+                if km.AdviseKeyEventSink(tid, &*sink, true).is_ok() {
+                    self.inner.borrow_mut().key_sink_advised = true;
+                }
+            }
             if let Ok(lbm) = tm.cast::<ITfLangBarItemMgr>() {
                 let lb: ITfLangBarItem = mode_obj.to_interface();
                 let _ = lbm.AddItem(&lb);
@@ -825,6 +855,8 @@ impl ITfTextInputProcessorEx_Impl for TextService_Impl {
                 }
             }
         }
+        ensure_keyboard_open_default(&tm, tid, true);
+        mode_obj.notify_update();
 
         let mut st = self.inner.borrow_mut();
         st.thread_mgr = Some(tm);
@@ -852,6 +884,12 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         _lparam: LPARAM,
     ) -> Result<BOOL> {
         let vk = wparam.0 as u32;
+        if key_down(VK_LWIN.0 as i32)
+            || key_down(VK_RWIN.0 as i32)
+            || is_passthrough_modifier_or_win(vk)
+        {
+            return Ok(FALSE);
+        }
         if is_open_close_key(vk) {
             return Ok(TRUE);
         }
@@ -872,14 +910,34 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
 
     fn OnKeyDown(&self, pic: Option<&ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let vk = wparam.0 as u32;
-        if is_open_close_key(vk) {
+        if key_down(VK_LWIN.0 as i32)
+            || key_down(VK_RWIN.0 as i32)
+            || is_passthrough_modifier_or_win(vk)
+        {
+            return Ok(FALSE);
+        }
+        if let Some(target_open) = open_close_action(vk) {
             let (tm_opt, cid) = {
                 let st = self.inner.borrow();
                 (st.thread_mgr.clone(), st.client_id)
             };
             if let Some(tm) = tm_opt {
-                let open = is_keyboard_open(&tm, cid);
-                set_keyboard_open(&tm, cid, !open);
+                let cur = is_keyboard_open(&tm, cid);
+                let next = target_open.unwrap_or(!cur);
+                if !next && self.inner.borrow().composition.is_some() {
+                    if let Some(ctx) = pic {
+                        if let Some(out) = self
+                            .inner
+                            .borrow_mut()
+                            .engine
+                            .as_mut()
+                            .and_then(|e| e.send_command(CommandKind::Commit as u32, 0))
+                        {
+                            self.apply_output(ctx, out);
+                        }
+                    }
+                }
+                set_keyboard_open(&tm, cid, next);
             }
             return Ok(TRUE);
         }
@@ -983,7 +1041,19 @@ impl ITfCompartmentEventSink_Impl for TextService_Impl {
         if !rguid.is_null() {
             // SAFETY: GUID 比較のため非 NULL ポインタを読み取る。
             let g = unsafe { *rguid };
-            if g == GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+            if g == GUID_COMPARTMENT_KEYBOARD_OPENCLOSE
+                || g == GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION
+            {
+                let (tm_opt, cid) = {
+                    let st = self.inner.borrow();
+                    (st.thread_mgr.clone(), st.client_id)
+                };
+                if g == GUID_COMPARTMENT_KEYBOARD_OPENCLOSE {
+                    if let Some(tm) = tm_opt {
+                        let open = is_keyboard_open(&tm, cid);
+                        sync_conversion_mode(&tm, cid, open);
+                    }
+                }
                 if let Some(item) = &self.inner.borrow().mode_item {
                     item.notify_update();
                 }

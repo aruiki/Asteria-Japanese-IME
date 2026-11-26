@@ -15,8 +15,11 @@ use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_R
 use windows::Win32::UI::TextServices::{
     ITfCompartmentMgr, ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl,
     ITfLangBarItemSink, ITfLangBarItem_Impl, ITfMenu, ITfSource, ITfSource_Impl, ITfThreadMgr,
-    TfLBIClick, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, TF_LANGBARITEMINFO,
-    TF_LBI_ICON, TF_LBI_STATUS, TF_LBI_STATUS_HIDDEN, TF_LBI_STYLE_BTN_MENU,
+    TfLBIClick, GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION,
+    GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, GUID_LBI_INPUTMODE, TF_CONVERSIONMODE_ALPHANUMERIC,
+    TF_CONVERSIONMODE_FULLSHAPE, TF_CONVERSIONMODE_NATIVE, TF_CONVERSIONMODE_ROMAN,
+    TF_LANGBARITEMINFO, TF_LBI_ICON, TF_LBI_STATUS, TF_LBI_STYLE_BTN_MENU,
+    TF_LBI_STYLE_SHOWNINTRAY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateIconIndirect, GetSystemMetrics, HICON, ICONINFO, SM_CXSMICON,
@@ -119,16 +122,17 @@ pub fn make_mode_icon(open: bool) -> HICON {
             );
             let _ = GdiFlush();
 
-            let ink: u32 = if light_taskbar() {
-                0x0000_0000
-            } else {
-                0x00FF_FFFF
-            };
+            let light = light_taskbar();
             let px = std::slice::from_raw_parts_mut(bits.cast::<u32>(), (size * size) as usize);
             for p in px {
                 let v = *p;
                 let alpha = (v & 0xFF).max((v >> 8) & 0xFF).max((v >> 16) & 0xFF);
-                *p = (alpha << 24) | ink;
+                // DWM タスクバー合成用にプレミルチプライ済み BGRA にする。
+                *p = if light {
+                    alpha << 24
+                } else {
+                    (alpha << 24) | (alpha << 16) | (alpha << 8) | alpha
+                };
             }
             if !old_font.is_invalid() {
                 SelectObject(dc, old_font);
@@ -174,8 +178,30 @@ pub fn is_keyboard_open(thread_mgr: &ITfThreadMgr, client_id: u32) -> bool {
     }
 }
 
+pub fn sync_conversion_mode(thread_mgr: &ITfThreadMgr, client_id: u32, open: bool) {
+    // SAFETY: Windows 11 モダン IME インジケーター向けに INPUTMODE_CONVERSION を同期する。
+    unsafe {
+        if let Ok(cm) = thread_mgr.cast::<ITfCompartmentMgr>() {
+            if let Ok(conv) = cm.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION) {
+                let mode = if open {
+                    (TF_CONVERSIONMODE_NATIVE
+                        | TF_CONVERSIONMODE_FULLSHAPE
+                        | TF_CONVERSIONMODE_ROMAN) as i32
+                } else {
+                    TF_CONVERSIONMODE_ALPHANUMERIC as i32
+                };
+                let cur = conv.GetValue().ok().and_then(|v| i32::try_from(&v).ok());
+                if cur != Some(mode) {
+                    let v = VARIANT::from(mode);
+                    let _ = conv.SetValue(client_id, &v);
+                }
+            }
+        }
+    }
+}
+
 pub fn set_keyboard_open(thread_mgr: &ITfThreadMgr, client_id: u32, open: bool) {
-    // SAFETY: open/close コンパートメントに VT_I4 を書き込む。
+    // SAFETY: open/close と Windows 11 入力モード表示用の変換モードコンパートメントを更新する。
     unsafe {
         if let Ok(cm) = thread_mgr.cast::<ITfCompartmentMgr>() {
             if let Ok(comp) = cm.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE) {
@@ -183,6 +209,25 @@ pub fn set_keyboard_open(thread_mgr: &ITfThreadMgr, client_id: u32, open: bool) 
                 let _ = comp.SetValue(client_id, &v);
             }
         }
+    }
+    sync_conversion_mode(thread_mgr, client_id, open);
+}
+
+/// スレッドの open/close コンパートメントが未設定 (`VT_EMPTY`) の場合のみ初期値を設定し、
+/// 既に値がある場合でも Windows 11 タスクバー表示用の変換モードを同期する。
+pub fn ensure_keyboard_open_default(thread_mgr: &ITfThreadMgr, client_id: u32, default_open: bool) {
+    // SAFETY: open/close の現在値を確認し、未設定時のみ初期値を書き込む。
+    let existing = unsafe {
+        thread_mgr
+            .cast::<ITfCompartmentMgr>()
+            .ok()
+            .and_then(|cm| cm.GetCompartment(&GUID_COMPARTMENT_KEYBOARD_OPENCLOSE).ok())
+            .and_then(|comp| comp.GetValue().ok())
+            .and_then(|v| i32::try_from(&v).ok())
+    };
+    match existing {
+        None => set_keyboard_open(thread_mgr, client_id, default_open),
+        Some(v) => sync_conversion_mode(thread_mgr, client_id, v != 0),
     }
 }
 
@@ -222,7 +267,7 @@ impl ITfLangBarItem_Impl for ModeItem_Impl {
             let mut info = TF_LANGBARITEMINFO {
                 clsidService: GUID::from_u128(CLSID_TEXT_SERVICE_U128),
                 guidItem: GUID_LBI_INPUTMODE,
-                dwStyle: TF_LBI_STYLE_BTN_MENU,
+                dwStyle: TF_LBI_STYLE_BTN_MENU | TF_LBI_STYLE_SHOWNINTRAY,
                 ulSort: 0,
                 ..Default::default()
             };
@@ -235,8 +280,8 @@ impl ITfLangBarItem_Impl for ModeItem_Impl {
     }
 
     fn GetStatus(&self) -> Result<u32> {
-        let open = is_keyboard_open(&self.thread_mgr, self.client_id);
-        Ok(if open { 0 } else { TF_LBI_STATUS_HIDDEN })
+        // `A` / `あ` のどちらでもタスクバー右下に常にモード表示を出す。
+        Ok(0)
     }
 
     fn Show(&self, _fshow: BOOL) -> Result<()> {

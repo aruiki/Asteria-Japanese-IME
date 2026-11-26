@@ -94,9 +94,27 @@ pub fn is_converting(preedit: &[PreeditSegment]) -> bool {
     preedit.iter().any(|s| s.attribute != 0)
 }
 
-/// IME オン/オフ切替キー (半角/全角 `0xF3`/`0xF4`, `VK_KANJI` `0x19`)。
+/// IME オン/オフ切替キーかどうかを返す。
 pub const fn is_open_close_key(vk: u32) -> bool {
-    matches!(vk, 0xF3 | 0xF4 | 0x19)
+    open_close_action(vk).is_some()
+}
+
+/// IME オン/オフ関連キーの遷移目標を返す (`None` = トグル、`Some(bool)` = 明示 ON/OFF)。
+pub const fn open_close_action(vk: u32) -> Option<Option<bool>> {
+    match vk {
+        // 半角/全角 (`0xF3`/`0xF4`), Alt+` / VK_KANJI (`0x19`) -> トグル
+        0xF3 | 0xF4 | 0x19 => Some(None),
+        // VK_IME_ON (`0x16`), VK_DBE_HIRAGANA (`0xF2`) -> オン (ひらがな)
+        0x16 | 0xF2 => Some(Some(true)),
+        // VK_IME_OFF (`0x1A`) -> オフ (直接入力)
+        0x1A => Some(Some(false)),
+        _ => None,
+    }
+}
+
+/// 単体の修飾キー・Windows/Menu キーなどアプリへそのまま渡すべき仮想キーか判定する。
+pub const fn is_passthrough_modifier_or_win(vk: u32) -> bool {
+    matches!(vk, 0x10..=0x12 | 0x5B | 0x5C | 0x5D | 0xA0..=0xA5)
 }
 
 #[cfg(test)]

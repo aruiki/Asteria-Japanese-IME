@@ -26,7 +26,7 @@
   <a href="https://github.com/aruiki/Asteria-Japanese-IME/releases/latest/download/Asteria-Setup.exe">Download Asteria-Setup.exe</a>
 </h3>
 
-<p align="center"><sub>v5.5.1 · Web Setup (about 1.5 MB) · Windows 10 / 11 64-bit · Free &amp; Open Source</sub></p>
+<p align="center"><sub>v5.5.2 · Web Setup (about 1.5 MB) · Windows 10 / 11 64-bit · Free &amp; Open Source</sub></p>
 
 ---
 
@@ -62,7 +62,7 @@ Most open-source Japanese IMEs are patched forks of legacy C++ engines. **Asteri
 
 ## Accuracy and speed
 
-Measured with `v5.5.1` on `Standard` (`Genmai-310M-q8_0` + `TinySwallow-1.5B-q5_k_m`, NVIDIA GeForce RTX 3060):
+Measured with `v5.5.2` on `Standard` (`Genmai-310M-q8_0` + `TinySwallow-1.5B-q5_k_m`, NVIDIA GeForce RTX 3060):
 
 | Test set | Questions | Acc@1 (Top candidate) | Acc@10 | CER |
 | :--- | ---: | ---: | ---: | ---: |
@@ -118,7 +118,7 @@ The conversion engine itself uses zero legacy C++ IME code (`llama.cpp` is used 
 just ci
 
 # Build Windows MSIs + Web Setup EXE
-.\frontends\windows\build.ps1 -OutDir target\msi-dist -BuildMsi -BuildBundle -MsiVersion 5.5.1
+.\frontends\windows\build.ps1 -OutDir target\msi-dist -BuildMsi -BuildBundle -MsiVersion 5.5.2
 ```
 
 </details>
